@@ -16,6 +16,7 @@ import textwrap
 
 # Custom.
 import access
+import selection
 import organization
 import utility
 
@@ -141,6 +142,10 @@ def define_main_subparser(subparsers=None):
         help="Access raw information from GTEx Portal."
     )
     parser_main.add_argument(
+        "-s", "--selection", dest="selection", action="store_true",
+        help="Selection of tissues and patients of interest."
+    )
+    parser_main.add_argument(
         "-o", "--organization", dest="organization", action="store_true",
         help="Organize information for patients, tissues, samples, genes."
     )
@@ -227,6 +232,11 @@ def evaluate_main_parameters(arguments):
         print("... executing access procedure ...")
         # Execute procedure.
         access.execute_procedure(dock=arguments.dock)
+    if arguments.selection:
+        # Report status.
+        print("... executing selection procedure ...")
+        # Execute procedure.
+        selection.execute_procedure(dock=arguments.dock)
     if arguments.organization:
         # Report status.
         print("... executing organization procedure ...")
