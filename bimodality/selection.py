@@ -14,6 +14,7 @@
 import os
 import math
 import statistics
+import pickle
 
 # Relevant
 
@@ -37,7 +38,7 @@ import utility
 
 def read_source(dock=None):
     """
-    Reads and organizes source information from file
+    Reads and organizes source information from file.
 
     arguments:
         dock (str): path to root or dock directory for source and product
@@ -188,7 +189,7 @@ def filter_samples_tissues_patients(
 
 def collect_patients_tissues_samples(data_samples_tissues_patients=None):
     """
-    Collects tissues and samples for each patient.
+    Collect hierarchical structure of patients, tissues, and samples.
 
     arguments:
         data_samples_tissues_patients (object): Pandas data frame of patients
@@ -204,7 +205,7 @@ def collect_patients_tissues_samples(data_samples_tissues_patients=None):
     samples_tissues_patients = utility.convert_dataframe_to_records(
         data=data_samples_tissues_patients
     )
-    # Collect tissues and samples for each patient.
+    # Collect unique tissues and samples for each patient.
     patients_tissues_samples = dict()
     for record in samples_tissues_patients:
         sample = record["sample"]
@@ -221,6 +222,43 @@ def collect_patients_tissues_samples(data_samples_tissues_patients=None):
             patients_tissues_samples[patient] = dict()
             patients_tissues_samples[patient][tissue] = list([sample])
     return patients_tissues_samples
+
+
+def collect_tissues_patients_samples(data_samples_tissues_patients=None):
+    """
+    Collect hierarchical structure of tissues, patients, and samples.
+
+    arguments:
+        data_samples_tissues_patients (object): Pandas data frame of patients
+            and tissues for all samples.
+
+    raises:
+
+    returns:
+        (dict<dict<list<str>>): Samples for each patient of each tissue.
+
+    """
+
+    samples_tissues_patients = utility.convert_dataframe_to_records(
+        data=data_samples_tissues_patients
+    )
+    # Collect unique patients and samples for each tissue.
+    tissues_patients_samples = dict()
+    for record in samples_tissues_patients:
+        sample = record["sample"]
+        tissue = record["tissue"]
+        patient = record["patient"]
+        # Determine whether an entry already exists for the tissue.
+        if tissue in tissues_patients_samples:
+            # Determine whether an entry already exists for the patient.
+            if patient in tissues_patients_samples[tissue]:
+                tissues_patients_samples[tissue][patient].append(sample)
+            else:
+                tissues_patients_samples[tissue][patient] = list([sample])
+        else:
+            tissues_patients_samples[tissue] = dict()
+            tissues_patients_samples[tissue][patient] = list([sample])
+    return tissues_patients_samples
 
 
 def expand_print_patients_tissues_samples(patients_tissues_samples=None):
@@ -248,50 +286,18 @@ def expand_print_patients_tissues_samples(patients_tissues_samples=None):
     pass
 
 
-def collect_tissues_patients(data_samples_tissues_patients=None):
-    """
-    Collects patients with samples for each tissue.
-
-    arguments:
-        data_samples_tissues_patients (object): Pandas data frame of patients
-            and tissues for all samples.
-
-    raises:
-
-    returns:
-        (dict<dict<int>>): Counts of samples for each tissue from each patient.
-
-    """
-
-    samples_tissues_patients = utility.convert_dataframe_to_records(
-        data=data_samples_tissues_patients
-    )
-    # Collect unique patients with samples for each tissue.
-    tissues_patients = dict()
-    for record in samples_tissues_patients:
-        sample = record["sample"]
-        tissue = record["tissue"]
-        patient = record["patient"]
-        # Determine whether an entry already exists for the tissue.
-        if tissue in tissues_patients:
-            # Determine whether an entry already exists for the patient.
-            if patient in tissues_patients[tissue]:
-                tissues_patients[tissue][patient] += 1
-            else:
-                tissues_patients[tissue][patient] = 1
-        else:
-            tissues_patients[tissue] = dict()
-            tissues_patients[tissue][patient] = 1
-    return tissues_patients
-
-
-def count_tissues_patients(tissues_patients=None):
+def count_tissues_patients(
+    filter=None, tissues=None, patients=None, tissues_patients_samples=None
+):
     """
     Counts patients with samples for each tissue.
 
     arguments:
-        tissues_patients (dict<dict<int>>): Counts of samples for each tissue
-            from each patient.
+        filter (bool): Whether to filter the tissues and patients for counts.
+        tissues (list<str>): Tissues of interest.
+        patients (list<str>): Patients of interest.
+        tissues_patients_samples (dict<dict<list<str>>): Samples for each
+            patient of each tissue.
 
     raises:
 
@@ -302,32 +308,47 @@ def count_tissues_patients(tissues_patients=None):
     """
 
     # Count unique patients with samples for each tissue.
-    # Compile summary.
-    summary = list()
+    coverage = list()
+    # Determine whether to filter tissues.
+    if filter:
+        tissues_relevant = tissues
+    else:
+        tissues_relevant = list(tissues_patients_samples.keys())
     # Iterate on tissues.
-    for tissue in tissues_patients:
+    for tissue in tissues_relevant:
+        # Collect unique patients with samples for tissue.
+        patients_tissue = list(tissues_patients_samples[tissue].keys())
+        # Determine whether to filter patients.
+        if filter:
+            patients_relevant = utility.filter_common_elements(
+                list_one=patients, list_two=patients_tissue
+            )
+        else:
+            patients_relevant = patients_tissue
         # Count patients.
-        patients = len(list(tissues_patients[tissue].keys()))
-        # Compile entry.
-        entry = dict()
-        entry["tissue"] = tissue
-        entry["patients"] = patients
-        # Include entry.
-        summary.append(entry)
-    data_summary = utility.convert_records_to_dataframe(
-        records=summary
-    )
-    data_summary_sort = data_summary.sort_values(
-        "patients", axis=0, ascending=False
-    )
-    return data_summary_sort
+        patients_count = len(patients_relevant)
+        # Compile record.
+        record = dict()
+        record["tissue"] = tissue
+        record["patients"] = patients_relevant
+        record["count"] = patients_count
+        # Include record.
+        coverage.append(record)
+    # Organize data.
+    data = utility.convert_records_to_dataframe(records=coverage)
+    data_sort = data.sort_values("count", axis=0, ascending=False)
+    return data_sort
 
 
-def count_patients_tissues(patients_tissues_samples=None):
+def count_patients_tissues(
+    filter=None, tissues=None, patients_tissues_samples=None
+):
     """
     Counts tissues for which each patient has samples.
 
     arguments:
+        filter (bool): Whether to filter the tissues and patients for counts.
+        tissues (list<str>): Tissues of interest.
         patients_tissues_samples (dict<dict<list<str>>): Samples for each
             tissue of each patient.
 
@@ -340,25 +361,31 @@ def count_patients_tissues(patients_tissues_samples=None):
     """
 
     # Count unique tissues for which each patient has samples.
-    # Compile summary.
-    summary = list()
+    coverage = list()
     # Iterate on patients.
     for patient in patients_tissues_samples:
+        # Collect unique tissues for which patient has samples.
+        tissues_patient = list(patients_tissues_samples[patient].keys())
+        # Determine whether to filter tissues.
+        if filter:
+            tissues_relevant = utility.filter_common_elements(
+                list_one=tissues, list_two=tissues_patient
+            )
+        else:
+            tissues_relevant = tissues_patient
         # Count tissues.
-        tissues = len(list(patients_tissues_samples[patient].keys()))
-        # Compile entry.
-        entry = dict()
-        entry["patient"] = patient
-        entry["tissues"] = tissues
-        # Include entry.
-        summary.append(entry)
-    data_summary = utility.convert_records_to_dataframe(
-        records=summary
-    )
-    data_summary_sort = data_summary.sort_values(
-        "tissues", axis=0, ascending=False
-    )
-    return data_summary_sort
+        tissues_count = len(tissues_relevant)
+        # Compile record.
+        record = dict()
+        record["patient"] = patient
+        record["tissues"] = tissues_relevant
+        record["count"] = tissues_count
+        # Include record.
+        coverage.append(record)
+    # Organize data.
+    data = utility.convert_records_to_dataframe(records=coverage)
+    data_sort = data.sort_values("count", axis=0, ascending=False)
+    return data_sort
 
 
 def count_bins_patients_tissues(data_patients_tissues_counts=None):
@@ -381,17 +408,17 @@ def count_bins_patients_tissues(data_patients_tissues_counts=None):
         data=data_patients_tissues_counts
     )
     # Compile summary.
-    summary = dict()
+    bins = dict()
     # Iterate on patients.
     for record in patients_tissues_counts:
         patient = record["patient"]
-        tissues = record["tissues"]
+        count = record["count"]
         # Determine whether an entry already exists for the bin.
-        if tissues in summary:
-            summary[tissues] += 1
+        if count in bins:
+            bins[count] += 1
         else:
-            summary[tissues] = 1
-    return summary
+            bins[count] = 1
+    return bins
 
 
 def define_test_tissue_sets():
@@ -533,140 +560,65 @@ def define_test_tissue_sets():
     return tissues
 
 
-def collect_coverage_patients(
-    tissues=None, patients_tissues_samples=None
+def filter_patients_tissues_coverage(
+    threshold=None, data_patients_tissues_counts=None
 ):
     """
-    Collects patients with coverage of signals for specific tissues.
+    Filters patients by coverage of selection tissues.
 
     Includes counts of tissues of interest for which each patient misses
     signal.
 
     arguments:
-        tissues (list<str>): Tissues of interest.
-        patients_tissues_samples (dict<dict<list<str>>): Samples for each
-            tissue of each patient.
+        threshold (int): Count of selection tissues which a patient must have.
+        data_patients_tissues_counts (object): Pandas data frame of counts of
+            tissues for which each patient has samples.
 
     raises:
 
     returns:
-        (object): Pandas data frame of counts of tissues for which each patient
-            misses signal.
+        (list<str>): Patients with signal for selection tissues.
 
     """
 
-    # Collect tissues and samples for each patient.
-    coverage_patients = list()
-    # Iterate on patients.
-    for patient in patients_tissues_samples:
-        # Count tissues.
-        tissues_patient = list(patients_tissues_samples[patient].keys())
-        # Determine count of tissues for which patient misses signal.
-        misses = list()
-        for tissue in tissues:
-            if tissue not in tissues_patient:
-                misses.append(tissue)
-        misses_count = len(misses)
-        record = {
-            "patient": patient,
-            "misses": misses_count,
-        }
-        coverage_patients.append(record)
-    # Create a data frame and sort by counts.
-    data = utility.convert_records_to_dataframe(
-        records=coverage_patients
-    )
-    data_sort = data.sort_values(
-        "misses", axis=0, ascending=True
-    )
-    return data_sort
-
-
-def collect_coverage_tissues(
-    tissues=None, patients=None, data_samples_tissues_patients=None
-):
-    """
-    Collects patients with coverage of signals for specific tissues.
-
-    Includes counts of tissues of interest for which each patient misses
-    signal.
-
-    arguments:
-        tissues (list<str>): Tissues of interest.
-        patients (list<str>): Patients of interest.
-        data_samples_tissues_patients (object): Pandas data frame of patients
-            and tissues for all samples.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of counts of patients with samples for each
-            tissue.
-
-    """
-
-    # Collect unique patients with samples for each tissue.
-    tissues_patients = collect_tissues_patients(
-        data_samples_tissues_patients=data_samples_tissues_patients
-    )
-    # Count unique patients with samples for each tissue.
-    coverage_tissues = list()
-    # Iterate on tissues.
-    for tissue in tissues:
-        # Filter patients.
-        tissue_patients = list(tissues_patients[tissue].keys())
-        tissue_patients_filter = utility.filter_common_elements(
-            list_one=patients, list_two=tissue_patients
-        )
-        count_tissue_patients = len(tissue_patients_filter)
-        # Compile record.
-        record = dict()
-        record["tissue"] = tissue
-        record["patients"] = tissue_patients_filter
-        record["count"] = count_tissue_patients
-        # Include record.
-        coverage_tissues.append(record)
-    data_coverage_tissues = utility.convert_records_to_dataframe(
-        records=coverage_tissues
-    )
-    data_coverage_tissues_sort = data_coverage_tissues.sort_values(
-        "count", axis=0, ascending=False
-    )
-    return data_coverage_tissues_sort
-
-
-def filter_tissues_coverage_patients(
-    threshold=None, data_coverage_patients=None
-):
-    """
-    Filters patients by coverage of specific tissues.
-
-    Includes counts of tissues of interest for which each patient misses
-    signal.
-
-    arguments:
-        threshold (int): Count of permissible tissues which a patient can miss.
-        data_coverage_patients (object): Pandas data frame of counts of
-            tissues for which each patient misses signal.
-
-    raises:
-
-    returns:
-        (list<str>): Patients with signal for tissues of interest.
-
-    """
-
-    tissues_coverage_patients = utility.convert_dataframe_to_records(
-        data=data_coverage_patients
+    patients_tissues_counts = utility.convert_dataframe_to_records(
+        data=data_patients_tissues_counts
     )
     patients = list()
-    for record in tissues_coverage_patients:
+    for record in patients_tissues_counts:
         patient = record["patient"]
-        misses = record["misses"]
+        count = record["count"]
         # Determine whether the patient has few enough misses.
-        if misses <= threshold:
+        if count >= threshold:
             patients.append(patient)
     return patients
+
+
+def write_product(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection")
+    utility.confirm_path_directory(path_selection)
+    path_tissues = os.path.join(path_selection, "tissues.pickle")
+    path_patients = os.path.join(path_selection, "patients.pickle")
+    # Write information to file.
+    with open(path_tissues, "wb") as file_product:
+        pickle.dump(information["tissues"], file_product)
+    with open(path_patients, "wb") as file_product:
+        pickle.dump(information["patients"], file_product)
 
 
 ###############################################################################
@@ -725,16 +677,12 @@ def execute_procedure(dock=None):
 
     # Summarize organization of data.
     utility.print_terminal_partition(level=1)
-    print("Selection of tissues and patients of interest.")
+    print("Hierarchical organization of samples.")
 
-    # Collect samples by their patients and tissues.
-    # Collect matches of samples, tissues, and patients.
+    # Organize samples by hierarchy of patients and tissues.
+    # Collect tissues and patients for each sample.
     utility.print_terminal_partition(level=2)
-    print("Collection of patients and tissues that correspond to each sample.")
-    print(
-        "data hierarchy is " +
-        "patients (714) -> tissues (?) -> samples (?) -> genes (~20,000)"
-    )
+    print("Collection of tissues and patients for each sample.")
     print("Extract patient identifiers from sample identifiers.")
     #GTEX-1117F-0226-SM-5GZZ7
     identifier = (
@@ -748,11 +696,19 @@ def execute_procedure(dock=None):
         data_attribute_sample=source["data_attribute_sample"]
     )
     print(data_samples_tissues_patients.iloc[0:10, :])
+    print(data_samples_tissues_patients.shape)
 
+    # Organization of samples by patients and tissues.
     # Collect unique patients, unique tissues for each patient, and unique
     # samples for each tissue of each patient.
     utility.print_terminal_partition(level=2)
+    print("Organization of samples by hierarchy of patients and tissues.")
     print("Collection of hierarchical groups by patient, tissue, and sample.")
+    utility.print_terminal_partition(level=4)
+    print(
+        "data hierarchy is " +
+        "patients (714) -> tissues (30) -> samples (11688) -> genes (~20,000)"
+    )
     patients_tissues_samples = collect_patients_tissues_samples(
         data_samples_tissues_patients=data_samples_tissues_patients
     )
@@ -765,7 +721,34 @@ def execute_procedure(dock=None):
     print("Printing groups for patient 'GTEX-14LZ3'... ")
     print(patients_tissues_samples["GTEX-14LZ3"])
 
-    # Summarize counts of patients for each tissue.
+    # Organization of samples by tissues and patients.
+    # Collect unique tissues, unique patients for each tissue, and unique
+    # samples for each patient of each tissue.
+    utility.print_terminal_partition(level=2)
+    print("Organization of samples by hierarchy of tissues and patients.")
+    print("Collection of hierarchical groups by tissue, patient, and sample.")
+    utility.print_terminal_partition(level=4)
+    print(
+        "data hierarchy is " +
+        "tissue (30) -> patients (714) -> samples (11688) -> genes (~20,000)"
+    )
+    tissues_patients_samples = collect_tissues_patients_samples(
+        data_samples_tissues_patients=data_samples_tissues_patients
+    )
+    print("Printing first 10 unique tissues...")
+    print(list(tissues_patients_samples.keys())[:9])
+    print("Printing groups for tissue 'Bladder'... ")
+    print(tissues_patients_samples["Bladder"])
+
+    ##################################################
+    ##################################################
+    ##################################################
+
+    # Selection of tissues and patients of interest.
+    utility.print_terminal_partition(level=1)
+    print("Selection of tissues and patients of interest.")
+
+    # Count patients with samples for each tissue.
     # How many patients have samples for each tissue?
     ##################################################
     # tissue patients
@@ -775,19 +758,15 @@ def execute_procedure(dock=None):
     ##################################################
     utility.print_terminal_partition(level=2)
     print("Counts of patients with samples for each tissue.")
-    tissues_patients = collect_tissues_patients(
-        data_samples_tissues_patients=data_samples_tissues_patients
+    data_tissues_patients_counts = count_tissues_patients(
+        filter=False,
+        tissues=[],
+        patients=[],
+        tissues_patients_samples=tissues_patients_samples
     )
-    #print(tissues_patients)
-    #print(tissues_patients["Blood"])
-    tissues_patients_counts = count_tissues_patients(
-        tissues_patients=tissues_patients
-    )
-    print(tissues_patients_counts)
+    print(data_tissues_patients_counts)
 
-    # Summarize counts of patients for each count of tissues.
-    # How many patients have samples for each count of tissues?
-    # Count tissues for each patient.
+    # Count tissues for which each patient has samples.
     ##################################################
     # patient tissues
     # alice   3
@@ -798,10 +777,13 @@ def execute_procedure(dock=None):
     utility.print_terminal_partition(level=2)
     print("Counts of tissues for which each patient has samples.")
     data_patients_tissues_counts = count_patients_tissues(
+        filter=False,
+        tissues=[],
         patients_tissues_samples=patients_tissues_samples
     )
     print(data_patients_tissues_counts)
 
+    # How many patients have samples for each count of tissues?
     # Populate bins of patients with each count of tissues.
     # Plot histogram.
     ##################################################
@@ -812,70 +794,68 @@ def execute_procedure(dock=None):
     ##################################################
     utility.print_terminal_partition(level=2)
     print("Counts of patients with samples for each count of tissues.")
-    patients_tissues_counts_bins = count_bins_patients_tissues(
+    data_patients_tissues_counts_bins = count_bins_patients_tissues(
         data_patients_tissues_counts=data_patients_tissues_counts
     )
-    print(patients_tissues_counts_bins)
+    print(data_patients_tissues_counts_bins)
+
+    ##################################################
+    ##################################################
+    ##################################################
+
 
     # Define tissues of interest.
     utility.print_terminal_partition(level=2)
-    print("Define tissues of interest.")
+    print("Selection of tissues of interest.")
     print("Call these tissues the selection tissues.")
     #tissues_sets = define_test_tissue_sets()
-
     tissues = [
         "Skin", "Muscle", "Adipose Tissue", "Esophagus", "Thyroid", "Lung",
         "Blood", "Nerve", "Heart", "Colon",
     ]
+    tissues_count = len(tissues)
     print(tissues)
+    print("count of selection tissues: " + str(tissues_count))
 
-    # Collect patients with samples for all of a combination of tissues.
-    # Collect information about how many tissues each patient is missing.
-    ##################################################
-    # patient missing_tissues
-    # alice   0
-    # john    0
-    # paul    0
-    # mary    1
-    # jim     1
-    # susan   1
-    # phil    2
-    # rachel  3
-    ##################################################
+
+    # Collect patients with samples for all of the selection tissues.
     utility.print_terminal_partition(level=2)
     print(
-        "Collection of patients with adequate coverage of samples for " +
-        "tissues of interest."
+        "Counts of selection tissues for which each patient has samples."
     )
-    print("Allow for fewer than 4 missing tissues for each patient.")
+    data_patients_tissues_coverage = count_patients_tissues(
+        filter=True,
+        tissues=tissues,
+        patients_tissues_samples=patients_tissues_samples
+    )
+    print(data_patients_tissues_coverage)
+    #print(data_signal_gene_mean.loc["GTEX-12WSD", ])
+    # Filter for those patients which miss fewer than 4 selection tissues.
+    print("Allow each patient to miss fewer than 4 selection tissues.")
     print(
         "Hence the extent of imputation will be less than 40% of tissues " +
         "for each patient."
     )
-    print("Also consider extent of imputation for each tissue.")
-    data_coverage_patients = collect_coverage_patients(
-        tissues=tissues,
-        patients_tissues_samples=patients_tissues_samples
+    misses = 3
+    matches = tissues_count - misses
+    summary_patients_coverage = (
+        data_patients_tissues_coverage.loc[
+            data_patients_tissues_coverage["count"] >= matches
+        ]
     )
-    #print(data_coverage_patients)
-    #print(data_signal_gene_mean.loc["GTEX-12WSD", ])
-    # Filter for those patients which miss less than 4 tissues of interest.
-    summary_coverage_patients = (
-        data_coverage_patients.loc[data_coverage_patients["misses"] < 4]
-    )
-    print(summary_coverage_patients)
+    print(summary_patients_coverage)
     print(
-        "count of patients: " + str(summary_coverage_patients.shape[0])
+        "count of selection patients: " +
+        str(summary_patients_coverage.shape[0])
     )
 
     # Filter for patients with adequate coverage of tissues of interest.
-
-    patients = filter_tissues_coverage_patients(
-        threshold=3,
-        data_coverage_patients=data_coverage_patients
+    patients = filter_patients_tissues_coverage(
+        threshold=matches,
+        data_patients_tissues_counts=data_patients_tissues_coverage
     )
     print(patients)
-    print("count of patients: " + str(len(patients)))
+    print("count of selection patients: " + str(len(patients)))
     print("Call these patients the selection patients.")
 
     # Collect selection patients that have samples for each tissue.
@@ -896,42 +876,25 @@ def execute_procedure(dock=None):
     print(
         "Summary of extent of imputation necessary for each tissue."
     )
-    data_coverage_tissues = collect_coverage_tissues(
+    data_tissues_patients_coverage = count_tissues_patients(
+        filter=True,
         tissues=tissues,
         patients=patients,
-        data_samples_tissues_patients=data_samples_tissues_patients
+        tissues_patients_samples=tissues_patients_samples
     )
-    print("**************************")
-    print(data_coverage_tissues)
-
-
-
-
-
-
-    # Filter patients, tissues, and samples.
-    # This step is unnecessary.
-    if False:
-        data_samples_tissues_patients_filter = filter_samples_tissues_patients(
-            patients=patients,
-            tissues=tissues,
-            data_samples_tissues_patients=data_samples_tissues_patients
-        )
-        patients_tissues_samples_filter = collect_patients_tissues_samples(
-            data_samples_tissues_patients=data_samples_tissues_patients_filter
-        )
-        if False:
-            expand_print_patients_tissues_samples(
-                patients_tissues_samples=patients_tissues_samples
-            )
-        print("Printing first 10 unique patients...")
-        print(list(patients_tissues_samples_filter.keys())[:9])
-        print("Printing groups for patient 'GTEX-131XE'... ")
-        print(patients_tissues_samples_filter["GTEX-131XE"])
+    print(data_tissues_patients_coverage)
 
     ##################################################
     ##################################################
     ##################################################
+
+    # Compile information.
+    information = {
+        "tissues": tissues,
+        "patients": patients,
+    }
+    #Write product information to file.
+    write_product(dock=dock, information=information)
 
     pass
 
