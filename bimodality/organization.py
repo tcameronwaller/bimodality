@@ -14,6 +14,7 @@
 import os
 import math
 import statistics
+import pickle
 
 # Relevant
 
@@ -32,8 +33,6 @@ import utility
 ###############################################################################
 # Functionality
 
-
-# TODO: when ready, read in all data...
 
 def read_source(dock=None):
     """
@@ -55,6 +54,15 @@ def read_source(dock=None):
     path_attribute_sample = os.path.join(path_access, "attribute_sample.txt")
     path_attribute_patient = os.path.join(path_access, "attribute_patient.txt")
     path_signal_gene = os.path.join(path_access, "signal_gene.gct")
+    path_selection = os.path.join(dock, "selection")
+    path_tissues = os.path.join(path_selection, "tissues.pickle")
+    path_patients = os.path.join(path_selection, "patients.pickle")
+    path_tissues_samples = os.path.join(
+        path_selection, "tissues_samples.pickle"
+    )
+    path_patients_samples = os.path.join(
+        path_selection, "patients_samples.pickle"
+    )
     # Read information from file.
     data_signal_gene = pandas.read_csv(
         path_signal_gene,
@@ -74,369 +82,112 @@ def read_source(dock=None):
         header=0,
         #nrows=1000,
     )
+    with open(path_tissues, "rb") as file_source:
+        tissues = pickle.load(file_source)
+    with open(path_patients, "rb") as file_source:
+        patients = pickle.load(file_source)
+    with open(path_tissues_samples, "rb") as file_source:
+        tissues_patients_samples = pickle.load(file_source)
+    with open(path_patients_samples, "rb") as file_source:
+        patients_tissues_samples = pickle.load(file_source)
     # Compile and return information.
     return {
         "data_attribute_patient": data_attribute_patient,
         "data_attribute_sample": data_attribute_sample,
         "data_signal_gene": data_signal_gene,
+        "tissues": tissues,
+        "patients": patients,
+        "tissues_patients_samples": tissues_patients_samples,
+        "patients_tissues_samples": patients_tissues_samples
     }
 
 
-def calculate_logarithm_gene_signal(data_signal_gene=None):
-    """
-    Calculates the base-2 logarithm of genes' signals in each sample.
-
-    Original gene signals are in transcript counts per million (TPM).
-
-    To accommodate gene signals of 0.0, add a pseudo count of 1.0 to all counts
-    before calculation of the base-2 logarithm.
-
-    arguments:
-        data_signal_gene (object): Pandas data frame of gene's signals for all
-            samples.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of base-2 logarithmic genes' signals for
-            all samples.
-
-    """
-
-    # lambda x: math.log((x + 1), 2)
-
-    # An alternative approach would be to set the label columns to indices.
-    if False:
-        data_signal_gene_index = data_signal_gene.set_index(
-            ["Name", "Description"], append=True, drop=True
-        )
-        data_signal_gene_log = data_signal_gene_index.apply(
-            lambda value: 2 * value
-        )
-    data_log = data_signal_gene.copy()
-    data_log.iloc[0:, 2:] = data_log.iloc[0:, 2:].applymap(
-        lambda value: math.log((value + 1.0), 2)
-    )
-    return data_log
-
-
-def collect_samples_tissues_patients(
-    data_signal_gene=None, data_attribute_sample=None
+def calculate_gene_signal_mean_by_patients_tissues(
+    patients_tissues_samples=None,
+    data_signal_gene=None
 ):
     """
-    Collects matches of samples, tissues, and patients.
+    Calculates the mean values of genes' signals in each tissue of each
+    patient.
+
+    Redundant samples exist for many patients and tissues.
+    Calculate the mean signal for each gene from all of these redundant
+    samples.
 
     Product data format.
     Indices by patient and tissue allow convenient access.
     ##################################################
-    # sample   patient   tissue
-    # sm_1     bob       brain
-    # sm_2     bob       heart
-    # sm_3     bob       liver
-    # sm_4     julie     brain
-    # sm_5     julie     kidney
-    # sm_6     betty     pancreas
+    # index   index   gene_1 gene_2 gene_3
+    # patient tissue
+    # bob     kidney  5.0    10.0   7.0
+    # bob     skin    5.0    10.0   7.0
+    # bob     liver   5.0    10.0   7.0
+    # april   brain   2.0    3.0    4.0
+    # april   liver   2.0    3.0    4.0
+    # april   skin    2.0    3.0    4.0
+    # martin  liver   1.0    6.0    9.0
+    # sue     heart   3.0    2.0    5.0
     ##################################################
-
-    arguments:
-        data_signal_gene (object): Pandas data frame of gene's signals for all
-            samples.
-        data_attribute_sample (object): Pandas data frame of attributes for all
-            samples.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of patients and tissues for all samples.
-
-    """
-
-    # Determine samples with signals for genes.
-    # Extract samples' identifiers from data of gene's signals.
-    # Extract names of columns.
-    # Pandas series
-    #headers = data_signal_gene.columns
-    # NumPy array
-    #headers = data_signal_gene.columns.values
-    # List
-    headers = data_signal_gene.columns.to_list()
-    # Exclude name and description.
-    identifiers_sample = headers[2:]
-
-    # Create index for samples' attributes by samples' identifiers.
-    data_attribute_sample_index = data_attribute_sample.set_index("SAMPID")
-
-    # Collect tissues and patients for each sample.
-    samples_tissues_patients = list()
-    for identifier_sample in identifiers_sample:
-        #tissue = data_attribute_sample.loc[
-        #    data_attribute_sample["SAMPID"] == identifier_sample,
-        #].at[0, "SMTS"]
-        tissue = data_attribute_sample_index.at[identifier_sample, "SMTS"]
-        identifier_patient = utility.extract_gtex_sample_patient_identifier(
-            identifier_sample
-        )
-        record = {
-            "sample": identifier_sample,
-            "tissue": tissue,
-            "patient": identifier_patient,
-        }
-        samples_tissues_patients.append(record)
-    return utility.convert_records_to_dataframe(
-        records=samples_tissues_patients
-    )
-
-
-def filter_samples_tissues_patients(
-    tissues=None,
-    patients=None,
-    data_samples_tissues_patients=None
-):
-    """
-    Filters samples by tissues and patients.
-
-    arguments:
-        tissues (list<str>): Tissues of interest.
-        patients (list<str>): Patients with signal for tissues of interest.
-        data_samples_tissues_patients (object): Pandas data frame of patients
-            and tissues for all samples.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of patients and tissues for all samples.
-
-    """
-
-    samples_tissues_patients = utility.convert_dataframe_to_records(
-        data=data_samples_tissues_patients
-    )
-    # Determine whether each sample passes filters by tissues and patients.
-    samples_tissues_patients_filter = list()
-    for record in samples_tissues_patients:
-        sample = record["sample"]
-        tissue = record["tissue"]
-        patient = record["patient"]
-        if (patient in patients) and (tissue in tissues):
-            samples_tissues_patients_filter.append(record)
-    return utility.convert_records_to_dataframe(
-        records=samples_tissues_patients_filter
-    )
-
-
-def collect_patients_tissues_samples(data_samples_tissues_patients=None):
-    """
-    Collects tissues and samples for each patient.
-
-    arguments:
-        data_samples_tissues_patients (object): Pandas data frame of patients
-            and tissues for all samples.
-
-    raises:
-
-    returns:
-        (dict<dict<list<str>>): Samples for each tissue of each patients.
-
-    """
-
-    samples_tissues_patients = utility.convert_dataframe_to_records(
-        data=data_samples_tissues_patients
-    )
-    # Collect tissues and samples for each patient.
-    patients_tissues_samples = dict()
-    for record in samples_tissues_patients:
-        sample = record["sample"]
-        tissue = record["tissue"]
-        patient = record["patient"]
-        # Determine whether an entry already exists for the patient.
-        if patient in patients_tissues_samples:
-            # Determine whether an entry already exists for the tissue.
-            if tissue in patients_tissues_samples[patient]:
-                patients_tissues_samples[patient][tissue].append(sample)
-            else:
-                patients_tissues_samples[patient][tissue] = list([sample])
-        else:
-            patients_tissues_samples[patient] = dict()
-            patients_tissues_samples[patient][tissue] = list([sample])
-    return patients_tissues_samples
-
-
-def expand_print_patients_tissues_samples(patients_tissues_samples=None):
-    """
-    Collects tissues and samples for each patient.
-
-    arguments:
-        patients_tissues_samples (dict<dict<list<str>>): Samples for each
-            tissue of each patients.
-
-    raises:
-
-    returns:
-
-
-    """
-
-    print(list(patients_tissues_samples.keys()))
-    for patient in patients_tissues_samples:
-        print("patient: " + patient)
-        for tissue in patients_tissues_samples[patient]:
-            print("tissue: " + tissue)
-            for sample in patients_tissues_samples[patient][tissue]:
-                print("sample: " + sample)
-    pass
-
-
-def collect_tissues_patients(data_samples_tissues_patients=None):
-    """
-    Collects patients with samples for each tissue.
-
-    arguments:
-        data_samples_tissues_patients (object): Pandas data frame of patients
-            and tissues for all samples.
-
-    raises:
-
-    returns:
-        (dict<dict<int>>): Counts of samples for each tissue from each patient.
-
-    """
-
-    samples_tissues_patients = utility.convert_dataframe_to_records(
-        data=data_samples_tissues_patients
-    )
-    # Count unique patients with samples for each tissue.
-    tissues_patients = dict()
-    for record in samples_tissues_patients:
-        sample = record["sample"]
-        tissue = record["tissue"]
-        patient = record["patient"]
-        # Determine whether an entry already exists for the tissue.
-        if tissue in tissues_patients:
-            # Determine whether an entry already exists for the patient.
-            if patient in tissues_patients[tissue]:
-                tissues_patients[tissue][patient] += 1
-            else:
-                tissues_patients[tissue][patient] = 1
-        else:
-            tissues_patients[tissue] = dict()
-            tissues_patients[tissue][patient] = 1
-    return tissues_patients
-
-
-def count_tissues_patients(tissues_patients=None):
-    """
-    Counts patients with samples for each tissue.
-
-    arguments:
-        tissues_patients (dict<dict<int>>): Counts of samples for each tissue
-            from each patient.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of counts of patients with samples for each
-            tissue.
-
-    """
-
-    # Count unique patients with samples for each tissue.
-    # Compile summary.
-    summary = list()
-    # Iterate on tissues.
-    for tissue in tissues_patients:
-        # Count patients.
-        patients = len(list(tissues_patients[tissue].keys()))
-        # Compile entry.
-        entry = dict()
-        entry["tissue"] = tissue
-        entry["patients"] = patients
-        # Include entry.
-        summary.append(entry)
-    data_summary = utility.convert_records_to_dataframe(
-        records=summary
-    )
-    data_summary_sort = data_summary.sort_values(
-        "patients", axis=0, ascending=False
-    )
-    return data_summary_sort
-
-
-def count_patients_tissues(patients_tissues_samples=None):
-    """
-    Counts tissues for which each patient has samples.
 
     arguments:
         patients_tissues_samples (dict<dict<list<str>>): Samples for each
             tissue of each patient.
+        data_signal_gene (object): Pandas data frame of gene's signals for all
+            samples.
 
     raises:
 
     returns:
-        (object): Pandas data frame of counts of tissues for which each patient
-            has samples.
+        (object): Pandas data frame of mean values of genes' signals for all
+            tissues of all patients.
 
     """
 
-    # Count unique tissues for which each patient has samples.
-    # Compile summary.
+    # Create index for convenient access.
+    data_signal_gene_index = data_signal_gene.set_index("Name")
+    # Determine list of all genes with signals.
+    genes = data_signal_gene["Name"].to_list()
+    # Collect mean signals of all genes for each patient and tissue.
     summary = list()
     # Iterate on patients.
     for patient in patients_tissues_samples:
-        # Count tissues.
-        tissues = len(list(patients_tissues_samples[patient].keys()))
-        # Compile entry.
-        entry = dict()
-        entry["patient"] = patient
-        entry["tissues"] = tissues
-        # Include entry.
-        summary.append(entry)
+        # Iterate on tissues for which patient has samples.
+        for tissue in patients_tissues_samples[patient]:
+            # Collect signals for all genes in each sample.
+            signals_genes = dict()
+            for sample in patients_tissues_samples[patient][tissue]:
+                for gene in genes:
+                    signal = data_signal_gene_index.at[gene, sample]
+                    # Determine whether an entry already exists for the gene.
+                    if gene in signals_genes:
+                        signals_genes[gene].append(signal)
+                    else:
+                        signals_genes[gene] = list([signal])
+            # Compile record.
+            record = dict()
+            record["patient"] = patient
+            record["tissue"] = tissue
+            # Calculate mean signal for each gene in each patient and tissue.
+            for gene in genes:
+                signal_mean = statistics.mean(signals_genes[gene])
+                record[gene] = signal_mean
+            # Include record.
+            summary.append(record)
+    # Organize data.
     data_summary = utility.convert_records_to_dataframe(
         records=summary
     )
-    data_summary_sort = data_summary.sort_values(
-        "tissues", axis=0, ascending=False
-    )
-    return data_summary_sort
+    #data_summary_index = data_summary.set_index(
+    #    ["patient", "tissue"], append=False, drop=False
+    #)
+    return data_summary
 
 
-def count_bins_patients_tissues(data_patients_tissues_counts=None):
-    """
-    Count patients in each bin by counts of tissues.
-
-    arguments:
-        data_patients_tissues_counts (object): Pandas data frame of counts of
-            tissues for which each patient has samples.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of counts of patients in each bin by counts
-            of tissues.
-
-    """
-
-    patients_tissues_counts = utility.convert_dataframe_to_records(
-        data=data_patients_tissues_counts
-    )
-    # Compile summary.
-    summary = dict()
-    # Iterate on patients.
-    for record in patients_tissues_counts:
-        patient = record["patient"]
-        tissues = record["tissues"]
-        # Determine whether an entry already exists for the bin.
-        if tissues in summary:
-            summary[tissues] += 1
-        else:
-            summary[tissues] = 1
-    return summary
-
-
-def calculate_gene_signal_median_by_patients_tissues(
+def calculate_gene_signal_median_by_tissues(
     tissues=None,
     patients=None,
-    patients_tissues_samples=None,
-    data_signal_gene=None
+    tissues_patients_samples=None,
+    data_signal_gene_mean=None
 ):
     """
     Calculates the median values of signals for all genes across specific
@@ -463,24 +214,26 @@ def calculate_gene_signal_median_by_patients_tissues(
     arguments:
         tissues (list<str>): Tissues of interest.
         patients (list<str>): Patients with signal for tissues of interest.
-        patients_tissues_samples (dict<dict<list<str>>): Samples for each
-            tissue of each patients.
-        data_signal_gene (object): Pandas data frame of gene's signals for all
-            samples.
+        tissues_patients_samples (dict<dict<list<str>>): Samples for each
+            patient of each tissue.
+        data_signal_gene_mean (object): Pandas data frame of mean values of
+            genes' signals for all tissues of all patients.
 
     raises:
 
     returns:
-        (object): Pandas data frame of median signals for all genes across
-            specific patients and tissues.
+        (object): Pandas data frame of median values of genes' signals for all
+            tissues.
 
     """
 
     # Create index for convenient access.
-    data_signal_gene_index = data_signal_gene.set_index("Name")
-    # Determine list of all genes with signals.
-    genes = data_signal_gene["Name"].to_list()
-    # Compile summary.
+    data_signal_gene_mean_index = data_signal_gene_mean.set_index(
+        ["patient", "tissue"], append=False, drop=True
+    )
+    # Extract genes from names of columns.
+    genes = data_signal_gene_mean_index.columns.to_list()
+    # Collect median signals of all genes for each tissue.
     summary = list()
     # Iterate on genes.
     for gene in genes:
@@ -492,22 +245,13 @@ def calculate_gene_signal_median_by_patients_tissues(
             # Collect gene's signals in the tissue across all patients.
             signals_tissue = list()
             # Iterate on patients.
-            for patient in patients:
-                # Determine whether the patient has samples for the tissue.
-                if tissue in patients_tissues_samples[patient]:
-                    # Iterate on samples for the patient and tissue.
-                    signals_tissue_patient = list()
-                    for sample in patients_tissues_samples[patient][tissue]:
-                        # Collect signals for each sample.
-                        # Calculate mean signal.
-                        signal = data_signal_gene_index.at[gene, sample]
-                        signals_tissue_patient.append(signal)
-                    # Calculate gene's mean signal across all samples.
-                    signal_tissue_patient = statistics.mean(
-                        signals_tissue_patient
-                    )
-                    signals_tissue.append(signal_tissue_patient)
-            # Calculate gene's median signal in tissue across all patients.
+            for patient in tissues_patients_samples[tissue]:
+                signal_tissue_patient = data_signal_gene_mean_index.loc[
+                    (patient, tissue), gene
+                ]
+                signals_tissue.append(signal_tissue_patient)
+            # Calculate median value of gene's signal in tissue across all
+            # patients.
             signal_tissue = statistics.median(signals_tissue)
             record[tissue] = signal_tissue
         # Include record.
@@ -519,320 +263,15 @@ def calculate_gene_signal_median_by_patients_tissues(
     return data_summary
 
 
-# TODO: this function might be obsolete...
-
-def calculate_gene_signal_mean_by_patients_tissues(
-    patients_tissues_samples=None,
-    data_signal_gene=None
-):
-    """
-    Calculates the mean values of signals for all genes in each tissue of each
-    patient.
-
-    Redundant samples exist for many patients and tissues.
-    Calculate the mean signal for each gene from all of these redundant
-    samples.
-
-    Product data format.
-    Indices by patient and tissue allow convenient access.
-    ##################################################
-    # index   index   gene_1 gene_2 gene_3
-    # patient tissue
-    # bob     kidney  5.0    10.0   7.0
-    # april   brain   2.0    3.0    4.0
-    # martin  liver   1.0    6.0    9.0
-    # sue     heart   3.0    2.0    5.0
-    ##################################################
-
-    arguments:
-        patients_tissues_samples (dict<dict<list<str>>): Samples for each
-            tissue of each patients.
-        data_signal_gene (object): Pandas data frame of gene's signals for all
-            samples.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of mean signals for all genes in all
-            tissues of all patients.
-
-    """
-
-    # Create index for convenient access.
-    data_signal_gene_index = data_signal_gene.set_index("Name")
-    # Determine list of all genes with signals.
-    genes = data_signal_gene["Name"].to_list()
-    # Compile summary.
-    summary = list()
-    # Iterate on patients.
-    for patient in patients_tissues_samples:
-        # Iterate on tissues for which patient has samples.
-        for tissue in patients_tissues_samples[patient]:
-            # Collect signals for all genes in each sample.
-            samples_genes_signals = dict()
-            for sample in patients_tissues_samples[patient][tissue]:
-                for gene in genes:
-                    signal = data_signal_gene_index.at[gene, sample]
-                    # Determine whether an entry already exists for the gene.
-                    if gene in samples_genes_signals:
-                        samples_genes_signals[gene].append(signal)
-                    else:
-                        samples_genes_signals[gene] = list([signal])
-            # Compile entry.
-            entry = dict()
-            entry["patient"] = patient
-            entry["tissue"] = tissue
-            # Calculate mean signal for each gene in tissue.
-            for gene in genes:
-                mean = statistics.mean(samples_genes_signals[gene])
-                entry[gene] = mean
-            # Include entry.
-            summary.append(entry)
-    data_summary = utility.convert_records_to_dataframe(
-        records=summary
-    )
-    data_summary_index = data_summary.set_index(
-        ["patient", "tissue"], append=False, drop=False
-    )
-    return data_summary_index
-
-
-def define_test_tissue_sets():
-    """
-    Defines sets of tissue for testing.
-
-    arguments:
-
-    raises:
-
-    returns:
-        (dict<list<str>>): Lists of tissues.
-
-    """
-
-    # tissue combination: counts of patients which miss fewer than 3 tissues
-    # 1: 11
-    # 2: 48
-    # 3: 73
-    # 4: 77
-    # 5: 95
-    # 6: 100
-    # 7: 110
-    # 8: 135
-    # 9: 137
-    # 10: 141
-    # 11: 194
-    # 12: 204
-    # 13: 228
-    # 14: 230
-    # 15: 245
-    # 16: 291
-    # 17: 294
-    # 18: 296
-    # 19: 299
-    # 20: 312
-    # 21: 346
-    # 22: 391
-    tissues = dict()
-    tissues[1] = [
-        "Skin", "Muscle", "Adipose Tissue", "Blood Vessel", "Esophagus",
-        "Thyroid", "Lung", "Blood", "Nerve", "Heart", "Colon", "Stomach",
-        "Brain", "Pancreas", "Adrenal Gland", "Pituitary", "Liver"
-    ]
-    tissues[2] = [
-        "Skin", "Muscle", "Adipose Tissue", "Esophagus", "Thyroid", "Lung",
-        "Blood", "Nerve", "Heart", "Colon", "Stomach", "Brain", "Pancreas",
-        "Liver"
-    ]
-    tissues[3] = [
-        "Skin", "Muscle", "Adipose Tissue", "Esophagus", "Thyroid", "Lung",
-        "Blood", "Nerve", "Heart", "Colon", "Stomach", "Brain", "Liver"
-    ]
-    tissues[4] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Blood",
-        "Nerve", "Heart", "Colon", "Stomach", "Brain", "Liver"
-    ]
-    tissues[5] = [
-        "Skin", "Muscle", "Adipose Tissue", "Blood Vessel", "Esophagus",
-        "Thyroid", "Lung", "Blood", "Nerve", "Heart", "Colon", "Stomach",
-        "Brain", "Pancreas"
-    ]
-    tissues[6] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Blood",
-        "Nerve", "Heart", "Colon", "Stomach", "Brain", "Pancreas"
-    ]
-    tissues[7] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Nerve",
-        "Heart", "Colon", "Stomach", "Brain", "Liver"
-    ]
-    tissues[8] = [
-        "Skin", "Muscle", "Adipose Tissue", "Blood Vessel", "Esophagus",
-        "Thyroid", "Lung", "Blood", "Nerve", "Heart", "Colon", "Stomach",
-        "Brain",
-    ]
-    tissues[9] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Nerve",
-        "Heart", "Colon", "Stomach", "Brain", "Pancreas",
-    ]
-    tissues[10] = [
-        "Skin", "Muscle", "Adipose Tissue", "Esophagus", "Thyroid", "Lung",
-        "Blood", "Nerve", "Heart", "Colon", "Stomach", "Brain",
-    ]
-
-    tissues[11] = [
-        "Skin", "Muscle", "Adipose Tissue", "Blood Vessel", "Esophagus",
-        "Thyroid", "Lung", "Blood", "Nerve", "Heart", "Colon", "Brain"
-    ]
-    # 200 - 250
-    tissues[12] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Nerve",
-        "Heart", "Colon", "Stomach", "Brain",
-    ]
-    tissues[13] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Nerve",
-        "Heart", "Colon", "Stomach", "Pancreas",
-    ]
-    tissues[14] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Blood",
-        "Nerve", "Heart", "Colon", "Brain"
-    ]
-    tissues[15] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung",
-        "Blood", "Nerve", "Heart", "Colon", "Stomach"
-    ]
-
-    # 250 - 300
-    tissues[16] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Nerve",
-        "Heart", "Colon", "Brain"
-    ]
-    tissues[17] = [
-        "Skin", "Muscle", "Adipose Tissue", "Blood Vessel", "Esophagus",
-        "Thyroid", "Lung", "Blood", "Nerve", "Heart", "Colon",
-    ]
-    tissues[18] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Nerve",
-        "Heart", "Colon", "Pancreas"
-    ]
-    tissues[19] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Nerve",
-        "Heart", "Colon", "Stomach"
-    ]
-    # 300 - 400
-    # Favorite.
-    tissues[20] = [
-        "Skin", "Muscle", "Adipose Tissue", "Esophagus", "Thyroid", "Lung",
-        "Blood", "Nerve", "Heart", "Colon",
-    ]
-    tissues[21] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Blood",
-        "Nerve", "Heart", "Colon",
-    ]
-    tissues[22] = [
-        "Skin", "Muscle", "Adipose Tissue", "Thyroid", "Lung", "Nerve",
-        "Heart", "Colon",
-    ]
-
-    return tissues
-
-
-def collect_tissues_coverage_patients(
-    tissues=None, patients_tissues_samples=None
-):
-    """
-    Collects patients with coverage of signals for specific tissues.
-
-    Includes counts of tissues of interest for which each patient misses
-    signal.
-
-    arguments:
-        tissues (list<str>): Tissues of interest.
-        patients_tissues_samples (dict<dict<list<str>>): Samples for each
-            tissue of each patient.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of counts of tissues for which each patient
-            misses signal.
-
-    """
-
-    # Collect tissues and samples for each patient.
-    tissues_coverage_patients = list()
-    # Iterate on patients.
-    for patient in patients_tissues_samples:
-        # Count tissues.
-        tissues_patient = list(patients_tissues_samples[patient].keys())
-        # Determine count of tissues for which patient misses signal.
-        misses = list()
-        for tissue in tissues:
-            if tissue not in tissues_patient:
-                misses.append(tissue)
-        misses_count = len(misses)
-        record = {
-            "patient": patient,
-            "misses": misses_count,
-        }
-        tissues_coverage_patients.append(record)
-    # Create a data frame and sort by counts.
-    data = utility.convert_records_to_dataframe(
-        records=tissues_coverage_patients
-    )
-    data_sort = data.sort_values(
-        "misses", axis=0, ascending=True
-    )
-    return data_sort
-
-
-def filter_tissues_coverage_patients(
-    threshold=None, data_tissues_coverage_patients=None
-):
-    """
-    Filters patients by coverage of specific tissues.
-
-    Includes counts of tissues of interest for which each patient misses
-    signal.
-
-    arguments:
-        threshold (int): Count of permissible tissues which a patient can miss.
-        data_tissues_coverage_patients (object): Pandas data frame of counts of
-            tissues for which each patient misses signal.
-
-    raises:
-
-    returns:
-        (list<str>): Patients with signal for tissues of interest.
-
-    """
-
-    tissues_coverage_patients = utility.convert_dataframe_to_records(
-        data=data_tissues_coverage_patients
-    )
-    patients = list()
-    for record in tissues_coverage_patients:
-        patient = record["patient"]
-        misses = record["misses"]
-        # Determine whether the patient has few enough misses.
-        if misses <= threshold:
-            patients.append(patient)
-    return patients
-
-
 def collect_gene_signal_by_patients_tissues(
     tissues=None,
     patients=None,
-    data_signal_gene_tissue_median=None,
     patients_tissues_samples=None,
-    data_signal_gene=None
+    data_signal_gene_tissue_median=None,
+    data_signal_gene_mean=None
 ):
     """
-    Calculates the mean values of signals for all genes in each tissue of each
-    patient.
-
-    Redundant samples exist for many patients and tissues.
-    Calculate the mean signal for each gene from all of these redundant
-    samples.
+    Collects the signals for all genes in each tissue of each patient.
 
     Product data format.
     Indices by patient and tissue allow convenient access.
@@ -846,27 +285,33 @@ def collect_gene_signal_by_patients_tissues(
     ##################################################
 
     arguments:
+        tissues (list<str>): Tissues of interest.
+        patients (list<str>): Patients with signal for tissues of interest.
         patients_tissues_samples (dict<dict<list<str>>): Samples for each
-            tissue of each patients.
-        data_signal_gene (object): Pandas data frame of gene's signals for all
-            samples.
+            tissue of each patient.
+        data_signal_gene_tissue_median (object): Pandas data frame of median
+            values of genes' signals for all tissues.
+        data_signal_gene_mean (object): Pandas data frame of mean values of
+            genes' signals for all tissues of all patients.
 
     raises:
 
     returns:
-        (object): Pandas data frame of mean signals for all genes in all
-            tissues of all patients.
+        (object): Pandas data frame of signals for all genes across
+            specific patients and tissues.
 
     """
 
     # Create indices for convenient access.
-    data_signal_gene_index = data_signal_gene.set_index("Name")
+    data_signal_gene_mean_index = data_signal_gene_mean.set_index(
+        ["patient", "tissue"], append=False, drop=True
+    )
     data_signal_gene_tissue_median_index = (
         data_signal_gene_tissue_median.set_index("gene")
     )
-    # Determine list of all genes with signals.
-    genes = data_signal_gene["Name"].to_list()
-    # Compile summary.
+    # Extract genes from names of columns.
+    genes = data_signal_gene_mean_index.columns.to_list()
+    # Collect signals of all genes for each patient and tissue.
     summary = list()
     # Iterate on patients of interest.
     for patient in patients:
@@ -878,33 +323,20 @@ def collect_gene_signal_by_patients_tissues(
             record["tissue"] = tissue
             # Determine whether the patient has samples for the tissue.
             if tissue in patients_tissues_samples[patient]:
-                # Collect signals for all genes across samples.
-                signals_samples = dict()
-                # Iterate on samples.
-                for sample in patients_tissues_samples[patient][tissue]:
-                    # Iterate on genes.
-                    for gene in genes:
-                        signal = data_signal_gene_index.at[gene, sample]
-                        # Determine whether an entry already exists for the
-                        # gene.
-                        if gene in signals_samples:
-                            signals_samples[gene].append(signal)
-                        else:
-                            signals_samples[gene] = list([signal])
-                # Collect mean signals for each gene across samples.
+                # Collect mean values for genes' signals.
                 # Iterate on genes.
                 for gene in genes:
-                    signal_mean = statistics.mean(signals_samples[gene])
-                    # Compile record.
-                    record[gene] = signal_mean
+                    signal = data_signal_gene_mean_index.loc[
+                        (patient, tissue), gene
+                    ]
+                    record[gene] = signal
             else:
                 # Collect imputation values for genes' signals.
                 # Iterate on genes.
                 for gene in genes:
-                    signal = (
-                        data_signal_gene_tissue_median_index.at[gene, tissue]
-                    )
-                    # Compile record.
+                    signal = data_signal_gene_tissue_median_index.loc[
+                        gene, tissue
+                    ]
                     record[gene] = signal
             # Include record.
             summary.append(record)
@@ -912,10 +344,55 @@ def collect_gene_signal_by_patients_tissues(
     data_summary = utility.convert_records_to_dataframe(
         records=summary
     )
-    data_summary_index = data_summary.set_index(
-        ["patient", "tissue"], append=False, drop=False
+    #data_summary_index = data_summary.set_index(
+    #    ["patient", "tissue"], append=False, drop=False
+    #)
+    return data_summary
+
+
+def calculate_logarithm_gene_signal(data_signal_gene=None):
+    """
+    Calculates the base-2 logarithm of genes' signals in each sample.
+
+    Original gene signals are in transcript counts per million (TPM).
+
+    To accommodate gene signals of 0.0, add a pseudo count of 1.0 to all counts
+    before calculation of the base-2 logarithm.
+
+    arguments:
+        data_signal_gene (object): Pandas data frame of signals for all genes
+            across specific patients and tissues.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of base-2 logarithmic signals for all genes
+            across specific patients and tissues.
+
+    """
+
+    # lambda x: math.log((x + 1), 2)
+
+    # An alternative approach would be to set the label columns to indices.
+    if False:
+        data_signal_gene_index = data_signal_gene.set_index(
+            ["Name", "Description"], append=True, drop=True
+        )
+        data_signal_gene_log = data_signal_gene_index.apply(
+            lambda value: 2 * value
+        )
+        data_log = data_signal_index.copy()
+        data_log.iloc[0:, 2:] = data_log.iloc[0:, 2:].applymap(
+            lambda value: math.log((value + 1.0), 2)
+        )
+
+    data_signal_gene_index = data_signal_gene.set_index(
+        ["patient", "tissue"], append=False, drop=True
     )
-    return data_summary_index
+    data_log = data_signal_gene_index.applymap(
+        lambda value: math.log((value + 1.0), 2)
+    )
+    return data_log
 
 
 ###############################################################################
@@ -968,233 +445,79 @@ def execute_procedure(dock=None):
     print("Summary of table of samples' attributes.")
     print(source["data_attribute_sample"].iloc[0:10, 0:7])
 
-    ##################################################
-    ##################################################
-    ##################################################
-
-    # Summarize organization of data.
-    utility.print_terminal_partition(level=1)
-    print("Selection of tissues and patients of interest.")
-
-    # Collect samples by their patients and tissues.
-    # Collect matches of samples, tissues, and patients.
-    utility.print_terminal_partition(level=2)
-    print("Collection of patients and tissues that correspond to each sample.")
+    # Determine whether data have any missing values.
+    print("Determine whether data have any missing values.")
     print(
-        "data hierarchy is " +
-        "patients (714) -> tissues (?) -> samples (?) -> genes (~20,000)"
+        "original data frame shape: " + str(source["data_signal_gene"].shape)
     )
-    print("Extract patient identifiers from sample identifiers.")
-    #GTEX-1117F-0226-SM-5GZZ7
-    identifier = (
-        utility.extract_gtex_sample_patient_identifier(
-            "GTEX-1117F-0226-SM-5GZZ7"
-        )
+    print(
+        "shape without missing axis 0: " +
+        str(source["data_signal_gene"].dropna(axis=0).shape)
     )
-    print("GTEX-1117F-0226-SM-5GZZ7: " + identifier)
-    data_samples_tissues_patients = collect_samples_tissues_patients(
-        data_signal_gene=source["data_signal_gene"],
-        data_attribute_sample=source["data_attribute_sample"]
+    print(
+        "shape without missing axis 1: " +
+        str(source["data_signal_gene"].dropna(axis=1).shape)
     )
-    print(data_samples_tissues_patients.iloc[0:10, :])
 
-    # Collect unique patients, unique tissues for each patient, and unique
-    # samples for each tissue of each patient.
-    utility.print_terminal_partition(level=2)
-    print("Collection of hierarchical groups by patient, tissue, and sample.")
-    patients_tissues_samples = collect_patients_tissues_samples(
-        data_samples_tissues_patients=data_samples_tissues_patients
-    )
+    # How to reference information about a specific sample.
     if False:
-        expand_print_patients_tissues_samples(
-            patients_tissues_samples=patients_tissues_samples
+        print(
+            source["data_attribute_sample"].loc[
+                (
+                    source["data_attribute_sample"]["SAMPID"] ==
+                    "GTEX-1117F-0003-SM-58Q7G"
+                )
+            ]
         )
-    print("Printing first 10 unique patients...")
-    print(list(patients_tissues_samples.keys())[:9])
-    print("Printing groups for patient 'GTEX-14LZ3'... ")
-    print(patients_tissues_samples["GTEX-14LZ3"])
-
-    # Summarize counts of patients for each tissue.
-    # How many patients have samples for each tissue?
-    ##################################################
-    # tissue patients
-    # brain   50
-    # liver   10
-    # heart   5
-    ##################################################
-    utility.print_terminal_partition(level=2)
-    print("Counts of patients with samples for each tissue.")
-    tissues_patients = collect_tissues_patients(
-        data_samples_tissues_patients=data_samples_tissues_patients
-    )
-    #print(tissues_patients)
-    #print(tissues_patients["Blood"])
-    tissues_patients_counts = count_tissues_patients(
-        tissues_patients=tissues_patients
-    )
-    print(tissues_patients_counts)
-
-    # Summarize counts of patients for each count of tissues.
-    # How many patients have samples for each count of tissues?
-    # Count tissues for each patient.
-    ##################################################
-    # patient tissues
-    # alice   3
-    # john    5
-    # paul    10
-    # mary    13
-    ##################################################
-    utility.print_terminal_partition(level=2)
-    print("Counts of tissues for which each patient has samples.")
-    data_patients_tissues_counts = count_patients_tissues(
-        patients_tissues_samples=patients_tissues_samples
-    )
-    print(data_patients_tissues_counts)
-
-    # Populate bins of patients with each count of tissues.
-    # Plot histogram.
-    ##################################################
-    # tissues patients
-    # 3       50
-    # 5       10
-    # 7       5
-    ##################################################
-    utility.print_terminal_partition(level=2)
-    print("Counts of patients with samples for each count of tissues.")
-    patients_tissues_counts_bins = count_bins_patients_tissues(
-        data_patients_tissues_counts=data_patients_tissues_counts
-    )
-    print(patients_tissues_counts_bins)
-
-    # Define tissues of interest.
-    utility.print_terminal_partition(level=2)
-    print("Define tissues of interest.")
-    #tissues_sets = define_test_tissue_sets()
-
-    tissues = [
-        "Skin", "Muscle", "Adipose Tissue", "Esophagus", "Thyroid", "Lung",
-        "Blood", "Nerve", "Heart", "Colon",
-    ]
-    print(tissues)
-
-    # Collect patients with gene signals for all of a combination of tissues.
-    # Collect information about how many tissues each patient is missing.
-    ##################################################
-    # patient missing_tissues
-    # alice   0
-    # john    0
-    # paul    0
-    # mary    1
-    # jim     1
-    # susan   1
-    # phil    2
-    # rachel  3
-    ##################################################
-    utility.print_terminal_partition(level=2)
-    print(
-        "Collection of patients with gene signals for tissues of interest."
-    )
-    print("Allow for fewer than 4 missing tissues for each patient.")
-    print(
-        "Hence the extent of imputation will be less than 40% for each " +
-        "patient."
-    )
-    print("Also consider extent of imputation for each tissue.")
-    data_tissues_coverage_patients = collect_tissues_coverage_patients(
-        tissues=tissues,
-        patients_tissues_samples=patients_tissues_samples
-    )
-    #print(data_tissues_coverage_patients)
-    #print(data_signal_gene_mean.loc["GTEX-12WSD", ])
-    # Filter for those patients which miss less than 4 tissues of interest.
-    summary = (
-        data_tissues_coverage_patients.loc[
-            data_tissues_coverage_patients["misses"] < 4
-        ]
-    )
-    print(summary)
-    print(summary.shape)
-    # Filter patients.
-    patients = filter_tissues_coverage_patients(
-        threshold=3,
-        data_tissues_coverage_patients=data_tissues_coverage_patients
-    )
-    print(patients)
-    print("count of patients: " + str(len(patients)))
-
-    # Summarize the extent of imputation for each tissue.
-    ##################################################
-    # tissue  patients
-    # brain   125
-    # liver   175
-    # kidney  150
-    # lung    255
-    # skin    300
-    ##################################################
-    utility.print_terminal_partition(level=2)
-    print(
-        "Summary of patients with samples for each tissue."
-    )
-
-
-
-
-    # Filter patients, tissues, and samples.
-    # This step is unnecessary.
-    if False:
-        data_samples_tissues_patients_filter = filter_samples_tissues_patients(
-            patients=patients,
-            tissues=tissues,
-            data_samples_tissues_patients=data_samples_tissues_patients
-        )
-        patients_tissues_samples_filter = collect_patients_tissues_samples(
-            data_samples_tissues_patients=data_samples_tissues_patients_filter
-        )
-        if False:
-            expand_print_patients_tissues_samples(
-                patients_tissues_samples=patients_tissues_samples
-            )
-        print("Printing first 10 unique patients...")
-        print(list(patients_tissues_samples_filter.keys())[:9])
-        print("Printing groups for patient 'GTEX-131XE'... ")
-        print(patients_tissues_samples_filter["GTEX-131XE"])
 
     ##################################################
     ##################################################
     ##################################################
 
-    # Organization of signals for tissues and patients of interest.
+    # Organization of signals.
     utility.print_terminal_partition(level=1)
     print("Organization of signals.")
     print(
-        "To enhance coverage, it might be necessary to impute values of " +
-        "genes' signals for some patients and tissues."
+        "Imputation of genes' signals for some patients and tissues will " +
+        "enhance coverage."
     )
 
-    print("**********")
-    print(
-        "I think it is most correct to transform genes' signals to " +
-        "logarithmic space before calculation of median or mean values."
-    )
-    print("**********")
-
-    # Transform genes' signals to base-2 logarithmic space.
-    # Transform before calculation of any median or mean values.
-    # Logarithms are not distributive.
-    # To accommodate gene signals of 0.0, add a pseudo count of 1.0 to all
-    # counts before calculation of the base-2 logarithm.
-    # log-2 signal = log2(TPM + pseudo-count)
-    # pseudo-count = 1.0
+    # Calculate mean signal for each gene in all samples for each patient and
+    # tissue.
     utility.print_terminal_partition(level=2)
-    print("Transformation of genes' signals to base-2 logarithmic space.")
     print(
-        "To accommodate gene signals of 0.0, add a pseudo count of 1.0 to " +
-        "all counts before calculation of the base-2 logarithm."
+        "Calculation of mean values of signals for each gene across " +
+        "redundant samples for each patient and tissue."
     )
-    data_signal_gene_log = calculate_logarithm_gene_signal(
+    print(
+        "Calculate mean values before imputation to avoid bias for patients " +
+        "and tissues with extra samples."
+    )
+    data_signal_gene_mean = calculate_gene_signal_mean_by_patients_tissues(
+        patients_tissues_samples=source["patients_tissues_samples"],
         data_signal_gene=source["data_signal_gene"]
     )
-    print(data_signal_gene_log.iloc[0:10, 0:10])
+    print(data_signal_gene_mean.shape)
+    data_signal_gene_mean_index = data_signal_gene_mean.set_index(
+        ["patient", "tissue"], append=False, drop=True
+    )
+    print(data_signal_gene_mean_index.iloc[0:25, 0:5])
+    # Demonstration of access to single values with multiple levels of indices.
+    print("Access to values at degrees of reference.")
+    print(data_signal_gene_mean_index.loc[
+        ("GTEX-111CU", "Skin"), "ENSG00000078808.12"
+    ])
+    print(data_signal_gene_mean_index.loc[
+        ("GTEX-111CU", "Muscle"), "ENSG00000078808.12"
+    ])
+    print(data_signal_gene_mean_index.loc[
+        ("GTEX-111CU", "Nerve"), "ENSG00000078808.12"
+    ])
+    print(data_signal_gene_mean_index.loc["GTEX-111CU", ])
+    # Extract genes from names of columns.
+    headers = data_signal_gene_mean_index.columns.to_list()
+    print(headers)
+    print("count of genes: " + str(len(headers)))
 
     # Calculation of imputation values.
     # Is it more correct to impute values before or after transformation to
@@ -1216,23 +539,19 @@ def execute_procedure(dock=None):
         "For imputation, use the median value of each gene's signal " +
         "within each tissue across all patients."
     )
-    print("**********")
     print(
-        "I am unsure whether it is more accurate to impute values before " +
-        "or after transformation to logarithmic space."
+        "Calculate imputation values before selection of specific patients " +
+        "and tissues so as to derive these values from more measurements."
     )
-    print("**********")
     # The map of associations between patients, tissues, and samples does not
     # need filtration.
     # The lists of tissues and patients of interest control the selection of
     # samples.
-    data_signal_gene_tissue_median = (
-        calculate_gene_signal_median_by_patients_tissues(
-            tissues=tissues,
-            patients=patients,
-            patients_tissues_samples=patients_tissues_samples,
-            data_signal_gene=data_signal_gene_log
-        )
+    data_signal_gene_tissue_median = calculate_gene_signal_median_by_tissues(
+        tissues=source["tissues"],
+        patients=source["patients"],
+        tissues_patients_samples=source["tissues_patients_samples"],
+        data_signal_gene_mean=data_signal_gene_mean
     )
     print(data_signal_gene_tissue_median.iloc[0:25, :])
 
@@ -1243,135 +562,45 @@ def execute_procedure(dock=None):
         "tissues across redundant samples and with imputation of misses."
     )
     data_signal_gene_aggregation = collect_gene_signal_by_patients_tissues(
-        tissues=tissues,
-        patients=patients,
+        tissues=source["tissues"],
+        patients=source["patients"],
+        patients_tissues_samples=source["patients_tissues_samples"],
         data_signal_gene_tissue_median=data_signal_gene_tissue_median,
-        patients_tissues_samples=patients_tissues_samples,
-        data_signal_gene=data_signal_gene_log
+        data_signal_gene_mean=data_signal_gene_mean
     )
-    print(data_signal_gene_aggregation.iloc[0:25, 0:5])
+    data_signal_gene_aggregation_index = (
+        data_signal_gene_aggregation.set_index(
+            ["patient", "tissue"], append=False, drop=True
+        )
+    )
+    print(data_signal_gene_aggregation_index.iloc[0:25, 0:5])
 
-
-
-
-
-
-    ##################################################
-    ##################################################
-    ##################################################
-
-
+    # Transform genes' signals to base-2 logarithmic space.
+    # Transform before calculation of any median or mean values. <- maybe false
+    # Logarithms are not distributive.
+    # To accommodate gene signals of 0.0, add a pseudo count of 1.0 to all
+    # counts before calculation of the base-2 logarithm.
+    # log-2 signal = log2(TPM + pseudo-count)
+    # pseudo-count = 1.0
     utility.print_terminal_partition(level=2)
-
-
-
-
-
-
-    # Calculate mean signal for each gene in all samples for each patient and
-    # tissue.
-    utility.print_terminal_partition(level=2)
+    print("Transformation of genes' signals to base-2 logarithmic space.")
     print(
-        "Calculation of mean values of signals for each gene across " +
-        "redundant samples for each patient and tissue."
+        "To accommodate gene signals of 0.0, add a pseudo count of 1.0 to " +
+        "all counts before calculation of the base-2 logarithm."
     )
-    data_signal_gene_mean = calculate_gene_signal_mean_by_patients_tissues(
-        patients_tissues_samples=patients_tissues_samples,
-        data_signal_gene=data_signal_gene_log
+    data_signal_gene_log = calculate_logarithm_gene_signal(
+        data_signal_gene=data_signal_gene_aggregation
     )
-    print(data_signal_gene_mean.iloc[0:25, 0:5])
-    # Demonstration of access to single values with multiple levels of indices.
-    print("Access to values at degrees of reference.")
-    print(data_signal_gene_mean.loc[
-        ("GTEX-111CU", "Skin"), "ENSG00000078808.12"
-    ])
-    print(data_signal_gene_mean.loc[
-        ("GTEX-111CU", "Muscle"), "ENSG00000078808.12"
-    ])
-    print(data_signal_gene_mean.loc[
-        ("GTEX-111CU", "Nerve"), "ENSG00000078808.12"
-    ])
-    print(data_signal_gene_mean.loc["GTEX-111CU", ])
+    print(data_signal_gene_log.iloc[0:10, 0:10])
 
+    # Reverse an index to a column.
+    #dataframe["new_column"] = dataframe.index
+    #dataframe.reset_index(level=["index_name"])
 
-    # TODO: I need to figure out how to impute values for missing tissue measurements...
-
-
-
-
-
-
-
-    #####################################################################
-    ####################################################################
-
-
-    utility.print_terminal_partition(level=1)
-
-    print("current new stuff...")
-
-    # Now consider coverage of patients and tissues for the sake of filtering...
-
-
-
-    ######################################################################
-
-
-
-    # TODO: Now collect counts of patients in bins for each count of tissues (1-21).
-
-
-    ####################################################
-    ######################################################
-    ####################################################3
-
-
-    # Determine whether data have any missing values.
-    print("original data frame shape: ")
-    print(source["data_signal_gene"].shape)
-    print("shape without missing axis 0: ")
-    print(source["data_signal_gene"].dropna(axis=0).shape)
-    print("shape without missing axis 1: ")
-    print(source["data_signal_gene"].dropna(axis=1).shape)
-    # Explore data a little...
-
-    # Experiment with dataframe.iterrows() and dataframe.itertuples()
-    # data.itertuples(index=True)
-
-    # How to reference information about a specific sample... use pandas.loc()?
-
-    print("Select row")
-    print(source["data_attribute_sample"].loc[source["data_attribute_sample"]["SAMPID"] == "GTEX-1117F-0003-SM-58Q7G"])
-    print("select column from row...")
-    print(source["data_attribute_sample"].loc[source["data_attribute_sample"]["SAMPID"] == "GTEX-1117F-0003-SM-58Q7G"]["SMTS"][0])
-    print(source["data_attribute_sample"].loc[source["data_attribute_sample"]["SAMPID"] == "GTEX-1117F-0003-SM-58Q7G"].at[0, "SMTS"])
-
-
-    ####################################################
-    ######################################################
-    ####################################################3
 
     ##################################################
-
-
-
-
-    # TODO: Scrap below here...
-
-
-    if False:
-
-        counter = 0
-        for row in data.iterrows():
-            # apply function here to determine if the sample passes criteria
-            # I assume that I can access all of the gene values this way...
-            # if not, then consider using iterrows
-            if counter < 3:
-                print(row.Description)
-            counter += 1
-
-    pass
-
+    ##################################################
+    ##################################################
 
 if (__name__ == "__main__"):
     execute_procedure()

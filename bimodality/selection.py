@@ -198,7 +198,7 @@ def collect_patients_tissues_samples(data_samples_tissues_patients=None):
     raises:
 
     returns:
-        (dict<dict<list<str>>): Samples for each tissue of each patients.
+        (dict<dict<list<str>>): Samples for each tissue of each patient.
 
     """
 
@@ -614,11 +614,22 @@ def write_product(dock=None, information=None):
     utility.confirm_path_directory(path_selection)
     path_tissues = os.path.join(path_selection, "tissues.pickle")
     path_patients = os.path.join(path_selection, "patients.pickle")
+    path_tissues_samples = os.path.join(
+        path_selection, "tissues_samples.pickle"
+    )
+    path_patients_samples = os.path.join(
+        path_selection, "patients_samples.pickle"
+    )
     # Write information to file.
     with open(path_tissues, "wb") as file_product:
         pickle.dump(information["tissues"], file_product)
     with open(path_patients, "wb") as file_product:
         pickle.dump(information["patients"], file_product)
+    with open(path_tissues_samples, "wb") as file_product:
+        pickle.dump(information["tissues_patients_samples"], file_product)
+    with open(path_patients_samples, "wb") as file_product:
+        pickle.dump(information["patients_tissues_samples"], file_product)
+
 
 
 ###############################################################################
@@ -890,6 +901,8 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
+        "patients_tissues_samples": patients_tissues_samples,
+        "tissues_patients_samples": tissues_patients_samples,
         "tissues": tissues,
         "patients": patients,
     }
