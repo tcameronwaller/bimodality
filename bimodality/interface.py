@@ -18,6 +18,7 @@ import textwrap
 import access
 import selection
 import organization
+import analysis
 import utility
 
 #dir()
@@ -147,7 +148,12 @@ def define_main_subparser(subparsers=None):
     )
     parser_main.add_argument(
         "-o", "--organization", dest="organization", action="store_true",
-        help="Organize information for patients, tissues, samples, genes."
+        help="Organization of information for patients, tissues, samples, " +
+        "and genes."
+    )
+    parser_main.add_argument(
+        "-n", "--analysis", dest="analysis", action="store_true",
+        help="Analysis of real, shuffle, and simulation data sets."
     )
     # Define behavior.
     parser_main.set_defaults(func=evaluate_main_parameters)
@@ -242,6 +248,12 @@ def evaluate_main_parameters(arguments):
         print("... executing organization procedure ...")
         # Execute procedure.
         organization.execute_procedure(dock=arguments.dock)
+    if arguments.analysis:
+        # Report status.
+        print("... executing analysis procedure ...")
+        # Execute procedure.
+        analysis.execute_procedure(dock=arguments.dock)
+
 
 
 ###############################################################################

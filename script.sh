@@ -33,5 +33,5 @@ echo "Now set to call routine and procedures."
 
 #python3 interface.py main -d $path_dock -a
 #python3 interface.py main -d $path_dock -s
-python3 interface.py main -d $path_dock -o
-
+#python3 interface.py main -d $path_dock -o
+python3 interface.py main -d $path_dock -n
