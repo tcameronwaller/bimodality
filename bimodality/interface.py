@@ -19,6 +19,7 @@ import access
 import selection
 import organization
 import analysis
+import metric
 import utility
 
 #dir()
@@ -155,6 +156,10 @@ def define_main_subparser(subparsers=None):
         "-n", "--analysis", dest="analysis", action="store_true",
         help="Analysis of real, shuffle, and simulation data sets."
     )
+    parser_main.add_argument(
+        "-m", "--metric", dest="metric", action="store_true",
+        help="Definition and test of metrics for modality."
+    )
     # Define behavior.
     parser_main.set_defaults(func=evaluate_main_parameters)
     # Return parser.
@@ -253,6 +258,12 @@ def evaluate_main_parameters(arguments):
         print("... executing analysis procedure ...")
         # Execute procedure.
         analysis.execute_procedure(dock=arguments.dock)
+    if arguments.metric:
+        # Report status.
+        print("... executing metric procedure ...")
+        # Execute procedure.
+        metric.execute_procedure(dock=arguments.dock)
+
 
 
 

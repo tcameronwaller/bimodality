@@ -35,6 +35,8 @@ import utility
 # Functionality
 
 
+# TODO: when ready, read in all data...
+
 def read_source(dock=None):
     """
     Reads and organizes source information from file.
@@ -54,13 +56,13 @@ def read_source(dock=None):
     path_access = os.path.join(dock, "access")
     path_attribute_sample = os.path.join(path_access, "attribute_sample.txt")
     path_attribute_patient = os.path.join(path_access, "attribute_patient.txt")
-    path_gene_signal = os.path.join(path_access, "signal_gene.gct")
+    path_signal_gene = os.path.join(path_access, "signal_gene.gct")
     # Read information from file.
     data_gene_signal = pandas.read_csv(
-        path_gene_signal,
+        path_signal_gene,
         sep="\t",
         header=2,
-        #nrows=1000,
+        #nrows=100,
     )
     data_attribute_patient = pandas.read_csv(
         path_attribute_patient,
@@ -82,294 +84,6 @@ def read_source(dock=None):
     }
 
 
-def organize_data_axes_indices(data=None):
-    """
-    Organizes data with names and indices.
-
-    arguments:
-        data (object): Pandas data frame of genes' signals for all samples.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals for all samples.
-
-    """
-
-    # The Pandas function to rename axis copies data deeply by default and
-    # requires a lot of memory.
-    utility.print_terminal_partition(level=2)
-
-    # Drop column for genes' descriptions.
-    print("Drop column for genes' description.")
-    data_drop = data.drop(
-        labels="Description",
-        axis="columns",
-    )
-    print(data_drop.iloc[0:10, 0:10])
-    print("Organize data with names and indices.")
-    data_drop.set_index(
-        "Name",
-        drop=True,
-        inplace=True,
-    )
-    data_drop.rename_axis(
-        index="gene",
-        axis="index",
-        copy=False,
-        inplace=True,
-    )
-    data_drop.rename_axis(
-        columns="sample",
-        axis="columns",
-        copy=False,
-        inplace=True
-    )
-    print(data_drop.iloc[0:10, 0:10])
-    return data_drop
-
-
-def optimize_data_types(data=None):
-    """
-    Optimizes data types.
-
-    arguments:
-        data (object): Pandas data frame of genes' signals for all samples.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals for all samples.
-
-    """
-
-    utility.print_terminal_partition(level=2)
-    print("Optimize efficiency of storage of data.")
-
-    # Summarize data type and size.
-    print("Print technical information about data.")
-    print(data.info())
-
-    # All values are of the same type.
-
-    if False:
-        # data.select_dtypes(include=["float"])
-        data_type = data.apply(pandas.to_numeric, downcast="float")
-
-    # Optimize data types.
-    # Store genes' signals as numeric values of type float in 32 bits.
-    data_type = data.astype("float32")
-
-    # Summarize data type and size.
-    print("Print technical information about data.")
-    print(data_type.info())
-
-    return data_type
-
-
-def check_missing_values(data=None):
-    """
-    Checks data for missing values and prints reports.
-
-    arguments:
-        data (object): Pandas data frame of genes' signals for all samples.
-
-    raises:
-
-    returns:
-
-    """
-
-    utility.print_terminal_partition(level=2)
-    print("Check for missing values in genes' signals.")
-    print("shape of original data frame: " + str(data.shape))
-    print("shape without missing axis 0: " + str(data.dropna(axis=0).shape))
-    print("shape without missing axis 1: " + str(data.dropna(axis=1).shape))
-    pass
-
-
-def check_redundancy_genes(data=None):
-    """
-    Checks data for redundancy in genes.
-
-    arguments:
-        data (object): Pandas data frame of genes' signals for all samples.
-
-    raises:
-
-    returns:
-
-    """
-
-    utility.print_terminal_partition(level=2)
-    print("Check for redundant genes in genes' signals.")
-    print("Consider names of genes.")
-    # Reset indices to consider names of genes.
-    data = data.reset_index()
-    print(data.iloc[0:10, 0:10])
-    data_redundancy = data.duplicated(subset=None, keep="first")
-    data_redundancy_list = data_redundancy.to_list()
-    if any(data_redundancy_list):
-        print("Redundancy in genes: Yes")
-    else:
-        print("Redundancy in genes: No")
-    pass
-
-
-def check_zero_samples(data=None):
-    """
-    Checks data for samples with values of 0 for all genes' signals.
-
-    arguments:
-        data (object): Pandas data frame of genes' signals for all samples.
-
-    raises:
-
-    returns:
-
-    """
-
-    utility.print_terminal_partition(level=2)
-    print("Check for samples with values of 0 for all genes' signals.")
-    print("shape of original data frame: " + str(data.shape))
-    data_nonzero = (data != 0)
-    print(
-        "shape of data frame without zero samples: " +
-        str(data.loc[ : , data_nonzero.any(axis="index")].shape)
-    )
-    pass
-
-
-def check_zero_genes(data=None):
-    """
-    Checks data for genes with values of 0 for signals across all samples.
-
-    arguments:
-        data (object): Pandas data frame of genes' signals for all samples.
-
-    raises:
-
-    returns:
-
-    """
-
-    utility.print_terminal_partition(level=2)
-    print("Check for genes with values of 0 for signals across all samples.")
-    print("These genes are undetectable.")
-    print("shape of original data frame: " + str(data.shape))
-    data_nonzero = (data != 0)
-    print(
-        "shape of data frame without zero samples: " +
-        str(data.loc[data_nonzero.any(axis="columns"), : ].shape)
-    )
-    print("Now printing a summary of data for genes with all zero signals.")
-    data_zero = (data == 0)
-    data_signal_zero = data.loc[data_zero.all(axis="columns"), : ]
-    print(data_signal_zero.iloc[0:10, 0:10])
-    #groups = data_signal_zero.groupby(level="gene")
-    #print(groups.describe())
-    pass
-
-
-def drop_undetectable_genes(data=None):
-    """
-    Drops genes with values of 0 for signals across all samples.
-
-    arguments:
-        data (object): Pandas data frame of genes' signals for all samples.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals for all samples.
-
-    """
-
-    utility.print_terminal_partition(level=2)
-    print("Drop genes that are undetectable.")
-    data_nonzero = (data != 0)
-    data_signal = data.loc[data_nonzero.any(axis="columns"), : ]
-    print("Data without undetectable genes.")
-    print(data_signal.iloc[0:10, 0:10])
-    print("data dimensions: " + str(data_signal.shape))
-    return data_signal
-
-
-def select_save_gene_signals(data=None, dock=None):
-    """
-    Selects and saves information about genes' signals.
-
-    arguments:
-        data (object): Pandas data frame of genes' signals for all samples.
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-
-    raises:
-
-    returns:
-
-    """
-
-    # Check for data quality.
-    utility.print_terminal_partition(level=1)
-    print("Check for quality of genes' signals.")
-
-    # Organize data with names and indices.
-    data_gene_signal = organize_data_axes_indices(
-        data=data
-    )
-
-    # Optimize data types.
-    data_gene_signal = optimize_data_types(data=data_gene_signal)
-
-    # Check for missing values of genes' signals.
-    check_missing_values(data=data_gene_signal)
-
-    # Collect garbage to clear memory.
-    gc.collect()
-
-    # Check for redundant genes.
-    check_redundancy_genes(data=data_gene_signal)
-
-    # Collect garbage to clear memory.
-    gc.collect()
-
-    # Check for samples with values of 0 for all genes' signals.
-    check_zero_samples(data=data_gene_signal)
-
-    # Collect garbage to clear memory.
-    gc.collect()
-
-    # Check for genes with values of 0 for signals across all samples.
-    check_zero_genes(data=data_gene_signal)
-
-    # Collect garbage to clear memory.
-    gc.collect()
-
-    # Drop undetectable genes.
-    data_gene_signal = drop_undetectable_genes(data=data_gene_signal)
-
-    # Collect garbage to clear memory.
-    gc.collect()
-
-    print("Original count of genes was 56202.")
-    print("Count of genes with nonzero signal is 55863.")
-
-    # Compile information.
-    information = {
-        "data_gene_signal": data_gene_signal,
-    }
-    #Write product information to file.
-    write_product_gene(dock=dock, information=information)
-
-    pass
-
-
-
-
-
-
 def collect_samples_tissues_patients(
     data_gene_signal=None, data_attribute_sample=None
 ):
@@ -389,7 +103,7 @@ def collect_samples_tissues_patients(
     ##################################################
 
     arguments:
-        data_gene_signal (object): Pandas data frame of genes' signals for all
+        data_gene_signal (object): Pandas data frame of gene's signals for all
             samples.
         data_attribute_sample (object): Pandas data frame of attributes for all
             samples.
@@ -435,9 +149,6 @@ def collect_samples_tissues_patients(
     return utility.convert_records_to_dataframe(
         records=samples_tissues_patients
     )
-
-
-
 
 
 def filter_samples_tissues_patients(
@@ -884,32 +595,6 @@ def filter_patients_tissues_coverage(
     return patients
 
 
-def write_product_gene(dock=None, information=None):
-    """
-    Writes product information to file.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
-
-    raises:
-
-    returns:
-
-    """
-
-    # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
-    utility.confirm_path_directory(path_selection)
-    path_gene_signal = os.path.join(path_selection, "gene_signal.pickle")
-    # Write information to file.
-    pandas.to_pickle(
-        information["data_gene_signal"], path_gene_signal
-    )
-    pass
-
-
 def write_product(dock=None, information=None):
     """
     Writes product information to file.
@@ -930,9 +615,6 @@ def write_product(dock=None, information=None):
     utility.confirm_path_directory(path_selection)
     path_tissues = os.path.join(path_selection, "tissues.pickle")
     path_patients = os.path.join(path_selection, "patients.pickle")
-    path_samples = os.path.join(
-        path_selection, "samples_tissues_patients.pickle"
-    )
     path_tissues_samples = os.path.join(
         path_selection, "tissues_samples.pickle"
     )
@@ -944,14 +626,11 @@ def write_product(dock=None, information=None):
         pickle.dump(information["tissues"], file_product)
     with open(path_patients, "wb") as file_product:
         pickle.dump(information["patients"], file_product)
-    pandas.to_pickle(
-        information["samples_tissues_patients"], path_samples
-    )
     with open(path_tissues_samples, "wb") as file_product:
         pickle.dump(information["tissues_patients_samples"], file_product)
     with open(path_patients_samples, "wb") as file_product:
         pickle.dump(information["patients_tissues_samples"], file_product)
-    pass
+
 
 
 ###############################################################################
@@ -971,13 +650,6 @@ def execute_procedure(dock=None):
     returns:
 
     """
-
-    # Data for genes' signals is extensive.
-    # Conserve memory.
-    # Avoid unnecessary copies of the data.
-    # Containerize portions of script within separate functions.
-    # Collect garbage frequently.
-    # Optimize data types of genes' signals.
 
     # Enable automatic garbage collection to clear memory.
     gc.enable()
@@ -1018,22 +690,118 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
+    # TODO: filter out samples with values of 0 for all genes...
+    # TODO: do so before parsing patients -> tissues -> samples
+    # TODO: do so before selecting patients and tissues.
+
     #print(source["data_gene_signal"].loc[:,"GTEX-1117F-0226-SM-5GZZ7"])
 
-    # Select and save information about genes' signals.
-    select_save_gene_signals(data=source["data_gene_signal"], dock=dock)
+    # Check for data quality.
+    utility.print_terminal_partition(level=1)
+    print("Check for quality of genes' signals.")
+
+    # Temporarily drop column for genes' descriptions.
+    utility.print_terminal_partition(level=2)
+    print("Drop column for genes' description.")
+    data_gene_signal = source["data_gene_signal"].drop(
+        labels="Description",
+        axis="columns",
+    )
+    print(data_gene_signal.iloc[0:10, 0:10])
+
+    # Organize data with names and indices.
+    # The Pandas function to rename axis copies data deeply by default and
+    # requires a lot of memory.
+    utility.print_terminal_partition(level=2)
+    print("Organize data with names and indices.")
+    data_gene_signal = data_gene_signal.set_index("Name")
+    data_gene_signal_axis_temporary = data_gene_signal_index.rename_axis(
+        index="gene",
+        axis="index",
+        copy=False,
+    )
+    data_gene_signal_axis = data_gene_signal_axis_temporary.rename_axis(
+        columns="sample",
+        axis="columns",
+        copy=False,
+    )
+    print(data_gene_signal_axis.iloc[0:10, 0:10])
+
+    # Collect garbage to clear memory.
+    gc.collect()
+
+    # Check for redundant genes.
+    utility.print_terminal_partition(level=2)
+    print("Check for redundant genes in genes' signals.")
+    print("Consider names of genes.")
+    # Reset indices to consider names of genes.
+    data_gene_signal.reset_index()
+    print(data_gene_signal.iloc[0:10, 0:10])
+    data_redundancy = (
+        data_gene_signal.duplicated(subset=None, keep="first")
+    )
+    data_redundancy_list = data_redundancy.to_list()
+    if any(data_redundancy_list):
+        print("Redundancy in genes: Yes")
+    else:
+        print("Redundancy in genes: No")
+
+    # Check for missing values of genes' signals.
+    utility.print_terminal_partition(level=2)
+    print("Check for missing values in genes' signals.")
+    print(
+        "shape of original data frame: " + str(data_gene_signal_axis.shape)
+    )
+    print(
+        "shape without missing axis 0: " +
+        str(data_gene_signal_axis.dropna(axis=0).shape)
+    )
+    print(
+        "shape without missing axis 1: " +
+        str(data_gene_signal_axis.dropna(axis=1).shape)
+    )
+
+    # Collect garbage to clear memory.
+    gc.collect()
+
+    # Check for samples with values of 0 for all genes' signals.
+    utility.print_terminal_partition(level=2)
+    print("Check for samples with values of 0 for all genes' signals.")
+    print(
+        "shape of original data frame: " +
+        str(data_gene_signal_axis.shape)
+    )
+    data_nonzero = (
+        data_gene_signal_axis
+        .loc[ : , (data_gene_signal_axis != 0).any(axis="index")]
+    )
+    print(
+        "shape of data frame without zero samples: " + str(data_nonzero.shape)
+    )
+
+    # Collect garbage to clear memory.
+    gc.collect()
+
+    # Check for genes with values of 0 for signals across all samples.
+    utility.print_terminal_partition(level=2)
+    print("Check for genes with values of 0 for signals across all samples.")
+    print("These genes are undetectable.")
+    print(
+        "shape of original data frame: " +
+        str(data_gene_signal_axis.shape)
+    )
+    data_nonzero = (
+        data_gene_signal_axis
+        .loc[(data_gene_signal_axis != 0).any(axis="columns"), : ]
+    )
+    print(
+        "shape of data frame without zero samples: " + str(data_nonzero.shape)
+    )
 
     # Collect garbage to clear memory.
     gc.collect()
 
 
-    ##################################################
-    ##################################################
-    ##################################################
-
-    ##################################################
-    ##################################################
-    ##################################################
 
     ##################################################
     ##################################################
@@ -1042,11 +810,6 @@ def execute_procedure(dock=None):
     # Summarize organization of data.
     utility.print_terminal_partition(level=1)
     print("Hierarchical organization of samples.")
-
-    # Samples beginning with code patient "K-562" seem to be exceptions.
-    # These samples do not seem to have any attributes or measurements.
-    # These samples all seem to be for tissue "Bone Marrow".
-
 
     # Organize samples by hierarchy of patients and tissues.
     # Collect tissues and patients for each sample.
@@ -1081,7 +844,7 @@ def execute_procedure(dock=None):
     utility.print_terminal_partition(level=4)
     print(
         "data hierarchy is " +
-        "patients (714) -> tissues (30) -> samples (11688) -> genes (~50,000)"
+        "patients (714) -> tissues (30) -> samples (11688) -> genes (~20,000)"
     )
     patients_tissues_samples = collect_patients_tissues_samples(
         data_samples_tissues_patients=data_samples_tissues_patients
@@ -1104,7 +867,7 @@ def execute_procedure(dock=None):
     utility.print_terminal_partition(level=4)
     print(
         "data hierarchy is " +
-        "tissue (30) -> patients (714) -> samples (11688) -> genes (~50,000)"
+        "tissue (30) -> patients (714) -> samples (11688) -> genes (~20,000)"
     )
     tissues_patients_samples = collect_tissues_patients_samples(
         data_samples_tissues_patients=data_samples_tissues_patients
@@ -1206,7 +969,7 @@ def execute_procedure(dock=None):
     #print(data_gene_signal_mean.loc["GTEX-12WSD", ])
     # Filter for those patients which miss fewer than 4 selection tissues.
     print("Allow each patient to miss fewer than 4 selection tissues.")
-    print(data_samples_tissues_patients
+    print(
         "Hence the extent of imputation will be less than 40% of tissues " +
         "for each patient."
     )
@@ -1264,7 +1027,6 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
-        "samples_tissues_patients": data_samples_tissues_patients,
         "patients_tissues_samples": patients_tissues_samples,
         "tissues_patients_samples": tissues_patients_samples,
         "tissues": tissues,
