@@ -17,6 +17,7 @@ import textwrap
 # Custom.
 import access
 import selection
+import assembly
 import organization
 import analysis
 import metric
@@ -148,6 +149,13 @@ def define_main_subparser(subparsers=None):
         help="Selection of tissues and patients of interest."
     )
     parser_main.add_argument(
+        "-b", "--assembly", dest="assembly", action="store_true",
+        help=(
+            "Collection of tissues, patients, and genes' signals for each " +
+            "sample."
+        )
+    )
+    parser_main.add_argument(
         "-o", "--organization", dest="organization", action="store_true",
         help="Organization of information for patients, tissues, samples, " +
         "and genes."
@@ -248,6 +256,11 @@ def evaluate_main_parameters(arguments):
         print("... executing selection procedure ...")
         # Execute procedure.
         selection.execute_procedure(dock=arguments.dock)
+    if arguments.assembly:
+        # Report status.
+        print("... executing assembly procedure ...")
+        # Execute procedure.
+        assembly.execute_procedure(dock=arguments.dock)
     if arguments.organization:
         # Report status.
         print("... executing organization procedure ...")

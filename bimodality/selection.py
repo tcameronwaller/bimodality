@@ -1206,7 +1206,7 @@ def execute_procedure(dock=None):
     #print(data_gene_signal_mean.loc["GTEX-12WSD", ])
     # Filter for those patients which miss fewer than 4 selection tissues.
     print("Allow each patient to miss fewer than 4 selection tissues.")
-    print(data_samples_tissues_patients
+    print(
         "Hence the extent of imputation will be less than 40% of tissues " +
         "for each patient."
     )

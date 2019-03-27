@@ -314,6 +314,38 @@ def collect_gene_signal_by_patients_tissues(
 
 
 
+def collect_samples_tissues_patients_reference(
+    data_samples_tissues_patients=None,
+):
+    """
+    Collects tissues, patients, and genes' signals for each sample.
+
+    arguments:
+        data_samples_tissues_patients (object): Pandas data frame of patients
+            and tissues for all samples.
+
+    raises:
+
+    returns:
+        (dict<dict<str>>): Tissue and patient for each sample.
+
+    """
+
+    samples_tissues_patients = utility.convert_dataframe_to_records(
+        data=data_samples_tissues_patients
+    )
+    reference = dict()
+    for record in samples_tissues_patients:
+        sample = record["sample"]
+        tissue = record["tissue"]
+        patient = record["patient"]
+        if sample not in reference:
+            reference[sample] = dict()
+            reference[sample]["tissue"] = tissue
+            reference[sample]["patient"] = patient
+    return reference
+
+
 def collect_genes_patients_tissues_samples(
     data_samples_tissues_patients=None,
     data_gene_signal=None
@@ -336,22 +368,29 @@ def collect_genes_patients_tissues_samples(
     """
 
     # Create reference for tissues and patients of each sample.
-    samples_tissues_patients = utility.convert_dataframe_to_records(
-        data=data_samples_tissues_patients
+    reference = collect_samples_tissues_patients_reference(
+        data_samples_tissues_patients=data_samples_tissues_patients
     )
-    reference = dict()
-    for record in samples_tissues_patients:
-        sample = record["sample"]
-        tissue = record["tissue"]
-        patient = record["patient"]
-        if sample not in reference:
-            reference[sample] = dict()
-            reference[sample]["tissue"] = tissue
-            reference[sample]["patient"] = patient
+    def match_tissue(sample):
+        return reference[sample]["tissue"]
+    def match_patient(sample):
+        return reference[sample]["patient"]
     # Designate patient and tissue of each sample.
-
-    #return data
-    pass
+    data = data_gene_signal.transpose(copy=True)
+    data.reset_index(level="sample", inplace=True)
+    data["tissue"] = (
+        data["sample"].apply(match_tissue)
+    )
+    data["patient"] = (
+        data["sample"].apply(match_patient)
+    )
+    data.set_index(
+        ["patient", "tissue", "sample"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    return data
 
 
 
@@ -427,22 +466,22 @@ def execute_procedure(dock=None):
 
     # Include identifiers for patient and tissue for each sample in data for
     # genes' signals.
+    #data = source["data_gene_signal"].transpose(copy=True)
+    #print(data.iloc[0:10, 0:10])
+
     data = collect_genes_patients_tissues_samples(
         data_samples_tissues_patients=source["data_samples_tissues_patients"],
         data_gene_signal=source["data_gene_signal"]
     )
+    print(data.iloc[0:10, 0:7])
+
+
 
 
 
     ########################################################################
-    # Consider renaming axes in data_gene_signal for convenience...
+    # Now do groupby by patient and tissue and calculate sums...
     #######################################################################
-
-
-    # Maybe I could include patient and tissue information in the gene_signal data?
-
-
-
 
 
 
