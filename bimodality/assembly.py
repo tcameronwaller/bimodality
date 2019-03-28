@@ -65,6 +65,9 @@ def read_source(dock=None):
     }
 
 
+##################################################
+# Scrap
+
 def calculate_gene_signal_mean_by_patients_tissues(
     patients_tissues_samples=None,
     data_gene_signal=None
@@ -312,6 +315,7 @@ def collect_gene_signal_by_patients_tissues(
     #)
     return data_summary
 
+##################################################
 
 
 def collect_samples_tissues_patients_reference(

@@ -60,7 +60,7 @@ def read_source(dock=None):
         path_gene_signal,
         sep="\t",
         header=2,
-        #nrows=1000,
+        nrows=1000,
     )
     data_attribute_patient = pandas.read_csv(
         path_attribute_patient,
@@ -900,7 +900,7 @@ def write_product_gene(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection_small")
     utility.confirm_path_directory(path_selection)
     path_gene_signal = os.path.join(path_selection, "gene_signal.pickle")
     # Write information to file.
@@ -926,7 +926,7 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection_small")
     utility.confirm_path_directory(path_selection)
     path_tissues = os.path.join(path_selection, "tissues.pickle")
     path_patients = os.path.join(path_selection, "patients.pickle")
@@ -1013,6 +1013,17 @@ def execute_procedure(dock=None):
     utility.print_terminal_partition(level=2)
     print("Summary of table of samples' attributes.")
     print(source["data_attribute_sample"].iloc[0:10, 0:7])
+
+    # How to reference information about a specific sample.
+    if False:
+        print(
+            source["data_attribute_sample"].loc[
+                (
+                    source["data_attribute_sample"]["SAMPID"] ==
+                    "GTEX-1117F-0003-SM-58Q7G"
+                )
+            ]
+        )
 
     ##################################################
     ##################################################

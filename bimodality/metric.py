@@ -266,6 +266,8 @@ def execute_procedure(dock=None):
     utility.print_terminal_partition(level=3)
 
     # Bimodal normal distribution.
+    # ...
+
 
     utility.print_terminal_partition(level=2)
     print(
