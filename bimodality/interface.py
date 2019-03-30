@@ -21,6 +21,7 @@ import assembly
 import organization
 import analysis
 import metric
+import test
 import utility
 
 #dir()
@@ -145,14 +146,16 @@ def define_main_subparser(subparsers=None):
         help="Access raw information from GTEx Portal."
     )
     parser_main.add_argument(
-        "-s", "--selection", dest="selection", action="store_true",
-        help="Selection of tissues and patients of interest."
-    )
-    parser_main.add_argument(
         "-b", "--assembly", dest="assembly", action="store_true",
         help=(
-            "Collection of tissues, patients, and genes' signals for each " +
-            "sample."
+            "Preliminary assembly of relevant information."
+        )
+    )
+    parser_main.add_argument(
+        "-s", "--selection", dest="selection", action="store_true",
+        help=(
+            "Selection of tissues, patients, and genes of interest for " +
+            "further analyses."
         )
     )
     parser_main.add_argument(
@@ -167,6 +170,10 @@ def define_main_subparser(subparsers=None):
     parser_main.add_argument(
         "-m", "--metric", dest="metric", action="store_true",
         help="Definition and test of metrics for modality."
+    )
+    parser_main.add_argument(
+        "-t", "--test", dest="test", action="store_true",
+        help="Temporary code to test functionality."
     )
     # Define behavior.
     parser_main.set_defaults(func=evaluate_main_parameters)
@@ -276,6 +283,12 @@ def evaluate_main_parameters(arguments):
         print("... executing metric procedure ...")
         # Execute procedure.
         metric.execute_procedure(dock=arguments.dock)
+    if arguments.test:
+        # Report status.
+        print("... executing test procedure ...")
+        # Execute procedure.
+        test.execute_procedure(dock=arguments.dock)
+
 
 
 

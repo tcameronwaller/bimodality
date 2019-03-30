@@ -107,6 +107,27 @@ def define_source():
             "suffix": "gct.gz",
             "compression": True,
         },
+        "annotation_gene_gtex": {
+            "path": (
+                "https://storage.googleapis.com/gtex_analysis_v7/reference/"
+            ),
+            "name": (
+                "gencode.v19.genes.v7.patched_contigs.gtf"
+            ),
+            "suffix": "gtf",
+            "compression": False,
+        },
+        "annotation_gene_gencode": {
+            "path": (
+                "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/" +
+                "release_29/"
+            ),
+            "name": (
+                "gencode.v29.annotation.gtf.gz"
+            ),
+            "suffix": "gtf.gz",
+            "compression": True,
+        },
     }
 
 
@@ -143,6 +164,13 @@ def download_files(reference=None, path_local=None):
     )
     wrap_download_file(
         reference=reference, key="signal_gene", path_local=path_local
+    )
+    wrap_download_file(
+        reference=reference, key="annotation_gene_gtex", path_local=path_local
+    )
+    wrap_download_file(
+        reference=reference, key="annotation_gene_gencode",
+        path_local=path_local
     )
     pass
 
@@ -228,6 +256,13 @@ def extract_files(reference=None, path_local=None):
     )
     wrap_extract_file(
         reference=reference, key="signal_gene", path_local=path_local
+    )
+    wrap_extract_file(
+        reference=reference, key="annotation_gene_gtex", path_local=path_local
+    )
+    wrap_extract_file(
+        reference=reference, key="annotation_gene_gencode",
+        path_local=path_local
     )
     pass
 
