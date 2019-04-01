@@ -51,7 +51,6 @@ def read_source(dock=None):
 
     # Specify directories and files.
     path_assembly = os.path.join(dock, "assembly")
-    utility.confirm_path_directory(path_assembly)
     path_samples_tissues_patients = os.path.join(
         path_assembly, "data_samples_tissues_patients.pickle"
     )
@@ -85,7 +84,7 @@ def read_source(dock=None):
     return {
         "data_samples_tissues_patients": data_samples_tissues_patients,
         "patients_tissues_samples": patients_tissues_samples,
-        "tissues_patients_samples" tissues_patients_samples,
+        "tissues_patients_samples": tissues_patients_samples,
         "data_gene_annotation": data_gene_annotation,
         "data_gene_signal": data_gene_signal,
     }
@@ -611,38 +610,218 @@ def filter_patients_tissues_coverage(
 
 ##########
 # Genes.
-# TODO: Introduce functionality to select only signals for protein-coding genes... use genes' annotations to filter the gene signals...
-
-# Define a binary true/false mask for the gene signal data using the gene annotation (whether or not a protein coding gene)
-# Then subset by that binary mask like I did for the zero data...
-
-# Actually that binary mask will be 1-dimensional... just iterate on gene identifiers and then use the "True" genes to subset by loc()
 
 
-def write_product_gene(dock=None, information=None):
+def select_samples(
+    tissues=None,
+    patients=None,
+    data_gene_signal=None
+):
     """
-    Writes product information to file.
+    Selects samples of interest for further analyses.
 
     arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
+        tissues (list<str>): Tissues of interest.
+        patients (list<str>): Patients of interest.
+        data_gene_signal (object): Pandas data frame of genes' signals for all
+            samples, tissues, and patients.
 
     raises:
 
     returns:
+        (dict): Pandas data frame of genes' signals for all samples, tissues,
+            and patients.
 
     """
 
-    # Specify directories and files.
-    path_selection = os.path.join(dock, "selection_small")
-    utility.confirm_path_directory(path_selection)
-    path_gene_signal = os.path.join(path_selection, "gene_signal.pickle")
-    # Write information to file.
-    pandas.to_pickle(
-        information["data_gene_signal"], path_gene_signal
+    # Select samples from patients and tissues of interest.
+    utility.print_terminal_partition(level=2)
+    print("Selection of samples from patients and tissues of interest.")
+    print("count of samples, original: " + str(data_gene_signal.shape[0]))
+    data_gene_signal.reset_index(
+        level=["patient", "tissue", "sample"], inplace=True
     )
-    pass
+    data_gene_signal.set_index(
+        ["patient"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data_gene_signal = data_gene_signal.loc[patients, : ]
+    print(
+        "count of samples from patients of interest: " +
+        str(data_gene_signal.shape[0])
+    )
+    data_gene_signal.reset_index(level=["patient"], inplace=True)
+    data_gene_signal.set_index(
+        ["tissue"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data_gene_signal = data_gene_signal.loc[tissues, : ]
+    print(
+        "count of samples from tissues of interest: " +
+        str(data_gene_signal.shape[0])
+    )
+    data_gene_signal.reset_index(level=["tissue"], inplace=True)
+    data_gene_signal.set_index(
+        ["patient", "tissue", "sample"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
+    return data_gene_signal
+
+
+def select_genes_detection(data_gene_signal=None):
+    """
+    Selects detectable genes with nonzero signals.
+
+    arguments:
+        data_gene_signal (object): Pandas data frame of genes' signals for all
+            samples, tissues, and patients.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals for all samples, tissues,
+            and patients.
+
+    """
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "Selection of detectable genes with nonzero signals in patients " +
+        "and tissues of interest."
+    )
+    print("genes, original: " + str(data_gene_signal.shape[1]))
+    data_nonzero = (data_gene_signal != 0)
+    data_signal = data_gene_signal.loc[ : , data_nonzero.any(axis="index")]
+    print("genes, detection: " + str(data_signal.shape[1]))
+    return data_signal
+
+
+def select_genes_protein(
+    data_gene_annotation=None,
+    data_gene_signal=None
+):
+    """
+    Selects genes that encode proteins.
+
+    arguments:
+        data_gene_annotation (object): Pandas data frame of genes' annotations.
+        data_gene_signal (object): Pandas data frame of genes' signals for all
+            samples, tissues, and patients.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals for all samples, tissues,
+            and patients.
+
+    """
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "Selection of genes that encode proteins."
+    )
+    # Describe original count of genes.
+    print("signal genes, original: " + str(data_gene_signal.shape[1]))
+    genes_signal = data_gene_signal.columns.to_list()
+    print("signal genes, original: " + str(len(genes_signal)))
+    # Filter genes by their annotations.
+    #print(data_gene_annotation.loc["ENSG00000223972", "gene_type"])
+    print(
+        "count of genes in GENCODE annotations: " +
+        str(data_gene_annotation.shape[0])
+    )
+    data_gene_annotation = (
+        data_gene_annotation.loc[
+            data_gene_annotation["gene_type"] == "protein_coding"
+        ]
+    )
+    print(data_gene_annotation.iloc[0:10, 0:7])
+    print(
+        "count of GENCODE genes of type 'protein_coding': " +
+        str(data_gene_annotation.shape[0])
+    )
+    data_gene_annotation.reset_index(level=["identifier"], inplace=True)
+    genes_protein = data_gene_annotation["identifier"].to_list()
+    print(
+        "count of GENCODE genes of type 'protein_coding': " +
+        str(len(genes_protein))
+    )
+
+    # Filter gene signals.
+    genes_signal_protein = utility.filter_common_elements(
+        list_one=genes_protein, list_two=genes_signal
+    )
+    print(
+        "signal genes that encode proteins: " +
+        str(len(genes_signal_protein))
+    )
+    data_gene_signal = data_gene_signal.loc[ : , genes_signal_protein]
+    print(
+        "signal genes that encode proteins: " +
+        str(data_gene_signal.shape[1])
+    )
+    return data_gene_signal
+
+
+def select_samples_genes(
+    patients=None,
+    tissues=None,
+    data_gene_annotation=None,
+    data_gene_signal=None
+):
+    """
+    Selects samples and genes of interest for further analyses.
+
+    arguments:
+        patients (list<str>): Patients of interest.
+        tissues (list<str>): Tissues of interest.
+        data_gene_annotation (object): Pandas data frame of genes' annotations.
+        data_gene_signal (object): Pandas data frame of genes' signals for all
+            samples, tissues, and patients.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals for all samples, tissues,
+            and patients.
+
+    """
+
+    utility.print_terminal_partition(level=1)
+    print("Selection of samples and genes of interest.")
+
+    # Select samples from patients and tissues of interest.
+    data_gene_signal = select_samples(
+        patients=patients,
+        tissues=tissues,
+        data_gene_signal=data_gene_signal,
+    )
+
+    # Select genes with detectable, non-zero signal in tissues and patients of
+    # interest.
+    data_gene_signal = select_genes_detection(
+        data_gene_signal=data_gene_signal
+    )
+
+    # Select genes that encode proteins.
+    data_gene_signal = select_genes_protein(
+        data_gene_annotation=data_gene_annotation,
+        data_gene_signal=data_gene_signal
+    )
+
+    # Return information.
+    return data_gene_signal
+
+
+##########
+# Product.
 
 
 def write_product(dock=None, information=None):
@@ -661,18 +840,12 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection_small")
+    path_selection = os.path.join(dock, "selection")
     utility.confirm_path_directory(path_selection)
     path_tissues = os.path.join(path_selection, "tissues.pickle")
     path_patients = os.path.join(path_selection, "patients.pickle")
-    path_samples = os.path.join(
-        path_selection, "samples_tissues_patients.pickle"
-    )
-    path_tissues_samples = os.path.join(
-        path_selection, "tissues_samples.pickle"
-    )
-    path_patients_samples = os.path.join(
-        path_selection, "patients_samples.pickle"
+    path_gene_signal = os.path.join(
+        path_selection, "data_gene_signal.pickle"
     )
     # Write information to file.
     with open(path_tissues, "wb") as file_product:
@@ -680,12 +853,9 @@ def write_product(dock=None, information=None):
     with open(path_patients, "wb") as file_product:
         pickle.dump(information["patients"], file_product)
     pandas.to_pickle(
-        information["samples_tissues_patients"], path_samples
+        information["data_gene_signal"],
+        path_gene_signal
     )
-    with open(path_tissues_samples, "wb") as file_product:
-        pickle.dump(information["tissues_patients_samples"], file_product)
-    with open(path_patients_samples, "wb") as file_product:
-        pickle.dump(information["patients_tissues_samples"], file_product)
     pass
 
 
@@ -716,25 +886,39 @@ def execute_procedure(dock=None):
 
     # Selection of tissues and patients of interest.
     tissues_patients = select_tissues_patients(
-        data_samples_tissues_patients=data_samples_tissues_patients,
-        patients_tissues_samples=patients_tissues_samples,
-        tissues_patients_samples=tissues_patients_samples
+        data_samples_tissues_patients=source["data_samples_tissues_patients"],
+        patients_tissues_samples=source["patients_tissues_samples"],
+        tissues_patients_samples=source["tissues_patients_samples"]
     )
 
     ##################################################
     ##################################################
     ##################################################
 
-    # Selection of genes of interest.
+    # Selection of samples and genes of interest.
+    data_gene_signal = select_samples_genes(
+        tissues=tissues_patients["tissues"],
+        patients=tissues_patients["patients"],
+        data_gene_annotation=source["data_gene_annotation"],
+        data_gene_signal=source["data_gene_signal"]
+    )
 
     ##################################################
     ##################################################
     ##################################################
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "Summary of signals."
+    )
+    print(data_gene_signal.iloc[0:10, 0:10])
+    print(data_gene_signal.shape)
 
     # Compile information.
     information = {
         "tissues": tissues_patients["tissues"],
         "patients": tissues_patients["patients"],
+        "data_gene_signal": data_gene_signal,
     }
     #Write product information to file.
     write_product(dock=dock, information=information)
