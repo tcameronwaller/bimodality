@@ -930,10 +930,8 @@ def write_product(dock=None, information=None):
         information["data_samples_tissues_patients"],
         path_samples_tissues_patients
     )
-    pandas.to_pickle(
-        information["patients_tissues_samples"],
-        path_patients_tissues_samples
-    )
+    with open(path_patients_tissues_samples, "wb") as file_product:
+        pickle.dump(information["patients_tissues_samples"], file_product)
     pandas.to_pickle(
         information["tissues_patients_samples"],
         path_tissues_patients_samples

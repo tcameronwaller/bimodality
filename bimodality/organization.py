@@ -51,6 +51,9 @@ def read_source(dock=None):
 
     # Specify directories and files.
     path_assembly = os.path.join(dock, "assembly")
+    path_patients_tissues_samples = os.path.join(
+        path_assembly, "patients_tissues_samples.pickle"
+    )
     path_gene_signal_assembly = os.path.join(
         path_assembly, "data_gene_signal.pickle"
     )
@@ -61,6 +64,8 @@ def read_source(dock=None):
         path_selection, "data_gene_signal.pickle"
     )
     # Read information from file.
+    with open(path_patients_tissues_samples, "rb") as file_source:
+        patients_tissues_samples = pickle.load(file_source)
     with open(path_tissues, "rb") as file_source:
         tissues = pickle.load(file_source)
     with open(path_patients, "rb") as file_source:
@@ -69,6 +74,7 @@ def read_source(dock=None):
     data_gene_signal_selection = pandas.read_pickle(path_gene_signal_selection)
     # Compile and return information.
     return {
+        "patients_tissues_samples": patients_tissues_samples,
         "tissues": tissues,
         "patients": patients,
         "data_gene_signal_assembly": data_gene_signal_assembly,
@@ -379,46 +385,44 @@ def calculate_mean_median_signal_by_patients_tissues(
     )
     print(data_gene_signal_mean.iloc[0:10, 0:7])
 
-    if False:
+    # Calculate median signals.
+    ##################################################
+    # gene   brain colon liver heart kidney
+    # abc1   7     3     2     6     3
+    # mpc1   5     3     2     6     3
+    # rip1   3     3     2     6     3
+    # rnt1   2     3     2     6     3
+    # rnx3   9     3     2     6     3
+    # sst5   3     3     2     6     3
+    # sph6   2     3     2     6     3
+    # xtr4   8     3     2     6     3
+    ##################################################
+    utility.print_terminal_partition(level=2)
+    print("Calculation of median values of each gene's signal " +
+        "within each tissue across all patients."
+    )
+    print("These median values are for imputation.")
+    print(
+        "Calculate imputation values before selection of samples, patients, " +
+        "and tissues so as to use as many measurements as are available."
+    )
+    # The map of associations between patients, tissues, and samples does not
+    # need filtration.
+    # The lists of tissues and patients of interest control the selection of
+    # samples.
+    data_gene_signal_median = calculate_gene_signal_median_by_tissues(
+        data_gene_signal=data_gene_signal_assembly
+    )
+    print(data_gene_signal_median.iloc[0:25, 0:10])
 
-        # Calculate median signals.
-        ##################################################
-        # gene   brain colon liver heart kidney
-        # abc1   7     3     2     6     3
-        # mpc1   5     3     2     6     3
-        # rip1   3     3     2     6     3
-        # rnt1   2     3     2     6     3
-        # rnx3   9     3     2     6     3
-        # sst5   3     3     2     6     3
-        # sph6   2     3     2     6     3
-        # xtr4   8     3     2     6     3
-        ##################################################
-        utility.print_terminal_partition(level=2)
-        print("Calculation of median values of each gene's signal " +
-            "within each tissue across all patients."
-        )
-        print("These median values are for imputation.")
-        print(
-            "Calculate imputation values before selection of samples, patients, " +
-            "and tissues so as to use as many measurements as are available."
-        )
-        # The map of associations between patients, tissues, and samples does not
-        # need filtration.
-        # The lists of tissues and patients of interest control the selection of
-        # samples.
-        data_gene_signal_median = calculate_gene_signal_median_by_tissues(
-            data_gene_signal=data_gene_signal_assembly
-        )
-        print(data_gene_signal_median.iloc[0:25, 0:10])
+    # Compile information.
+    information = {
+        "mean": data_gene_signal_mean,
+        "median": data_gene_signal_median
+    }
 
-        # Compile information.
-        information = {
-            "mean": data_gene_signal_mean,
-            "median": data_gene_signal_median
-        }
-
-        # Return information.
-        return information
+    # Return information.
+    return information
 
 
 def calculate_gene_signal_mean_by_patients_tissues(
@@ -514,7 +518,66 @@ def calculate_gene_signal_median_by_tissues(
     return data_median
 
 
-def collect_gene_signal_imputation(
+##########
+# Imputation.
+
+
+def organize_genes_signals(
+    tissues=None,
+    patients=None,
+    patients_tissues_samples=None,
+    data_gene_signal_median=None,
+    data_gene_signal_mean=None
+):
+    """
+    Organizes the signals for all genes in each tissue of each patient.
+
+    arguments:
+        tissues (list<str>): Tissues of interest.
+        patients (list<str>): Patients with signal for tissues of interest.
+        patients_tissues_samples (dict<dict<list<str>>): Samples for each
+            tissue of each patient.
+        data_gene_signal_median_tissue (object): Pandas data frame of median
+            values of genes' signals for all tissues.
+        data_gene_signal_mean (object): Pandas data frame of mean values of
+            genes' signals for all tissues of all patients.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of signals for all genes across
+            specific patients and tissues.
+
+    """
+
+    # Organization of signals.
+    utility.print_terminal_partition(level=1)
+    print("Organization of signals.")
+    print(
+        "Imputation of genes' signals for some patients and tissues will " +
+        "enhance coverage."
+    )
+
+    # Collection of genes' aggregate signals for all patients and tissues.
+    utility.print_terminal_partition(level=2)
+    print(
+        "Collection of genes' signals for all patients and tissues with " +
+        "imputation of misses."
+    )
+    data_gene_signal_imputation = collect_gene_signal_real_imputation(
+        tissues=source["tissues"],
+        patients=source["patients"],
+        patients_tissues_samples=source["patients_tissues_samples"],
+        data_gene_signal_median=aggregation["median"],
+        data_gene_signal_mean=aggregation["mean"]
+    )
+    print(data_gene_signal_imputation.iloc[0:25, 0:5])
+    print(data_gene_signal_imputation.shape)
+
+    return data_gene_signal_imputation
+
+
+def collect_gene_signal_real_imputation(
     tissues=None,
     patients=None,
     patients_tissues_samples=None,
@@ -670,41 +733,21 @@ def execute_procedure(dock=None):
         data_gene_signal_selection=source["data_gene_signal_selection"],
     )
 
+    # Collect real and imputation values of genes' signals for patients and
+    # tissues of interest.
+    data_gene_signal_imputation = organize_genes_signals(
+        tissues=source["tissues"],
+        patients=source["patients"],
+        patients_tissues_samples=source["patients_tissues_samples"],
+        data_gene_signal_median=aggregation["median"],
+        data_gene_signal_mean=aggregation["mean"]
+    )
+
 
 
     ###################################################################
 
     # TODO: I think organize the entire mean, median, imputation stuff within its own function...
-
-    if False:
-
-
-        # Organization of signals.
-        utility.print_terminal_partition(level=1)
-        print("Organization of signals.")
-        print(
-            "Imputation of genes' signals for some patients and tissues will " +
-            "enhance coverage."
-        )
-
-        # Collection of genes' aggregate signals for all patients and tissues.
-        utility.print_terminal_partition(level=2)
-        print(
-            "Collection of genes' signals for all patients and tissues with " +
-            "imputation of misses."
-        )
-        data_gene_signal_imputation = collect_gene_signal_imputation(
-            tissues=source["tissues"],
-            patients=source["patients"],
-            patients_tissues_samples=source["patients_tissues_samples"],
-            data_gene_signal_median=data_gene_signal_median,
-            data_gene_signal_mean=data_gene_signal_mean
-        )
-        print(data_gene_signal_imputation.iloc[0:25, 0:5])
-
-
-
-
 
 
     if False:
