@@ -26,9 +26,9 @@ import scipy.stats
 import rpy2
 import rpy2.robjects
 import rpy2.robjects.packages
-utils = rpy2.robjects.packages.importr("utils")
+#utils = rpy2.robjects.packages.importr("utils")
 #base = rpy2.robjects.packages.importr("base")
-utils.install_packages("diptest")
+#utils.install_packages("diptest")
 diptest = rpy2.robjects.packages.importr("diptest")
 
 # Custom

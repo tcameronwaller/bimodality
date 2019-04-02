@@ -661,6 +661,10 @@ def collect_gene_signal_real_imputation(
     return data_summary
 
 
+##########
+# Transformation.
+
+
 ########################################################
 # TODO: go ahead and calculate z-scores...
 ########################################################
@@ -742,6 +746,9 @@ def execute_procedure(dock=None):
         data_gene_signal_median=aggregation["median"],
         data_gene_signal_mean=aggregation["mean"]
     )
+
+    # Transform values of genes' signals to base-2 logarithmic space.
+    data_gene_signal_log = transform_gene_signal_log()
 
 
 
