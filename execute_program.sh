@@ -4,7 +4,7 @@
 
 path_project="/media/tcameronwaller/primary/data/local/work/project/2019_bimodality/"
 subpath_repository="repository/"
-path_repository="$path_project$subpath_repository/"
+path_repository="$path_project$subpath_repository"
 subpath_program="repository/bimodality/"
 path_program="$path_project$subpath_program"
 subpath_dock="dock/"

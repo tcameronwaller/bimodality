@@ -62,57 +62,6 @@ def read_source(dock=None):
         "data_gene_signal_imputation": data_gene_signal_imputation,
     }
 
-
-def calculate_logarithm_gene_signal(pseudo_count=None, data_gene_signal=None):
-    """
-    Calculates the base-2 logarithm of genes' signals in each sample.
-
-    Original gene signals are in transcript counts per million (TPM).
-
-    To accommodate gene signals of 0.0, add a pseudo count of 1.0 to all counts
-    before calculation of the base-2 logarithm.
-
-    arguments:
-        pseudo_count (float): Pseudo count to add to gene signal before
-            transformation to avoid values of zero.
-        data_gene_signal (object): Pandas data frame of signals for all genes
-            across specific patients and tissues.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of base-2 logarithmic signals for all genes
-            across specific patients and tissues.
-
-    """
-
-    # lambda x: math.log((x + 1), 2)
-
-    # An alternative approach would be to set the label columns to indices.
-    if False:
-        data_gene_signal_index = data_gene_signal.set_index(
-            ["Name", "Description"], append=True, drop=True
-        )
-        data_gene_signal_log = data_gene_signal_index.apply(
-            lambda value: 2 * value
-        )
-        data_log = data_signal_index.copy()
-        data_log.iloc[0:, 2:] = data_log.iloc[0:, 2:].applymap(
-            lambda value: math.log((value + 1.0), 2)
-        )
-
-    data_index = data_gene_signal.set_index(
-        ["patient", "tissue"], append=False, drop=True
-    )
-    data_log = data_index.applymap(
-        lambda value: math.log((value + pseudo_count), 2)
-    )
-    # Reverse an index to a column.
-    #dataframe["new_column"] = dataframe.index
-    data = data_log.reset_index(level=["patient", "tissue"])
-    return data
-
-
 def calculate_standard_score_gene_signal_by_tissue(data_gene_signal=None):
     """
     Calculates the standard (z-score) of genes' signals for each patient and
@@ -272,30 +221,9 @@ def execute_procedure(dock=None):
         print(data_heart)
         #data_merger = data_skin.merge(data_heart, how="outer")
 
+    ########################################################
 
-    # Transform genes' signals to base-2 logarithmic space.
-    # Transform before calculation of any median or mean values. <- maybe false
-    # Logarithms are not distributive.
-    # To accommodate gene signals of 0.0, add a pseudo count of 2.0 to all
-    # counts before calculation of the base-2 logarithm.
-    # log-2 signal = log2(TPM + pseudo-count)
-    # pseudo-count = 1.0
-    utility.print_terminal_partition(level=2)
-    print("Transformation of genes' signals to base-2 logarithmic space.")
-    print(
-        "To accommodate gene signals of 0.0, add a pseudo count of 2.0 to " +
-        "all counts before calculation of the base-2 logarithm."
-    )
-    data_gene_signal_log = calculate_logarithm_gene_signal(
-        pseudo_count=2.0,
-        data_gene_signal=source["data_gene_signal_imputation"]
-    )
-    data_gene_signal_log_index = (
-        data_gene_signal_log.set_index(
-            ["patient", "tissue"], append=False, drop=True
-        )
-    )
-    print(data_gene_signal_log_index.iloc[0:10, 0:10])
+
 
     # Transform signals to standard score space.
     utility.print_terminal_partition(level=2)

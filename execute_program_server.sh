@@ -31,10 +31,10 @@ cd $path_program
 
 echo "Now set to call routine and procedures."
 
-python interface.py main -d $path_dock -a
-python interface.py main -d $path_dock -b
-python interface.py main -d $path_dock -s
-#python interface.py main -d $path_dock -o
+#python interface.py main -d $path_dock -a
+#python interface.py main -d $path_dock -b
+#python interface.py main -d $path_dock -s
+python interface.py main -d $path_dock -o
 #python interface.py main -d $path_dock -n
 #python interface.py main -d $path_dock -m
 #python interface.py main -d $path_dock -t
