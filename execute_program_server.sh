@@ -3,9 +3,9 @@
 #chmod u+x script.sh
 
 path_project="/cellar/users/tcwaller/"
-subpath_repository="temporary/bimodality_master/bimodality/"
-path_repository="$path_project$subpath_repository/"
-subpath_program="temporary/bimodality_master/bimodality/"
+subpath_repository="temporary/bimodality-master/bimodality/"
+path_repository="$path_project$subpath_repository"
+subpath_program="temporary/bimodality-master/bimodality/"
 path_program="$path_project$subpath_program"
 subpath_dock="Data/dock/"
 path_dock="$path_project$subpath_dock"
@@ -31,10 +31,10 @@ cd $path_program
 
 echo "Now set to call routine and procedures."
 
-python3 interface.py main -d $path_dock -a
-python3 interface.py main -d $path_dock -b
-python3 interface.py main -d $path_dock -s
-#python3 interface.py main -d $path_dock -o
-#python3 interface.py main -d $path_dock -n
-#python3 interface.py main -d $path_dock -m
-#python3 interface.py main -d $path_dock -t
+python interface.py main -d $path_dock -a
+python interface.py main -d $path_dock -b
+python interface.py main -d $path_dock -s
+#python interface.py main -d $path_dock -o
+#python interface.py main -d $path_dock -n
+#python interface.py main -d $path_dock -m
+#python interface.py main -d $path_dock -t
