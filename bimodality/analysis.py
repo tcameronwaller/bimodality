@@ -62,46 +62,6 @@ def read_source(dock=None):
         "data_gene_signal_imputation": data_gene_signal_imputation,
     }
 
-def calculate_standard_score_gene_signal_by_tissue(data_gene_signal=None):
-    """
-    Calculates the standard (z-score) of genes' signals for each patient and
-    tissue.
-
-    The standard scores are relative to tissue.
-    The values of mean and standard deviation are across all patients for each
-    tissue.
-
-    arguments:
-        data_gene_signal (object): Pandas data frame of signals for all genes
-            across specific patients and tissues.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of standard score signals for all genes
-            across specific patients and tissues.
-
-    """
-
-    # lambda x: math.log((x + 1), 2)
-
-    # Create index for convenient access.
-    data_gene_signal_index = data_gene_signal.set_index(
-        ["tissue", "patient"], append=False, drop=True
-    )
-    groups = data_gene_signal_index.groupby(level="tissue")
-    # For some reason, the scipy function throws an error about illegal values.
-    #groups.transform(lambda value: print(value.to_list()))
-    #data_standard_index = (
-    #    groups.transform(lambda value: scipy.stats.zscore(value.to_list()))
-    #)
-    data_standard_index = groups.transform(lambda x: (x - x.mean()) / x.std())
-    data_standard = (
-        data_standard_index.reset_index(level=["tissue", "patient"])
-    )
-    return data_standard
-
-
 def calculate_sum_score_gene_signal_by_patient(data_gene_signal=None):
     """
     Calculates the sum of genes' signals across tissues for each patient.
@@ -225,32 +185,6 @@ def execute_procedure(dock=None):
 
 
 
-    # Transform signals to standard score space.
-    utility.print_terminal_partition(level=2)
-    print(
-        "Transformation of genes' signals to standard score (z-score) " +
-        "space."
-    )
-    data_gene_signal_standard = calculate_standard_score_gene_signal_by_tissue(
-        data_gene_signal=data_gene_signal_log
-    )
-    data_standard_index = data_gene_signal_standard.set_index(
-        ["tissue", "patient"], append=False, drop=True
-    )
-    print(data_standard_index.iloc[0:10, 0:10])
-    # Compare summary statistics before and after transformation.
-    utility.print_terminal_partition(level=3)
-    print("Summary statistics for gene signals in base-2 logarithmic space.")
-    groups = data_gene_signal_log_index.groupby(level="tissue")
-    print(groups.describe())
-    utility.print_terminal_partition(level=3)
-    print("Summary statistics for gene signals in z-score space.")
-    groups_standard = data_standard_index.groupby(level="tissue")
-    print(groups_standard.describe())
-    print("Mean...")
-    print(groups_standard.mean())
-    print("Standard deviation...")
-    print(groups_standard.std())
 
     # Calculate sum of genes' signals in z-score space across all tissues for
     # each patient.
@@ -269,6 +203,8 @@ def execute_procedure(dock=None):
     utility.print_terminal_partition(level=3)
     #print(data_sum_index.loc[:, "ENSG00000240453.1"])
     # Gene ENSG00000240453.1 has values of 0.0 for all patients.
+
+
 
     # Reshape data with patients as columns and genes as rows.
     if False:

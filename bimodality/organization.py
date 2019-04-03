@@ -565,11 +565,11 @@ def organize_genes_signals(
         "imputation of misses."
     )
     data_gene_signal_imputation = collect_gene_signal_real_imputation(
-        tissues=source["tissues"],
-        patients=source["patients"],
-        patients_tissues_samples=source["patients_tissues_samples"],
-        data_gene_signal_median=aggregation["median"],
-        data_gene_signal_mean=aggregation["mean"]
+        tissues=tissues,
+        patients=patients,
+        patients_tissues_samples=patients_tissues_samples,
+        data_gene_signal_median=data_gene_signal_median,
+        data_gene_signal_mean=data_gene_signal_mean
     )
 
     # Create indices for convenient access.
@@ -670,7 +670,7 @@ def collect_gene_signal_real_imputation(
 
 
 ##########
-# Transformation.
+# Transformation to logarithmic space.
 
 
 def transform_gene_signal_log(
@@ -758,11 +758,95 @@ def calculate_logarithm_gene_signal(pseudo_count=None, data_gene_signal=None):
     return data_log
 
 
+##########
+# Transformation to standard space.
+
+
+def transform_gene_signal_standard(data_gene_signal=None):
+    """
+    Transforms values of genes' signals to standard or z-score space.
+
+    arguments:
+        data_gene_signal (object): Pandas data frame of mean values of
+            genes' signals for all tissues of all patients.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of signals for all genes across
+            specific patients and tissues.
+
+    """
+
+    # Transform signals to standard score space.
+    utility.print_terminal_partition(level=2)
+    print(
+        "Transformation of genes' signals to standard score (z-score) " +
+        "space."
+    )
+    data_gene_signal_standard = calculate_standard_score_gene_signal_by_tissue(
+        data_gene_signal=data_gene_signal
+    )
+    print(data_gene_signal_standard.iloc[0:10, 0:10])
+    # Compare summary statistics before and after transformation.
+    utility.print_terminal_partition(level=3)
+    print("Summary statistics for gene signals in base-2 logarithmic space.")
+    groups = data_gene_signal.groupby(level="tissue")
+    print(groups.describe())
+    utility.print_terminal_partition(level=3)
+    print("Summary statistics for gene signals in z-score space.")
+    groups_standard = data_gene_signal_standard.groupby(level="tissue")
+    print(groups_standard.describe())
+    print("Mean...")
+    print(groups_standard.mean())
+    print("Standard deviation...")
+    print(groups_standard.std())
+
+    return data_gene_signal_standard
+
+
+def calculate_standard_score_gene_signal_by_tissue(data_gene_signal=None):
+    """
+    Calculates the standard (z-score) of genes' signals for each patient and
+    tissue.
+
+    The standard scores are relative to tissue.
+    The values of mean and standard deviation are across all patients for each
+    tissue.
+
+    arguments:
+        data_gene_signal (object): Pandas data frame of signals for all genes
+            across specific patients and tissues.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of standard score signals for all genes
+            across specific patients and tissues.
+
+    """
+
+    # lambda x: math.log((x + 1), 2)
+
+    groups = data_gene_signal.groupby(level="tissue")
+    # For some reason, the scipy function throws an error about illegal values.
+    #groups.transform(lambda value: print(value.to_list()))
+    #data_standard_index = (
+    #    groups.transform(lambda value: scipy.stats.zscore(value.to_list()))
+    #)
+    data_standard = groups.transform(lambda x: (x - x.mean()) / x.std())
+    return data_standard
+
+
+
 
 
 ########################################################
 # TODO: go ahead and calculate z-scores...
 ########################################################
+
+##########
+# Product.
 
 
 def write_product(dock=None, information=None):
@@ -783,25 +867,39 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_organization = os.path.join(dock, "organization")
     utility.confirm_path_directory(path_organization)
-    path_median_text = os.path.join(
-        path_organization, "data_gene_signal_median.tsv"
+    path_mean = os.path.join(
+        path_organization, "data_gene_signal_mean.pickle"
     )
-    path_imputation_text = os.path.join(
-        path_organization, "data_gene_signal_imputation.tsv"
+    path_median = os.path.join(
+        path_organization, "data_gene_signal_median.pickle"
     )
     path_imputation = os.path.join(
         path_organization, "data_gene_signal_imputation.pickle"
     )
-    # Write information to file.
-    information["data_gene_signal_median_tissue"].to_csv(
-        path_median_text, sep="\t"
+    path_log = os.path.join(
+        path_organization, "data_gene_signal_log.pickle"
     )
-    information["data_gene_signal_imputation"].to_csv(
-        path_imputation_text, sep="\t"
+    path_standard = os.path.join(
+        path_organization, "data_gene_signal_standard.pickle"
+    )
+    # Write information to file.
+    pandas.to_pickle(
+        information["data_gene_signal_mean"], path_mean
+    )
+    pandas.to_pickle(
+        information["data_gene_signal_median"], path_median
     )
     pandas.to_pickle(
         information["data_gene_signal_imputation"], path_imputation
     )
+    pandas.to_pickle(
+        information["data_gene_signal_log"], path_log
+    )
+    pandas.to_pickle(
+        information["data_gene_signal_standard"], path_standard
+    )
+
+    pass
 
 
 ###############################################################################
@@ -825,11 +923,30 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
+    print(source["data_gene_signal_assembly"].iloc[0:25, 0:10])
+    print(source["data_gene_signal_assembly"].shape)
+    print(source["data_gene_signal_selection"].iloc[0:25, 0:10])
+    print(source["data_gene_signal_selection"].shape)
+
+    #data_gene_signal_assembly = source["data_gene_signal_assembly"].iloc[ : , 0:1000]
+    #data_gene_signal_selection = source["data_gene_signal_selection"].iloc[ : , 0:1000]
+
+    genes = source["data_gene_signal_selection"].columns.to_list()
+    print(str(len(genes)))
+    genes_new = genes[0:100]
+
+    #data_gene_signal_assembly = source["data_gene_signal_assembly"].loc[ : , genes_new]
+    #data_gene_signal_selection = source["data_gene_signal_selection"].loc[ : , genes_new]
+    data_gene_signal_assembly = source["data_gene_signal_assembly"]
+    data_gene_signal_selection = source["data_gene_signal_selection"]
+
+
+
     # Calculate mean and median values of genes' signals for each group by
     # patient and tissue.
     aggregation = calculate_mean_median_signal_by_patients_tissues(
-        data_gene_signal_assembly=source["data_gene_signal_assembly"],
-        data_gene_signal_selection=source["data_gene_signal_selection"],
+        data_gene_signal_assembly=data_gene_signal_assembly,
+        data_gene_signal_selection=data_gene_signal_selection,
     )
 
     # Collect real and imputation values of genes' signals for patients and
@@ -846,6 +963,24 @@ def execute_procedure(dock=None):
     data_gene_signal_log = transform_gene_signal_log(
         data_gene_signal=data_gene_signal_imputation
     )
+
+    # Transform values of genes' signals to standard or z-score space.
+    data_gene_signal_standard = transform_gene_signal_standard(
+        data_gene_signal=data_gene_signal_log
+    )
+
+    # Compile information.
+    information = {
+        "data_gene_signal_mean": aggregation["mean"],
+        "data_gene_signal_median": aggregation["median"],
+        "data_gene_signal_imputation": data_gene_signal_imputation,
+        "data_gene_signal_log": data_gene_signal_log,
+        "data_gene_signal_standard": data_gene_signal_standard,
+    }
+    #Write product information to file.
+    write_product(dock=dock, information=information)
+
+
 
 
 
@@ -880,14 +1015,6 @@ def execute_procedure(dock=None):
         # Reverse an index to a column.
         #dataframe["new_column"] = dataframe.index
         #dataframe.reset_index(level=["index_name"])
-
-        # Compile information.
-        information = {
-            "data_gene_signal_median_tissue": data_gene_signal_median_tissue,
-            "data_gene_signal_imputation": data_gene_signal_imputation,
-        }
-        #Write product information to file.
-        write_product(dock=dock, information=information)
 
     pass
 
