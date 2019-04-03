@@ -935,10 +935,10 @@ def execute_procedure(dock=None):
     print(str(len(genes)))
     genes_new = genes[0:100]
 
-    #data_gene_signal_assembly = source["data_gene_signal_assembly"].loc[ : , genes_new]
-    #data_gene_signal_selection = source["data_gene_signal_selection"].loc[ : , genes_new]
-    data_gene_signal_assembly = source["data_gene_signal_assembly"]
-    data_gene_signal_selection = source["data_gene_signal_selection"]
+    data_gene_signal_assembly = source["data_gene_signal_assembly"].loc[ : , genes_new]
+    data_gene_signal_selection = source["data_gene_signal_selection"].loc[ : , genes_new]
+    #data_gene_signal_assembly = source["data_gene_signal_assembly"]
+    #data_gene_signal_selection = source["data_gene_signal_selection"]
 
 
 
