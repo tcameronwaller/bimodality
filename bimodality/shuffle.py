@@ -188,106 +188,49 @@ def execute_procedure(dock=None):
 
     # Read source information from file.
     source = read_source(dock=dock)
-    # Summary.
 
-    print(source["data_gene_annotation"].iloc[0:10, 0:10])
+    # Each shuffle matrix should look something like this...
+    # dimensions of the shuffle matrix should match the count of tissues and patients in the actual gene matrices
+    # read in the gene matrices to find these counts.
 
-    print(source["data_gene_signal_aggregation"].iloc[0:10, 0:10])
-    #print(data_sum_index.loc[:, "ENSG00000240453.1"])
-    # Gene ENSG00000240453.1 has values of 0.0 for all patients.
+    # matrix before shuffle... template
+    # tissue   adipose  blood    colon
+    # index
+    # 1        1        1        1
+    # 2        2        2        2
+    # 3        3        3        3
+    # 4        4        4        4
+    # 5        5        5        5
+    # 6        6        6        6
+    # 7        7        7        7
+    # 8        8        8        8
+    # 9        9        9        9
+    # 10       10       10       10
 
-    # Calculate metrics of modality.
-    series_bimodality = source["data_gene_signal_aggregation"].aggregate(metric.calculate_bimodality_coefficient, axis="index")
-    data_bimodality_sparse = series_bimodality.to_frame(name="value").sort_values("value", axis="index", ascending=False)
-    data_bimodality = collect_genes_names(
-        data_gene_annotation=source["data_gene_annotation"],
-        data_gene_score=data_bimodality_sparse
-    )
-    print(data_bimodality.iloc[0:50, : ])
-    print(data_bimodality.shape)
-    utility.print_terminal_partition(level=3)
-    print("Tapasin... TAPBP...")
-    print(data_bimodality.loc["ENSG00000231925"])
+    # matrix after shuffle... template
+    # tissue   adipose  blood    colon
+    # index
+    # 1        6
+    # 2        3
+    # 3        2
+    # 4        7
+    # 5        10
+    # 6        4
+    # 7        9
+    # 8        1
+    # 9        8
+    # 10       5
 
-
-    #ENSG00000221947
-    print(data_bimodality.loc["ENSG00000221947"])
-
-
-    # Summarize table of patients' attributes.
-    utility.print_terminal_partition(level=2)
-
-
-    series_dip = source["data_gene_signal_aggregation"].aggregate(metric.calculate_dip_statistic, axis="index")
-    data_dip_sparse = series_dip.to_frame(name="value").sort_values("value", axis="index", ascending=False)
-    data_dip = collect_genes_names(
-        data_gene_annotation=source["data_gene_annotation"],
-        data_gene_score=data_dip_sparse
-    )
-    print(data_dip.iloc[0:50, : ])
-    print(data_dip.shape)
-    utility.print_terminal_partition(level=3)
-    print("Tapasin... TAPBP...")
-    print(data_dip.loc["ENSG00000231925"])
+    # when I apply the shuffle indices to the actual gene signal matrix, I might need to reset the gene signal matrix to have a numeric index
+    # Consider doing this in split when setting up the gene matrices originally.
+    # Consider changing the "patient" to a column instead of an index.
+    # Then define some sort of mapping function to map a gene's matrix to values using the shuffle coordinates in the shuffle matrices...
 
 
-
-
-
-    if False:
-
-        data_gene_signal_imputation_index = (
-            source["data_gene_signal_imputation"].set_index(
-                ["patient", "tissue"], append=False, drop=True
-            )
-        )
-        print(data_gene_signal_imputation_index.iloc[0:10, 0:10])
-        if False:
-            data_gene_signal_sort = (
-                data_gene_signal.sort_index(axis="columns", ascending=False)
-            )
-
-        # Split data by tissue.
-        if False:
-            data_gene_signal_imputation_index = (
-                source["data_gene_signal_imputation"].set_index(
-                ["tissue"], append=False, drop=True
-                )
-            )
-            data_heart = (
-                data_gene_signal_imputation_index
-                    .loc["Heart"].reset_index(level=["tissue"])
-            )
-            print(data_heart)
-            #data_merger = data_skin.merge(data_heart, how="outer")
-
-        ########################################################
-
-
-
-
-        # Reshape data with patients as columns and genes as rows.
-        if False:
-            utility.print_terminal_partition(level=2)
-            print(
-                "Reshape of data with patients as columns and genes as rows."
-            )
-            data_gene_signal_axis = data_gene_signal_sum.rename_axis("gene", axis="columns")
-            data_gene_signal_axis_index = data_gene_signal_axis.set_index(
-                ["patient"], append=False, drop=True
-            )
-            print(data_gene_signal_axis_index.iloc[0:10, 0:10])
-            data_gene_signal_shape = data_gene_signal_axis_index.transpose(copy=True)
-            print(data_gene_signal_shape.iloc[:, :])
-
-            print("I will want to apply the bimodality test to each column of genes... columns need to be genes...")
-
-
-
-        # Compile information.
-        information = {}
-        #Write product information to file.
-        #write_product(dock=dock, information=information)
+    # Compile information.
+    information = {}
+    #Write product information to file.
+    #write_product(dock=dock, information=information)
 
     pass
 

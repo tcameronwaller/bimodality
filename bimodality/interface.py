@@ -19,6 +19,8 @@ import access
 import selection
 import assembly
 import organization
+import split
+import aggregation
 import analysis
 import metric
 import test
@@ -164,6 +166,22 @@ def define_main_subparser(subparsers=None):
         "and genes."
     )
     parser_main.add_argument(
+        "-p", "--split", dest="split", action="store_true",
+        help="Split genes' signals in tissues and patients by genes."
+    )
+    parser_main.add_argument(
+        "-f", "--shuffle", dest="shuffle", action="store_true",
+        help=(
+            "Prepare indices of iterative random shuffles, permutations " +
+            "for use in pipe procedure."
+        )
+    )
+    parser_main.add_argument(
+        "-g", "--aggregation", dest="aggregation", action="store_true",
+        help="Aggregation across tissues by sum of standard score for each " +
+        "patient and each gene."
+    )
+    parser_main.add_argument(
         "-n", "--analysis", dest="analysis", action="store_true",
         help="Analysis of real, shuffle, and simulation data sets."
     )
@@ -273,6 +291,21 @@ def evaluate_main_parameters(arguments):
         print("... executing organization procedure ...")
         # Execute procedure.
         organization.execute_procedure(dock=arguments.dock)
+    if arguments.split:
+        # Report status.
+        print("... executing split procedure ...")
+        # Execute procedure.
+        split.execute_procedure(dock=arguments.dock)
+    if arguments.shuffle:
+        # Report status.
+        print("... executing shuffle procedure ...")
+        # Execute procedure.
+        shuffle.execute_procedure(dock=arguments.dock)
+    if arguments.aggregation:
+        # Report status.
+        print("... executing aggregation procedure ...")
+        # Execute procedure.
+        aggregation.execute_procedure(dock=arguments.dock)
     if arguments.analysis:
         # Report status.
         print("... executing analysis procedure ...")

@@ -281,11 +281,11 @@ def read_file_table(path_file=None, names=None, delimiter=None):
     return information
 
 
-def write_file_table(
+def write_file_text_table(
     information=None, path_file=None, names=None, delimiter=None
 ):
     """
-    Writes information to file
+    Writes to file in text format information from a list of dictionaries.
 
     arguments:
         information (list<str>): information
@@ -308,6 +308,27 @@ def write_file_table(
         )
         writer.writeheader()
         writer.writerows(information)
+
+
+def write_file_text_list(information=None, path_file=None):
+    """
+    Writes to file in text format information from an array of strings.
+
+    arguments:
+        information (list<str>): information
+        path_file (str): path to directory and file
+
+    returns:
+
+    raises:
+
+    """
+
+    # Write information to file
+    with open(path_file, "w") as file_product:
+        string = "\n".join(information)
+        file_product.write(string)
+    pass
 
 
 def print_file_lines(path_file=None, start=None, stop=None):

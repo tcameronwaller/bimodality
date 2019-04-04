@@ -923,6 +923,16 @@ def execute_procedure(dock=None):
     #Write product information to file.
     write_product(dock=dock, information=information)
 
+
+    # Scrap.
+
+    if False:
+        # Summarize tissues and patients.
+        # Extract unique values of tissue.
+        tissues_test = list(source["data_gene_signal_imputation"]["tissue"].unique())
+        patients_test = list(source["data_gene_signal_imputation"]["patient"].unique())
+
+
     pass
 
 

@@ -186,8 +186,28 @@ def execute_procedure(dock=None):
 
     """
 
+    # 0. Include an argument flag for whether or not to use same shuffles for all genes.
+    # 0.1. Alternatively, generate new shuffles for each gene.
+    # 0.1.1. Consider using data_frame.sample(frac=1)
+    # 0.1.2. df = df.sample(frac=1).reset_index(drop=True)
+    # 1. Read in genes' signals, and previously-computed shuffle indices...
+    # 2. access matrix for individual gene (from argument in bash call)
+    # 3. aggregate and calculate metrics for real values
+    # 4. Collect shuffle metrics for gene
+    # 4.1. Apply shuffles to the gene's matrix... iterate on the previously-computed shuffle indices
+    # 4.2. For each shuffle, aggregate and calculate metrics
+    # 4.3. Collect metrics for the gene... probably within a list or dictionary?
+    # 5. Compile a report for the gene, probably consisting of multiple files.
+    # 6. Create a directory on file for the gene.
+    # 7. Save to file the report for the individual gene: real metrics, shuffle distribution, etc.
+
+
     # Read source information from file.
     source = read_source(dock=dock)
+
+
+
+
     # Summary.
 
     print(source["data_gene_annotation"].iloc[0:10, 0:10])
