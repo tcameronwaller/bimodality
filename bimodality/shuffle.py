@@ -15,6 +15,8 @@ import os
 import math
 import statistics
 import pickle
+import random
+import copy
 
 # Relevant
 
@@ -25,6 +27,7 @@ import scipy.stats
 # Custom
 
 import metric
+import pipe
 import utility
 
 #dir()
@@ -50,84 +53,164 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
-    path_gene_annotation = os.path.join(
-        path_assembly, "data_gene_annotation.pickle"
-    )
-    path_organization = os.path.join(dock, "organization")
-    path_mean = os.path.join(
-        path_organization, "data_gene_signal_mean.pickle"
-    )
-    path_median = os.path.join(
-        path_organization, "data_gene_signal_median.pickle"
-    )
-    path_imputation = os.path.join(
-        path_organization, "data_gene_signal_imputation.pickle"
-    )
-    path_log = os.path.join(
-        path_organization, "data_gene_signal_log.pickle"
-    )
-    path_standard = os.path.join(
-        path_organization, "data_gene_signal_standard.pickle"
-    )
-    path_aggregation = os.path.join(dock, "aggregation")
+    path_split = os.path.join(dock, "split")
     path_signal = os.path.join(
-        path_aggregation, "data_gene_signal_aggregation.pickle"
+        path_split, "genes_signals_patients_tissues.pickle"
     )
     # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_gene_signal_mean = pandas.read_pickle(path_mean)
-    data_gene_signal_median = pandas.read_pickle(path_median)
-    data_gene_signal_imputation = pandas.read_pickle(path_imputation)
-    data_gene_signal_log = pandas.read_pickle(path_log)
-    data_gene_signal_standard = pandas.read_pickle(path_standard)
-    data_gene_signal_aggregation = pandas.read_pickle(path_signal)
+    genes_signals_patients_tissues = pandas.read_pickle(path_signal)
     # Compile and return information.
     return {
-        "data_gene_annotation": data_gene_annotation,
-        "data_gene_signal_mean": data_gene_signal_mean,
-        "data_gene_signal_median": data_gene_signal_median,
-        "data_gene_signal_imputation": data_gene_signal_imputation,
-        "data_gene_signal_log": data_gene_signal_log,
-        "data_gene_signal_standard": data_gene_signal_standard,
-        "data_gene_signal_aggregation": data_gene_signal_aggregation,
+        "genes_signals_patients_tissues": genes_signals_patients_tissues,
     }
 
 
-def collect_genes_names(
-    data_gene_annotation=None,
-    data_gene_score=None
+def create_matrix(
+    width=None,
+    length=None
 ):
     """
-    Collects names of genes.
+    Creates matrix of indices.
 
     arguments:
-        data_gene_annotation (object): Pandas data frame of genes' annotations.
-        data_gene_score (object): Pandas data frame of genes' scores.
+        width (int): Count of indices in the first level axis, columns.
+        length (int): Count of indices in the second level axis, rows.
 
     raises:
 
     returns:
-        (object): Pandas data frame of genes' scores.
+        (list<list<int>>): Matrix of indices.
 
     """
 
-    def match_gene_name(identifier):
-        return data_gene_annotation.loc[identifier, "gene_name"]
-    data_gene_score.reset_index(level=["gene"], inplace=True)
-    data_gene_score["name"] = (
-        data_gene_score["gene"].apply(match_gene_name)
+    # Base indices on zero.
+    range_width = list(range(width))
+    range_length = list(range(length))
+    matrix = list()
+    for index in range_width:
+        matrix.append(copy.copy(range_length))
+    return matrix
+
+
+def copy_matrix_shuffle_values(
+    matrix=None
+):
+    """
+    Copies a matrix and shuffles its values.
+
+    arguments:
+        matrix (list<list<int>>): Matrix of values.
+
+    raises:
+
+    returns:
+        (list<list<list<int>>>): Matrices of values.
+
+    """
+
+    # Copy values in matrix.
+    matrix_copy = copy.deepcopy(matrix)
+    # Shuffle values in matrix.
+    for index in range(len(matrix_copy)):
+        random.shuffle(matrix_copy[index])
+    # Return matrix.
+    return matrix_copy
+
+
+def copy_matrices_shuffle_values(
+    count=None,
+    matrix=None
+):
+    """
+    Copies matrices and shuffles values.
+
+    arguments:
+        count (int): Count of matrices to create.
+        matrix (list<list<int>>): Template matrix of indices.
+
+    raises:
+
+    returns:
+        (list<list<list<int>>>): Matrices of indices.
+
+    """
+
+    matrices = list()
+    for index in range(count):
+        matrix_copy = copy_matrix_shuffle_values(matrix=matrix)
+        matrices.append(matrix_copy)
+    return matrices
+
+
+def create_shuffle_indices(
+    count=None,
+    width=None,
+    length=None
+):
+    """
+    Creates matrices of indices to shuffle values.
+
+    arguments:
+        count (int): Count of matrices to create.
+        width (int): Count of indices in the first level axis, columns.
+        length (int): Count of indices in the second level axis, rows.
+
+    raises:
+
+    returns:
+        (list<list<list<int>>>): Matrices of indices.
+
+    """
+
+    # Dimensions of the shuffle matrix should match the count of tissues and
+    # patients in the actual matrices for genes' signals.
+
+    # Structure the matrices of shuffle indices as lists of lists.
+    # The implicit semantics of data frames bind values within rows across
+    # multiple columns.
+    # Use a simple list matrix instead to make shuffles convenient.
+    # The top dimension should be for tissues to allow convenient shuffles of
+    # patients for each tissue.
+
+    # Generate template matrix for permutations of patients and tissues.
+    matrix = create_matrix(width=width, length=length)
+
+    # Create and shuffle copies of the template matrix.
+    matrices = copy_matrices_shuffle_values(count=count, matrix=matrix)
+
+    # Summarize.
+    print(
+        "Dimensions of each matrix: " +
+        str(len(matrices[0])) +
+        " by " +
+        str(len(matrices[0][0]))
     )
-    data_gene_score.set_index(
-        ["gene"],
-        append=False,
-        drop=True,
-        inplace=True
+    print("Created and shuffled matrices: " + str(len(matrices)))
+
+    # Print representation of first matrix.
+    # Convert matrix to a data frame for a clear representation.
+    data = pandas.DataFrame(data=matrices[0]).transpose()
+    print(data)
+
+    # Demonstrate access to values.
+    # Matrix structure has tissues on first axis and patients on second axis.
+    print("Access individual value from first matrix.")
+    print(
+        "Matrix structure of shuffle indices has tissues on first axis and " +
+        "patients on second axis."
     )
-    return data_gene_score
+    print(
+        "Matrix structure of genes' signals has tissues on columns and " +
+        "patients on rows."
+    )
+    print(
+        "Notice differences in access for matrices of indices versus signals."
+    )
+    print(matrices[0][5][10])
+    print(data.loc[10, 5])
 
-
-
+    # Return information.
+    return matrices
 
 
 def write_product(dock=None, information=None):
@@ -146,26 +229,14 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_organization = os.path.join(dock, "organization")
-    utility.confirm_path_directory(path_organization)
-    path_imputation = os.path.join(
-        path_organization, "data_gene_signal_imputation.pickle"
-    )
-    path_aggregation = os.path.join(
-        path_organization, "data_gene_signal_aggregation.pickle"
-    )
-    path_log = os.path.join(
-        path_organization, "data_gene_signal_log.pickle"
+    path_shuffle = os.path.join(dock, "shuffle")
+    utility.confirm_path_directory(path_shuffle)
+    path_shuffles = os.path.join(
+        path_shuffle, "shuffles.pickle"
     )
     # Write information to file.
-    with open(path_imputation, "wb") as file_product:
-        pickle.dump(
-            information["data_gene_signal_tissue_median"], file_product
-        )
-    with open(path_aggregation, "wb") as file_product:
-        pickle.dump(information["data_gene_signal_aggregation"], file_product)
-    with open(path_log, "wb") as file_product:
-        pickle.dump(information["data_gene_signal_log"], file_product)
+    with open(path_shuffles, "wb") as file_product:
+        pickle.dump(information["shuffles"], file_product)
 
 
 ###############################################################################
@@ -189,37 +260,21 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
-    # Each shuffle matrix should look something like this...
-    # dimensions of the shuffle matrix should match the count of tissues and patients in the actual gene matrices
-    # read in the gene matrices to find these counts.
+    # Determine dimensions of the patient-tissue signal matrix for each gene.
+    print(source["genes_signals_patients_tissues"]["ENSG00000029363"].shape)
+    count_tissues = (
+        source["genes_signals_patients_tissues"]["ENSG00000029363"].shape[1]
+    )
+    count_patients = (
+        source["genes_signals_patients_tissues"]["ENSG00000029363"].shape[0]
+    )
 
-    # matrix before shuffle... template
-    # tissue   adipose  blood    colon
-    # index
-    # 1        1        1        1
-    # 2        2        2        2
-    # 3        3        3        3
-    # 4        4        4        4
-    # 5        5        5        5
-    # 6        6        6        6
-    # 7        7        7        7
-    # 8        8        8        8
-    # 9        9        9        9
-    # 10       10       10       10
-
-    # matrix after shuffle... template
-    # tissue   adipose  blood    colon
-    # index
-    # 1        6
-    # 2        3
-    # 3        2
-    # 4        7
-    # 5        10
-    # 6        4
-    # 7        9
-    # 8        1
-    # 9        8
-    # 10       5
+    # Create shuffle indices.
+    shuffles = create_shuffle_indices(
+        count=10000,
+        width=count_tissues,
+        length=count_patients
+    )
 
     # when I apply the shuffle indices to the actual gene signal matrix, I might need to reset the gene signal matrix to have a numeric index
     # Consider doing this in split when setting up the gene matrices originally.
@@ -228,9 +283,11 @@ def execute_procedure(dock=None):
 
 
     # Compile information.
-    information = {}
+    information = {
+        "shuffles": shuffles
+    }
     #Write product information to file.
-    #write_product(dock=dock, information=information)
+    write_product(dock=dock, information=information)
 
     pass
 

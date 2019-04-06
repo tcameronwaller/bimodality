@@ -50,84 +50,255 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
-    path_gene_annotation = os.path.join(
-        path_assembly, "data_gene_annotation.pickle"
-    )
-    path_organization = os.path.join(dock, "organization")
-    path_mean = os.path.join(
-        path_organization, "data_gene_signal_mean.pickle"
-    )
-    path_median = os.path.join(
-        path_organization, "data_gene_signal_median.pickle"
-    )
-    path_imputation = os.path.join(
-        path_organization, "data_gene_signal_imputation.pickle"
-    )
-    path_log = os.path.join(
-        path_organization, "data_gene_signal_log.pickle"
-    )
-    path_standard = os.path.join(
-        path_organization, "data_gene_signal_standard.pickle"
-    )
-    path_aggregation = os.path.join(dock, "aggregation")
+    path_split = os.path.join(dock, "split")
     path_signal = os.path.join(
-        path_aggregation, "data_gene_signal_aggregation.pickle"
+        path_split, "genes_signals_patients_tissues.pickle"
+    )
+    path_shuffle = os.path.join(dock, "shuffle")
+    path_shuffles = os.path.join(
+        path_shuffle, "shuffles.pickle"
     )
     # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_gene_signal_mean = pandas.read_pickle(path_mean)
-    data_gene_signal_median = pandas.read_pickle(path_median)
-    data_gene_signal_imputation = pandas.read_pickle(path_imputation)
-    data_gene_signal_log = pandas.read_pickle(path_log)
-    data_gene_signal_standard = pandas.read_pickle(path_standard)
-    data_gene_signal_aggregation = pandas.read_pickle(path_signal)
+    with open(path_signal, "rb") as file_source:
+        genes_signals_patients_tissues = pickle.load(file_source)
+    with open(path_shuffles, "rb") as file_source:
+        shuffles = pickle.load(file_source)
     # Compile and return information.
     return {
-        "data_gene_annotation": data_gene_annotation,
-        "data_gene_signal_mean": data_gene_signal_mean,
-        "data_gene_signal_median": data_gene_signal_median,
-        "data_gene_signal_imputation": data_gene_signal_imputation,
-        "data_gene_signal_log": data_gene_signal_log,
-        "data_gene_signal_standard": data_gene_signal_standard,
-        "data_gene_signal_aggregation": data_gene_signal_aggregation,
+        "genes_signals_patients_tissues": genes_signals_patients_tissues,
+        "shuffles": shuffles,
     }
 
 
-def collect_genes_names(
-    data_gene_annotation=None,
-    data_gene_score=None
-):
+def calculate_sum_gene_signal_tissue(data_gene_signals=None):
     """
-    Collects names of genes.
+    Calculates the sum of genes' signals across tissues for each patient.
 
     arguments:
-        data_gene_annotation (object): Pandas data frame of genes' annotations.
-        data_gene_score (object): Pandas data frame of genes' scores.
+        data_gene_signals (object): Pandas data frame of a single gene's
+            signals across specific patients and tissues.
 
     raises:
 
     returns:
-        (object): Pandas data frame of genes' scores.
+        (object): Pandas data frame of sum of standard score signals for all
+            genes across tissues for each patient.
 
     """
 
-    def match_gene_name(identifier):
-        return data_gene_annotation.loc[identifier, "gene_name"]
-    data_gene_score.reset_index(level=["gene"], inplace=True)
-    data_gene_score["name"] = (
-        data_gene_score["gene"].apply(match_gene_name)
+    # Drop the tissue designations.
+    if False:
+        data_gene_signals.reset_index(level=["tissue"], inplace=True)
+        data_gene_signals.drop(
+            labels="tissue",
+            axis="columns",
+            inplace=True
+        )
+    # Apply calculation to groups.
+    data_sum = data_gene_signals.sum(axis="columns").to_frame(name="value")
+    return data_sum
+
+
+def calculate_mean_gene_signal_patient(data_gene_signals=None):
+    """
+    Calculates the sum of genes' signals across patients for each tissue.
+
+    arguments:
+        data_gene_signals (object): Pandas data frame of a single gene's
+            signals across specific patients and tissues.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of sum of standard score signals for all
+            genes across tissues for each patient.
+
+    """
+
+    data = data_gene_signals.aggregate(statistics.mean, axis="index")
+    return data
+
+
+def calculate_bimodality_metrics(values=None):
+    """
+    Calculates metrics of bimodality.
+
+    arguments:
+        values (list<float>): Values for which to evaluate distribution.
+
+    raises:
+
+    returns:
+        (dict<float>): Values of metrics of bimodality.
+
+    """
+
+    # Calculate metrics of bimodality.
+    coefficient = metric.calculate_bimodality_coefficient(series=values)
+    dip = metric.calculate_dip_statistic(series=values)
+
+    # Compile information.
+    information = {
+        "coefficient": coefficient,
+        "dip": dip
+    }
+
+    # Return information.
+    return information
+
+
+def analyze_gene_signal_distribution(data_gene_signals=None):
+    """
+    Analyzes the distribution of a single gene's signals across tissues and
+    patients.
+
+    arguments:
+        data_gene_signals (object): Pandas data frame of a single gene's
+            signals across specific patients and tissues.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of sum of standard score signals for all
+            genes across tissues for each patient.
+
+    """
+
+    # Check that the mean of gene's signals across patients are consistent with
+    # shuffles.
+    # As the signals are in standard score space, the means center around zero.
+    # Consistency in the actual values suggests that the shuffles were correct.
+    if False:
+        data_check = calculate_mean_gene_signal_patient(
+            data_gene_signals=data_gene_signals
+        )
+        print(
+            "Check that sum of all patients signals for each tissue does not " +
+            "change across shuffles."
+        )
+        print(data_check)
+        print(data_gene_signals.shape)
+
+    # Aggregate signals by tissues.
+    data_gene_signal_aggregation = calculate_sum_gene_signal_tissue(
+        data_gene_signals=data_gene_signals
     )
-    data_gene_score.set_index(
-        ["gene"],
-        append=False,
-        drop=True,
+    #print(data_gene_signal_aggregation)
+    values = data_gene_signal_aggregation["value"].to_list()
+    #print(values)
+
+    # Calculate metrics of bimodality.
+    scores = calculate_bimodality_metrics(values=values)
+    #print(scores)
+
+    # Return information.
+    return scores
+
+
+def shuffle_gene_signals(
+    data_gene_signals=None,
+    shuffle=None
+):
+    """
+    Shuffles the association between tissues and patients of gene's signals.
+
+    arguments:
+        data_gene_signals (object): Pandas data frame of a single gene's
+            signals across specific patients and tissues.
+        shuffle (list<list<int>>): Matrix of indices.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a single gene's signals across specific
+            patients and tissues.
+
+    """
+
+    # Determine identities and counts of tissues and patients.
+    tissues = data_gene_signals.columns.to_list()
+    patients = data_gene_signals.index.to_list()
+    count_tissues = len(tissues)
+    count_patients = len(patients)
+
+    # Collect gene's signals.
+    gene_signals_shuffle = list()
+    for index_patient in range(count_patients):
+        patient = patients[index_patient]
+        record = dict()
+        record["patient"] = patient
+        for index_tissue in range(count_tissues):
+            tissue = tissues[index_tissue]
+            index_patient_shuffle = shuffle[index_tissue][index_patient]
+            signal = (
+                data_gene_signals.iloc[index_patient_shuffle, index_tissue]
+            )
+            record[tissue] = signal
+        gene_signals_shuffle.append(record)
+
+    # Convert records to data frame.
+    data = utility.convert_records_to_dataframe(
+        records=gene_signals_shuffle
+    )
+    data.rename_axis(
+        columns="tissue",
+        axis="columns",
+        copy=False,
         inplace=True
     )
-    return data_gene_score
+    data.set_index(
+        "patient",
+        drop=True,
+        inplace=True,
+    )
+    return data
 
 
+def collect_shuffle_distributions(
+    data_gene_signals=None,
+    shuffles=None
+):
+    """
+    Analyzes the distribution of a single gene's signals across tissues and
+    patients.
 
+    arguments:
+        data_gene_signals (object): Pandas data frame of a single gene's
+            signals across specific patients and tissues.
+        shuffles (list<list<list<int>>>): Matrices of indices.
+
+    raises:
+
+    returns:
+        (dict<list<float>>): Values of metrics of bimodality.
+
+    """
+
+    # Initialize collection of metrics.
+    distributions = dict()
+    distributions["coefficient"] = list()
+    distributions["dip"] = list()
+    # Iterate on shuffles.
+    for shuffle in shuffles:
+
+        # Shuffle gene's signals.
+        data_gene_signals_shuffle = shuffle_gene_signals(
+            data_gene_signals=data_gene_signals,
+            shuffle=shuffle
+        )
+        #print(data_gene_signals_shuffle.iloc[0:10, :])
+
+        # Analyze gene's signals.
+        scores = analyze_gene_signal_distribution(
+            data_gene_signals=data_gene_signals_shuffle
+        )
+
+        # Collect metrics.
+        distributions["coefficient"].append(scores["coefficient"])
+        distributions["dip"].append(scores["dip"])
+
+    # Return information.
+    return distributions
 
 
 def write_product(dock=None, information=None):
@@ -172,13 +343,14 @@ def write_product(dock=None, information=None):
 # Procedure
 
 
-def execute_procedure(dock=None):
+def execute_procedure(dock=None, gene=None):
     """
     Function to execute module's main behavior.
 
     arguments:
         dock (str): path to root or dock directory for source and product
             directories and files
+        gene (str): identifier of a single gene.
 
     raises:
 
@@ -186,13 +358,6 @@ def execute_procedure(dock=None):
 
     """
 
-    # 0. Include an argument flag for whether or not to use same shuffles for all genes.
-    # 0.1. Alternatively, generate new shuffles for each gene.
-    # 0.1.1. Consider using data_frame.sample(frac=1)
-    # 0.1.2. df = df.sample(frac=1).reset_index(drop=True)
-    # 1. Read in genes' signals, and previously-computed shuffle indices...
-    # 2. access matrix for individual gene (from argument in bash call)
-    # 3. aggregate and calculate metrics for real values
     # 4. Collect shuffle metrics for gene
     # 4.1. Apply shuffles to the gene's matrix... iterate on the previously-computed shuffle indices
     # 4.2. For each shuffle, aggregate and calculate metrics
@@ -201,113 +366,40 @@ def execute_procedure(dock=None):
     # 6. Create a directory on file for the gene.
     # 7. Save to file the report for the individual gene: real metrics, shuffle distribution, etc.
 
+    print(gene)
 
     # Read source information from file.
     source = read_source(dock=dock)
 
-
-
-
-    # Summary.
-
-    print(source["data_gene_annotation"].iloc[0:10, 0:10])
-
-    print(source["data_gene_signal_aggregation"].iloc[0:10, 0:10])
-    #print(data_sum_index.loc[:, "ENSG00000240453.1"])
-    # Gene ENSG00000240453.1 has values of 0.0 for all patients.
-
-    # Calculate metrics of modality.
-    series_bimodality = source["data_gene_signal_aggregation"].aggregate(metric.calculate_bimodality_coefficient, axis="index")
-    data_bimodality_sparse = series_bimodality.to_frame(name="value").sort_values("value", axis="index", ascending=False)
-    data_bimodality = collect_genes_names(
-        data_gene_annotation=source["data_gene_annotation"],
-        data_gene_score=data_bimodality_sparse
+    # Access gene's signals.
+    # "ENSG00000029363"
+    data_gene_signals = (
+        source["genes_signals_patients_tissues"][gene].copy(deep=True)
     )
-    print(data_bimodality.iloc[0:50, : ])
-    print(data_bimodality.shape)
-    utility.print_terminal_partition(level=3)
-    print("Tapasin... TAPBP...")
-    print(data_bimodality.loc["ENSG00000231925"])
+    print(gene)
+    print(data_gene_signals.iloc[0:10, :])
 
-
-    #ENSG00000221947
-    print(data_bimodality.loc["ENSG00000221947"])
-
-
-    # Summarize table of patients' attributes.
-    utility.print_terminal_partition(level=2)
-
-
-    series_dip = source["data_gene_signal_aggregation"].aggregate(metric.calculate_dip_statistic, axis="index")
-    data_dip_sparse = series_dip.to_frame(name="value").sort_values("value", axis="index", ascending=False)
-    data_dip = collect_genes_names(
-        data_gene_annotation=source["data_gene_annotation"],
-        data_gene_score=data_dip_sparse
+    # Analyze the gene's real signals.
+    scores = analyze_gene_signal_distribution(
+        data_gene_signals=data_gene_signals
     )
-    print(data_dip.iloc[0:50, : ])
-    print(data_dip.shape)
-    utility.print_terminal_partition(level=3)
-    print("Tapasin... TAPBP...")
-    print(data_dip.loc["ENSG00000231925"])
+    print(scores)
 
+    # Collect random distributions of scores.
+    distributions = collect_shuffle_distributions(
+        data_gene_signals=data_gene_signals,
+        shuffles=source["shuffles"]
+    )
+    print(distributions["coefficient"][0:100])
+    print(str(len(distributions["coefficient"])))
 
-
-
-
-    if False:
-
-        data_gene_signal_imputation_index = (
-            source["data_gene_signal_imputation"].set_index(
-                ["patient", "tissue"], append=False, drop=True
-            )
-        )
-        print(data_gene_signal_imputation_index.iloc[0:10, 0:10])
-        if False:
-            data_gene_signal_sort = (
-                data_gene_signal.sort_index(axis="columns", ascending=False)
-            )
-
-        # Split data by tissue.
-        if False:
-            data_gene_signal_imputation_index = (
-                source["data_gene_signal_imputation"].set_index(
-                ["tissue"], append=False, drop=True
-                )
-            )
-            data_heart = (
-                data_gene_signal_imputation_index
-                    .loc["Heart"].reset_index(level=["tissue"])
-            )
-            print(data_heart)
-            #data_merger = data_skin.merge(data_heart, how="outer")
-
-        ########################################################
-
-
-
-
-        # Reshape data with patients as columns and genes as rows.
-        if False:
-            utility.print_terminal_partition(level=2)
-            print(
-                "Reshape of data with patients as columns and genes as rows."
-            )
-            data_gene_signal_axis = data_gene_signal_sum.rename_axis("gene", axis="columns")
-            data_gene_signal_axis_index = data_gene_signal_axis.set_index(
-                ["patient"], append=False, drop=True
-            )
-            print(data_gene_signal_axis_index.iloc[0:10, 0:10])
-            data_gene_signal_shape = data_gene_signal_axis_index.transpose(copy=True)
-            print(data_gene_signal_shape.iloc[:, :])
-
-            print("I will want to apply the bimodality test to each column of genes... columns need to be genes...")
-
-
-
-        # Compile information.
-        information = {}
-        #Write product information to file.
-        #write_product(dock=dock, information=information)
+    # Compile information.
+    information = {
+        "scores": scores,
+        "distributions": distributions
+    }
+    #Write product information to file.
+    #write_product(dock=dock, information=information)
 
     pass
 

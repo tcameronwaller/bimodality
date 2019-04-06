@@ -6,6 +6,8 @@
 ###############################################################################
 # Notes
 
+# TODO: move this procedure to the organization procedure... ?
+
 ###############################################################################
 # Installation and importation
 
@@ -104,19 +106,26 @@ def split_genes_signals(data_gene_signal=None):
     )
     print(
         "Organize patients-tissues matrices for each gene within a " +
-        "dictionary."
+        "data frame."
+    )
+    print(
+        "Organize patients as rows and tissues as columns."
+    )
+    print(
+        "In subsequent analyses, patients are higher in hierarchy than " +
+        "tissues."
     )
 
     # Change data's structure.
     data_long = data_gene_signal.stack("gene").to_frame(name="value")
     print(data_long)
     print(data_long.shape)
-    data_tissue = data_long.unstack(level="tissue")
-    data_tissue.columns = data_tissue.columns.get_level_values(1)
-    print(data_tissue)
-    print(data_tissue.shape)
-    data_tissue.reset_index(level="gene", inplace=True)
-    groups = data_tissue.groupby("gene")
+    data_stack = data_long.unstack(level="tissue")
+    data_stack.columns = data_stack.columns.get_level_values(1)
+    print(data_stack)
+    print(data_stack.shape)
+    data_stack.reset_index(level="gene", inplace=True)
+    groups = data_stack.groupby("gene")
     # Collect matrices for each gene.
     genes_signals = dict()
     for name, group in groups:
@@ -195,6 +204,8 @@ def execute_procedure(dock=None):
 
     # Summary.
     print(source["data_gene_signal_standard"].iloc[0:10, 0:10])
+
+    # Consider using pandas.DataFrame.round(decimals=10)
 
     # Split genes' signals across tissues and patients by gene.
     genes_signals_patients_tissues = split_genes_signals(

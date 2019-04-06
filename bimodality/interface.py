@@ -20,6 +20,8 @@ import selection
 import assembly
 import organization
 import split
+import shuffle
+import pipe
 import aggregation
 import analysis
 import metric
@@ -177,6 +179,18 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
+        "-i", "--pipe", dest="pipe", action="store_true",
+        help=(
+            "Process signals for a single gene."
+        )
+    )
+    parser_main.add_argument(
+        "-e", "--gene", dest="gene", type=str, required=False,
+        help=(
+            "Identifier of a single gene to process in pipe procedure."
+        )
+    )
+    parser_main.add_argument(
         "-g", "--aggregation", dest="aggregation", action="store_true",
         help="Aggregation across tissues by sum of standard score for each " +
         "patient and each gene."
@@ -301,6 +315,14 @@ def evaluate_main_parameters(arguments):
         print("... executing shuffle procedure ...")
         # Execute procedure.
         shuffle.execute_procedure(dock=arguments.dock)
+    if arguments.pipe:
+        # Report status.
+        print("... executing pipe procedure ...")
+        # Execute procedure.
+        pipe.execute_procedure(
+            dock=arguments.dock,
+            gene=arguments.gene
+        )
     if arguments.aggregation:
         # Report status.
         print("... executing aggregation procedure ...")

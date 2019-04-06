@@ -127,9 +127,6 @@ def collect_genes_names(
     return data_gene_score
 
 
-
-
-
 def write_product(dock=None, information=None):
     """
     Writes product information to file.

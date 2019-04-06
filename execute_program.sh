@@ -35,7 +35,9 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main -d $path_dock -b
 #python3 interface.py main -d $path_dock -s
 #python3 interface.py main -d $path_dock -o
-python3 interface.py main -d $path_dock -p
+#python3 interface.py main -d $path_dock --split
+#python3 interface.py main -d $path_dock --shuffle
+python3 interface.py main --dock $path_dock --pipe --gene "ENSG00000029363"
 #python3 interface.py main -d $path_dock -g
 #python3 interface.py main -d $path_dock -n
 #python3 interface.py main -d $path_dock -m
