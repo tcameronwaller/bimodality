@@ -251,7 +251,7 @@ def print_terminal_partition(level=None):
     pass
 
 
-def read_file_table(path_file=None, names=None, delimiter=None):
+def read_file_text_table(path_file=None, names=None, delimiter=None):
     """
     Reads and organizes source information from file
 
@@ -279,6 +279,34 @@ def read_file_table(path_file=None, names=None, delimiter=None):
         information = list(map(lambda row: dict(row), list(reader)))
     # Return information
     return information
+
+
+def read_file_text_list(path_file=None):
+    """
+    Reads and organizes source information from file.
+
+
+    arguments:
+        path_file (str): path to directory and file
+
+    returns:
+        (list<str>): information from file
+
+    raises:
+
+    """
+
+    # Read information from file
+    #with open(path_file_source, "r") as file_source:
+    #    content = file_source.read()
+    with open(path_file, "r") as file_source:
+        content = file_source.read()
+    # Split content by line delimiters.
+    information = content.split("\n")
+    # Return information
+    return information
+
+
 
 
 def write_file_text_table(

@@ -15,6 +15,9 @@ import os
 import math
 import statistics
 import pickle
+import functools
+import multiprocessing
+import datetime
 
 # Relevant
 
@@ -51,6 +54,9 @@ def read_source(dock=None):
 
     # Specify directories and files.
     path_split = os.path.join(dock, "split")
+    path_genes = os.path.join(
+        path_split, "genes.txt"
+    )
     path_signal = os.path.join(
         path_split, "genes_signals_patients_tissues.pickle"
     )
@@ -59,12 +65,14 @@ def read_source(dock=None):
         path_shuffle, "shuffles.pickle"
     )
     # Read information from file.
+    genes = utility.read_file_text_list(path_genes)
     with open(path_signal, "rb") as file_source:
         genes_signals_patients_tissues = pickle.load(file_source)
     with open(path_shuffles, "rb") as file_source:
         shuffles = pickle.load(file_source)
     # Compile and return information.
     return {
+        "genes": genes,
         "genes_signals_patients_tissues": genes_signals_patients_tissues,
         "shuffles": shuffles,
     }
@@ -301,11 +309,12 @@ def collect_shuffle_distributions(
     return distributions
 
 
-def write_product(dock=None, information=None):
+def write_product(gene=None, dock=None, information=None):
     """
     Writes product information to file.
 
     arguments:
+        gene (str): identifier of single gene for which to execute the process.
         dock (str): path to root or dock directory for source and product
             directories and files.
         information (object): information to write to file.
@@ -317,40 +326,89 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_organization = os.path.join(dock, "organization")
-    utility.confirm_path_directory(path_organization)
-    path_imputation = os.path.join(
-        path_organization, "data_gene_signal_imputation.pickle"
+    path_pipe = os.path.join(dock, "pipe")
+    utility.confirm_path_directory(path_pipe)
+    path_gene = os.path.join(path_pipe, gene)
+    utility.confirm_path_directory(path_gene)
+    path_scores = os.path.join(
+        path_gene, "scores.pickle"
     )
-    path_aggregation = os.path.join(
-        path_organization, "data_gene_signal_aggregation.pickle"
-    )
-    path_log = os.path.join(
-        path_organization, "data_gene_signal_log.pickle"
+    path_distributions = os.path.join(
+        path_gene, "distributions.pickle"
     )
     # Write information to file.
-    with open(path_imputation, "wb") as file_product:
-        pickle.dump(
-            information["data_gene_signal_tissue_median"], file_product
-        )
-    with open(path_aggregation, "wb") as file_product:
-        pickle.dump(information["data_gene_signal_aggregation"], file_product)
-    with open(path_log, "wb") as file_product:
-        pickle.dump(information["data_gene_signal_log"], file_product)
+    with open(path_scores, "wb") as file_product:
+        pickle.dump(information["scores"], file_product)
+    with open(path_distributions, "wb") as file_product:
+        pickle.dump(information["distributions"], file_product)
+
+    pass
+
+
+def execute_process(gene=None, genes_signals=None, shuffles=None, dock=None):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        genes_signals (dict<object>): Collection of matrices.
+        shuffles (list<list<list<int>>>): Matrices of indices.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Access gene's signals.
+    # "ENSG00000029363"
+    data_gene_signals = (
+        genes_signals[gene].copy(deep=True)
+    )
+    #print(gene)
+    #print(data_gene_signals.iloc[0:10, :])
+
+    # Analyze the gene's real signals.
+    scores = analyze_gene_signal_distribution(
+        data_gene_signals=data_gene_signals
+    )
+    #print(scores)
+
+    # Collect random distributions of scores.
+    distributions = collect_shuffle_distributions(
+        data_gene_signals=data_gene_signals,
+        shuffles=shuffles
+    )
+    #print(distributions["coefficient"][0:100])
+    #print(str(len(distributions["coefficient"])))
+
+    # Compile information.
+    information = {
+        "scores": scores,
+        "distributions": distributions
+    }
+    #Write product information to file.
+    write_product(gene=gene, dock=dock, information=information)
+
+    # Return gene identifier as verification of process completion.
+    #return gene
+
+    pass
 
 
 ###############################################################################
 # Procedure
 
 
-def execute_procedure(dock=None, gene=None):
+def execute_procedure_local(dock=None):
     """
     Function to execute module's main behavior.
 
     arguments:
         dock (str): path to root or dock directory for source and product
             directories and files
-        gene (str): identifier of a single gene.
 
     raises:
 
@@ -366,43 +424,83 @@ def execute_procedure(dock=None, gene=None):
     # 6. Create a directory on file for the gene.
     # 7. Save to file the report for the individual gene: real metrics, shuffle distribution, etc.
 
-    print(gene)
+    # Read source information from file.
+    source = read_source(dock=dock)
+
+    # Report date and time.
+    print(datetime.datetime.now())
+
+    # Running 8 processes concurrently requires approximately 22.5 Gigabytes of
+    # memory.
+    # Each process, then, requires approximately 3 Gigabytes of memory.
+    # Running each batch of processes equal to the count of cores requires
+    # approximately 12 minutes.
+    # (18,000 genes) / (8 cores) = 2,250 batches
+    # (12 minutes / batch) * (2,250 batches) = (27,000 minutes) = (450 hours)
+
+    # Set up partial function for iterative execution.
+    # Each iteration uses the same values for "genes_signals", "shuffles", and
+    # "dock" variables.
+    execute_process_gene = functools.partial(
+        execute_process,
+        genes_signals=source["genes_signals_patients_tissues"],
+        shuffles=source["shuffles"],
+        dock=dock
+    )
+
+    # Initialize multiprocessing pool.
+    pool = multiprocessing.Pool(processes=os.cpu_count())
+
+    # Iterate on genes.
+    #report = pool.map(execute_process_gene, source["genes"][0:5])
+    report = pool.map(execute_process_gene, source["genes"][0:5])
+
+    # Report.
+    #print("Process complete for the following genes...")
+    #print(str(len(report)))
+
+    # Report date and time.
+    print(datetime.datetime.now())
+
+    pass
+
+
+def execute_procedure_remote(dock=None, gene=None):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+        gene (str): identifier of single gene for which to execute the process.
+
+    raises:
+
+    returns:
+
+    """
+
+    # 4. Collect shuffle metrics for gene
+    # 4.1. Apply shuffles to the gene's matrix... iterate on the previously-computed shuffle indices
+    # 4.2. For each shuffle, aggregate and calculate metrics
+    # 4.3. Collect metrics for the gene... probably within a list or dictionary?
+    # 5. Compile a report for the gene, probably consisting of multiple files.
+    # 6. Create a directory on file for the gene.
+    # 7. Save to file the report for the individual gene: real metrics, shuffle distribution, etc.
 
     # Read source information from file.
     source = read_source(dock=dock)
 
-    # Access gene's signals.
-    # "ENSG00000029363"
-    data_gene_signals = (
-        source["genes_signals_patients_tissues"][gene].copy(deep=True)
+    # Execute procedure.
+    execute_process(
+        gene=gene,
+        genes_signals=source["genes_signals_patients_tissues"],
+        shuffles=source["shuffles"],
+        dock=dock
     )
-    print(gene)
-    print(data_gene_signals.iloc[0:10, :])
-
-    # Analyze the gene's real signals.
-    scores = analyze_gene_signal_distribution(
-        data_gene_signals=data_gene_signals
-    )
-    print(scores)
-
-    # Collect random distributions of scores.
-    distributions = collect_shuffle_distributions(
-        data_gene_signals=data_gene_signals,
-        shuffles=source["shuffles"]
-    )
-    print(distributions["coefficient"][0:100])
-    print(str(len(distributions["coefficient"])))
-
-    # Compile information.
-    information = {
-        "scores": scores,
-        "distributions": distributions
-    }
-    #Write product information to file.
-    #write_product(dock=dock, information=information)
 
     pass
 
 
 if (__name__ == "__main__"):
-    execute_procedure()
+    execute_procedure_local()

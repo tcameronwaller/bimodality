@@ -243,13 +243,14 @@ def write_product(dock=None, information=None):
 # Procedure
 
 
-def execute_procedure(dock=None):
+def execute_procedure(dock=None, count=None):
     """
     Function to execute module's main behavior.
 
     arguments:
         dock (str): path to root or dock directory for source and product
             directories and files
+        count (int): count of shuffles to create and store
 
     raises:
 
@@ -269,9 +270,17 @@ def execute_procedure(dock=None):
         source["genes_signals_patients_tissues"]["ENSG00000029363"].shape[0]
     )
 
+    # Report.
+    utility.print_terminal_partition(level=3)
+    print(
+        "Creating " + str(count) + " shuffles for matrices of dimensions " +
+        str(count_tissues) + " by " + str(count_patients) + "."
+    )
+    utility.print_terminal_partition(level=3)
+
     # Create shuffle indices.
     shuffles = create_shuffle_indices(
-        count=10000,
+        count=count,
         width=count_tissues,
         length=count_patients
     )

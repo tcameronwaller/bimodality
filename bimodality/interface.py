@@ -139,72 +139,94 @@ def define_main_subparser(subparsers=None):
     )
     # Define arguments.
     parser_main.add_argument(
-        "-d", "--dock", dest="dock", type=str, required=True,
+        "-dock", "--dock", dest="dock", type=str, required=True,
         help=(
             "Path to root or dock directory for source and product " +
             "directories and files."
         )
     )
     parser_main.add_argument(
-        "-a", "--access", dest="access", action="store_true",
+        "-access", "--access", dest="access", action="store_true",
         help="Access raw information from GTEx Portal."
     )
     parser_main.add_argument(
-        "-b", "--assembly", dest="assembly", action="store_true",
+        "-assembly", "--assembly", dest="assembly", action="store_true",
         help=(
             "Preliminary assembly of relevant information."
         )
     )
     parser_main.add_argument(
-        "-s", "--selection", dest="selection", action="store_true",
+        "-selection", "--selection", dest="selection", action="store_true",
         help=(
             "Selection of tissues, patients, and genes of interest for " +
             "further analyses."
         )
     )
     parser_main.add_argument(
-        "-o", "--organization", dest="organization", action="store_true",
+        "-organization", "--organization", dest="organization",
+        action="store_true",
         help="Organization of information for patients, tissues, samples, " +
         "and genes."
     )
     parser_main.add_argument(
-        "-p", "--split", dest="split", action="store_true",
+        "-split", "--split", dest="split", action="store_true",
         help="Split genes' signals in tissues and patients by genes."
     )
     parser_main.add_argument(
-        "-f", "--shuffle", dest="shuffle", action="store_true",
+        "-shuffle", "--shuffle", dest="shuffle", action="store_true",
         help=(
             "Prepare indices of iterative random shuffles, permutations " +
             "for use in pipe procedure."
         )
     )
     parser_main.add_argument(
-        "-i", "--pipe", dest="pipe", action="store_true",
+        "-count", "--count", dest="count", type=int, required=False,
         help=(
-            "Process signals for a single gene."
+            "Count of shuffles to generate in shuffle procedure."
         )
     )
     parser_main.add_argument(
-        "-e", "--gene", dest="gene", type=str, required=False,
+        "-pipe", "--pipe", dest="pipe", action="store_true",
         help=(
-            "Identifier of a single gene to process in pipe procedure."
+            "Analyze real and shuffle signals for a single gene."
         )
     )
     parser_main.add_argument(
-        "-g", "--aggregation", dest="aggregation", action="store_true",
+        "-local", "--local", dest="local", action="store_true",
+        help=(
+            "Execute pipe procedure with local resources using " +
+            "multiprocessing package."
+        )
+    )
+    parser_main.add_argument(
+        "-remote", "--remote", dest="remote", action="store_true",
+        help=(
+            "Execute pipe procedure with remote resources using Sun Grid " +
+            "Engine."
+        )
+    )
+    parser_main.add_argument(
+        "-gene", "--gene", dest="gene", type=str, required=False,
+        help=(
+            "Identifier of a single gene for pipe procedure."
+        )
+    )
+    parser_main.add_argument(
+        "-aggregation", "--aggregation", dest="aggregation",
+        action="store_true",
         help="Aggregation across tissues by sum of standard score for each " +
         "patient and each gene."
     )
     parser_main.add_argument(
-        "-n", "--analysis", dest="analysis", action="store_true",
+        "-analysis", "--analysis", dest="analysis", action="store_true",
         help="Analysis of real, shuffle, and simulation data sets."
     )
     parser_main.add_argument(
-        "-m", "--metric", dest="metric", action="store_true",
+        "-metric", "--metric", dest="metric", action="store_true",
         help="Definition and test of metrics for modality."
     )
     parser_main.add_argument(
-        "-t", "--test", dest="test", action="store_true",
+        "-test", "--test", dest="test", action="store_true",
         help="Temporary code to test functionality."
     )
     # Define behavior.
@@ -314,15 +336,16 @@ def evaluate_main_parameters(arguments):
         # Report status.
         print("... executing shuffle procedure ...")
         # Execute procedure.
-        shuffle.execute_procedure(dock=arguments.dock)
+        shuffle.execute_procedure(dock=arguments.dock, count=arguments.count)
     if arguments.pipe:
         # Report status.
         print("... executing pipe procedure ...")
-        # Execute procedure.
-        pipe.execute_procedure(
-            dock=arguments.dock,
-            gene=arguments.gene
-        )
+        if arguments.local:
+            # Execute procedure.
+            pipe.execute_procedure_local(dock=arguments.dock)
+        elif arguments.remote:
+            # Execute procedure.
+            pipe.execute_procedure_remote(dock=arguments.dock, gene=gene)
     if arguments.aggregation:
         # Report status.
         print("... executing aggregation procedure ...")
