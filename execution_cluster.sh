@@ -8,6 +8,8 @@ path_program="$path_project/$subpath_program"
 subpath_dock="Data/dock"
 path_dock="$path_project/$subpath_dock"
 
+export PATH=/cellar/users/tcwaller/anaconda3/bin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+
 cd $path_project
 mkdir $path_dock
 

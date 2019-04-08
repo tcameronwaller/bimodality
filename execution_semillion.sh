@@ -2,6 +2,8 @@
 
 #chmod u+x script.sh
 
+export PATH=/cellar/users/tcwaller/anaconda3/bin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+
 path_project="/cellar/users/tcwaller"
 subpath_repository="repository/bimodality-master/bimodality"
 path_repository="$path_project/$subpath_repository"

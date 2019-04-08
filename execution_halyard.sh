@@ -37,7 +37,7 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main -d $path_dock -s
 #python3 interface.py main -d $path_dock -o
 #python3 interface.py main -d $path_dock --split
-#python3 interface.py main -d $path_dock --shuffle --count 10000
+#python3 interface.py main -d $path_dock --shuffle --count 1000
 python3 interface.py main --dock $path_dock --pipe --local
 #python3 interface.py main -d $path_dock -g
 #python3 interface.py main -d $path_dock -n
