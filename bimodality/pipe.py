@@ -430,6 +430,31 @@ def execute_procedure_local(dock=None):
     # Report date and time.
     print(datetime.datetime.now())
 
+    # Shuffles: 1,000
+    # Machine: halyard
+    # Concurrent cores: 8
+    # Speed per core: 3.9 GHz
+    # Memory: 16.3 Gigabytes
+    # Genes: 100
+    # Duration: 16 minutes
+    # Estimate for 18,000 genes: 48 hours
+
+    # Shuffles: 1,000
+    # Machine: semillion
+    # Concurrent cores: 8
+    # Speed per core: 3.5 GHz
+    # Memory: 16.3 Gigabytes
+    # Genes: 100
+    # Duration: 27 minutes
+    # Estimate for 18,000 genes: 80 hours
+
+
+    # Shuffles: 10,000
+    # Concurrent cores: 8
+    # Speed per core: 3.9 GHz
+    # Memory: 22.5 Gigabytes
+    # Genes: 8
+    # Duration: 12 minutes
     # Running 8 processes concurrently requires approximately 22.5 Gigabytes of
     # memory.
     # Each process, then, requires approximately 3 Gigabytes of memory.
