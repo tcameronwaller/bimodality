@@ -38,8 +38,8 @@ path_program="$path_project/$subpath_program"
 subpath_dock="Data/dock"
 path_dock="$path_project/$subpath_dock"
 
-cd $path_project
-mkdir $path_dock
+#cd $path_project
+#mkdir $path_dock
 
 # Define iteration variables.
 readarray genes < $path_dock/split/genes.txt
@@ -50,7 +50,7 @@ readarray genes < $path_dock/split/genes.txt
 
 count_genes=${#genes[@]}
 
-gene=${genes[$(SGE_TASK_ID - 1)]}
+gene=${genes[$SGE_TASK_ID - 1]}
 
 # Execute program.
 # Specify complete path to python installation.
