@@ -427,6 +427,8 @@ def execute_procedure_local(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
+    print("count of genes: " + str(len(source["genes"])))
+
     # Report date and time.
     print(datetime.datetime.now())
 
