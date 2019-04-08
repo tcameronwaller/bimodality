@@ -2,13 +2,13 @@
 
 #chmod u+x script.sh
 
-path_project="/cellar/users/tcwaller/"
-subpath_repository="temporary/bimodality-master/bimodality/"
-path_repository="$path_project$subpath_repository"
-subpath_program="temporary/bimodality-master/bimodality/"
-path_program="$path_project$subpath_program"
-subpath_dock="Data/dock/"
-path_dock="$path_project$subpath_dock"
+path_project="/cellar/users/tcwaller"
+subpath_repository="repository/bimodality-master/bimodality"
+path_repository="$path_project/$subpath_repository"
+subpath_program="repository/bimodality-master/bimodality"
+path_program="$path_project/$subpath_program"
+subpath_dock="Data/dock_semillion"
+path_dock="$path_project/$subpath_dock"
 
 # Suppress echo each command to console.
 set +x
@@ -31,10 +31,4 @@ cd $path_program
 
 echo "Now set to call routine and procedures."
 
-#python interface.py main -d $path_dock -a
-#python interface.py main -d $path_dock -b
-#python interface.py main -d $path_dock -s
-python interface.py main -d $path_dock -o
-#python interface.py main -d $path_dock -n
-#python interface.py main -d $path_dock -m
-#python interface.py main -d $path_dock -t
+$path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --pipe --local

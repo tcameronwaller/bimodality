@@ -453,7 +453,7 @@ def execute_procedure_local(dock=None):
 
     # Iterate on genes.
     #report = pool.map(execute_process_gene, source["genes"][0:5])
-    report = pool.map(execute_process_gene, source["genes"][0:5])
+    report = pool.map(execute_process_gene, source["genes"][0:10])
 
     # Report.
     #print("Process complete for the following genes...")

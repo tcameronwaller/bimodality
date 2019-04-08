@@ -17,8 +17,6 @@ mkdir $path_dock
 #$ -V
 # Specify use of current working directory.
 #$ -cwd
-# Specify queue.
-#$ -q all.q
 # Specify long process.
 #$ -l long
 # Specify priority 0-15.
