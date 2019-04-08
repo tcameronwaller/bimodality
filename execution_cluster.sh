@@ -1,7 +1,5 @@
 #!/bin/bash
 
-#chmod u+x script.sh
-
 path_project="/cellar/users/tcwaller"
 subpath_repository="temporary/bimodality-master/bimodality"
 path_repository="$path_project/$subpath_repository"
@@ -10,32 +8,8 @@ path_program="$path_project/$subpath_program"
 subpath_dock="Data/dock"
 path_dock="$path_project/$subpath_dock"
 
-# Suppress echo each command to console.
-set +x
-
-echo "--------------------------------------------------"
-echo "----------"
-echo "Here are your working directories."
-echo "project: $path_project"
-echo "repository: $path_repository"
-echo "program: $path_repository"
-echo "dock: $path_dock"
-echo "----------"
-echo "--------------------------------------------------"
-
-# Echo each command to console.
-set -x
-
 cd $path_project
 mkdir $path_dock
-
-echo "Now set to call routine and procedures."
-
-# Specify complete path to python installation.
-
-# Execute the processes...
-
-qsub 
 
 # Specify shell.
 #$ -S /bin/bash
@@ -73,6 +47,9 @@ count_genes=${#genes[@]}
 #$ -t 1-5
 
 gene=${genes[$(SGE_TASK_ID - 1)]}
+
+# Execute program.
+# Specify complete path to python installation.
 
 $path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --pipe --remote --gene gene
 
