@@ -28,7 +28,7 @@
 
 # Organize paths.
 
-export PATH=/cellar/users/tcwaller/anaconda3/bin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
 
 path_project="/cellar/users/tcwaller"
 subpath_repository="repository/bimodality-master/bimodality"
