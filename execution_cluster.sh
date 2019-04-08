@@ -21,8 +21,8 @@
 # Memory requirement might be greater with more shuffles.
 #$ -l h_vmem=3G
 # Specify maximal job duration, run time.
-#$ -l h_rt=<48:00:00>
-#$ -l s_rt=<48:00:00>
+#$ -l h_rt=48:00:00
+#$ -l s_rt=48:00:00
 # Specify destinations for standard output and error.
 #$ -o /cellar/users/tcwaller/out
 #$ -e /cellar/users/tcwaller/error
