@@ -31,4 +31,4 @@ cd $path_program
 
 echo "Now set to call routine and procedures."
 
-$path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --pipe --local
+python $path_program/interface.py main --dock $path_dock --pipe --local
