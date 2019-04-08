@@ -32,14 +32,12 @@ cd $path_program
 echo "Now set to call routine and procedures."
 
 
-#python3 interface.py main -d $path_dock -a
-#python3 interface.py main -d $path_dock -b
-#python3 interface.py main -d $path_dock -s
-#python3 interface.py main -d $path_dock -o
-#python3 interface.py main -d $path_dock --split
+#python3 interface.py main --dock $path_dock --access
+#python3 interface.py main --dock $path_dock --assembly
+#python3 interface.py main --dock $path_dock --selection
+#python3 interface.py main --dock $path_dock --organization
+#python3 interface.py main --dock $path_dock --split
 #python3 interface.py main -d $path_dock --shuffle --count 1000
-python3 interface.py main --dock $path_dock --pipe --local
-#python3 interface.py main -d $path_dock -g
-#python3 interface.py main -d $path_dock -n
-#python3 interface.py main -d $path_dock -m
-#python3 interface.py main -d $path_dock -t
+#python3 interface.py main --dock $path_dock --pipe --local
+python3 interface.py main --dock $path_dock --analysis
+
