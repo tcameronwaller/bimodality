@@ -345,7 +345,9 @@ def evaluate_main_parameters(arguments):
             pipe.execute_procedure_local(dock=arguments.dock)
         elif arguments.remote:
             # Execute procedure.
-            pipe.execute_procedure_remote(dock=arguments.dock, gene=gene)
+            pipe.execute_procedure_remote(
+                dock=arguments.dock, gene=arguments.gene
+            )
     if arguments.aggregation:
         # Report status.
         print("... executing aggregation procedure ...")
