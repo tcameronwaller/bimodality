@@ -13,16 +13,19 @@
 # Specify priority 0-15.
 #$ -p -7
 # Specify count of concurrent processes.
-#$ -tc 250
+#$ -tc 200
 # Specify long process.
 #$ -l long
 # Specify memory per process.
 # Shuffle procedure with 1000 shuffles requires 1.2 Gigabytes maximum.
 # Memory requirement might be greater with more shuffles.
-#$ -l h_vmem=3G
+# Job threw a memory error when I requested only 3 Gigabytes.
+# Segmentation errors commonly indicate a memory error.
+#$ -l h_vmem=8G
 # Specify maximal job duration, run time.
-#$ -l h_rt=48:00:00
-#$ -l s_rt=48:00:00
+# This limit is not normally necessary.
+# -l h_rt=48:00:00
+# -l s_rt=48:00:00
 # Specify destinations for standard output and error.
 #$ -o /cellar/users/tcwaller/out
 #$ -e /cellar/users/tcwaller/error
