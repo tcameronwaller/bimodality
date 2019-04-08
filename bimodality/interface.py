@@ -338,9 +338,9 @@ def evaluate_main_parameters(arguments):
         # Execute procedure.
         shuffle.execute_procedure(dock=arguments.dock, count=arguments.count)
     if arguments.pipe:
-        # Report status.
-        print("... executing pipe procedure ...")
         if arguments.local:
+            # Report status.
+            print("... executing pipe procedure ...")
             # Execute procedure.
             pipe.execute_procedure_local(dock=arguments.dock)
         elif arguments.remote:

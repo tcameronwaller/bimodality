@@ -6,18 +6,20 @@
 #$ -S /bin/bash
 # Specify name of job.
 #$ -N shuffles
-# Transfer variables.
+# Transfer system variables, such as PATH.
 #$ -V
 # Specify use of current working directory.
 #$ -cwd
 # Specify long process.
 #$ -l long
 # Specify priority 0-15.
-#$ -p -5
+#$ -p -7
 # Specify count of concurrent processes.
-#$ -tc 100
+#$ -tc 250
 # Specify memory per process.
-#$ -l h_vmem=4G
+# Shuffle procedure with 1000 shuffles requires 1.2 Gigabytes maximum.
+# Memory requirement might be greater with more shuffles.
+#$ -l h_vmem=2G
 # Specify destinations for standard output and error.
 #$ -o /cellar/users/tcwaller/out
 #$ -e /cellar/users/tcwaller/error
