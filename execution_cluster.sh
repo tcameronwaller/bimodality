@@ -22,7 +22,7 @@ mkdir $path_dock
 # Specify long process.
 #$ -l long
 # Specify priority 0-15.
-#$ -p -15
+#$ -p -10
 # Specify count of concurrent processes.
 #$ -tc 10
 # Specify memory per process.
