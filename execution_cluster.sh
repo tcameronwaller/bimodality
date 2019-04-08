@@ -50,7 +50,7 @@ readarray genes < $path_dock/split/genes.txt
 
 count_genes=${#genes[@]}
 
-gene=${genes[$SGE_TASK_ID - 1]}
+gene=${genes[$SGE_TASK_ID-1]}
 
 # Execute program.
 # Specify complete path to python installation.
@@ -58,6 +58,6 @@ gene=${genes[$SGE_TASK_ID - 1]}
 hostname
 date
 
-$path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --pipe --remote --gene gene
+$path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --pipe --remote --gene $gene
 
 date
