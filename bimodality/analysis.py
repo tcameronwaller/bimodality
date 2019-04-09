@@ -6,6 +6,10 @@
 ###############################################################################
 # Notes
 
+# If the count of bootstrap shuffles is too small, then it is likely not to
+# have any values equal to or greater than the real value, in which case the
+# probability is zero.
+
 ###############################################################################
 # Installation and importation
 
@@ -58,98 +62,21 @@ def read_source(dock=None):
     path_genes = os.path.join(
         path_split, "genes.txt"
     )
-    path_pipe = os.path.join(dock, "pipe")
+    path_collection = os.path.join(dock, "collection")
+    path_distributions = os.path.join(
+        path_collection, "genes_scores_distributions.pickle"
+    )
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     genes = utility.read_file_text_list(path_genes)
-    genes_scores_distributions = read_collect_genes_scores_distributions(
-        path=path_pipe
-    )
+    with open(path_distributions, "rb") as file_source:
+        genes_scores_distributions = pickle.load(file_source)
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
         "genes": genes,
         "genes_scores_distributions": genes_scores_distributions
     }
-
-
-def read_collect_genes_scores_distributions(path=None):
-    """
-    Collects information about genes.
-
-    Data structure.
-    - genes_scores_distributions (dict)
-    -- gene (dict)
-    --- scores (dict)
-    ---- coefficient (float)
-    ---- dip (float)
-    --- distributions (dict)
-    ---- coefficient (list)
-    ----- value (float)
-    ---- dip (list)
-    ----- value (float)
-
-    arguments:
-        path (str): path to directory
-
-    raises:
-
-    returns:
-        (dict<dict<dict>>): information about genes
-
-    """
-
-    # Collect information about genes.
-    genes_scores_distributions = dict()
-    # Iterate on directories for genes.
-    directories = os.listdir(path)
-    for directory in directories:
-        # Create entry for gene.
-        genes_scores_distributions[directory] = dict()
-        # Specify directories and files.
-        path_directory = os.path.join(path, directory)
-        path_scores = os.path.join(path_directory, "scores.pickle")
-        path_distributions = os.path.join(
-            path_directory, "distributions.pickle"
-        )
-        # Read information from file.
-        with open(path_scores, "rb") as file_source:
-            scores = pickle.load(file_source)
-        with open(path_distributions, "rb") as file_source:
-            distributions = pickle.load(file_source)
-        # Compile information.
-        genes_scores_distributions[directory]["scores"] = scores
-        genes_scores_distributions[directory]["distributions"] = distributions
-    # Return information.
-    return genes_scores_distributions
-
-
-def check_genes_scores_distributions(
-    genes=None,
-    genes_scores_distributions=None
-):
-    """
-    Checks and summarizes information about genes.
-
-    arguments:
-        genes (list<str>): identifiers of genes
-        genes_scores_distributions (dict<dict<dict>>): information about genes
-
-    raises:
-
-    returns:
-
-
-    """
-
-    #print(genes_scores_distributions)
-    #print(genes_scores_distributions["ENSG00000005483"])
-
-    # Extract identifiers of genes with scores.
-    genes_scores = list(genes_scores_distributions.keys())
-    # Check whether all genes have scores.
-
-    pass
 
 
 def calculate_probability_equal_greater(
@@ -181,11 +108,12 @@ def calculate_probability_equal_greater(
     return probability
 
 
-def calculate_p_values_genes(
+def calculate_probabilities_genes(
     genes_scores_distributions=None
 ):
     """
-    Calculates p-values from genes' scores and random distributions.
+    Calculates probabilities (p-values) from genes' scores and random
+    distributions.
 
     Data structure.
     - genes_p_values (dict)
@@ -239,6 +167,97 @@ def calculate_p_values_genes(
     return genes_p_values
 
 
+def organize_summary_genes(
+    genes_scores_distributions=None,
+    genes_probabilities=None,
+    data_gene_annotation=None,
+):
+    """
+    Collects tissues, patients, and genes' signals for each sample.
+
+    Data structure
+    identifier        name    coefficient  p_coefficient  dip     p_dip
+     ENSG00000078808   TK421   0.75         0.003          0.12    0.005
+     ENSG00000029363   R2D2    0.55         0.975          0.23    0.732
+
+    arguments:
+        genes_scores_distributions (dict<dict<dict>>): information about genes
+        genes_probabilities (dict<dict<float>>): p-values from genes' scores
+            and distributions
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' identifiers, names, and
+            probability values by bimodality coefficient and dip statistic
+
+    """
+
+    def match_gene_name(identifier):
+        name = data_gene_annotation.loc[identifier, "gene_name"]
+        if len(name) < 1:
+            print("*************Error?****************")
+        return name
+
+    # Collect information about genes.
+    records = list()
+    # Extract identifiers of genes with scores.
+    genes = list(genes_scores_distributions.keys())
+    # Iterate on genes.
+    for gene in genes:
+        # Create record for gene.
+        record = dict()
+        # Access information about gene.
+        name = match_gene_name(gene)
+        gene_scores = genes_scores_distributions[gene]
+        score_coefficient = gene_scores["scores"]["coefficient"]
+        score_dip = gene_scores["scores"]["dip"]
+        probability_coefficient = genes_probabilities[gene]["coefficient"]
+        probability_dip = genes_probabilities[gene]["dip"]
+        # Compile information.
+        record["identifier"] = gene
+        record["name"] = name
+        record["coefficient"] = score_coefficient
+        record["p_coefficient"] = probability_coefficient
+        record["dip"] = score_dip
+        record["p_dip"] = probability_dip
+        records.append(record)
+    # Organize information.
+    data = utility.convert_records_to_dataframe(
+        records=records
+    )
+    if False:
+        data["coefficient"] = data["coefficient"].astype("float32")
+        data["p_coefficient"] = data["p_coefficient"].astype("float32")
+        data["dip"] = data["dip"].astype("float32")
+        data["p_dip"] = data["p_dip"].astype("float32")
+    data.set_index(
+        "identifier",
+        drop=True,
+        inplace=True,
+    )
+    data.rename_axis(
+        index="identifier",
+        axis="index",
+        copy=False,
+        inplace=True,
+    )
+    data.rename_axis(
+        columns="properties",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    data.sort_values(
+        by=["p_coefficient", "p_dip"],
+        axis="index",
+        ascending=True,
+        inplace=True,
+    )
+    # Return information.
+    return data
+
 
 def collect_genes_names(
     data_gene_annotation=None,
@@ -289,26 +308,50 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_organization = os.path.join(dock, "organization")
-    utility.confirm_path_directory(path_organization)
-    path_imputation = os.path.join(
-        path_organization, "data_gene_signal_imputation.pickle"
+    path_analysis = os.path.join(dock, "analysis")
+    utility.confirm_path_directory(path_analysis)
+    path_distributions = os.path.join(
+        path_analysis, "genes_scores_distributions.pickle"
     )
-    path_aggregation = os.path.join(
-        path_organization, "data_gene_signal_aggregation.pickle"
+    path_probabilities = os.path.join(
+        path_analysis, "genes_probabilities.pickle"
     )
-    path_log = os.path.join(
-        path_organization, "data_gene_signal_log.pickle"
+    path_summary = os.path.join(
+        path_analysis, "data_summary_genes.pickle"
+    )
+    path_summary_text = os.path.join(
+        path_analysis, "data_summary_genes.txt"
+    )
+    path_summary_text_alternative = os.path.join(
+        path_analysis, "data_summary_genes_alternative.txt"
     )
     # Write information to file.
-    with open(path_imputation, "wb") as file_product:
+    with open(path_distributions, "wb") as file_product:
         pickle.dump(
-            information["data_gene_signal_tissue_median"], file_product
+            information["genes_scores_distributions"], file_product
         )
-    with open(path_aggregation, "wb") as file_product:
-        pickle.dump(information["data_gene_signal_aggregation"], file_product)
-    with open(path_log, "wb") as file_product:
-        pickle.dump(information["data_gene_signal_log"], file_product)
+    with open(path_probabilities, "wb") as file_product:
+        pickle.dump(information["genes_probabilities"], file_product)
+    information["data_summary_genes"].to_pickle(path_summary)
+    information["data_summary_genes"].to_csv(
+        path_or_buf=path_summary_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+    information["data_summary_genes"].reset_index(
+        level="identifier", inplace=True
+    )
+    summary_genes = utility.convert_dataframe_to_records(
+        data=information["data_summary_genes"]
+    )
+    utility.write_file_text_table(
+        information=summary_genes,
+        path_file=path_summary_text_alternative,
+        names=summary_genes[0].keys(),
+        delimiter="\t"
+    )
+
 
 
 ###############################################################################
@@ -332,122 +375,30 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
-    # Check and summarize information about genes.
-    check_genes_scores_distributions(
-        genes=source["genes"],
-        genes_scores_distributions=source["genes_scores_distributions"]
-    )
-
     # Calculate probability of each gene's scores by chance.
-    genes_p_values = calculate_p_values_genes(
+    genes_probabilities = calculate_probabilities_genes(
         genes_scores_distributions=source["genes_scores_distributions"]
     )
+    #print(source["genes_scores_distributions"]["ENSG00000005483"])
+    #print(genes_probabilities["ENSG00000005483"])
 
-    print(source["genes_scores_distributions"]["ENSG00000005483"])
-    print(genes_p_values["ENSG00000005483"])
+    # Organize gene summary.
+    data_summary_genes = organize_summary_genes(
+        genes_scores_distributions=source["genes_scores_distributions"],
+        genes_probabilities=genes_probabilities,
+        data_gene_annotation=source["data_gene_annotation"],
+    )
 
-    # Collect names of genes and organize a data frame of genes.
+    print(data_summary_genes.iloc[1700: , 0:10])
 
-    if False:
-
-        print(source["data_gene_annotation"].iloc[0:10, 0:10])
-
-        print(source["data_gene_signal_aggregation"].iloc[0:10, 0:10])
-        #print(data_sum_index.loc[:, "ENSG00000240453.1"])
-        # Gene ENSG00000240453.1 has values of 0.0 for all patients.
-
-        # Calculate metrics of modality.
-        series_bimodality = source["data_gene_signal_aggregation"].aggregate(metric.calculate_bimodality_coefficient, axis="index")
-        data_bimodality_sparse = series_bimodality.to_frame(name="value").sort_values("value", axis="index", ascending=False)
-        data_bimodality = collect_genes_names(
-            data_gene_annotation=source["data_gene_annotation"],
-            data_gene_score=data_bimodality_sparse
-        )
-        print(data_bimodality.iloc[0:50, : ])
-        print(data_bimodality.shape)
-        utility.print_terminal_partition(level=3)
-        print("Tapasin... TAPBP...")
-        print(data_bimodality.loc["ENSG00000231925"])
-
-
-        #ENSG00000221947
-        print(data_bimodality.loc["ENSG00000221947"])
-
-
-        # Summarize table of patients' attributes.
-        utility.print_terminal_partition(level=2)
-
-
-        series_dip = source["data_gene_signal_aggregation"].aggregate(metric.calculate_dip_statistic, axis="index")
-        data_dip_sparse = series_dip.to_frame(name="value").sort_values("value", axis="index", ascending=False)
-        data_dip = collect_genes_names(
-            data_gene_annotation=source["data_gene_annotation"],
-            data_gene_score=data_dip_sparse
-        )
-        print(data_dip.iloc[0:50, : ])
-        print(data_dip.shape)
-        utility.print_terminal_partition(level=3)
-        print("Tapasin... TAPBP...")
-        print(data_dip.loc["ENSG00000231925"])
-
-
-
-
-
-    if False:
-
-        data_gene_signal_imputation_index = (
-            source["data_gene_signal_imputation"].set_index(
-                ["patient", "tissue"], append=False, drop=True
-            )
-        )
-        print(data_gene_signal_imputation_index.iloc[0:10, 0:10])
-        if False:
-            data_gene_signal_sort = (
-                data_gene_signal.sort_index(axis="columns", ascending=False)
-            )
-
-        # Split data by tissue.
-        if False:
-            data_gene_signal_imputation_index = (
-                source["data_gene_signal_imputation"].set_index(
-                ["tissue"], append=False, drop=True
-                )
-            )
-            data_heart = (
-                data_gene_signal_imputation_index
-                    .loc["Heart"].reset_index(level=["tissue"])
-            )
-            print(data_heart)
-            #data_merger = data_skin.merge(data_heart, how="outer")
-
-        ########################################################
-
-
-
-
-        # Reshape data with patients as columns and genes as rows.
-        if False:
-            utility.print_terminal_partition(level=2)
-            print(
-                "Reshape of data with patients as columns and genes as rows."
-            )
-            data_gene_signal_axis = data_gene_signal_sum.rename_axis("gene", axis="columns")
-            data_gene_signal_axis_index = data_gene_signal_axis.set_index(
-                ["patient"], append=False, drop=True
-            )
-            print(data_gene_signal_axis_index.iloc[0:10, 0:10])
-            data_gene_signal_shape = data_gene_signal_axis_index.transpose(copy=True)
-            print(data_gene_signal_shape.iloc[:, :])
-
-            print("I will want to apply the bimodality test to each column of genes... columns need to be genes...")
-
-
-
-        # Compile information.
-        information = {}
-        #Write product information to file.
-        #write_product(dock=dock, information=information)
+    # Compile information.
+    information = {
+        "genes_scores_distributions": source["genes_scores_distributions"],
+        "genes_probabilities": genes_probabilities,
+        "data_summary_genes": data_summary_genes
+    }
+    #Write product information to file.
+    write_product(dock=dock, information=information)
 
     pass
 

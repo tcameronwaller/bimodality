@@ -22,7 +22,7 @@ import organization
 import split
 import shuffle
 import pipe
-import aggregation
+import collection
 import analysis
 import metric
 import test
@@ -212,10 +212,12 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
-        "-aggregation", "--aggregation", dest="aggregation",
+        "-collection", "--collection", dest="collection",
         action="store_true",
-        help="Aggregation across tissues by sum of standard score for each " +
-        "patient and each gene."
+        help=(
+            "Collection from pipe procedure of scores and random " +
+            "distributions for each gene."
+        )
     )
     parser_main.add_argument(
         "-analysis", "--analysis", dest="analysis", action="store_true",
@@ -348,11 +350,11 @@ def evaluate_main_parameters(arguments):
             pipe.execute_procedure_remote(
                 dock=arguments.dock, gene=arguments.gene
             )
-    if arguments.aggregation:
+    if arguments.collection:
         # Report status.
-        print("... executing aggregation procedure ...")
+        print("... executing collection procedure ...")
         # Execute procedure.
-        aggregation.execute_procedure(dock=arguments.dock)
+        collection.execute_procedure(dock=arguments.dock)
     if arguments.analysis:
         # Report status.
         print("... executing analysis procedure ...")

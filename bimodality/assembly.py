@@ -449,6 +449,40 @@ def extract_gene_identifier(string):
     return identifier_gene
 
 
+def define_redundant_records():
+    """
+    Defines genes for which records are redundant.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<str>): genes with redundant records
+
+    """
+
+    correction = dict()
+    correction["ENSG00000002586"] = "CD99"
+    correction["ENSG00000196433"] = "ASMT"
+    correction["ENSG00000197976"] = "AKAP17A"
+    correction["ENSG00000182162"] = "P2RY8"
+    correction["ENSG00000167393"] = "PPP2R3B"
+    correction["ENSG00000185291"] = "IL3RA"
+    correction["ENSG00000205755"] = "CRLF2"
+    correction["ENSG00000182378"] = "PLCXD1"
+    correction["ENSG00000198223"] = "CSF2RA"
+    correction["ENSG00000214717"] = "ZBED1"
+    correction["ENSG00000185960"] = "SHOX"
+    correction["ENSG00000169084"] = "DHRSX"
+    correction["ENSG00000168939"] = "SPRY3"
+    correction["ENSG00000169093"] = "ASMTL"
+    correction["ENSG00000178605"] = "GTPBP6"
+    correction["ENSG00000124333"] = "VAMP7"
+    correction["ENSG00000169100"] = "SLC25A6"
+    return correction
+
+
 def organize_genes_annotations(
     data=None
 ):
@@ -493,6 +527,15 @@ def organize_genes_annotations(
         axis="columns",
         inplace=True
     )
+    # Remove redundant records.
+    # Some genes' records are redundant.
+    redundancy = define_redundant_records()
+    data_gene_annotation.drop_duplicates(
+        subset=None,
+        keep="first",
+        inplace=True,
+    )
+    # Organize axes.
     data_gene_annotation.set_index(
         ["identifier"],
         append=False,
@@ -500,6 +543,15 @@ def organize_genes_annotations(
         inplace=True
     )
     print(data_gene_annotation.iloc[0:10, 0:15])
+
+    utility.print_terminal_partition(level=1)
+
+    # Some genes' records are redundant.
+    print("check for redundancy in genes' annotation records...")
+    genes_redundant = list(redundancy.keys())
+    for gene in genes_redundant:
+        print(data_gene_annotation.loc[gene])
+        print(data_gene_annotation.loc[gene, "gene_name"])
     # Return information.
     return data_gene_annotation
 

@@ -398,6 +398,39 @@ def execute_process(gene=None, genes_signals=None, shuffles=None, dock=None):
     pass
 
 
+# Scrap
+
+
+def calculate_sum_score_gene_signal_by_patient(data_gene_signal=None):
+    """
+    Calculates the sum of genes' signals across tissues for each patient.
+
+    arguments:
+        data_gene_signal (object): Pandas data frame of signals for all genes
+            across specific patients and tissues.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of sum of standard score signals for all
+            genes across tissues for each patient.
+
+    """
+
+    # Drop the tissue designations.
+    data_gene_signal.reset_index(level=["tissue"], inplace=True)
+    data_gene_signal.drop(
+        labels="tissue",
+        axis="columns",
+        inplace=True
+    )
+    # Define groups.
+    groups = data_gene_signal.groupby(level="patient")
+    # Apply calculation to groups.
+    data_sum = groups.aggregate(lambda x: x.sum())
+    return data_sum
+
+
 ###############################################################################
 # Procedure
 
