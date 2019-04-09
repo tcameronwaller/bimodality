@@ -21,7 +21,7 @@
 # Memory requirement might be greater with more shuffles.
 # Job threw a memory error when I requested only 3 Gigabytes.
 # Segmentation errors commonly indicate a memory error.
-#$ -l h_vmem=8G
+#$ -l h_vmem=10G
 # Specify maximal job duration, run time.
 # This limit is not normally necessary.
 # -l h_rt=48:00:00
