@@ -167,8 +167,8 @@ def analyze_gene_signal_distribution(data_gene_signals=None):
     raises:
 
     returns:
-        (object): Pandas data frame of sum of standard score signals for all
-            genes across tissues for each patient.
+        (dict): Values of a gene's aggregate abundance across tissues and
+            scores from this distribution.
 
     """
 
@@ -199,8 +199,13 @@ def analyze_gene_signal_distribution(data_gene_signals=None):
     scores = calculate_bimodality_metrics(values=values)
     #print(scores)
 
+    # Compile information.
+    information = {
+        "values": values,
+        "scores": scores
+    }
     # Return information.
-    return scores
+    return information
 
 
 def shuffle_gene_signals(
@@ -262,13 +267,12 @@ def shuffle_gene_signals(
     return data
 
 
-def collect_shuffle_distributions(
+def collect_shuffle_distributions_score(
     data_gene_signals=None,
     shuffles=None
 ):
     """
-    Analyzes the distribution of a single gene's signals across tissues and
-    patients.
+    Collects across random shuffles the distribution of a gene's scores.
 
     arguments:
         data_gene_signals (object): Pandas data frame of a single gene's
@@ -297,9 +301,10 @@ def collect_shuffle_distributions(
         #print(data_gene_signals_shuffle.iloc[0:10, :])
 
         # Analyze gene's signals.
-        scores = analyze_gene_signal_distribution(
+        information = analyze_gene_signal_distribution(
             data_gene_signals=data_gene_signals_shuffle
         )
+        scores = information["scores"]
 
         # Collect metrics.
         distributions["coefficient"].append(scores["coefficient"])
@@ -307,6 +312,50 @@ def collect_shuffle_distributions(
 
     # Return information.
     return distributions
+
+
+def collect_shuffle_distribution_value(
+    data_gene_signals=None,
+    shuffles=None
+):
+    """
+    Collects across random shuffles the distribution of a gene's values.
+
+    arguments:
+        data_gene_signals (object): Pandas data frame of a single gene's
+            signals across specific patients and tissues.
+        shuffles (list<list<list<int>>>): Matrices of indices.
+
+    raises:
+
+    returns:
+        (list<float>): Values
+
+    """
+
+    # Initialize collection of metrics.
+    distribution = list()
+    # Iterate on shuffles.
+    for shuffle in shuffles:
+
+        # Shuffle gene's signals.
+        data_gene_signals_shuffle = shuffle_gene_signals(
+            data_gene_signals=data_gene_signals,
+            shuffle=shuffle
+        )
+        #print(data_gene_signals_shuffle.iloc[0:10, :])
+
+        # Analyze gene's signals.
+        information = analyze_gene_signal_distribution(
+            data_gene_signals=data_gene_signals_shuffle
+        )
+        values = information["values"]
+
+        # Collect metrics.
+        distribution.extend(values)
+
+    # Return information.
+    return distribution
 
 
 def write_product(gene=None, dock=None, information=None):
@@ -371,13 +420,14 @@ def execute_process(gene=None, genes_signals=None, shuffles=None, dock=None):
     #print(data_gene_signals.iloc[0:10, :])
 
     # Analyze the gene's real signals.
-    scores = analyze_gene_signal_distribution(
+    information = analyze_gene_signal_distribution(
         data_gene_signals=data_gene_signals
     )
+    scores = information["scores"]
     #print(scores)
 
     # Collect random distributions of scores.
-    distributions = collect_shuffle_distributions(
+    distributions = collect_shuffle_distributions_score(
         data_gene_signals=data_gene_signals,
         shuffles=shuffles
     )
