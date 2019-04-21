@@ -17,6 +17,7 @@ import statistics
 import pickle
 import random
 import copy
+import textwrap
 
 # Relevant
 
@@ -30,10 +31,13 @@ import rpy2.robjects.packages
 #base = rpy2.robjects.packages.importr("base")
 #utils.install_packages("diptest")
 diptest = rpy2.robjects.packages.importr("diptest")
+import sklearn
+import sklearn.mixture
 
 # Custom
 
 import utility
+import plot
 
 #dir()
 #importlib.reload()
@@ -121,6 +125,58 @@ def calculate_dip_statistic(series=None):
     return dip
 
 
+def calculate_mixture_model_score(series=None):
+    """
+    Calculates the score from a Gaussian mixture model of a series.
+
+    arguments:
+        series (list<float>): series of values of type float
+
+    raises:
+
+    returns:
+        (float): value of mixture model score
+
+    """
+
+    # Organize series.
+    array = numpy.asarray(series)
+    array_shape = numpy.reshape(array, (-1, 1))
+    # Fit series to models.
+    model_one = sklearn.mixture.GaussianMixture(
+        n_components=1,
+        covariance_type="full",
+        n_init=3,
+        max_iter=100,
+    )
+    model_two = sklearn.mixture.GaussianMixture(
+        n_components=2,
+        covariance_type="full",
+        n_init=3,
+        max_iter=100,
+    )
+    model_one.fit(array_shape)
+    model_two.fit(array_shape)
+    # In general, the model with the greater likelihood is a better
+    # representation of the data.
+    # Calculate scores for fits to models.
+    # Calculate likelihood ratio of the bimodal model relative to the unimodal
+    # model.
+    # Do not use the value of the likelihood ratio test.
+    # Rather use the value of the ratio itself.
+    likelihood_log_one = model_one.score(array_shape)
+    likelihood_log_two = model_two.score(array_shape)
+    likelihood_one = math.exp(likelihood_log_one)
+    likelihood_two = math.exp(likelihood_log_two)
+    #ratio = (2 * (likelihood_log_two - likelihood_log_one))
+    #ratio = (2 * (likelihood_two / likelihood_one))
+    ratio = (likelihood_two / likelihood_one)
+    return ratio
+
+
+# Calculate metric on basis of mixture model.
+
+
 def generate_random_values_normal(
     mean=None, deviation=None, count=None, method=None
 ):
@@ -151,12 +207,66 @@ def generate_random_values_normal(
     return values
 
 
-def print_metric_report(series=None):
+def prepare_metric_report_text(
+    skewness=None,
+    kurtosis=None,
+    coefficient=None,
+    dip=None,
+    mixture=None,
+):
+    """
+    Prepares a summary report on curation of metabolic sets and entities.
+
+    arguments:
+        skewness (float): value of skewness
+        kurtosis (float): value of kurtosis
+        coefficient (float): value of bimodality coefficient
+        dip (float): value of Hardigan dip statistic
+        mixture (float): value of likelihood ratio from mixture models
+
+    returns:
+        (str): report of summary information
+
+    raises:
+
+    """
+
+    # Compile information.
+    report = textwrap.dedent("""\
+
+        --------------------------------------------------
+
+        skewness: {skewness}
+        kurtosis: {kurtosis}
+        bimodality coefficient: {coefficient}
+        dip statistic: {dip}
+        mixture model: {mixture}
+
+        --------------------------------------------------
+    """).format(
+        skewness=skewness,
+        kurtosis=kurtosis,
+        coefficient=coefficient,
+        dip=dip,
+        mixture=mixture,
+    )
+    # Return information.
+    return report
+
+
+def report_metrics(
+    name=None,
+    series=None,
+    dock=None,
+):
     """
     Calculates and prints reports on multiple metrics.
 
     arguments:
+        name (str): name of series
         series (list<float>): series of values of type float
+        dock (str): path to root or dock directory for source and product
+            directories and files.
 
     raises:
 
@@ -166,16 +276,55 @@ def print_metric_report(series=None):
 
     # Calculate skewness.
     skewness = scipy.stats.skew(series, axis=None)
-    print("skewness: " + str(skewness))
     # Calculate kurtosis.
     kurtosis = scipy.stats.kurtosis(series, axis=None, fisher=True)
-    print("kurtosis: " + str(kurtosis))
     # Calculate bimodality coefficient.
-    bimodality = calculate_bimodality_coefficient(series)
-    print("bimodality coefficient: " + str(bimodality))
+    coefficient = calculate_bimodality_coefficient(series)
     # Calculate dip statistic.
     dip = calculate_dip_statistic(series=series)
-    print("dip statistic: " + str(dip))
+    # Calculate mixture model score.
+    mixture = calculate_mixture_model_score(series=series)
+
+    # Prepare metric report text.
+    text = prepare_metric_report_text(
+        skewness=skewness,
+        kurtosis=kurtosis,
+        coefficient=coefficient,
+        dip=dip,
+        mixture=mixture,
+    )
+    print(text)
+
+    # Define fonts.
+    fonts = plot.define_font_properties()
+    # Define colors.
+    colors = plot.define_color_properties()
+
+    # Create figure.
+    figure = plot.plot_distribution_histogram(
+        series=series,
+        name="",
+        bin_method="count",
+        bin_count=50,
+        label_bins="Bins",
+        label_counts="Counts",
+        fonts=fonts,
+        colors=colors,
+        line=False,
+        position=0,
+        text=text,
+    )
+    # Specify directories and files.
+    path_metric = os.path.join(dock, "metric")
+    path_figure = os.path.join(path_metric, "figure")
+    utility.confirm_path_directory(path_figure)
+    file = (name + "_distribution.svg")
+    path_file = os.path.join(path_figure, file)
+    # Write figure.
+    plot.write_figure(
+        path=path_file,
+        figure=figure
+    )
 
     pass
 
@@ -236,6 +385,13 @@ def execute_procedure(dock=None):
 
     """
 
+    # Remove previous files.
+    # Specify directories and files.
+    path_metric = os.path.join(dock, "metric")
+    utility.confirm_path_directory(path_metric)
+    path_figure = os.path.join(path_metric, "figure")
+    utility.remove_directory(path=path_figure)
+
     # Read source information from file.
     #source = read_source(dock=dock)
 
@@ -246,7 +402,7 @@ def execute_procedure(dock=None):
 
     utility.print_terminal_partition(level=2)
     print(
-        "Simulation on 10,000,000 random values with a unimodal normal " +
+        "Simulation on 1,000,000 random values with a unimodal normal " +
         "distribution."
     )
     print("Expectations for unimodal normal distribution...")
@@ -262,16 +418,17 @@ def execute_procedure(dock=None):
         count=1000000,
         method="random"
     )
-    print_metric_report(series=series)
+    report_metrics(
+        name="unimodality",
+        series=series,
+        dock=dock
+    )
     utility.print_terminal_partition(level=3)
 
-    # Bimodal normal distribution.
-    # ...
-
-
+    # Bimodal normal distribution 1.
     utility.print_terminal_partition(level=2)
     print(
-        "Simulation on 10,000,000 random values with a bimodal normal " +
+        "Simulation on 1,000,000 random values with a bimodal normal " +
         "distribution."
     )
     print("Expectations for bimodal normal distribution...")
@@ -284,18 +441,90 @@ def execute_procedure(dock=None):
     series_one = generate_random_values_normal(
         mean=1.0,
         deviation=1.0,
-        count=1000000,
+        count=500000,
         method="random"
     )
     series_two = generate_random_values_normal(
-        mean=15.0,
+        mean=5.0,
         deviation=2.0,
-        count=1000000,
+        count=500000,
         method="random"
     )
     #series_one.extend(series_two)
     series = series_one + series_two
-    print_metric_report(series=series)
+    report_metrics(
+        name="bimodality_1",
+        series=series,
+        dock=dock
+    )
+    utility.print_terminal_partition(level=3)
+
+    # Bimodal normal distribution 2.
+    utility.print_terminal_partition(level=2)
+    print(
+        "Simulation on 1,000,000 random values with a bimodal normal " +
+        "distribution."
+    )
+    print("Expectations for bimodal normal distribution...")
+    print("skewness = ?")
+    print("kurtosis = ?")
+    print("bimodality coefficient > 0.55")
+    print("dip statistic > 0.05")
+    utility.print_terminal_partition(level=3)
+    # Generate random values with a normal distribution.
+    series_one = generate_random_values_normal(
+        mean=1.0,
+        deviation=1.0,
+        count=500000,
+        method="random"
+    )
+    series_two = generate_random_values_normal(
+        mean=10.0,
+        deviation=2.0,
+        count=500000,
+        method="random"
+    )
+    #series_one.extend(series_two)
+    series = series_one + series_two
+    report_metrics(
+        name="bimodality_2",
+        series=series,
+        dock=dock
+    )
+    utility.print_terminal_partition(level=3)
+
+    # Bimodal normal distribution 3.
+    utility.print_terminal_partition(level=2)
+    print(
+        "Simulation on 1,000,000 random values with a bimodal normal " +
+        "distribution."
+    )
+    print("Expectations for bimodal normal distribution...")
+    print("skewness = ?")
+    print("kurtosis = ?")
+    print("bimodality coefficient > 0.55")
+    print("dip statistic > 0.05")
+    utility.print_terminal_partition(level=3)
+    # Generate random values with a normal distribution.
+    series_one = generate_random_values_normal(
+        mean=1.0,
+        deviation=1.0,
+        count=100000,
+        method="random"
+    )
+    series_two = generate_random_values_normal(
+        mean=10.0,
+        deviation=2.0,
+        count=900000,
+        method="random"
+    )
+    #series_one.extend(series_two)
+    series = series_one + series_two
+    report_metrics(
+        name="bimodality_3",
+        series=series,
+        dock=dock
+    )
     utility.print_terminal_partition(level=3)
 
     # Compile information.

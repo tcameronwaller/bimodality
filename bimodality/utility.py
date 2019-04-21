@@ -99,6 +99,26 @@ def remove_file(path=None):
         os.remove(path)
 
 
+def remove_directory(path=None):
+    """
+    Removes a directory if it exists.
+
+    arguments:
+        path (str): path to directory
+
+    raises:
+
+    returns:
+
+    """
+
+    if os.path.exists(path):
+        # Only for empty directory.
+        #os.rmdir(path)
+        # For non empyt directory.
+        shutil.rmtree(path)
+
+
 def remove_empty_directory(path=None):
     """
     Removes a directory if it is empty.

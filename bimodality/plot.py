@@ -169,6 +169,7 @@ def plot_distribution_histogram(
     colors=None,
     line=None,
     position=None,
+    text=None,
 ):
     """
     Creates a figure of a chart of type histogram to represent the frequency
@@ -185,6 +186,7 @@ def plot_distribution_histogram(
         colors (dict<tuple>): references to definitions of color properties
         line (bool): whether to draw a vertical line
         position (float): position for vertical line
+        text (str): text to include on figure
 
     raises:
 
@@ -263,6 +265,15 @@ def plot_distribution_histogram(
             color=colors["orange"],
             linestyle="--",
             linewidth=3.0,
+        )
+    if len(text) > 0:
+        matplotlib.pyplot.text(
+            1,
+            1,
+            text,
+            horizontalalignment="right",
+            verticalalignment="top",
+            transform=axes.transAxes,
         )
     return figure
 

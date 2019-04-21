@@ -144,11 +144,13 @@ def calculate_bimodality_metrics(values=None):
     # Calculate metrics of bimodality.
     coefficient = metric.calculate_bimodality_coefficient(series=values)
     dip = metric.calculate_dip_statistic(series=values)
+    mixture = metric.calculate_mixture_model_score(series=values)
 
     # Compile information.
     information = {
         "coefficient": coefficient,
-        "dip": dip
+        "dip": dip,
+        "mixture": mixture,
     }
 
     # Return information.
@@ -181,8 +183,8 @@ def analyze_gene_signal_distribution(data_gene_signals=None):
             data_gene_signals=data_gene_signals
         )
         print(
-            "Check that sum of all patients signals for each tissue does not " +
-            "change across shuffles."
+            "Check that sum of all patients signals for each tissue does " +
+            "not change across shuffles."
         )
         print(data_check)
         print(data_gene_signals.shape)
@@ -290,6 +292,7 @@ def collect_shuffle_distributions_score(
     distributions = dict()
     distributions["coefficient"] = list()
     distributions["dip"] = list()
+    distributions["mixture"] = list()
     # Iterate on shuffles.
     for shuffle in shuffles:
 
@@ -309,6 +312,7 @@ def collect_shuffle_distributions_score(
         # Collect metrics.
         distributions["coefficient"].append(scores["coefficient"])
         distributions["dip"].append(scores["dip"])
+        distributions["mixture"].append(scores["mixture"])
 
     # Return information.
     return distributions
@@ -511,6 +515,7 @@ def execute_procedure_local(dock=None):
     source = read_source(dock=dock)
 
     print("count of genes: " + str(len(source["genes"])))
+    print("count of shuffles: " + str(len(source["shuffles"])))
 
     # Report date and time.
     print(datetime.datetime.now())
@@ -563,7 +568,7 @@ def execute_procedure_local(dock=None):
 
     # Iterate on genes.
     #report = pool.map(execute_process_gene, source["genes"][0:5])
-    report = pool.map(execute_process_gene, source["genes"][0:100])
+    report = pool.map(execute_process_gene, source["genes"])
 
     # Report.
     #print("Process complete for the following genes...")

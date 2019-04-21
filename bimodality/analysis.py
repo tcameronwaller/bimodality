@@ -20,6 +20,7 @@ import math
 import statistics
 import pickle
 import copy
+import random
 
 # Relevant
 
@@ -148,7 +149,6 @@ def calculate_probabilities_genes(
 
     returns:
         (dict<dict<float>>): p-values from genes' scores and distributions
-
 
     """
 
@@ -281,7 +281,7 @@ def organize_summary_genes(
         inplace=True
     )
     data.sort_values(
-        by=["p_combination", "p_coefficient", "p_dip"],
+        by=["p_dip", "p_coefficient", "p_combination"],
         axis="index",
         ascending=True,
         inplace=True,
@@ -323,7 +323,58 @@ def collect_genes_names(
     return data_gene_score
 
 
-def extract_priority_genes(
+# Genes
+
+
+def define_genes_interest(
+    data_summary_genes=None,
+    rank=None
+):
+    """
+    Defines genes of interest for thorough summary.
+
+    arguments:
+        data_summary_genes (object): Pandas data frame of genes' identifiers,
+            names, and probability values by bimodality coefficient and dip
+            statistic
+        rank (str): key of data column to use for ranks
+
+    raises:
+
+    returns:
+        (list<str>): identifiers of genes
+
+    """
+
+    # Collect genes.
+    genes = list()
+    # Collect sample genes from different ranges of modality scores.
+    # Select ranges.
+    data_high = data_summary_genes.loc[(data_summary_genes[rank] < 0.05)]
+    data_middle = (data_summary_genes.loc[
+        (data_summary_genes[rank] > 0.1) & (data_summary_genes[rank] < 0.5)
+    ])
+    data_low = data_summary_genes.loc[(data_summary_genes[rank] > 0.5)]
+    # Extract genes' identifiers.
+    genes_high = data_high.index.to_list()
+    genes_middle = data_middle.index.to_list()
+    genes_low = data_low.index.to_list()
+    # Select sample from each range of genes.
+    gene_high = random.choice(genes_high)
+    gene_middle = random.choice(genes_middle)
+    gene_low = random.choice(genes_low)
+    genes.append(gene_high)
+    genes.append(gene_middle)
+    genes.append(gene_low)
+    # Include custom genes.
+    # TAPBP
+    genes.append("ENSG00000231925")
+    # XBP1
+    genes.append("ENSG00000100219")
+    return genes
+
+
+def define_genes_priority(
     data_summary_genes=None, count=None
 ):
     """
@@ -352,35 +403,6 @@ def extract_priority_genes(
 # Thorough summary.
 
 
-def define_genes_interest():
-    """
-    Defines genes of interest for thorough summary.
-
-    arguments:
-
-    raises:
-
-    returns:
-        (list<str>): identifiers of genes
-
-    """
-
-    genes = list()
-    # TAPBP
-    genes.append("ENSG00000231925")
-    # XBP1
-    genes.append("ENSG00000100219")
-    # FOXP4
-    genes.append("ENSG00000137166")
-    # ADAT3
-    genes.append("ENSG00000213638")
-    # LDHA
-    genes.append("ENSG00000134333")
-    # LDHB
-    genes.append("ENSG00000111716")
-    return genes
-
-
 def report_gene_abundance_distribution_real(
     name=None,
     data_gene_signals=None,
@@ -396,7 +418,6 @@ def report_gene_abundance_distribution_real(
             signals across specific patients and tissues.
         dock (str): path to root or dock directory for source and product
             directories and files.
-
 
     raises:
 
@@ -426,7 +447,8 @@ def report_gene_abundance_distribution_real(
         fonts=fonts,
         colors=colors,
         line=False,
-        position=0
+        position=0,
+        text="",
     )
     # Specify directories and files.
     path_analysis = os.path.join(dock, "analysis")
@@ -489,7 +511,8 @@ def report_gene_abundance_distribution_shuffle(
         fonts=fonts,
         colors=colors,
         line=False,
-        position=0
+        position=0,
+        text="",
     )
     # Specify directories and files.
     path_analysis = os.path.join(dock, "analysis")
@@ -552,6 +575,7 @@ def report_gene_modality_scores_distributions(
             colors=colors,
             line=True,
             position=score,
+            text="",
         )
         # Specify directories and files.
         path_analysis = os.path.join(dock, "analysis")
@@ -595,6 +619,13 @@ def prepare_reports_genes(
 
     """
 
+    # Remove previous files.
+    # Specify directories and files.
+    path_analysis = os.path.join(dock, "analysis")
+    utility.confirm_path_directory(path_analysis)
+    path_figure = os.path.join(path_analysis, "figure")
+    utility.remove_directory(path=path_figure)
+    # Iterate on genes.
     for gene in genes:
         prepare_report_gene(
             gene=gene,
@@ -763,19 +794,26 @@ def execute_procedure(dock=None):
         genes_probabilities=genes_probabilities,
         data_gene_annotation=source["data_gene_annotation"],
     )
-
     print(data_summary_genes.iloc[1700: , 0:10])
 
-    # Extract identifiers of genes of interest.
-    # These genes are for further subsequent analysis.
-    genes_priority = extract_priority_genes(
-        data_summary_genes=data_summary_genes.copy(deep=True),
-        count=250
+    # Define genes of interest.
+    # Genes of interest are few for thorough summary.
+    genes_interest = define_genes_interest(
+        data_summary_genes=data_summary_genes,
+        rank="p_dip"
     )
 
-    # Organize thorough summaries for genes of interest.
+    # Define genes of priority.
+    # Genes of priority are of greatest rank for further functional analysis.
+    if False:
+        genes_priority = extract_genes_priority(
+            data_summary_genes=data_summary_genes,
+            count=250
+        )
+
+    # Organize thorough summaries for a few genes of interest.
     prepare_reports_genes(
-        genes=define_genes_interest(),
+        genes=genes_interest,
         data_gene_annotation=source["data_gene_annotation"],
         genes_signals_patients_tissues=(
             source["genes_signals_patients_tissues"]
@@ -789,7 +827,7 @@ def execute_procedure(dock=None):
     information = {
         "genes_probabilities": genes_probabilities,
         "data_summary_genes": data_summary_genes,
-        "genes": genes_priority
+        "genes": genes_interest
     }
     #Write product information to file.
     write_product(dock=dock, information=information)
