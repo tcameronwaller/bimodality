@@ -169,20 +169,27 @@ def check_genes_scores_distributions(
             gene_entries["distributions"]["dip"]
         ))
     )
-    # Check whether all genes have scores.
-    # Iterate on genes.
-    for gene in genes_scores[5000:]:
-        entry = genes_scores_distributions[gene]
-        if not (
-            len(entry["distributions"]["coefficient"]) ==
-            len(entry["distributions"]["dip"])
-        ):
-            print(
-                "***Error***: difference in counts of shuffle values for " +
-                "scores!"
-            )
-            print(gene)
-            pass
+    print(
+        "count of shuffles for mixture model: " +
+        str(len(
+            gene_entries["distributions"]["mixture"]
+        ))
+    )
+    if False:
+        # Check whether all genes have scores.
+        # Iterate on genes.
+        for gene in genes_scores[5000:]:
+            entry = genes_scores_distributions[gene]
+            if not (
+                len(entry["distributions"]["coefficient"]) ==
+                len(entry["distributions"]["dip"])
+            ):
+                print(
+                    "***Error***: difference in counts of shuffle values for " +
+                    "scores!"
+                )
+                print(gene)
+                pass
     pass
 
 
@@ -205,6 +212,7 @@ def filter_genes_scores_variance(
 
     """
 
+    # Presumably these genes have inadequate real measurements.
     if False:
         del genes_scores_distributions["ENSG00000183795"]
         del genes_scores_distributions["ENSG00000196866"]
@@ -230,9 +238,13 @@ def filter_genes_scores_variance(
         variance_dip = (
             statistics.variance(entry["distributions"]["dip"])
         )
+        variance_mixture = (
+            statistics.variance(entry["distributions"]["mixture"])
+        )
         if (
             (variance_coefficient < threshold) or
-            (variance_dip < threshold)
+            (variance_dip < threshold) or
+            (variance_mixture < threshold)
         ):
             print("Inadequate variance in shuffle scores!")
             print("Deleting gene:" + gene)
@@ -303,14 +315,16 @@ def calculate_combination_scores(
         # Calculate combination scores.
         combination = statistics.mean([
             standard["scores"]["coefficient"],
-            standard["scores"]["dip"]
+            standard["scores"]["dip"],
+            standard["scores"]["mixture"],
         ])
         combinations = list()
         for index in range(len(standard["distributions"]["coefficient"])):
             coefficient = standard["distributions"]["coefficient"][index]
             dip = standard["distributions"]["dip"][index]
-            combination = statistics.mean([coefficient, dip])
-            combinations.append(combination)
+            mixture = standard["distributions"]["mixture"][index]
+            value = statistics.mean([coefficient, dip, mixture])
+            combinations.append(value)
             pass
         # Compile information.
         information[gene]["scores"]["combination"] = combination
@@ -406,15 +420,19 @@ def calculate_standard_scores_distributions(
     # Access information about gene's scores and distributions.
     coefficient = scores_distributions["scores"]["coefficient"]
     dip = scores_distributions["scores"]["dip"]
+    mixture = scores_distributions["scores"]["mixture"]
     coefficients = (
         scores_distributions["distributions"]["coefficient"]
     )
     dips = scores_distributions["distributions"]["dip"]
+    mixtures = scores_distributions["distributions"]["mixture"]
     # Convert gene's scores and distributions to standard, z-score, space.
     mean_coefficient = statistics.mean(coefficients)
     deviation_coefficient = statistics.stdev(coefficients)
     mean_dip = statistics.mean(dips)
     deviation_dip = statistics.stdev(dips)
+    mean_mixture = statistics.mean(mixtures)
+    deviation_mixture = statistics.stdev(mixtures)
     # Calculate standard scores.
     coefficient_standard = calculate_standard_score(
         value=coefficient,
@@ -426,6 +444,11 @@ def calculate_standard_scores_distributions(
         mean=mean_dip,
         deviation=deviation_dip
     )
+    mixture_standard = calculate_standard_score(
+        value=mixture,
+        mean=mean_mixture,
+        deviation=deviation_mixture
+    )
     coefficients_standard = calculate_standard_scores(
         values=coefficients,
         mean=mean_coefficient,
@@ -436,14 +459,21 @@ def calculate_standard_scores_distributions(
         mean=mean_dip,
         deviation=deviation_dip
     )
+    mixtures_standard = calculate_standard_scores(
+        values=mixtures,
+        mean=mean_mixture,
+        deviation=deviation_mixture
+    )
     # Compile information.
     information = dict()
     information["scores"] = dict()
     information["scores"]["coefficient"] = coefficient_standard
     information["scores"]["dip"] = dip_standard
+    information["scores"]["mixture"] = mixture_standard
     information["distributions"] = dict()
     information["distributions"]["coefficient"] = coefficients_standard
     information["distributions"]["dip"] = dips_standard
+    information["distributions"]["mixture"] = mixtures_standard
     # Return information.
     return information
 
@@ -505,8 +535,9 @@ def execute_procedure(dock=None):
     )
 
     # Filter genes by variance across shuffles of their scores.
-    # 18804 genes before filter.
-    # 18797 genes after filter.
+    # Presumably these genes have inadequate real measurements.
+    # 18804 genes before filter (TCW, 2019-04-22)
+    # 18797 genes after filter (TCW, 2019-04-22).
     genes_scores_distributions = filter_genes_scores_variance(
         genes_scores_distributions=source["genes_scores_distributions"],
         threshold=1E-25

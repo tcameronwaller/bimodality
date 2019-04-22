@@ -162,22 +162,20 @@ def calculate_probabilities_genes(
         genes_p_values[gene] = dict()
         # Access information about gene's scores and distributions.
         gene_scores = genes_scores_distributions[gene]
-        score_combination = gene_scores["scores"]["combination"]
         score_coefficient = gene_scores["scores"]["coefficient"]
         score_dip = gene_scores["scores"]["dip"]
-        distribution_combination = gene_scores["distributions"]["combination"]
+        score_mixture = gene_scores["scores"]["mixture"]
+        score_combination = gene_scores["scores"]["combination"]
         distribution_coefficient = gene_scores["distributions"]["coefficient"]
         distribution_dip = gene_scores["distributions"]["dip"]
+        distribution_mixture = gene_scores["distributions"]["mixture"]
+        distribution_combination = gene_scores["distributions"]["combination"]
         # Calculate p-values.
         # These scores of bimodality indicate greater bimodality as values
         # increase.
         # The scores are unidirectional, so the hypothesis is unidirectional.
         # The p-value is the probability of obtaining by random chance a value
         # equal to or greater than the actual score.
-        probability_combination = calculate_probability_equal_greater(
-            value=score_combination,
-            distribution=distribution_combination
-        )
         probability_coefficient = calculate_probability_equal_greater(
             value=score_coefficient,
             distribution=distribution_coefficient
@@ -186,10 +184,19 @@ def calculate_probabilities_genes(
             value=score_dip,
             distribution=distribution_dip
         )
+        probability_mixture = calculate_probability_equal_greater(
+            value=score_mixture,
+            distribution=distribution_mixture
+        )
+        probability_combination = calculate_probability_equal_greater(
+            value=score_combination,
+            distribution=distribution_combination
+        )
         # Compile information.
-        genes_p_values[gene]["combination"] = probability_combination
         genes_p_values[gene]["coefficient"] = probability_coefficient
         genes_p_values[gene]["dip"] = probability_dip
+        genes_p_values[gene]["mixture"] = probability_mixture
+        genes_p_values[gene]["combination"] = probability_combination
     # Return information.
     return genes_p_values
 
@@ -238,21 +245,25 @@ def organize_summary_genes(
         # Access information about gene.
         name = match_gene_name(gene)
         gene_scores = genes_scores_distributions[gene]
-        score_combination = gene_scores["scores"]["combination"]
         score_coefficient = gene_scores["scores"]["coefficient"]
         score_dip = gene_scores["scores"]["dip"]
-        probability_combination = genes_probabilities[gene]["combination"]
+        score_mixture = gene_scores["scores"]["mixture"]
+        score_combination = gene_scores["scores"]["combination"]
         probability_coefficient = genes_probabilities[gene]["coefficient"]
         probability_dip = genes_probabilities[gene]["dip"]
+        probability_mixture = genes_probabilities[gene]["mixture"]
+        probability_combination = genes_probabilities[gene]["combination"]
         # Compile information.
         record["identifier"] = gene
         record["name"] = name
-        record["combination"] = score_combination
-        record["p_combination"] = probability_combination
         record["coefficient"] = score_coefficient
         record["p_coefficient"] = probability_coefficient
         record["dip"] = score_dip
         record["p_dip"] = probability_dip
+        record["mixture"] = score_mixture
+        record["p_mixture"] = probability_mixture
+        record["combination"] = score_combination
+        record["p_combination"] = probability_combination
         records.append(record)
     # Organize information.
     data = utility.convert_records_to_dataframe(
@@ -281,7 +292,7 @@ def organize_summary_genes(
         inplace=True
     )
     data.sort_values(
-        by=["p_dip", "p_coefficient", "p_combination"],
+        by=["p_combination", "p_coefficient", "p_dip", "p_mixture"],
         axis="index",
         ascending=True,
         inplace=True,
@@ -558,7 +569,7 @@ def report_gene_modality_scores_distributions(
     colors = plot.define_color_properties()
 
     # Report modality scores.
-    for type in ["combination", "coefficient", "dip"]:
+    for type in ["coefficient", "dip", "mixture", "combination"]:
         # Access information.
         score = gene_scores_distributions["scores"][type]
         values = gene_scores_distributions["distributions"][type]

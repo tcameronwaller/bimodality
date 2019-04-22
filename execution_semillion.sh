@@ -2,7 +2,7 @@
 
 #chmod u+x script.sh
 
-export PATH=/cellar/users/tcwaller/anaconda3/bin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
 
 path_project="/cellar/users/tcwaller"
 subpath_repository="repository/bimodality-master/bimodality"
@@ -33,4 +33,7 @@ cd $path_program
 
 echo "Now set to call routine and procedures."
 
-python $path_program/interface.py main --dock $path_dock --pipe --local
+#python $path_program/interface.py main --dock $path_dock --pipe --local
+
+nohup python interface.py main --dock $path_dock --collection > $path_dock/report.out &
+
