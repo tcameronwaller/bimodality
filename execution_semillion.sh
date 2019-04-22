@@ -9,7 +9,7 @@ subpath_repository="repository/bimodality-master/bimodality"
 path_repository="$path_project/$subpath_repository"
 subpath_program="repository/bimodality-master/bimodality"
 path_program="$path_project/$subpath_program"
-subpath_dock="Data/dock_semillion"
+subpath_dock="Data/dock"
 path_dock="$path_project/$subpath_dock"
 
 # Suppress echo each command to console.
