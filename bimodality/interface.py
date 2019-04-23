@@ -25,6 +25,7 @@ import pipe
 import collection
 import combination
 import analysis
+import function
 import metric
 import test
 import utility
@@ -232,6 +233,10 @@ def define_main_subparser(subparsers=None):
         help="Analysis of real, shuffle, and simulation data sets."
     )
     parser_main.add_argument(
+        "-function", "--function", dest="function", action="store_true",
+        help="Functional analyses on ranks of genes."
+    )
+    parser_main.add_argument(
         "-metric", "--metric", dest="metric", action="store_true",
         help="Definition and test of metrics for modality."
     )
@@ -373,6 +378,11 @@ def evaluate_main_parameters(arguments):
         print("... executing analysis procedure ...")
         # Execute procedure.
         analysis.execute_procedure(dock=arguments.dock)
+    if arguments.function:
+        # Report status.
+        print("... executing function procedure ...")
+        # Execute procedure.
+        function.execute_procedure(dock=arguments.dock)
     if arguments.metric:
         # Report status.
         print("... executing metric procedure ...")

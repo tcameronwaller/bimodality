@@ -279,6 +279,70 @@ def plot_distribution_histogram(
     return figure
 
 
+# Procedures
+
+
+def read_source_analysis(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_analysis = os.path.join(dock, "analysis")
+    path_genes = os.path.join(
+        path_analysis, "data_summary_genes.pickle"
+    )
+    # Read information from file.
+    data_summary_genes = pandas.read_pickle(path_summary)
+    data_rank_genes = pandas.read_csv(
+        path_rank_genes,
+        sep="\t",
+        header=None,
+        #nrows=1000,
+    )
+    genes = utility.read_file_text_list(path_genes)
+    # Compile and return information.
+    return {
+        "data_summary_genes": data_summary_genes,
+        "data_rank_genes": data_rank_genes,
+        "genes": genes,
+    }
+
+
+def plot_charts_analysis(
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_analysis(dock=dock)
+
+
+    pass
+
+
+
+
 
 def write_figure(path=None, figure=None):
     """
@@ -326,6 +390,9 @@ def execute_procedure(dock=None):
     returns:
 
     """
+
+
+    plot_charts_analysis(dock=dock)
 
     pass
 

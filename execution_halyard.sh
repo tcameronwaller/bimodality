@@ -44,4 +44,5 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --collection
 #python3 interface.py main --dock $path_dock --combination
 python3 interface.py main --dock $path_dock --analysis
+#python3 interface.py main --dock $path_dock --function
 
