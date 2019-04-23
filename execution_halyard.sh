@@ -41,6 +41,7 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --shuffle --count 10000
 #nohup python3 interface.py main --dock $path_dock --pipe --local > $path_dock/report.out &
 
-python3 interface.py main --dock $path_dock --collection
-#python3 interface.py main --dock $path_dock --analysis
+#python3 interface.py main --dock $path_dock --collection
+#python3 interface.py main --dock $path_dock --combination
+python3 interface.py main --dock $path_dock --analysis
 

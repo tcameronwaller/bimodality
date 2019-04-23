@@ -23,6 +23,7 @@ import split
 import shuffle
 import pipe
 import collection
+import combination
 import analysis
 import metric
 import test
@@ -220,6 +221,13 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
+        "-combination", "--combination", dest="combination",
+        action="store_true",
+        help=(
+            "Combination of multiple scores for distribution modality."
+        )
+    )
+    parser_main.add_argument(
         "-analysis", "--analysis", dest="analysis", action="store_true",
         help="Analysis of real, shuffle, and simulation data sets."
     )
@@ -355,6 +363,11 @@ def evaluate_main_parameters(arguments):
         print("... executing collection procedure ...")
         # Execute procedure.
         collection.execute_procedure(dock=arguments.dock)
+    if arguments.combination:
+        # Report status.
+        print("... executing combination procedure ...")
+        # Execute procedure.
+        combination.execute_procedure(dock=arguments.dock)
     if arguments.analysis:
         # Report status.
         print("... executing analysis procedure ...")

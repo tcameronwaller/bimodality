@@ -73,9 +73,9 @@ def read_source(dock=None):
     path_shuffles = os.path.join(
         path_shuffle, "shuffles.pickle"
     )
-    path_collection = os.path.join(dock, "collection")
+    path_combination = os.path.join(dock, "combination")
     path_distributions = os.path.join(
-        path_collection, "genes_scores_distributions.pickle"
+        path_combination, "genes_scores_distributions.pickle"
     )
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
@@ -361,22 +361,28 @@ def define_genes_interest(
     genes = list()
     # Collect sample genes from different ranges of modality scores.
     # Select ranges.
-    data_high = data_summary_genes.loc[(data_summary_genes[rank] < 0.05)]
-    data_middle = (data_summary_genes.loc[
-        (data_summary_genes[rank] > 0.1) & (data_summary_genes[rank] < 0.5)
+    data_one = data_summary_genes.loc[(data_summary_genes[rank] < 0.01)]
+    data_two = (data_summary_genes.loc[
+        (data_summary_genes[rank] > 0.01) & (data_summary_genes[rank] < 0.05)
     ])
-    data_low = data_summary_genes.loc[(data_summary_genes[rank] > 0.5)]
+    data_three = (data_summary_genes.loc[
+        (data_summary_genes[rank] > 0.05) & (data_summary_genes[rank] < 0.1)
+    ])
+    data_four = data_summary_genes.loc[(data_summary_genes[rank] > 0.1)]
     # Extract genes' identifiers.
-    genes_high = data_high.index.to_list()
-    genes_middle = data_middle.index.to_list()
-    genes_low = data_low.index.to_list()
+    genes_one = data_one.index.to_list()
+    genes_two = data_two.index.to_list()
+    genes_three = data_three.index.to_list()
+    genes_four = data_four.index.to_list()
     # Select sample from each range of genes.
-    gene_high = random.choice(genes_high)
-    gene_middle = random.choice(genes_middle)
-    gene_low = random.choice(genes_low)
-    genes.append(gene_high)
-    genes.append(gene_middle)
-    genes.append(gene_low)
+    gene_one = random.choice(genes_one)
+    gene_two = random.choice(genes_two)
+    gene_three = random.choice(genes_three)
+    gene_four = random.choice(genes_four)
+    genes.append(gene_one)
+    genes.append(gene_two)
+    genes.append(gene_three)
+    genes.append(gene_four)
     # Include custom genes.
     # TAPBP
     genes.append("ENSG00000231925")
@@ -417,7 +423,7 @@ def define_genes_priority(
 def report_gene_abundance_distribution_real(
     name=None,
     data_gene_signals=None,
-    dock=None,
+    path=None,
 ):
     """
     Reports the real distribution across patients of a gene's aggregate
@@ -427,8 +433,7 @@ def report_gene_abundance_distribution_real(
         name (str): name of gene
         data_gene_signals (object): Pandas data frame of a single gene's
             signals across specific patients and tissues.
-        dock (str): path to root or dock directory for source and product
-            directories and files.
+        path (str): path to a directory
 
     raises:
 
@@ -462,11 +467,8 @@ def report_gene_abundance_distribution_real(
         text="",
     )
     # Specify directories and files.
-    path_analysis = os.path.join(dock, "analysis")
-    path_figure = os.path.join(path_analysis, "figure")
-    utility.confirm_path_directory(path_figure)
-    file = (name + "_abundance_distribution_real.svg")
-    path_file = os.path.join(path_figure, file)
+    file = ("abundance_distribution_real.svg")
+    path_file = os.path.join(path, file)
     # Write figure.
     plot.write_figure(
         path=path_file,
@@ -480,7 +482,7 @@ def report_gene_abundance_distribution_shuffle(
     name=None,
     data_gene_signals=None,
     shuffles=None,
-    dock=None,
+    path=None,
 ):
     """
     Reports the shuffle distribution across patients of a gene's aggregate
@@ -491,8 +493,7 @@ def report_gene_abundance_distribution_shuffle(
         data_gene_signals (object): Pandas data frame of a single gene's
             signals across specific patients and tissues
         shuffles (list<list<list<int>>>): Matrices of indices
-        dock (str): path to root or dock directory for source and product
-            directories and files.
+        path (str): path to a directory
 
     raises:
 
@@ -526,11 +527,8 @@ def report_gene_abundance_distribution_shuffle(
         text="",
     )
     # Specify directories and files.
-    path_analysis = os.path.join(dock, "analysis")
-    path_figure = os.path.join(path_analysis, "figure")
-    utility.confirm_path_directory(path_figure)
-    file = (name + "_abundance_distribution_shuffle.svg")
-    path_file = os.path.join(path_figure, file)
+    file = ("abundance_distribution_shuffle.svg")
+    path_file = os.path.join(path, file)
     # Write figure.
     plot.write_figure(
         path=path_file,
@@ -543,7 +541,7 @@ def report_gene_abundance_distribution_shuffle(
 def report_gene_modality_scores_distributions(
     name=None,
     gene_scores_distributions=None,
-    dock=None,
+    path=None,
 ):
     """
     Reports the real distribution across patients of a gene's aggregate
@@ -553,8 +551,7 @@ def report_gene_modality_scores_distributions(
         name (str): name of gene
         gene_scores_distributions (dict<dict>): information about a gene's
             scores and distributions for modality
-        dock (str): path to root or dock directory for source and product
-            directories and files.
+        path (str): path to a directory
 
 
     raises:
@@ -589,11 +586,8 @@ def report_gene_modality_scores_distributions(
             text="",
         )
         # Specify directories and files.
-        path_analysis = os.path.join(dock, "analysis")
-        path_figure = os.path.join(path_analysis, "figure")
-        utility.confirm_path_directory(path_figure)
-        file = (name + "_score_distribution_" + type + ".svg")
-        path_file = os.path.join(path_figure, file)
+        file = ("score_distribution_" + type + ".svg")
+        path_file = os.path.join(path, file)
         # Write figure.
         plot.write_figure(
             path=path_file,
@@ -636,6 +630,7 @@ def prepare_reports_genes(
     utility.confirm_path_directory(path_analysis)
     path_figure = os.path.join(path_analysis, "figure")
     utility.remove_directory(path=path_figure)
+    utility.confirm_path_directory(path_figure)
     # Iterate on genes.
     for gene in genes:
         prepare_report_gene(
@@ -680,12 +675,18 @@ def prepare_report_gene(
     data_gene_signals = genes_signals_patients_tissues[gene].copy(deep=True)
     gene_scores_distributions = genes_scores_distributions[gene]
 
+    # Specify directories and files.
+    path_analysis = os.path.join(dock, "analysis")
+    path_figure = os.path.join(path_analysis, "figure")
+    path_gene = os.path.join(path_figure, name)
+    utility.confirm_path_directory(path_gene)
+
     # Summarize real distribution across patients of a gene's aggregate
     # abundance across tissues.
     report_gene_abundance_distribution_real(
         name=name,
         data_gene_signals=data_gene_signals,
-        dock=dock,
+        path=path_gene,
     )
 
     # Summarize shuffle distribution across patients of a gene's aggregate
@@ -694,14 +695,14 @@ def prepare_report_gene(
         name=name,
         data_gene_signals=data_gene_signals,
         shuffles=shuffles,
-        dock=dock,
+        path=path_gene,
     )
 
     # Summarize distribution across shuffles of a gene's modality score.
     report_gene_modality_scores_distributions(
         name=name,
         gene_scores_distributions=gene_scores_distributions,
-        dock=dock,
+        path=path_gene,
     )
 
     pass
@@ -811,7 +812,7 @@ def execute_procedure(dock=None):
     # Genes of interest are few for thorough summary.
     genes_interest = define_genes_interest(
         data_summary_genes=data_summary_genes,
-        rank="p_dip"
+        rank="p_combination"
     )
 
     # Define genes of priority.

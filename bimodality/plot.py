@@ -15,6 +15,7 @@
 import numpy
 import matplotlib
 matplotlib.use("agg")
+matplotlib.rcParams.update({'figure.max_open_warning': 0})
 import matplotlib.pyplot
 
 # Custom
