@@ -384,20 +384,88 @@ def collect_genes_names(
     return data_gene_score
 
 
-# Genes
+# Ranks
 
 
-def define_genes_interest(
+def rank_genes(
+    data_summary_genes=None,
+    rank=None,
+    method=None,
+    threshold=None,
+    count=None,
+):
+    """
+    Prepares ranks of genes for subsequent functional analyses.
+
+    arguments:
+        data_summary_genes (object): Pandas data frame of genes' identifiers,
+            names, and probability values by metrics of modality
+        rank (str): key of data column to use for ranks
+        method (str): method of filter to apply, either threshold or count
+        threshold (float): value for threshold
+        count (int): Count of genes with greatest ranks to select
+
+    raises:
+
+    returns:
+        (dict): collection of representations of ranks of genes
+
+    """
+
+    # Copy data.
+    data_copy = data_summary_genes.copy(deep=True)
+    data_copy.reset_index(level="identifier", inplace=True)
+    data_rank_genes = data_copy.loc[ : , ["identifier", "name", rank]]
+    data_rank_genes.sort_values(
+        by=[rank],
+        axis="index",
+        ascending=True,
+        inplace=True,
+    )
+    data_rank_genes.reset_index(
+        inplace=True,
+        drop=True,
+    )
+    # Filter genes.
+    if method == "threshold":
+        data_rank_genes_filter = (
+            data_rank_genes.loc[(data_rank_genes[rank] < threshold)]
+        )
+    elif method == "count":
+        data_rank_genes_filter = (
+            data_rank_genes.iloc[0:count]
+        )
+    # Organize information.
+    # Compile information.
+    information = dict()
+    information["data_rank_genes"] = data_rank_genes_filter
+    information["data_rank_genes_ensembl"] = (
+        data_rank_genes_filter.loc[ : , ["identifier", rank]]
+    )
+    information["data_rank_genes_hugo"] = (
+        data_rank_genes_filter.loc[ : , ["name", rank]]
+    )
+    information["genes_ensembl"] = (
+        data_rank_genes_filter["identifier"].to_list()
+    )
+    information["genes_hugo"] = data_rank_genes_filter["name"].to_list()
+    # Return information.
+    return information
+
+
+# Thorough summary.
+
+
+def define_report_genes(
     data_summary_genes=None,
     rank=None
 ):
     """
-    Defines genes of interest for thorough summary.
+    Defines genes of interest for thorough summary in reports.
 
     arguments:
         data_summary_genes (object): Pandas data frame of genes' identifiers,
-            names, and probability values by bimodality coefficient and dip
-            statistic
+            names, and probability values by metrics of modality
         rank (str): key of data column to use for ranks
 
     raises:
@@ -434,60 +502,32 @@ def define_genes_interest(
     genes.append(gene_three)
     genes.append(gene_four)
     # Include custom genes.
+    # UTY
+    genes.append("ENSG00000183878")
     # TAPBP
     genes.append("ENSG00000231925")
     # XBP1
     genes.append("ENSG00000100219")
+    # PHGDH
+    genes.append("ENSG00000092621")
     return genes
 
 
-def define_genes_priority(
-    data_summary_genes=None, count=None
-):
-    """
-    Extracts identifiers of genes with greatest ranks.
-
-    arguments:
-        data_summary_genes (object): Pandas data frame of genes' identifiers,
-            names, and probability values by bimodality coefficient and dip
-            statistic
-        count (int): Count of genes with greatest ranks to select
-
-    raises:
-
-    returns:
-        (list<str>): identifiers of genes
-
-    """
-
-    # Extract genes' identifiers.
-    data_summary_genes.reset_index(level="identifier", inplace=True)
-    genes = data_summary_genes["identifier"].to_list()
-    print("count of genes: " + str(len(genes)))
-    return genes[0:count]
-
-
-# Thorough summary.
-
-
 def report_gene_abundance_distribution_real(
-    name=None,
     data_gene_signals=None,
-    path=None,
 ):
     """
     Reports the real distribution across patients of a gene's aggregate
     abundance across tissues.
 
     arguments:
-        name (str): name of gene
         data_gene_signals (object): Pandas data frame of a single gene's
             signals across specific patients and tissues.
-        path (str): path to a directory
 
     raises:
 
     returns:
+        (list<float>): values of gene abundances
 
     """
 
@@ -496,58 +536,26 @@ def report_gene_abundance_distribution_real(
         data_gene_signals=data_gene_signals
     )
     values = information["values"]
-
-    # Define fonts.
-    fonts = plot.define_font_properties()
-    # Define colors.
-    colors = plot.define_color_properties()
-
-    # Create figure.
-    figure = plot.plot_distribution_histogram(
-        series=values,
-        name="",
-        bin_method="count",
-        bin_count=50,
-        label_bins="Bins",
-        label_counts="Counts",
-        fonts=fonts,
-        colors=colors,
-        line=False,
-        position=0,
-        text="",
-    )
-    # Specify directories and files.
-    file = ("abundance_distribution_real.svg")
-    path_file = os.path.join(path, file)
-    # Write figure.
-    plot.write_figure(
-        path=path_file,
-        figure=figure
-    )
-
-    pass
+    return values
 
 
 def report_gene_abundance_distribution_shuffle(
-    name=None,
     data_gene_signals=None,
     shuffles=None,
-    path=None,
 ):
     """
     Reports the shuffle distribution across patients of a gene's aggregate
     abundance across tissues.
 
     arguments:
-        name (str): name of gene
         data_gene_signals (object): Pandas data frame of a single gene's
             signals across specific patients and tissues
         shuffles (list<list<list<int>>>): Matrices of indices
-        path (str): path to a directory
 
     raises:
 
     returns:
+        (list<float>): values of gene abundances
 
     """
 
@@ -556,42 +564,11 @@ def report_gene_abundance_distribution_shuffle(
         data_gene_signals=data_gene_signals,
         shuffles=shuffles
     )
-
-    # Define fonts.
-    fonts = plot.define_font_properties()
-    # Define colors.
-    colors = plot.define_color_properties()
-
-    # Create figure.
-    figure = plot.plot_distribution_histogram(
-        series=values,
-        name="",
-        bin_method="count",
-        bin_count=50,
-        label_bins="Bins",
-        label_counts="Counts",
-        fonts=fonts,
-        colors=colors,
-        line=False,
-        position=0,
-        text="",
-    )
-    # Specify directories and files.
-    file = ("abundance_distribution_shuffle.svg")
-    path_file = os.path.join(path, file)
-    # Write figure.
-    plot.write_figure(
-        path=path_file,
-        figure=figure
-    )
-
-    pass
+    return values
 
 
 def report_gene_modality_scores_distributions(
-    name=None,
     gene_scores_distributions=None,
-    path=None,
 ):
     """
     Reports the real distribution across patients of a gene's aggregate
@@ -607,44 +584,23 @@ def report_gene_modality_scores_distributions(
     raises:
 
     returns:
+        (dict<dict>): scores and distributions by multiple metrics
 
     """
 
-    # Define fonts.
-    fonts = plot.define_font_properties()
-    # Define colors.
-    colors = plot.define_color_properties()
-
     # Report modality scores.
+    # Collect scores and distributions.
+    information = dict()
     for type in ["coefficient", "dip", "mixture", "combination"]:
         # Access information.
         score = gene_scores_distributions["scores"][type]
         values = gene_scores_distributions["distributions"][type]
-
-        # Create figure.
-        figure = plot.plot_distribution_histogram(
-            series=values,
-            name="",
-            bin_method="count",
-            bin_count=50,
-            label_bins="Bins",
-            label_counts="Counts",
-            fonts=fonts,
-            colors=colors,
-            line=True,
-            position=score,
-            text="",
-        )
-        # Specify directories and files.
-        file = ("score_distribution_" + type + ".svg")
-        path_file = os.path.join(path, file)
-        # Write figure.
-        plot.write_figure(
-            path=path_file,
-            figure=figure
-        )
-
-    pass
+        # Compile information.
+        information[type] = dict()
+        information[type]["score"] = score
+        information[type]["distribution"] = values
+    # Return information.
+    return information
 
 
 def prepare_reports_genes(
@@ -653,7 +609,6 @@ def prepare_reports_genes(
     genes_signals_patients_tissues=None,
     shuffles=None,
     genes_scores_distributions=None,
-    dock=None,
 ):
     """
     Prepares thorough reports about analyses for a few genes of interest.
@@ -664,34 +619,28 @@ def prepare_reports_genes(
         genes_signals_patients_tissues (dict<object>): Collection of matrices.
         shuffles (list<list<list<int>>>): Matrices of indices.
         genes_scores_distributions (dict<dict<dict>>): information about genes
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-
 
     raises:
 
     returns:
+        (dict): information for reports
 
     """
 
-    # Remove previous files.
-    # Specify directories and files.
-    path_analysis = os.path.join(dock, "analysis")
-    utility.confirm_path_directory(path_analysis)
-    path_figure = os.path.join(path_analysis, "figure")
-    utility.remove_directory(path=path_figure)
-    utility.confirm_path_directory(path_figure)
+    # Collect reports.
+    reports = dict()
     # Iterate on genes.
     for gene in genes:
-        prepare_report_gene(
+        report = prepare_report_gene(
             gene=gene,
             data_gene_annotation=data_gene_annotation,
             genes_signals_patients_tissues=genes_signals_patients_tissues,
             shuffles=shuffles,
             genes_scores_distributions=genes_scores_distributions,
-            dock=dock,
         )
-    pass
+        # Collect report.
+        reports[gene] = report
+    return reports
 
 
 def prepare_report_gene(
@@ -700,7 +649,6 @@ def prepare_report_gene(
     genes_signals_patients_tissues=None,
     shuffles=None,
     genes_scores_distributions=None,
-    dock=None,
 ):
     """
     Prepares a thorough report about analyses for a single gene of interest.
@@ -711,12 +659,11 @@ def prepare_report_gene(
         genes_signals_patients_tissues (dict<object>): Collection of matrices.
         shuffles (list<list<list<int>>>): Matrices of indices.
         genes_scores_distributions (dict<dict<dict>>): information about genes
-        dock (str): path to root or dock directory for source and product
-            directories and files.
 
     raises:
 
     returns:
+        (dict): information for report
 
     """
 
@@ -725,92 +672,27 @@ def prepare_report_gene(
     data_gene_signals = genes_signals_patients_tissues[gene].copy(deep=True)
     gene_scores_distributions = genes_scores_distributions[gene]
 
-    # Specify directories and files.
-    path_analysis = os.path.join(dock, "analysis")
-    path_figure = os.path.join(path_analysis, "figure")
-    path_gene = os.path.join(path_figure, name)
-    utility.confirm_path_directory(path_gene)
-
-    # Summarize real distribution across patients of a gene's aggregate
+    # Report real distribution across patients of a gene's aggregate
     # abundance across tissues.
-    report_gene_abundance_distribution_real(
-        name=name,
+    abundances_real = report_gene_abundance_distribution_real(
         data_gene_signals=data_gene_signals,
-        path=path_gene,
     )
-
-    # Summarize shuffle distribution across patients of a gene's aggregate
+    # Report shuffle distribution across patients of a gene's aggregate
     # abundance across tissues.
-    report_gene_abundance_distribution_shuffle(
-        name=name,
+    abundances_shuffle = report_gene_abundance_distribution_shuffle(
         data_gene_signals=data_gene_signals,
         shuffles=shuffles,
-        path=path_gene,
     )
-
-    # Summarize distribution across shuffles of a gene's modality score.
-    report_gene_modality_scores_distributions(
-        name=name,
+    # Report distribution across shuffles of a gene's modality score.
+    scores_distributions = report_gene_modality_scores_distributions(
         gene_scores_distributions=gene_scores_distributions,
-        path=path_gene,
     )
-
-    pass
-
-
-def rank_genes(
-    data_summary_genes=None,
-    rank=None,
-    method=None,
-    threshold=None,
-    count=None,
-):
-    """
-    Prepares ranks of genes for subsequent functional analyses.
-
-    arguments:
-        data_summary_genes (object): Pandas data frame of genes' identifiers,
-            names, and probability values by metrics of modality
-        rank (str): key of data column to use for ranks
-        method (str): method of filter to apply, either threshold or count
-        threshold (float): value for threshold
-        count (int): Count of genes with greatest ranks to select
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' identifiers and a rank variable.
-
-    """
-
-    # Copy data.
-    data_copy = data_summary_genes.copy(deep=True)
-    data_copy.reset_index(level="identifier", inplace=True)
-    data_rank_genes = data_copy.loc[ : , ["identifier", "name", rank]]
-    data_rank_genes.sort_values(
-        by=[rank],
-        axis="index",
-        ascending=True,
-        inplace=True,
-    )
-    data_rank_genes.reset_index(
-        inplace=True,
-        drop=True,
-    )
-    # Filter genes.
-    if method == "threshold":
-        data_rank_genes_filter = (
-            data_rank_genes.loc[(data_rank_genes[rank] < threshold)]
-        )
-    elif method == "count":
-        data_rank_genes_filter = (
-            data_rank_genes.iloc[0:count]
-        )
-    genes = data_rank_genes_filter["identifier"].to_list()
     # Compile information.
     information = dict()
-    information["data_rank_genes"] = data_rank_genes_filter
-    information["genes"] = genes
+    information["name"] = name
+    information["abundances_real"] = abundances_real
+    information["abundances_shuffle"] = abundances_shuffle
+    information["scores_distributions"] = scores_distributions
     # Return information.
     return information
 
@@ -848,11 +730,26 @@ def write_product(dock=None, information=None):
     path_summary_text_alternative = os.path.join(
         path_analysis, "data_summary_genes_alternative.txt"
     )
-    path_rank_genes = os.path.join(
+    path_data_rank = os.path.join(
         path_analysis, "data_rank_genes.txt"
     )
-    path_genes = os.path.join(
-        path_analysis, "genes.txt"
+    path_rank_ensembl = os.path.join(
+        path_analysis, "genes_ranks_ensembl.txt"
+    )
+    path_rank_hugo = os.path.join(
+        path_analysis, "genes_ranks_hugo.txt"
+    )
+    path_genes_ensembl = os.path.join(
+        path_analysis, "genes_ensembl.txt"
+    )
+    path_genes_hugo = os.path.join(
+        path_analysis, "genes_hugo.txt"
+    )
+    path_genes_report = os.path.join(
+        path_analysis, "genes_report.txt"
+    )
+    path_reports = os.path.join(
+        path_analysis, "reports.pickle"
     )
     # Write information to file.
     information["data_genes_probabilities"].to_pickle(path_summary)
@@ -876,15 +773,80 @@ def write_product(dock=None, information=None):
         delimiter="\t"
     )
     information["data_rank_genes"].to_csv(
-        path_or_buf=path_rank_genes,
+        path_or_buf=path_data_rank,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+    information["data_rank_genes_ensembl"].to_csv(
+        path_or_buf=path_rank_ensembl,
+        sep="\t",
+        header=False,
+        index=False,
+    )
+    information["data_rank_genes_hugo"].to_csv(
+        path_or_buf=path_rank_hugo,
         sep="\t",
         header=False,
         index=False,
     )
     utility.write_file_text_list(
-        information=information["genes"], path_file=path_genes
+        information=information["genes_ensembl"],
+        path_file=path_genes_ensembl
     )
+    utility.write_file_text_list(
+        information=information["genes_hugo"],
+        path_file=path_genes_hugo
+    )
+    utility.write_file_text_list(
+        information=information["genes_report"],
+        path_file=path_genes_report
+    )
+    with open(path_reports, "wb") as file_product:
+        pickle.dump(information["reports"], file_product)
+
     pass
+
+
+def write_product_reports(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_analysis = os.path.join(dock, "analysis")
+    utility.confirm_path_directory(path_analysis)
+    path_reports = os.path.join(path_analysis, "reports")
+    # Remove previous files since they change from run to run.
+    utility.remove_directory(path=path_reports)
+    utility.confirm_path_directory(path_reports)
+    # Iterate on reports.
+    for gene in information["genes_report"]:
+        # Access information.
+        name = information["reports"][gene]["name"]
+        # Specify directories and files.
+        path_report = os.path.join(
+            path_reports, (name + "_reports.pickle")
+        )
+        # Write information to file.
+
+        pass
+
+    pass
+
+
+
+# TODO: write_product_reports()
 
 
 ###############################################################################
@@ -923,42 +885,45 @@ def execute_procedure(dock=None):
     )
     print(data_summary_genes.iloc[0:25, 0:10])
 
-    # Define genes of interest.
-    # Genes of interest are few for thorough summary.
-    genes_interest = define_genes_interest(
-        data_summary_genes=data_summary_genes,
-        rank="p_mean"
-    )
-
-    if False:
-        # Organize thorough summaries for a few genes of interest.
-        prepare_reports_genes(
-            genes=genes_interest,
-            data_gene_annotation=source["data_gene_annotation"],
-            genes_signals_patients_tissues=(
-                source["genes_signals_patients_tissues"]
-            ),
-            shuffles=source["shuffles"][0:500],
-            genes_scores_distributions=source["genes_scores_distributions"],
-            dock=dock,
-        )
-
     # Rank genes for subsequent functional analyses.
-    rank = rank_genes(
+    ranks = rank_genes(
         data_summary_genes=data_summary_genes,
         rank="p_mean",
         method="threshold",
         threshold=0.05,
         count=500,
     )
-    print(rank["data_rank_genes"])
+    print(ranks["data_rank_genes"])
+
+    # Define genes of interest.
+    # Genes of interest are few for thorough summary.
+    genes_report = define_report_genes(
+        data_summary_genes=data_summary_genes,
+        rank="p_mean"
+    )
+
+    # Organize thorough summaries for a few genes of interest.
+    reports = prepare_reports_genes(
+        genes=genes_report,
+        data_gene_annotation=source["data_gene_annotation"],
+        genes_signals_patients_tissues=(
+            source["genes_signals_patients_tissues"]
+        ),
+        shuffles=source["shuffles"][0:500],
+        genes_scores_distributions=source["genes_scores_distributions"],
+    )
 
     # Compile information.
     information = {
         "data_genes_probabilities": data_genes_probabilities,
         "data_summary_genes": data_summary_genes,
-        "data_rank_genes": rank["data_rank_genes"],
-        "genes": rank["genes"],
+        "data_rank_genes": ranks["data_rank_genes"],
+        "data_rank_genes_ensembl": ranks["data_rank_genes_ensembl"],
+        "data_rank_genes_hugo": ranks["data_rank_genes_hugo"],
+        "genes_ensembl": ranks["genes_ensembl"],
+        "genes_hugo": ranks["genes_hugo"],
+        "genes_report": genes_report,
+        "reports": reports,
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

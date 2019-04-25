@@ -299,23 +299,20 @@ def read_source_analysis(dock=None):
 
     # Specify directories and files.
     path_analysis = os.path.join(dock, "analysis")
-    path_genes = os.path.join(
-        path_analysis, "data_summary_genes.pickle"
+    path_genes_report = os.path.join(
+        path_analysis, "genes_report.txt"
+    )
+    path_reports = os.path.join(
+        path_analysis, "reports.pickle"
     )
     # Read information from file.
-    data_summary_genes = pandas.read_pickle(path_summary)
-    data_rank_genes = pandas.read_csv(
-        path_rank_genes,
-        sep="\t",
-        header=None,
-        #nrows=1000,
-    )
-    genes = utility.read_file_text_list(path_genes)
+    genes = utility.read_file_text_list(path_genes_report)
+    with open(path_reports, "rb") as file_source:
+        reports = pickle.load(file_source)
     # Compile and return information.
     return {
-        "data_summary_genes": data_summary_genes,
-        "data_rank_genes": data_rank_genes,
         "genes": genes,
+        "reports": reports,
     }
 
 
@@ -336,6 +333,104 @@ def plot_charts_analysis(
 
     # Read source information from file.
     source = read_source_analysis(dock=dock)
+    #source["genes"]
+    #source["reports"]
+
+    # genes
+    #
+
+    # Real...
+    # Define fonts.
+    fonts = plot.define_font_properties()
+    # Define colors.
+    colors = plot.define_color_properties()
+
+    # Create figure.
+    figure = plot.plot_distribution_histogram(
+        series=values,
+        name="",
+        bin_method="count",
+        bin_count=50,
+        label_bins="Bins",
+        label_counts="Counts",
+        fonts=fonts,
+        colors=colors,
+        line=False,
+        position=0,
+        text="",
+    )
+    # Specify directories and files.
+    file = ("abundance_distribution_real.svg")
+    path_file = os.path.join(path, file)
+    # Write figure.
+    plot.write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    # Shuffle...
+
+    # Define fonts.
+    fonts = plot.define_font_properties()
+    # Define colors.
+    colors = plot.define_color_properties()
+
+    # Create figure.
+    figure = plot.plot_distribution_histogram(
+        series=values,
+        name="",
+        bin_method="count",
+        bin_count=50,
+        label_bins="Bins",
+        label_counts="Counts",
+        fonts=fonts,
+        colors=colors,
+        line=False,
+        position=0,
+        text="",
+    )
+    # Specify directories and files.
+    file = ("abundance_distribution_shuffle.svg")
+    path_file = os.path.join(path, file)
+    # Write figure.
+    plot.write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    # Metrics...
+
+    # Report modality scores.
+    for type in ["coefficient", "dip", "mixture", "combination"]:
+        # Access information.
+        score = gene_scores_distributions["scores"][type]
+        values = gene_scores_distributions["distributions"][type]
+
+        # Create figure.
+        figure = plot.plot_distribution_histogram(
+            series=values,
+            name="",
+            bin_method="count",
+            bin_count=50,
+            label_bins="Bins",
+            label_counts="Counts",
+            fonts=fonts,
+            colors=colors,
+            line=True,
+            position=score,
+            text="",
+        )
+        # Specify directories and files.
+        file = ("score_distribution_" + type + ".svg")
+        path_file = os.path.join(path, file)
+        # Write figure.
+        plot.write_figure(
+            path=path_file,
+            figure=figure
+        )
+
+
+
 
 
     pass
