@@ -10,6 +10,8 @@
 # Installation and importation
 
 # Standard
+import os
+import pickle
 
 # Relevant
 import numpy
@@ -19,6 +21,8 @@ matplotlib.rcParams.update({'figure.max_open_warning': 0})
 import matplotlib.pyplot
 
 # Custom
+
+import utility
 
 #dir()
 #importlib.reload()
@@ -299,24 +303,25 @@ def read_source_analysis(dock=None):
 
     # Specify directories and files.
     path_analysis = os.path.join(dock, "analysis")
-    path_genes_report = os.path.join(
-        path_analysis, "genes_report.txt"
-    )
+    #path_genes_report = os.path.join(
+    #    path_analysis, "genes_report.txt"
+    #)
     path_reports = os.path.join(
         path_analysis, "reports.pickle"
     )
     # Read information from file.
-    genes = utility.read_file_text_list(path_genes_report)
+    #genes = utility.read_file_text_list(path_genes_report)
     with open(path_reports, "rb") as file_source:
         reports = pickle.load(file_source)
     # Compile and return information.
     return {
-        "genes": genes,
+    #    "genes": genes,
         "reports": reports,
     }
 
 
 def plot_charts_analysis(
+    dock=None
 ):
     """
     Plots charts from the analysis process.
@@ -331,84 +336,38 @@ def plot_charts_analysis(
 
     """
 
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.confirm_path_directory(path_plot)
+    path_analysis = os.path.join(path_plot, "analysis")
+    # Remove previous files since they change from run to run.
+    utility.remove_directory(path=path_analysis)
+    utility.confirm_path_directory(path_analysis)
+
     # Read source information from file.
     source = read_source_analysis(dock=dock)
     #source["genes"]
     #source["reports"]
 
-    # genes
-    #
-
-    # Real...
-    # Define fonts.
-    fonts = plot.define_font_properties()
-    # Define colors.
-    colors = plot.define_color_properties()
-
-    # Create figure.
-    figure = plot.plot_distribution_histogram(
-        series=values,
-        name="",
-        bin_method="count",
-        bin_count=50,
-        label_bins="Bins",
-        label_counts="Counts",
-        fonts=fonts,
-        colors=colors,
-        line=False,
-        position=0,
-        text="",
-    )
-    # Specify directories and files.
-    file = ("abundance_distribution_real.svg")
-    path_file = os.path.join(path, file)
-    # Write figure.
-    plot.write_figure(
-        path=path_file,
-        figure=figure
-    )
-
-    # Shuffle...
-
-    # Define fonts.
-    fonts = plot.define_font_properties()
-    # Define colors.
-    colors = plot.define_color_properties()
-
-    # Create figure.
-    figure = plot.plot_distribution_histogram(
-        series=values,
-        name="",
-        bin_method="count",
-        bin_count=50,
-        label_bins="Bins",
-        label_counts="Counts",
-        fonts=fonts,
-        colors=colors,
-        line=False,
-        position=0,
-        text="",
-    )
-    # Specify directories and files.
-    file = ("abundance_distribution_shuffle.svg")
-    path_file = os.path.join(path, file)
-    # Write figure.
-    plot.write_figure(
-        path=path_file,
-        figure=figure
-    )
-
-    # Metrics...
-
-    # Report modality scores.
-    for type in ["coefficient", "dip", "mixture", "combination"]:
+    # Extract genes' identifiers.
+    genes = list(source["reports"].keys())
+    # Iterate on genes.
+    for gene in genes:
         # Access information.
-        score = gene_scores_distributions["scores"][type]
-        values = gene_scores_distributions["distributions"][type]
+        name = source["reports"][gene]["name"]
+        # Specify directories and files.
+        path_report = os.path.join(
+            path_plot, name
+        )
+        utility.confirm_path_directory(path_report)
 
-        # Create figure.
-        figure = plot.plot_distribution_histogram(
-            series=values,
+        # Create figures.
+        figure_real = plot_distribution_histogram(
+            series=source["reports"][gene]["abundances_real"],
             name="",
             bin_method="count",
             bin_count=50,
@@ -416,22 +375,65 @@ def plot_charts_analysis(
             label_counts="Counts",
             fonts=fonts,
             colors=colors,
-            line=True,
-            position=score,
+            line=False,
+            position=0,
             text="",
         )
         # Specify directories and files.
-        file = ("score_distribution_" + type + ".svg")
-        path_file = os.path.join(path, file)
+        file = ("abundance_distribution_real.svg")
+        path_file = os.path.join(path_report, file)
         # Write figure.
-        plot.write_figure(
+        write_figure(
             path=path_file,
-            figure=figure
+            figure=figure_real
         )
 
+        figure_shuffle = plot_distribution_histogram(
+            series=source["reports"][gene]["abundances_shuffle"],
+            name="",
+            bin_method="count",
+            bin_count=50,
+            label_bins="Bins",
+            label_counts="Counts",
+            fonts=fonts,
+            colors=colors,
+            line=False,
+            position=0,
+            text="",
+        )
+        # Specify directories and files.
+        file = ("abundance_distribution_shuffle.svg")
+        path_file = os.path.join(path_report, file)
+        # Write figure.
+        write_figure(
+            path=path_file,
+            figure=figure_shuffle
+        )
 
-
-
+        for type in ["coefficient", "dip", "mixture", "combination"]:
+            print(source["reports"][gene]["scores_distributions"][type]["score"])
+            # Create figure.
+            figure_score = plot_distribution_histogram(
+                series=source["reports"][gene]["scores_distributions"][type]["distribution"],
+                name="",
+                bin_method="count",
+                bin_count=50,
+                label_bins="Bins",
+                label_counts="Counts",
+                fonts=fonts,
+                colors=colors,
+                line=True,
+                position=source["reports"][gene]["scores_distributions"][type]["score"],
+                text="",
+            )
+            # Specify directories and files.
+            file = ("score_distribution_" + type + ".svg")
+            path_file = os.path.join(path_report, file)
+            # Write figure.
+            write_figure(
+                path=path_file,
+                figure=figure_score
+            )
 
     pass
 

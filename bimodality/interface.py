@@ -27,6 +27,7 @@ import combination
 import analysis
 import function
 import metric
+import plot
 import test
 import utility
 
@@ -158,6 +159,12 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
+        "-sample", "--sample", dest="sample", action="store_true",
+        help=(
+            "Exploration of attributes and relations of samples."
+        )
+    )
+    parser_main.add_argument(
         "-selection", "--selection", dest="selection", action="store_true",
         help=(
             "Selection of tissues, patients, and genes of interest for " +
@@ -239,6 +246,10 @@ def define_main_subparser(subparsers=None):
     parser_main.add_argument(
         "-metric", "--metric", dest="metric", action="store_true",
         help="Definition and test of metrics for modality."
+    )
+    parser_main.add_argument(
+        "-plot", "--plot", dest="plot", action="store_true",
+        help="Plot charts."
     )
     parser_main.add_argument(
         "-test", "--test", dest="test", action="store_true",
@@ -327,16 +338,21 @@ def evaluate_main_parameters(arguments):
         print("... executing access procedure ...")
         # Execute procedure.
         access.execute_procedure(dock=arguments.dock)
-    if arguments.selection:
-        # Report status.
-        print("... executing selection procedure ...")
-        # Execute procedure.
-        selection.execute_procedure(dock=arguments.dock)
     if arguments.assembly:
         # Report status.
         print("... executing assembly procedure ...")
         # Execute procedure.
         assembly.execute_procedure(dock=arguments.dock)
+    if arguments.sample:
+        # Report status.
+        print("... executing sample procedure ...")
+        # Execute procedure.
+        sample.execute_procedure(dock=arguments.dock)
+    if arguments.selection:
+        # Report status.
+        print("... executing selection procedure ...")
+        # Execute procedure.
+        selection.execute_procedure(dock=arguments.dock)
     if arguments.organization:
         # Report status.
         print("... executing organization procedure ...")
@@ -388,6 +404,11 @@ def evaluate_main_parameters(arguments):
         print("... executing metric procedure ...")
         # Execute procedure.
         metric.execute_procedure(dock=arguments.dock)
+    if arguments.plot:
+        # Report status.
+        print("... executing plot procedure ...")
+        # Execute procedure.
+        plot.execute_procedure(dock=arguments.dock)
     if arguments.test:
         # Report status.
         print("... executing test procedure ...")

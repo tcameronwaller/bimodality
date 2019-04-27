@@ -785,28 +785,6 @@ def convert_dataframe_to_records(data=None):
     return data.to_dict(orient="records")
 
 
-# Genotype-Tissue Expression (GTEx) project.
-
-
-def extract_gtex_sample_patient_identifier(identifier_sample=None):
-    """
-    Extracts the patient's identifier from a sample's identifier.
-
-    arguments:
-        identifier_sample (str): identifier of a sample
-
-    raises:
-
-    returns:
-        (str): identifier of a patient
-
-    """
-
-    split_strings = identifier_sample.split("-")
-    identifier_patient = "-".join(split_strings[0:2])
-    return identifier_patient
-
-
 # Human Metabolome Database (HMDB).
 
 

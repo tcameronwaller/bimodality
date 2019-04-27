@@ -168,8 +168,50 @@ def summarize_raw_data(
 # and tissues.
 
 
+def extract_gtex_sample_patient_identifier(sample=None):
+    """
+    Extracts the patient's identifier from a sample's identifier.
+
+    arguments:
+        sample (str): identifier of a sample
+
+    raises:
+
+    returns:
+        (str): identifier of a patient
+
+    """
+
+    split_strings = sample.split("-")
+    patient = "-".join(split_strings[0:2])
+    return patient
+
+
+def translate_sex(value=None):
+    """
+    Translates annotations of sex.
+
+    arguments:
+        value (int): Annotation of sex
+
+    raises:
+
+    returns:
+        (str): Name of sex
+
+    """
+
+    if value == 1:
+        sex = "male"
+    elif value == 2:
+        sex = "female"
+    return sex
+
+
 def collect_samples_tissues_patients(
-    data_gene_signal=None, data_sample_attribute=None
+    samples=None,
+    data_patient_attribute=None,
+    data_sample_attribute=None
 ):
     """
     Collects matches of samples, tissues, and patients.
@@ -187,151 +229,57 @@ def collect_samples_tissues_patients(
     ##################################################
 
     arguments:
-        data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples.
+        samples (list<str>): identifiers of samples
+        data_patient_attribute (object): Pandas data frame of attributes for
+            all patients
         data_sample_attribute (object): Pandas data frame of attributes for all
-            samples.
+            samples
 
     raises:
 
     returns:
-        (object): Pandas data frame of patients and tissues for all samples.
+        (list<dict<str>>): information about patients and tissues for samples
 
     """
 
-    # Determine samples with signals for genes.
-    # Extract samples' identifiers from data of gene's signals.
-    # Extract names of columns.
-    # Pandas series
-    #headers = data_gene_signal.columns
-    # NumPy array
-    #headers = data_gene_signal.columns.values
-    # List
-    headers = data_gene_signal.columns.to_list()
-    # Exclude name and description.
-    identifiers_sample = headers[2:]
-
-    # Create index for samples' attributes by samples' identifiers.
-    data_sample_attribute_index = data_sample_attribute.set_index("SAMPID")
-
+    # Organize data.
+    data_sample_attribute.set_index(
+        ["SAMPID"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data_patient_attribute.set_index(
+        ["SUBJID"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
     # Collect tissues and patients for each sample.
     samples_tissues_patients = list()
-    for identifier_sample in identifiers_sample:
+    for sample in samples:
         #tissue = data_sample_attribute.loc[
         #    data_sample_attribute["SAMPID"] == identifier_sample,
         #].at[0, "SMTS"]
-        tissue = data_sample_attribute_index.at[identifier_sample, "SMTS"]
-        identifier_patient = utility.extract_gtex_sample_patient_identifier(
-            identifier_sample
-        )
+        # Access tissue attributes.
+        tissue_major = data_sample_attribute.at[sample, "SMTS"]
+        tissue_minor = data_sample_attribute.at[sample, "SMTSD"]
+        # Access patient attributes.
+        patient = extract_gtex_sample_patient_identifier(sample=sample)
+        sex_raw = data_patient_attribute.at[patient, "SEX"]
+        sex = translate_sex(value=sex_raw)
+        age = data_patient_attribute.at[patient, "AGE"]
         record = {
-            "sample": identifier_sample,
-            "tissue": tissue,
-            "patient": identifier_patient,
+            "sample": sample,
+            "tissue_major": tissue_major,
+            "tissue_minor": tissue_minor,
+            "patient": patient,
+            "sex": sex,
+            "age": age,
         }
         samples_tissues_patients.append(record)
-    return utility.convert_records_to_dataframe(
-        records=samples_tissues_patients
-    )
-
-
-def collect_patients_tissues_samples(data_samples_tissues_patients=None):
-    """
-    Collect hierarchical structure of patients, tissues, and samples.
-
-    arguments:
-        data_samples_tissues_patients (object): Pandas data frame of patients
-            and tissues for all samples.
-
-    raises:
-
-    returns:
-        (dict<dict<list<str>>): Samples for each tissue of each patient.
-
-    """
-
-    samples_tissues_patients = utility.convert_dataframe_to_records(
-        data=data_samples_tissues_patients
-    )
-    # Collect unique tissues and samples for each patient.
-    patients_tissues_samples = dict()
-    for record in samples_tissues_patients:
-        sample = record["sample"]
-        tissue = record["tissue"]
-        patient = record["patient"]
-        # Determine whether an entry already exists for the patient.
-        if patient in patients_tissues_samples:
-            # Determine whether an entry already exists for the tissue.
-            if tissue in patients_tissues_samples[patient]:
-                patients_tissues_samples[patient][tissue].append(sample)
-            else:
-                patients_tissues_samples[patient][tissue] = list([sample])
-        else:
-            patients_tissues_samples[patient] = dict()
-            patients_tissues_samples[patient][tissue] = list([sample])
-    return patients_tissues_samples
-
-
-def collect_tissues_patients_samples(data_samples_tissues_patients=None):
-    """
-    Collect hierarchical structure of tissues, patients, and samples.
-
-    arguments:
-        data_samples_tissues_patients (object): Pandas data frame of patients
-            and tissues for all samples.
-
-    raises:
-
-    returns:
-        (dict<dict<list<str>>): Samples for each patient of each tissue.
-
-    """
-
-    samples_tissues_patients = utility.convert_dataframe_to_records(
-        data=data_samples_tissues_patients
-    )
-    # Collect unique patients and samples for each tissue.
-    tissues_patients_samples = dict()
-    for record in samples_tissues_patients:
-        sample = record["sample"]
-        tissue = record["tissue"]
-        patient = record["patient"]
-        # Determine whether an entry already exists for the tissue.
-        if tissue in tissues_patients_samples:
-            # Determine whether an entry already exists for the patient.
-            if patient in tissues_patients_samples[tissue]:
-                tissues_patients_samples[tissue][patient].append(sample)
-            else:
-                tissues_patients_samples[tissue][patient] = list([sample])
-        else:
-            tissues_patients_samples[tissue] = dict()
-            tissues_patients_samples[tissue][patient] = list([sample])
-    return tissues_patients_samples
-
-
-def expand_print_patients_tissues_samples(patients_tissues_samples=None):
-    """
-    Collects tissues and samples for each patient.
-
-    arguments:
-        patients_tissues_samples (dict<dict<list<str>>): Samples for each
-            tissue of each patients.
-
-    raises:
-
-    returns:
-
-
-    """
-
-    print(list(patients_tissues_samples.keys()))
-    for patient in patients_tissues_samples:
-        print("patient: " + patient)
-        for tissue in patients_tissues_samples[patient]:
-            print("tissue: " + tissue)
-            for sample in patients_tissues_samples[patient][tissue]:
-                print("sample: " + sample)
-    pass
+    # Return information.
+    return samples_tissues_patients
 
 
 def organize_samples_tissues_patients(
@@ -344,16 +292,16 @@ def organize_samples_tissues_patients(
 
     arguments:
         data_patient_attribute (object): Pandas data frame of attributes for
-            all samples.
+            all patients
         data_sample_attribute (object): Pandas data frame of attributes for all
-            samples.
+            samples
         data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples.
+            samples
 
     raises:
 
     returns:
-        (dict): Information about samples, tissues, and patients.
+        (dict): information about samples, tissues, and patients
 
     """
 
@@ -366,64 +314,48 @@ def organize_samples_tissues_patients(
     utility.print_terminal_partition(level=2)
     print("Collection of tissues and patients for each sample.")
     print("Extract patient identifiers from sample identifiers.")
-    data_samples_tissues_patients = collect_samples_tissues_patients(
-        data_gene_signal=data_gene_signal,
+    # Extract identifiers of samples with measurements for genes.
+    # Extract names of columns.
+    # Pandas series
+    #headers = data_gene_signal.columns
+    # NumPy array
+    #headers = data_gene_signal.columns.values
+    # List
+    headers = data_gene_signal.columns.to_list()
+    # Exclude name and description.
+    samples = headers[2:]
+    # Collect information about samples.
+    samples_tissues_patients = collect_samples_tissues_patients(
+        samples=samples,
+        data_patient_attribute=data_patient_attribute,
         data_sample_attribute=data_sample_attribute
+    )
+    data_samples_tissues_patients = utility.convert_records_to_dataframe(
+        records=samples_tissues_patients
+    )
+    data_samples_tissues_patients.set_index(
+        ["sample"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data_samples_tissues_patients.rename_axis(
+        index="sample",
+        axis="index",
+        copy=False,
+        inplace=True,
+    )
+    data_samples_tissues_patients.rename_axis(
+        columns="properties",
+        axis="columns",
+        copy=False,
+        inplace=True
     )
     print(data_samples_tissues_patients.iloc[0:10, :])
     print(data_samples_tissues_patients.shape)
 
-    # Organization of samples by patients and tissues.
-    # Collect unique patients, unique tissues for each patient, and unique
-    # samples for each tissue of each patient.
-    utility.print_terminal_partition(level=2)
-    print("Organization of samples by hierarchy of patients and tissues.")
-    print("Collection of hierarchical groups by patient, tissue, and sample.")
-    utility.print_terminal_partition(level=4)
-    print(
-        "data hierarchy is " +
-        "patients (714) -> tissues (30) -> samples (11688) -> genes (~50,000)"
-    )
-    patients_tissues_samples = collect_patients_tissues_samples(
-        data_samples_tissues_patients=data_samples_tissues_patients
-    )
-    if False:
-        expand_print_patients_tissues_samples(
-            patients_tissues_samples=patients_tissues_samples
-        )
-    print("Printing first 10 unique patients...")
-    print(list(patients_tissues_samples.keys())[:9])
-    print("Printing groups for patient 'GTEX-14LZ3'... ")
-    print(patients_tissues_samples["GTEX-14LZ3"])
-
-    # Organization of samples by tissues and patients.
-    # Collect unique tissues, unique patients for each tissue, and unique
-    # samples for each patient of each tissue.
-    utility.print_terminal_partition(level=2)
-    print("Organization of samples by hierarchy of tissues and patients.")
-    print("Collection of hierarchical groups by tissue, patient, and sample.")
-    utility.print_terminal_partition(level=4)
-    print(
-        "data hierarchy is " +
-        "tissue (30) -> patients (714) -> samples (11688) -> genes (~50,000)"
-    )
-    tissues_patients_samples = collect_tissues_patients_samples(
-        data_samples_tissues_patients=data_samples_tissues_patients
-    )
-    print("Printing first 10 unique tissues...")
-    print(list(tissues_patients_samples.keys())[:9])
-    print("Printing groups for tissue 'Bladder'... ")
-    print(tissues_patients_samples["Bladder"])
-
-    # Compile information.
-    information = {
-        "data_samples_tissues_patients": data_samples_tissues_patients,
-        "patients_tissues_samples": patients_tissues_samples,
-        "tissues_patients_samples": tissues_patients_samples,
-    }
-
     # Return information.
-    return information
+    return data_samples_tissues_patients
 
 
 ##########
@@ -1035,19 +967,20 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Summarize the structures of the raw data.
-    summarize_raw_data(
-        data_patient_attribute=source["data_patient_attribute"],
-        data_sample_attribute=source["data_sample_attribute"],
-        data_gene_annotation=source["data_gene_annotation"],
-        data_gene_signal=source["data_gene_signal"]
-    )
+    if False:
+        summarize_raw_data(
+            data_patient_attribute=source["data_patient_attribute"],
+            data_sample_attribute=source["data_sample_attribute"],
+            data_gene_annotation=source["data_gene_annotation"],
+            data_gene_signal=source["data_gene_signal"]
+        )
 
     ##################################################
     ##################################################
     ##################################################
 
     # Organize associations of samples to patients and tissues.
-    information_samples = organize_samples_tissues_patients(
+    data_samples_tissues_patients = organize_samples_tissues_patients(
         data_patient_attribute=source["data_patient_attribute"],
         data_sample_attribute=source["data_sample_attribute"],
         data_gene_signal=source["data_gene_signal"]
@@ -1069,13 +1002,12 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
-    # TODO: set up indices, etc...
+    # TODO: Problem... at this point "organize_genes_signals" includes identifiers for patients and tissues for each sample... I'm not ready for that yet...
+    # TODO: do that later... like before it's time to split the gene signals or something...
 
     # Organize genes' signals.
     data_gene_signal = organize_genes_signals(
-        data_samples_tissues_patients=(
-            information_samples["data_samples_tissues_patients"]
-        ),
+        data_samples_tissues_patients=data_samples_tissues_patients,
         data_gene_signal=source["data_gene_signal"]
     )
 
@@ -1088,15 +1020,7 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
-        "data_samples_tissues_patients": (
-            information_samples["data_samples_tissues_patients"]
-        ),
-        "patients_tissues_samples": (
-            information_samples["patients_tissues_samples"]
-        ),
-        "tissues_patients_samples": (
-            information_samples["tissues_patients_samples"]
-        ),
+        "data_samples_tissues_patients": data_samples_tissues_patients,
         "data_gene_annotation": data_gene_annotation,
         "data_gene_signal": data_gene_signal
     }
