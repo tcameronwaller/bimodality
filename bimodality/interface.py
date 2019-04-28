@@ -16,8 +16,9 @@ import textwrap
 
 # Custom.
 import access
-import selection
 import assembly
+import sample
+import selection
 import organization
 import split
 import shuffle

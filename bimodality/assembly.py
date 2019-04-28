@@ -60,6 +60,7 @@ def read_source(dock=None):
     path_gene_annotation = os.path.join(
         path_access, "annotation_gene_gencode.gtf"
     )
+    path_gene_count = os.path.join(path_access, "count_gene.gct")
     path_gene_signal = os.path.join(path_access, "signal_gene.gct")
     # Read information from file.
     #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
@@ -76,6 +77,12 @@ def read_source(dock=None):
         #nrows=1000,
     )
     data_gene_annotation = gtfparse.read_gtf(path_gene_annotation)
+    data_gene_count = pandas.read_csv(
+        path_gene_count,
+        sep="\t",
+        header=2,
+        #nrows=1000,
+    )
     data_gene_signal = pandas.read_csv(
         path_gene_signal,
         sep="\t",
@@ -87,6 +94,7 @@ def read_source(dock=None):
         "data_patient_attribute": data_patient_attribute,
         "data_sample_attribute": data_sample_attribute,
         "data_gene_annotation": data_gene_annotation,
+        "data_gene_count": data_gene_count,
         "data_gene_signal": data_gene_signal,
     }
 
@@ -678,7 +686,7 @@ def check_zero_genes(data=None):
     print("shape of original data frame: " + str(data.shape))
     data_nonzero = (data != 0)
     print(
-        "shape of data frame without zero samples: " +
+        "shape of data frame without zero genes: " +
         str(data.loc[data_nonzero.any(axis="columns"), : ].shape)
     )
     print("Now printing a summary of data for genes with all zero signals.")
@@ -712,6 +720,128 @@ def drop_undetectable_genes(data=None):
     print(data_signal.iloc[0:10, 0:10])
     print("data dimensions: " + str(data_signal.shape))
     return data_signal
+
+
+def organize_genes_signals(
+    data_gene_signal=None
+):
+    """
+    Collects tissues, patients, and genes' signals for each sample.
+
+    arguments:
+        data_gene_signal (object): Pandas data frame of genes' signals for all
+            samples.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals for all samples, tissues,
+            and patients.
+
+    """
+
+    # Organize genes' signals.
+    utility.print_terminal_partition(level=1)
+    print("Organization of genes' signals.")
+
+    # Organize data with names and indices.
+    data_gene_signal = organize_data_axes_indices(
+        data=data_gene_signal
+    )
+
+    # Optimize data types.
+    data_gene_signal = optimize_data_types(data=data_gene_signal)
+
+    # Check for data quality.
+    utility.print_terminal_partition(level=2)
+    print("Check for quality of genes' signals.")
+
+    # Check for missing values of genes' signals.
+    check_missing_values(data=data_gene_signal)
+
+    # Check for redundant genes.
+    check_redundancy_genes(data=data_gene_signal)
+
+    # Check for samples with values of 0 for all genes' signals.
+    check_zero_samples(data=data_gene_signal)
+
+    # Check for genes with values of 0 for signals across all samples.
+    check_zero_genes(data=data_gene_signal)
+
+    # Remove irrelevant signals for genes.
+    utility.print_terminal_partition(level=2)
+    print("Removal of signals for undetectable genes.")
+    # Drop undetectable genes.
+    data_gene_signal = drop_undetectable_genes(data=data_gene_signal)
+
+    print("Original count of genes was 56202.")
+    print("Count of genes with nonzero signal is 55863.")
+
+    print(data_gene_signal.iloc[0:10, 0:7])
+
+    # Return information.
+    return data_gene_signal
+
+
+def organize_genes_counts(
+    data_gene_count=None
+):
+    """
+    Organizes counts of genes.
+
+    arguments:
+        data_gene_count (object): Pandas data frame of genes' counts for all
+            samples.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' counts for all samples.
+
+    """
+
+    # Organize genes' signals.
+    utility.print_terminal_partition(level=1)
+    print("Organization of genes' counts.")
+
+    # Organize data with names and indices.
+    data_gene_count = organize_data_axes_indices(
+        data=data_gene_count
+    )
+
+    # Check for data quality.
+    utility.print_terminal_partition(level=2)
+    print("Check for quality of genes' counts.")
+
+    # Check for missing values of genes' signals.
+    check_missing_values(data=data_gene_count)
+
+    # Check for redundant genes.
+    check_redundancy_genes(data=data_gene_count)
+
+    # Check for samples with values of 0 for all genes' signals.
+    check_zero_samples(data=data_gene_count)
+
+    # Check for genes with values of 0 for signals across all samples.
+    check_zero_genes(data=data_gene_count)
+
+    # Remove irrelevant signals for genes.
+    utility.print_terminal_partition(level=2)
+    print("Removal of signals for undetectable genes.")
+    # Drop undetectable genes.
+    data_gene_count = drop_undetectable_genes(data=data_gene_count)
+
+    print("Original count of genes was 56202.")
+    print("Count of genes with nonzero signal is 55863.")
+
+    print(data_gene_count.iloc[0:10, 0:7])
+
+    # Return information.
+    return data_gene_count
+
+
+##########
+# Scrap
 
 
 def collect_samples_tissues_patients_reference(
@@ -788,7 +918,7 @@ def collect_genes_patients_tissues_samples(
     return data
 
 
-def organize_genes_signals(
+def organize_genes_signals_scrap(
     data_samples_tissues_patients=None,
     data_gene_signal=None
 ):
@@ -808,43 +938,6 @@ def organize_genes_signals(
             and patients.
 
     """
-
-    # Organize genes' signals.
-    utility.print_terminal_partition(level=1)
-    print("Organization of genes' signals.")
-
-    # Organize data with names and indices.
-    data_gene_signal = organize_data_axes_indices(
-        data=data_gene_signal
-    )
-
-    # Optimize data types.
-    data_gene_signal = optimize_data_types(data=data_gene_signal)
-
-    # Check for data quality.
-    utility.print_terminal_partition(level=2)
-    print("Check for quality of genes' signals.")
-
-    # Check for missing values of genes' signals.
-    check_missing_values(data=data_gene_signal)
-
-    # Check for redundant genes.
-    check_redundancy_genes(data=data_gene_signal)
-
-    # Check for samples with values of 0 for all genes' signals.
-    check_zero_samples(data=data_gene_signal)
-
-    # Check for genes with values of 0 for signals across all samples.
-    check_zero_genes(data=data_gene_signal)
-
-    # Remove irrelevant signals for genes.
-    utility.print_terminal_partition(level=2)
-    print("Removal of signals for undetectable genes.")
-    # Drop undetectable genes.
-    data_gene_signal = drop_undetectable_genes(data=data_gene_signal)
-
-    print("Original count of genes was 56202.")
-    print("Count of genes with nonzero signal is 55863.")
 
     # Associate genes' signals to patients and tissues.
     utility.print_terminal_partition(level=2)
@@ -896,14 +989,11 @@ def write_product(dock=None, information=None):
     path_samples_tissues_patients = os.path.join(
         path_assembly, "data_samples_tissues_patients.pickle"
     )
-    path_patients_tissues_samples = os.path.join(
-        path_assembly, "patients_tissues_samples.pickle"
-    )
-    path_tissues_patients_samples = os.path.join(
-        path_assembly, "tissues_patients_samples.pickle"
-    )
     path_gene_annotation = os.path.join(
         path_assembly, "data_gene_annotation.pickle"
+    )
+    path_gene_count = os.path.join(
+        path_assembly, "data_gene_count.pickle"
     )
     path_gene_signal = os.path.join(
         path_assembly, "data_gene_signal.pickle"
@@ -914,15 +1004,13 @@ def write_product(dock=None, information=None):
         information["data_samples_tissues_patients"],
         path_samples_tissues_patients
     )
-    with open(path_patients_tissues_samples, "wb") as file_product:
-        pickle.dump(information["patients_tissues_samples"], file_product)
-    pandas.to_pickle(
-        information["tissues_patients_samples"],
-        path_tissues_patients_samples
-    )
     pandas.to_pickle(
         information["data_gene_annotation"],
         path_gene_annotation
+    )
+    pandas.to_pickle(
+        information["data_gene_count"],
+        path_gene_count
     )
     pandas.to_pickle(
         information["data_gene_signal"],
@@ -1002,13 +1090,14 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
-    # TODO: Problem... at this point "organize_genes_signals" includes identifiers for patients and tissues for each sample... I'm not ready for that yet...
-    # TODO: do that later... like before it's time to split the gene signals or something...
-
     # Organize genes' signals.
     data_gene_signal = organize_genes_signals(
-        data_samples_tissues_patients=data_samples_tissues_patients,
         data_gene_signal=source["data_gene_signal"]
+    )
+
+    # Organize genes' counts.
+    data_gene_count = organize_genes_counts(
+        data_gene_count=source["data_gene_count"]
     )
 
     # Collect garbage to clear memory.
@@ -1022,6 +1111,7 @@ def execute_procedure(dock=None):
     information = {
         "data_samples_tissues_patients": data_samples_tissues_patients,
         "data_gene_annotation": data_gene_annotation,
+        "data_gene_count": data_gene_count,
         "data_gene_signal": data_gene_signal
     }
 

@@ -87,6 +87,156 @@ def read_source(dock=None):
 # Tissues
 
 
+def collect_categories_tissues_patients_samples(
+    data_samples_tissues_patients=None
+):
+    """
+    Collect hierarchical structure of tissues, patients, and samples.
+
+    arguments:
+        data_samples_tissues_patients (object): Pandas data frame of patients
+            and tissues for all samples.
+
+    raises:
+
+    returns:
+        (dict<dict<list<str>>): Samples for each patient of each tissue.
+
+    """
+
+    # Organize data.
+    data = data_samples_tissues_patients.copy(deep=True)
+    data.reset_index(
+        level=["sample"], inplace=True
+    )
+    samples_tissues_patients = utility.convert_dataframe_to_records(
+        data=data
+    )
+    # Collect unique patients and samples for each tissue.
+    tissues_patients_samples = dict()
+    for record in samples_tissues_patients:
+        sample = record["sample"]
+        tissue_major = record["tissue_major"]
+        tissue_minor = record["tissue_minor"]
+        patient = record["patient"]
+        # Determine whether an entry already exists for the major tissue.
+        if tissue_major in tissues_patients_samples:
+            # Determine whether an entry already exists for the minor tissue.
+            if tissue_minor in tissues_patients_samples[tissue_major]:
+                # Determine whether an entry already exists for the patient.
+                if patient in tissues_patients_samples[tissue_major][tissue_minor]:
+                    tissues_patients_samples[tissue_major][tissue_minor][patient].append(sample)
+                else:
+                    tissues_patients_samples[tissue_major][tissue_minor][patient] = list([sample])
+            else:
+                tissues_patients_samples[tissue_major][tissue_minor] = dict()
+                tissues_patients_samples[tissue_major][tissue_minor][patient] = list([sample])
+        else:
+            tissues_patients_samples[tissue_major] = dict()
+            tissues_patients_samples[tissue_major][tissue_minor] = dict()
+            tissues_patients_samples[tissue_major][tissue_minor][patient] = list([sample])
+    return tissues_patients_samples
+
+
+def count_categories_tissues_patients(
+    tissues_patients_samples=None
+):
+    """
+    Counts patients with samples for each tissue.
+
+    arguments:
+        tissues_patients_samples (dict<dict<list<str>>): Samples for each
+            patient of each tissue.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of counts of patients with samples for each
+            tissue.
+
+    """
+
+    # Count unique patients with samples for each tissue.
+    coverage = list()
+    # Access major tissues.
+    tissues_major = list(tissues_patients_samples.keys())
+    # Iterate on major tissues.
+    for tissue_major in tissues_major:
+        # Access minor tissues.
+        tissues_minor = list(tissues_patients_samples[tissue_major].keys())
+        # Iterate on minor tissues.
+        for tissue_minor in tissues_minor:
+            # Count unique patients with samples for the tissue.
+            patients_tissue = list(
+                tissues_patients_samples[tissue_major][tissue_minor].keys()
+            )
+            count_patients = len(patients_tissue)
+            # Compile record.
+            record = dict()
+            record["tissue_major"] = tissue_major
+            record["tissue_minor"] = tissue_minor
+            record["patients"] = count_patients
+            # Include record.
+            coverage.append(record)
+    # Organize data.
+    data = utility.convert_records_to_dataframe(records=coverage)
+    data_sort = data.sort_values(
+        ["tissue_major", "tissue_minor"],
+        axis=0,
+        ascending=False
+    )
+    return data_sort
+
+
+def describe_samples_categories(
+    data_samples_tissues_patients=None
+):
+    """
+    Collect hierarchical structure of tissues, patients, and samples.
+
+    arguments:
+        data_samples_tissues_patients (object): Pandas data frame of patients
+            and tissues for all samples.
+
+    raises:
+
+    returns:
+        (dict<dict<list<str>>): Samples for each patient of each tissue.
+
+    """
+
+    # Print terminal partition.
+    utility.print_terminal_partition(level=2)
+    # Report.
+    print("Description of categories of samples.")
+
+    # Collect categories of samples.
+    tissues_patients_samples = collect_categories_tissues_patients_samples(
+        data_samples_tissues_patients=data_samples_tissues_patients
+    )
+    # Report.
+    if False:
+        utility.print_terminal_partition(level=3)
+        print("Printing unique major tissues...")
+        print(list(tissues_patients_samples.keys())[:])
+        utility.print_terminal_partition(level=3)
+        print("Printing unique minor tissues for major tissue 'Brain'... ")
+        print(list(tissues_patients_samples["Brain"].keys())[:])
+
+    # Count categories of samples.
+    data_tissues_patients_counts = count_categories_tissues_patients(
+        tissues_patients_samples=tissues_patients_samples
+    )
+    # Report.
+    utility.print_terminal_partition(level=3)
+    print("Printing counts of samples in unique categories.")
+    print(data_tissues_patients_counts)
+
+    pass
+
+
+
+
 def define_tissue_translations():
     """
     Defines and translates names of tissues.
@@ -203,99 +353,6 @@ def collect_tissues_patients_samples(data_samples_tissues_patients=None):
     return tissues_patients_samples
 
 
-def collect_tissues_patients_samples_new(data_samples_tissues_patients=None):
-    """
-    Collect hierarchical structure of tissues, patients, and samples.
-
-    arguments:
-        data_samples_tissues_patients (object): Pandas data frame of patients
-            and tissues for all samples.
-
-    raises:
-
-    returns:
-        (dict<dict<list<str>>): Samples for each patient of each tissue.
-
-    """
-
-    samples_tissues_patients = utility.convert_dataframe_to_records(
-        data=data_samples_tissues_patients
-    )
-    # Collect unique patients and samples for each tissue.
-    tissues_patients_samples = dict()
-    for record in samples_tissues_patients:
-        sample = record["sample"]
-        tissue_major = record["tissue_major"]
-        tissue_minor = record["tissue_minor"]
-        patient = record["patient"]
-        # Determine whether an entry already exists for the major tissue.
-        if tissue_major in tissues_patients_samples:
-            # Determine whether an entry already exists for the minor tissue.
-            if tissue_minor in tissues_patients_samples[tissue_major]:
-                # Determine whether an entry already exists for the patient.
-                if patient in tissues_patients_samples[tissue_major][tissue_minor]:
-                    tissues_patients_samples[tissue_major][tissue_minor][patient].append(sample)
-                else:
-                    tissues_patients_samples[tissue_major][tissue_minor][patient] = list([sample])
-            else:
-                tissues_patients_samples[tissue_major][tissue_minor] = dict()
-                tissues_patients_samples[tissue_major][tissue_minor][patient] = list([sample])
-        else:
-            tissues_patients_samples[tissue_major] = dict()
-            tissues_patients_samples[tissue_major][tissue_minor] = dict()
-            tissues_patients_samples[tissue_major][tissue_minor][patient] = list([sample])
-    return tissues_patients_samples
-
-
-def count_tissues_patients(
-    tissues_patients_samples=None
-):
-    """
-    Counts patients with samples for each tissue.
-
-    arguments:
-        tissues_patients_samples (dict<dict<list<str>>): Samples for each
-            patient of each tissue.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of counts of patients with samples for each
-            tissue.
-
-    """
-
-    # Count unique patients with samples for each tissue.
-    coverage = list()
-    # Access major tissues.
-    tissues_major = list(tissues_patients_samples.keys())
-    # Iterate on major tissues.
-    for tissue_major in tissues_major:
-        # Access minor tissues.
-        tissues_minor = list(tissues_patients_samples[tissue_major].keys())
-        # Iterate on minor tissues.
-        for tissue_minor in tissues_minor:
-            # Count unique patients with samples for the tissue.
-            patients_tissue = list(
-                tissues_patients_samples[tissue_major][tissue_minor].keys()
-            )
-            count_patients = len(patients_tissue)
-            # Compile record.
-            record = dict()
-            record["tissue_major"] = tissue_major
-            record["tissue_minor"] = tissue_minor
-            record["patients"] = count_patients
-            # Include record.
-            coverage.append(record)
-    # Organize data.
-    data = utility.convert_records_to_dataframe(records=coverage)
-    data_sort = data.sort_values(
-        ["tissue_major", "tissue_minor"],
-        axis=0,
-        ascending=False
-    )
-    return data_sort
-
 def expand_print_patients_tissues_samples(patients_tissues_samples=None):
     """
     Collects tissues and samples for each patient.
@@ -347,22 +404,20 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
-    utility.confirm_path_directory(path_selection)
-    path_tissues = os.path.join(path_selection, "tissues.pickle")
-    path_patients = os.path.join(path_selection, "patients.pickle")
-    path_gene_signal = os.path.join(
-        path_selection, "data_gene_signal.pickle"
+    path_sample = os.path.join(dock, "sample")
+    utility.confirm_path_directory(path_sample)
+    path_patients_tissues_samples = os.path.join(
+        path_sample, "patients_tissues_samples.pickle"
     )
+    path_tissues_patients_samples = os.path.join(
+        path_sample, "tissues_patients_samples.pickle"
+    )
+
     # Write information to file.
-    with open(path_tissues, "wb") as file_product:
-        pickle.dump(information["tissues"], file_product)
-    with open(path_patients, "wb") as file_product:
-        pickle.dump(information["patients"], file_product)
-    pandas.to_pickle(
-        information["data_gene_signal"],
-        path_gene_signal
-    )
+    with open(path_patients_tissues_samples, "wb") as file_product:
+        pickle.dump(information["patients_tissues_samples"], file_product)
+    with open(path_tissues_patients_samples, "wb") as file_product:
+        pickle.dump(information["tissues_patients_samples"], file_product)
     pass
 
 
@@ -391,21 +446,55 @@ def execute_procedure(dock=None):
     # Describe distributions of patients by sex and age.
 
     # Explore samples by tissue attributes.
+    # Describe categories of all samples.
+    describe_samples_categories(
+        data_samples_tissues_patients=source["data_samples_tissues_patients"]
+    )
+    # Describe categories of specific samples.
+    # Print terminal partition.
+    utility.print_terminal_partition(level=1)
+    # Report.
+    print("Description of categories of samples for male patients.")
+    data_samples_male = source["data_samples_tissues_patients"].loc[
+        source["data_samples_tissues_patients"]["sex"] == "male", :
+    ]
+    #print(data_samples_male)
+    describe_samples_categories(
+        data_samples_tissues_patients=data_samples_male
+    )
+    # Print terminal partition.
+    utility.print_terminal_partition(level=1)
+    # Report.
+    print("Description of categories of samples for female patients.")
+    data_samples_female = source["data_samples_tissues_patients"].loc[
+        source["data_samples_tissues_patients"]["sex"] == "female", :
+    ]
+    #print(data_samples_female)
+    describe_samples_categories(
+        data_samples_tissues_patients=data_samples_female
+    )
+
+    # Describe similarity between minor categories of tissues.
+    # Print terminal partition.
+    utility.print_terminal_partition(level=1)
+    # Report.
+    print("Description of similarity between minor tissues.")
+    print("Relevant major tissues, asexual with > 135 patients:")
+    print(
+        "Thyroid, Stomach, Spleen, Intestine, Skin, Pituitary, Pancreas, " +
+        "Nerve, Muscle, Lung, Liver, Heart, Esophagus, Colon, Brain, " +
+        "Vessel, Blood, Adrenal, Adipose"
+    )
+    utility.print_terminal_partition(level=3)
+    print("Remove data for cell lines, relevant to Skin and Blood.")
+    utility.print_terminal_partition(level=3)
+    print("Relevant major tissues with minor categories:")
+    print("Skin, Heart, Esophagus, Colon, Brain, Vessel, Adipose")
+
+
+
 
     ########################################################################
-    tissues_patients_samples = collect_tissues_patients_samples_new(
-        data_samples_tissues_patients=data_samples_tissues_patients
-    )
-    print("Printing first 10 unique tissues...")
-    print(list(tissues_patients_samples.keys())[:9])
-    print("Printing groups for tissue 'Bladder'... ")
-    print(tissues_patients_samples["Bladder"])
-
-
-    data_tissues_patients_counts = count_tissues_patients(
-        tissues_patients_samples=tissues_patients_samples
-    )
-    print(data_tissues_patients_counts)
 
 
     ################################################

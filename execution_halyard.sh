@@ -31,9 +31,9 @@ cd $path_program
 
 echo "Now set to call routine and procedures."
 
-#python3 interface.py main --dock $path_dock --metric
 #python3 interface.py main --dock $path_dock --access
 python3 interface.py main --dock $path_dock --assembly
+#python3 interface.py main --dock $path_dock --sample
 #python3 interface.py main --dock $path_dock --selection
 #python3 interface.py main --dock $path_dock --organization
 #python3 interface.py main --dock $path_dock --split
@@ -46,5 +46,6 @@ python3 interface.py main --dock $path_dock --assembly
 #python3 interface.py main --dock $path_dock --analysis
 #python3 interface.py main --dock $path_dock --function
 
+#python3 interface.py main --dock $path_dock --metric
 #python3 interface.py main --dock $path_dock --plot
 
