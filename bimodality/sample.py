@@ -237,6 +237,10 @@ def describe_samples_categories(
 
 
 
+####################################################
+# Move to Selection procedure... ?
+
+
 def define_tissue_translations():
     """
     Defines and translates names of tissues.
@@ -274,10 +278,6 @@ def define_tissue_translations():
     # Return information.
     return information
 
-
-
-####################################################
-# Move to Selection procedure...
 
 def collect_patients_tissues_samples(data_samples_tissues_patients=None):
     """
@@ -490,6 +490,10 @@ def execute_procedure(dock=None):
     utility.print_terminal_partition(level=3)
     print("Relevant major tissues with minor categories:")
     print("Skin, Heart, Esophagus, Colon, Brain, Vessel, Adipose")
+
+
+    # Organize data sets for comparison by differential expression of genes.
+
 
 
 

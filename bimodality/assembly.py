@@ -99,6 +99,90 @@ def read_source(dock=None):
     }
 
 
+def read_source_gene_annotation(dock=None):
+    """
+    Reads and organizes source information from file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_access = os.path.join(dock, "access")
+    path_gene_annotation = os.path.join(
+        path_access, "annotation_gene_gencode.gtf"
+    )
+    # Read information from file.
+    data_gene_annotation = gtfparse.read_gtf(path_gene_annotation)
+    # Return information.
+    return data_gene_annotation
+
+
+def read_source_gene_count(dock=None):
+    """
+    Reads and organizes source information from file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_access = os.path.join(dock, "access")
+    path_gene_count = os.path.join(path_access, "count_gene.gct")
+    # Read information from file.
+    data_gene_count = pandas.read_csv(
+        path_gene_count,
+        sep="\t",
+        header=2,
+        #nrows=1000,
+    )
+    # Return information.
+    return data_gene_count
+
+
+def read_source_gene_signal(dock=None):
+    """
+    Reads and organizes source information from file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_access = os.path.join(dock, "access")
+    path_gene_signal = os.path.join(path_access, "signal_gene.gct")
+    # Read information from file.
+    data_gene_signal = pandas.read_csv(
+        path_gene_signal,
+        sep="\t",
+        header=2,
+        #nrows=1000,
+    )
+    # Return information.
+    return data_gene_signal
+
+
 ##########
 # Summary.
 
@@ -467,6 +551,21 @@ def organize_genes_annotations(
         axis="columns",
         inplace=True
     )
+    # Select entries for genes that encode proteins.
+    print(
+        "count of genes in GENCODE annotations: " +
+        str(data_gene_annotation.shape[0])
+    )
+    data_gene_annotation = (
+        data_gene_annotation.loc[
+            data_gene_annotation["gene_type"] == "protein_coding"
+        ]
+    )
+    print(data_gene_annotation.iloc[0:10, 0:7])
+    print(
+        "count of GENCODE genes of type 'protein_coding': " +
+        str(data_gene_annotation.shape[0])
+    )
     # Remove redundant records.
     # Some genes' records are redundant.
     redundancy = define_redundant_records()
@@ -556,12 +655,13 @@ def organize_data_axes_indices(data=None):
     return data
 
 
-def optimize_data_types(data=None):
+def convert_data_types(data=None, type=None):
     """
     Optimizes data types.
 
     arguments:
-        data (object): Pandas data frame of genes' signals for all samples.
+        data (object): Pandas data frame of genes' signals for all samples
+        type (str): variable type to which to convert values in data
 
     raises:
 
@@ -585,13 +685,72 @@ def optimize_data_types(data=None):
 
     # Optimize data types.
     # Store genes' signals as numeric values of type float in 32 bits.
-    data_type = data.astype("float32")
+    data_type = data.astype(type)
 
     # Summarize data type and size.
     print("Print technical information about data.")
     print(data_type.info())
 
     return data_type
+
+
+def select_genes_protein(
+    data_gene_annotation=None,
+    data_gene_signal=None
+):
+    """
+    Selects genes that encode proteins.
+
+    arguments:
+        data_gene_annotation (object): Pandas data frame of genes' annotations.
+        data_gene_signal (object): Pandas data frame of genes' signals for all
+            samples, tissues, and patients.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals for all samples, tissues,
+            and patients.
+
+    """
+
+    def check_gene_type(identifier=None):
+        type = data_gene_annotation.at[identifier, "gene_type"]
+        return type == "protein_coding"
+    #data = data.loc[lambda identifier: check_gene_type(identifier)]
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "Selection of genes that encode proteins."
+    )
+    # Describe original count of genes.
+    # Signal matrix has genes on the index dimension.
+
+
+    print("signal genes, original: " + str(data_gene_signal.shape[0]))
+    genes_signal = data_gene_signal.index.to_list()
+    print("signal genes, original: " + str(len(genes_signal)))
+    # Filter genes by their annotations.
+    #print(data_gene_annotation.loc["ENSG00000223972", "gene_type"])
+    genes_protein = data_gene_annotation.index.to_list()
+    print(
+        "count of GENCODE genes of type 'protein_coding': " +
+        str(len(genes_protein))
+    )
+
+    # Filter gene signals.
+    genes_signal_protein = utility.filter_common_elements(
+        list_one=genes_protein, list_two=genes_signal
+    )
+    print(
+        "signal genes that encode proteins: " +
+        str(len(genes_signal_protein))
+    )
+    data_gene_signal = data_gene_signal.loc[genes_signal_protein, :]
+    print(
+        "signal genes that encode proteins: " + str(data_gene_signal.shape[0])
+    )
+    return data_gene_signal
 
 
 def check_missing_values(data=None):
@@ -722,69 +881,9 @@ def drop_undetectable_genes(data=None):
     return data_signal
 
 
-def organize_genes_signals(
-    data_gene_signal=None
-):
-    """
-    Collects tissues, patients, and genes' signals for each sample.
-
-    arguments:
-        data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals for all samples, tissues,
-            and patients.
-
-    """
-
-    # Organize genes' signals.
-    utility.print_terminal_partition(level=1)
-    print("Organization of genes' signals.")
-
-    # Organize data with names and indices.
-    data_gene_signal = organize_data_axes_indices(
-        data=data_gene_signal
-    )
-
-    # Optimize data types.
-    data_gene_signal = optimize_data_types(data=data_gene_signal)
-
-    # Check for data quality.
-    utility.print_terminal_partition(level=2)
-    print("Check for quality of genes' signals.")
-
-    # Check for missing values of genes' signals.
-    check_missing_values(data=data_gene_signal)
-
-    # Check for redundant genes.
-    check_redundancy_genes(data=data_gene_signal)
-
-    # Check for samples with values of 0 for all genes' signals.
-    check_zero_samples(data=data_gene_signal)
-
-    # Check for genes with values of 0 for signals across all samples.
-    check_zero_genes(data=data_gene_signal)
-
-    # Remove irrelevant signals for genes.
-    utility.print_terminal_partition(level=2)
-    print("Removal of signals for undetectable genes.")
-    # Drop undetectable genes.
-    data_gene_signal = drop_undetectable_genes(data=data_gene_signal)
-
-    print("Original count of genes was 56202.")
-    print("Count of genes with nonzero signal is 55863.")
-
-    print(data_gene_signal.iloc[0:10, 0:7])
-
-    # Return information.
-    return data_gene_signal
-
-
 def organize_genes_counts(
-    data_gene_count=None
+    data_gene_count=None,
+    data_gene_annotation=None,
 ):
     """
     Organizes counts of genes.
@@ -792,6 +891,7 @@ def organize_genes_counts(
     arguments:
         data_gene_count (object): Pandas data frame of genes' counts for all
             samples.
+        data_gene_annotation (object): Pandas data frame of genes' annotations
 
     raises:
 
@@ -807,6 +907,18 @@ def organize_genes_counts(
     # Organize data with names and indices.
     data_gene_count = organize_data_axes_indices(
         data=data_gene_count
+    )
+
+    # Optimize data types.
+    data_gene_count = convert_data_types(
+        data=data_gene_count,
+        type="int32"
+    )
+
+    # Select genes that encode proteins.
+    data_gene_count = select_genes_protein(
+        data_gene_annotation=data_gene_annotation,
+        data_gene_signal=data_gene_count
     )
 
     # Check for data quality.
@@ -831,13 +943,98 @@ def organize_genes_counts(
     # Drop undetectable genes.
     data_gene_count = drop_undetectable_genes(data=data_gene_count)
 
-    print("Original count of genes was 56202.")
-    print("Count of genes with nonzero signal is 55863.")
+    utility.print_terminal_partition(level=2)
 
     print(data_gene_count.iloc[0:10, 0:7])
 
+    utility.print_terminal_partition(level=2)
+
+    print("Count of original genes: 56202")
+    print("Count of protein-coding genes: 18842")
+    print("Count of detectable genes: 18813")
+
     # Return information.
     return data_gene_count
+
+
+def organize_genes_signals(
+    data_gene_signal=None,
+    data_gene_annotation=None,
+):
+    """
+    Collects tissues, patients, and genes' signals for each sample.
+
+    arguments:
+        data_gene_signal (object): Pandas data frame of genes' signals for all
+            samples
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals for all samples, tissues,
+            and patients
+
+    """
+
+    # Organize genes' signals.
+    utility.print_terminal_partition(level=1)
+    print("Organization of genes' signals.")
+
+    # Organize data with names and indices.
+    data_gene_signal = organize_data_axes_indices(
+        data=data_gene_signal
+    )
+
+    # Optimize data types.
+    data_gene_signal = convert_data_types(
+        data=data_gene_signal,
+        type="float32"
+    )
+
+    # Select genes that encode proteins.
+    data_gene_signal = select_genes_protein(
+        data_gene_annotation=data_gene_annotation,
+        data_gene_signal=data_gene_signal
+    )
+
+
+    # Check for data quality.
+    utility.print_terminal_partition(level=2)
+    print("Check for quality of genes' signals.")
+
+    # Check for missing values of genes' signals.
+    check_missing_values(data=data_gene_signal)
+
+    # Check for redundant genes.
+    check_redundancy_genes(data=data_gene_signal)
+
+    # Check for samples with values of 0 for all genes' signals.
+    check_zero_samples(data=data_gene_signal)
+
+    # Check for genes with values of 0 for signals across all samples.
+    check_zero_genes(data=data_gene_signal)
+
+    # Remove irrelevant signals for genes.
+    utility.print_terminal_partition(level=2)
+    print("Removal of signals for undetectable genes.")
+    # Drop undetectable genes.
+    data_gene_signal = drop_undetectable_genes(data=data_gene_signal)
+
+    utility.print_terminal_partition(level=2)
+
+    print(data_gene_count.iloc[0:10, 0:7])
+
+    utility.print_terminal_partition(level=2)
+
+    print("Count of original genes: 56202")
+    print("Count of protein-coding genes: 18842")
+    print("Count of detectable genes: 18813")
+
+    print(data_gene_signal.iloc[0:10, 0:7])
+
+    # Return information.
+    return data_gene_signal
 
 
 ##########
@@ -1090,14 +1287,16 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
-    # Organize genes' signals.
-    data_gene_signal = organize_genes_signals(
-        data_gene_signal=source["data_gene_signal"]
-    )
-
     # Organize genes' counts.
     data_gene_count = organize_genes_counts(
-        data_gene_count=source["data_gene_count"]
+        data_gene_count=source["data_gene_count"],
+        data_gene_annotation=data_gene_annotation,
+    )
+
+    # Organize genes' signals.
+    data_gene_signal = organize_genes_signals(
+        data_gene_signal=source["data_gene_signal"],
+        data_gene_annotation=data_gene_annotation,
     )
 
     # Collect garbage to clear memory.
