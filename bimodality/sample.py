@@ -57,6 +57,9 @@ def read_source(dock=None):
     path_samples_tissues_patients = os.path.join(
         path_assembly, "data_samples_tissues_patients.pickle"
     )
+    path_gene_count = os.path.join(
+        path_assembly, "data_gene_count.pickle"
+    )
     path_gene_signal = os.path.join(
         path_assembly, "data_gene_signal.pickle"
     )
@@ -64,10 +67,12 @@ def read_source(dock=None):
     data_samples_tissues_patients = pandas.read_pickle(
         path_samples_tissues_patients
     )
+    data_gene_count = pandas.read_pickle(path_gene_count)
     data_gene_signal = pandas.read_pickle(path_gene_signal)
     # Compile and return information.
     return {
         "data_samples_tissues_patients": data_samples_tissues_patients,
+        "data_gene_count": data_gene_count,
         "data_gene_signal": data_gene_signal,
     }
 
@@ -183,16 +188,16 @@ def count_categories_tissues_patients(
     data_sort = data.sort_values(
         ["tissue_major", "tissue_minor"],
         axis=0,
-        ascending=False
+        ascending=True
     )
     return data_sort
 
 
-def describe_samples_categories(
+def describe_samples_tissues(
     data_samples_tissues_patients=None
 ):
     """
-    Collect hierarchical structure of tissues, patients, and samples.
+    Describe the distribution of samples across tissues.
 
     arguments:
         data_samples_tissues_patients (object): Pandas data frame of patients
@@ -201,14 +206,13 @@ def describe_samples_categories(
     raises:
 
     returns:
-        (dict<dict<list<str>>): Samples for each patient of each tissue.
 
     """
 
     # Print terminal partition.
     utility.print_terminal_partition(level=2)
     # Report.
-    print("Description of categories of samples.")
+    print("Description of tissues of samples.")
 
     # Collect categories of samples.
     tissues_patients_samples = collect_categories_tissues_patients_samples(
@@ -235,48 +239,77 @@ def describe_samples_categories(
     pass
 
 
-
-
-####################################################
-# Move to Selection procedure... ?
-
-
-def define_tissue_translations():
+def describe_samples_categories(
+    data_samples_tissues_patients=None
+):
     """
-    Defines and translates names of tissues.
+    Describe the distribution of samples across tissues.
 
     arguments:
+        data_samples_tissues_patients (object): Pandas data frame of patients
+            and tissues for all samples.
 
     raises:
 
     returns:
-        (dict): definitions of tissue names
 
     """
 
-    # Define names of tissues.
-    tissues_major = dict()
-    tissues_major["Adipose Tissue"] = "adipose"
-    tissues_major["Adrenal Gland"] = "adrenal"
-    tissues_major["Bladder"] = "bladder"
-    tissues_major["Blood"] = "blood"
-    tissues_major["Blood Vessel"] = "vessel"
-    tissues_major["Bone Marrow"] = "marrow"
-    tissues_major["Brain"] = "brain"
-    tissues_major["Breast"] = "breast"
-    tissues_major["Cervix Uteri"] = "cervix"
-    tissues_major["Colon"] = "colon"
-    tissues_major["Esophagus"] = "esophagus"
-    tissues_major["Fallopian Tube"] = "fallopian"
-    tissues_major["Heart"] = "Heart"
-    tissues_minor = dict()
-    tissues_minor["Adipose - Subcutaneous"] = "subcutane"
-    # Compile information.
-    information = dict()
-    information["major"] = tissues_major
-    information["minor"] = tissues_minor
-    # Return information.
-    return information
+    # Explore samples by patient attributes.
+    # Describe distributions of patients by sex and age.
+
+    # Explore samples by tissue attributes.
+    # Describe categories of all samples.
+    describe_samples_tissues(
+        data_samples_tissues_patients=data_samples_tissues_patients
+    )
+    # Describe categories of specific samples.
+    # Print terminal partition.
+    utility.print_terminal_partition(level=1)
+    # Report.
+    print("Description of categories of samples for male patients.")
+    data_samples_male = data_samples_tissues_patients.loc[
+        data_samples_tissues_patients["sex"] == "male", :
+    ]
+    #print(data_samples_male)
+    describe_samples_tissues(
+        data_samples_tissues_patients=data_samples_male
+    )
+    # Print terminal partition.
+    utility.print_terminal_partition(level=1)
+    # Report.
+    print("Description of categories of samples for female patients.")
+    data_samples_female = data_samples_tissues_patients.loc[
+        data_samples_tissues_patients["sex"] == "female", :
+    ]
+    #print(data_samples_female)
+    describe_samples_tissues(
+        data_samples_tissues_patients=data_samples_female
+    )
+
+    # Describe similarity between minor categories of tissues.
+    # Print terminal partition.
+    utility.print_terminal_partition(level=1)
+    # Report.
+    print("Description of similarity between minor tissues.")
+    print("Relevant major tissues, asexual with > 135 patients:")
+    print(
+        "Thyroid, Stomach, Spleen, Intestine, Skin, Pituitary, Pancreas, " +
+        "Nerve, Muscle, Lung, Liver, Heart, Esophagus, Colon, Brain, " +
+        "Vessel, Blood, Adrenal, Adipose"
+    )
+    utility.print_terminal_partition(level=3)
+    print("Remove data for cell lines, relevant to Skin and Blood.")
+    utility.print_terminal_partition(level=3)
+    print("Relevant major tissues with minor categories:")
+    print("skin, heart, esophagus, colon, brain, artery, adipose")
+
+    pass
+
+
+
+####################################################
+# Move to Selection procedure... ?
 
 
 def collect_patients_tissues_samples(data_samples_tissues_patients=None):
@@ -380,6 +413,94 @@ def expand_print_patients_tissues_samples(patients_tissues_samples=None):
 ########################################################
 
 
+def define_tissue_comparisons():
+    """
+    Defines minor categories to compare for each major category of tissue.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<list<str>>): Minor categories to compare for major categories of
+            tissue
+
+    """
+
+    comparisons = dict()
+    comparisons["adipose"] = ["subcutane", "viscera"]
+    comparisons["artery"] = ["aorta", "coronary", "tibial"]
+    comparisons["brain"] = [
+        "accumbens", "amygdala", "caudate", "cerebellum", "cingulate",
+        "cortex", "frontal", "hemisphere", "hippocampus", "hypothalamus",
+        "nigra", "putamen", "spine",
+    ]
+    comparisons["colon"] = ["sigmoid", "transverse"]
+    comparisons["esophagus"] = ["junction", "mucosa", "muscularis"]
+    comparisons["heart"] = ["atrium", "ventricle"]
+    comparisons["skin"] = ["dark", "light"]
+    return comparisons
+
+
+def organize_differential_expression_data_sets(
+    data_samples_tissues_patients=None,
+    data_gene_count=None,
+):
+    """
+    Collect hierarchical structure of tissues, patients, and samples.
+
+    arguments:
+        data_samples_tissues_patients (object): Pandas data frame of patients
+            and tissues for all samples
+        data_gene_count (object): Pandas data frame of genes' counts for all
+            samples
+
+    raises:
+
+    returns:
+        (list<dict>): Collections of data sets for differential expression
+            analyses
+
+    """
+
+    # Collect data sets.
+    sets = list()
+    comparisons = define_tissue_comparisons()
+    comparisons_list = list(comparisons.keys())
+    for comparison in comparisons_list:
+        data = organize_differential_expression_data_set(
+            tissue_major=comparison,
+            tissues_minor=comparisons[comparison],
+            data_samples_tissues_patients=data_samples_tissues_patients,
+            data_gene_count=data_gene_count,
+        )
+        # Collect the data set.
+        sets.append(data)
+    return sets
+
+
+def organize_differential_expression_data_set(
+    data_samples_tissues_patients=None,
+    data_gene_count=None,
+):
+    """
+    Collect hierarchical structure of tissues, patients, and samples.
+
+    arguments:
+        data_samples_tissues_patients (object): Pandas data frame of patients
+            and tissues for all samples
+        data_gene_count (object): Pandas data frame of genes' counts for all
+            samples
+
+    raises:
+
+    returns:
+        (list<dict>): Collections of data sets for differential expression
+            analyses
+
+    """
+
+    return 0
 
 
 
@@ -442,57 +563,55 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
-    # Explore samples by patient attributes.
-    # Describe distributions of patients by sex and age.
+    print(source["data_samples_tissues_patients"].iloc[0:10, :])
+    print(source["data_gene_count"].iloc[0:10, 0:10])
 
-    # Explore samples by tissue attributes.
-    # Describe categories of all samples.
+    # Describe coverage of tissues by samples.
     describe_samples_categories(
         data_samples_tissues_patients=source["data_samples_tissues_patients"]
     )
-    # Describe categories of specific samples.
-    # Print terminal partition.
-    utility.print_terminal_partition(level=1)
-    # Report.
-    print("Description of categories of samples for male patients.")
-    data_samples_male = source["data_samples_tissues_patients"].loc[
-        source["data_samples_tissues_patients"]["sex"] == "male", :
-    ]
-    #print(data_samples_male)
-    describe_samples_categories(
-        data_samples_tissues_patients=data_samples_male
-    )
-    # Print terminal partition.
-    utility.print_terminal_partition(level=1)
-    # Report.
-    print("Description of categories of samples for female patients.")
-    data_samples_female = source["data_samples_tissues_patients"].loc[
-        source["data_samples_tissues_patients"]["sex"] == "female", :
-    ]
-    #print(data_samples_female)
-    describe_samples_categories(
-        data_samples_tissues_patients=data_samples_female
-    )
-
-    # Describe similarity between minor categories of tissues.
-    # Print terminal partition.
-    utility.print_terminal_partition(level=1)
-    # Report.
-    print("Description of similarity between minor tissues.")
-    print("Relevant major tissues, asexual with > 135 patients:")
-    print(
-        "Thyroid, Stomach, Spleen, Intestine, Skin, Pituitary, Pancreas, " +
-        "Nerve, Muscle, Lung, Liver, Heart, Esophagus, Colon, Brain, " +
-        "Vessel, Blood, Adrenal, Adipose"
-    )
-    utility.print_terminal_partition(level=3)
-    print("Remove data for cell lines, relevant to Skin and Blood.")
-    utility.print_terminal_partition(level=3)
-    print("Relevant major tissues with minor categories:")
-    print("Skin, Heart, Esophagus, Colon, Brain, Vessel, Adipose")
-
 
     # Organize data sets for comparison by differential expression of genes.
+    # 1. Define samples relevant for comparison of minor categories of tissues.
+    # 2. Organize a matrix to designate groups for each sample.
+    # - Filter "data_samples_tissues_patients" and organize.
+    ###########################################################################
+    # sample                   patient    tissue
+    # GTEX-1117F-0226-SM-5GZZ7 GTEX-1117F subcutane
+    # GTEX-111CU-1826-SM-5GZYN GTEX-111CU viscera
+    # GTEX-111FC-0226-SM-5N9B8 GTEX-111FC subcutane
+    # GTEX-111YS-2426-SM-5GZZQ GTEX-111YS viscera
+    # GTEX-1122O-2026-SM-5NQ91 GTEX-1122O subcutane
+    ###########################################################################
+    # 3. Filter data of gene's signals to include only relevant samples.
+    # - Filter "data_gene_count".
+    ###########################################################################
+    # sample          GTEX-1117F-...  GTEX-111CU-...  GTEX-111FC-...
+    # gene
+    # ENSG00000186092             53             125             534
+    # ENSG00000187634             53             125             534
+    # ENSG00000188976             53             125             534
+    # ENSG00000187961             53             125             534
+    # ENSG00000187583             53             125             534
+    ###########################################################################
+    # 4. Sort sequences of sample matrix and gene matrix to match.
+
+    # New function
+    # parameters...
+    # major tissue
+    # minor tissues
+    # data_samples_tissues_patients
+    # data_gene_count
+    # returns...
+    # sample matrix and gene matrix in proper format and sort sequence for DESeq2
+
+    data_sets = organize_differential_expression_data_sets(
+        data_samples_tissues_patients=source["data_samples_tissues_patients"],
+        data_gene_count=source["data_gene_count"],
+    )
+
+
+
 
 
 

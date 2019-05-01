@@ -62,19 +62,24 @@ def read_source(dock=None):
     )
     path_gene_count = os.path.join(path_access, "count_gene.gct")
     path_gene_signal = os.path.join(path_access, "signal_gene.gct")
+    path_customization = os.path.join(dock, "customization")
+    path_tissues_major = os.path.join(
+        path_customization, "translation_tissues_major.tsv"
+    )
+    path_tissues_minor = os.path.join(
+        path_customization, "translation_tissues_minor.tsv"
+    )
     # Read information from file.
     #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
     data_patient_attribute = pandas.read_csv(
         path_attribute_patient,
         sep="\t",
         header=0,
-        #nrows=1000,
     )
     data_sample_attribute = pandas.read_csv(
         path_attribute_sample,
         sep="\t",
         header=0,
-        #nrows=1000,
     )
     data_gene_annotation = gtfparse.read_gtf(path_gene_annotation)
     data_gene_count = pandas.read_csv(
@@ -89,6 +94,16 @@ def read_source(dock=None):
         header=2,
         #nrows=1000,
     )
+    data_tissues_major = pandas.read_csv(
+        path_tissues_major,
+        sep="\t",
+        header=0,
+    )
+    data_tissues_minor = pandas.read_csv(
+        path_tissues_minor,
+        sep="\t",
+        header=0,
+    )
     # Compile and return information.
     return {
         "data_patient_attribute": data_patient_attribute,
@@ -96,7 +111,14 @@ def read_source(dock=None):
         "data_gene_annotation": data_gene_annotation,
         "data_gene_count": data_gene_count,
         "data_gene_signal": data_gene_signal,
+        "data_tissues_major": data_tissues_major,
+        "data_tissues_minor": data_tissues_minor,
     }
+
+
+# Optionally, conserve memory by reading large files and organizing them
+# all within sub-routines such as "organize_genes_annotations" so that garbage
+# collection can clear memory after the sub-routine completes.
 
 
 def read_source_gene_annotation(dock=None):
@@ -303,7 +325,9 @@ def translate_sex(value=None):
 def collect_samples_tissues_patients(
     samples=None,
     data_patient_attribute=None,
-    data_sample_attribute=None
+    data_sample_attribute=None,
+    data_tissues_major=None,
+    data_tissues_minor=None,
 ):
     """
     Collects matches of samples, tissues, and patients.
@@ -326,6 +350,10 @@ def collect_samples_tissues_patients(
             all patients
         data_sample_attribute (object): Pandas data frame of attributes for all
             samples
+        data_tissues_major (object): Pandas data frame of translations for
+            names of major tissues
+        data_tissues_minor (object): Pandas data frame of translations for
+            names of minor tissues
 
     raises:
 
@@ -347,6 +375,18 @@ def collect_samples_tissues_patients(
         drop=True,
         inplace=True
     )
+    data_tissues_major.set_index(
+        ["source"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data_tissues_minor.set_index(
+        ["source"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
     # Collect tissues and patients for each sample.
     samples_tissues_patients = list()
     for sample in samples:
@@ -354,8 +394,10 @@ def collect_samples_tissues_patients(
         #    data_sample_attribute["SAMPID"] == identifier_sample,
         #].at[0, "SMTS"]
         # Access tissue attributes.
-        tissue_major = data_sample_attribute.at[sample, "SMTS"]
-        tissue_minor = data_sample_attribute.at[sample, "SMTSD"]
+        major = data_sample_attribute.at[sample, "SMTS"]
+        minor = data_sample_attribute.at[sample, "SMTSD"]
+        tissue_major = data_tissues_major.at[major, "product"]
+        tissue_minor = data_tissues_minor.at[minor, "product"]
         # Access patient attributes.
         patient = extract_gtex_sample_patient_identifier(sample=sample)
         sex_raw = data_patient_attribute.at[patient, "SEX"]
@@ -377,7 +419,9 @@ def collect_samples_tissues_patients(
 def organize_samples_tissues_patients(
     data_patient_attribute=None,
     data_sample_attribute=None,
-    data_gene_signal=None
+    data_gene_signal=None,
+    data_tissues_major=None,
+    data_tissues_minor=None,
 ):
     """
     Optimizes data types.
@@ -389,11 +433,15 @@ def organize_samples_tissues_patients(
             samples
         data_gene_signal (object): Pandas data frame of genes' signals for all
             samples
+        data_tissues_major (object): Pandas data frame of translations for
+            names of major tissues
+        data_tissues_minor (object): Pandas data frame of translations for
+            names of minor tissues
 
     raises:
 
     returns:
-        (dict): information about samples, tissues, and patients
+        (object): Pandas data frame of patients and tissues for all samples
 
     """
 
@@ -420,7 +468,9 @@ def organize_samples_tissues_patients(
     samples_tissues_patients = collect_samples_tissues_patients(
         samples=samples,
         data_patient_attribute=data_patient_attribute,
-        data_sample_attribute=data_sample_attribute
+        data_sample_attribute=data_sample_attribute,
+        data_tissues_major=data_tissues_major,
+        data_tissues_minor=data_tissues_minor,
     )
     data_samples_tissues_patients = utility.convert_records_to_dataframe(
         records=samples_tissues_patients
@@ -896,7 +946,7 @@ def organize_genes_counts(
     raises:
 
     returns:
-        (object): Pandas data frame of genes' counts for all samples.
+        (object): Pandas data frame of genes' counts for all samples
 
     """
 
@@ -1023,7 +1073,7 @@ def organize_genes_signals(
 
     utility.print_terminal_partition(level=2)
 
-    print(data_gene_count.iloc[0:10, 0:7])
+    print(data_gene_signal.iloc[0:10, 0:7])
 
     utility.print_terminal_partition(level=2)
 
@@ -1268,7 +1318,9 @@ def execute_procedure(dock=None):
     data_samples_tissues_patients = organize_samples_tissues_patients(
         data_patient_attribute=source["data_patient_attribute"],
         data_sample_attribute=source["data_sample_attribute"],
-        data_gene_signal=source["data_gene_signal"]
+        data_gene_signal=source["data_gene_signal"],
+        data_tissues_major=source["data_tissues_major"],
+        data_tissues_minor=source["data_tissues_minor"],
     )
 
     ##################################################

@@ -830,6 +830,21 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
+    # TODO:
+    # TODO:
+    # TODO:
+    # 1. Divide tissues into 2 groups
+    # - 1.1. major tissues without minor categories
+    # -- select minor categories of tissues that are not cell lines specifically for skin and blood
+    # - 1.2. major tissues with minor categories
+    # -- select whether to combine the minor categories...
+
+    # TODO:
+    # TODO:
+    # TODO:
+
+
+
     # Selection of samples and genes of interest.
     data_gene_signal = select_samples_genes(
         tissues=tissues_patients["tissues"],
