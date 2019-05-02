@@ -17,7 +17,7 @@ import textwrap
 # Custom.
 import access
 import assembly
-import sample
+import tissue
 import selection
 import organization
 import split
@@ -160,7 +160,7 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
-        "-sample", "--sample", dest="sample", action="store_true",
+        "-tissue", "--tissue", dest="tissue", action="store_true",
         help=(
             "Exploration of attributes and relations of samples."
         )
@@ -344,11 +344,11 @@ def evaluate_main_parameters(arguments):
         print("... executing assembly procedure ...")
         # Execute procedure.
         assembly.execute_procedure(dock=arguments.dock)
-    if arguments.sample:
+    if arguments.tissue:
         # Report status.
-        print("... executing sample procedure ...")
+        print("... executing tissue procedure ...")
         # Execute procedure.
-        sample.execute_procedure(dock=arguments.dock)
+        tissue.execute_procedure(dock=arguments.dock)
     if arguments.selection:
         # Report status.
         print("... executing selection procedure ...")

@@ -91,6 +91,116 @@ def read_source(dock=None):
 
 
 ##########
+# Scrap from previous Assembly procedure...
+
+####################################################
+# Move to Selection procedure... ?
+
+
+def collect_patients_tissues_samples(data_samples_tissues_patients=None):
+    """
+    Collect hierarchical structure of patients, tissues, and samples.
+
+    arguments:
+        data_samples_tissues_patients (object): Pandas data frame of patients
+            and tissues for all samples.
+
+    raises:
+
+    returns:
+        (dict<dict<list<str>>): Samples for each tissue of each patient.
+
+    """
+
+    samples_tissues_patients = utility.convert_dataframe_to_records(
+        data=data_samples_tissues_patients
+    )
+    # Collect unique tissues and samples for each patient.
+    patients_tissues_samples = dict()
+    for record in samples_tissues_patients:
+        sample = record["sample"]
+        tissue = record["tissue"]
+        patient = record["patient"]
+        # Determine whether an entry already exists for the patient.
+        if patient in patients_tissues_samples:
+            # Determine whether an entry already exists for the tissue.
+            if tissue in patients_tissues_samples[patient]:
+                patients_tissues_samples[patient][tissue].append(sample)
+            else:
+                patients_tissues_samples[patient][tissue] = list([sample])
+        else:
+            patients_tissues_samples[patient] = dict()
+            patients_tissues_samples[patient][tissue] = list([sample])
+    return patients_tissues_samples
+
+
+def collect_tissues_patients_samples(data_samples_tissues_patients=None):
+    """
+    Collect hierarchical structure of tissues, patients, and samples.
+
+    arguments:
+        data_samples_tissues_patients (object): Pandas data frame of patients
+            and tissues for all samples.
+
+    raises:
+
+    returns:
+        (dict<dict<list<str>>): Samples for each patient of each tissue.
+
+    """
+
+    samples_tissues_patients = utility.convert_dataframe_to_records(
+        data=data_samples_tissues_patients
+    )
+    # Collect unique patients and samples for each tissue.
+    tissues_patients_samples = dict()
+    for record in samples_tissues_patients:
+        sample = record["sample"]
+        tissue = record["tissue"]
+        patient = record["patient"]
+        # Determine whether an entry already exists for the tissue.
+        if tissue in tissues_patients_samples:
+            # Determine whether an entry already exists for the patient.
+            if patient in tissues_patients_samples[tissue]:
+                tissues_patients_samples[tissue][patient].append(sample)
+            else:
+                tissues_patients_samples[tissue][patient] = list([sample])
+        else:
+            tissues_patients_samples[tissue] = dict()
+            tissues_patients_samples[tissue][patient] = list([sample])
+    return tissues_patients_samples
+
+
+def expand_print_patients_tissues_samples(patients_tissues_samples=None):
+    """
+    Collects tissues and samples for each patient.
+
+    arguments:
+        patients_tissues_samples (dict<dict<list<str>>): Samples for each
+            tissue of each patients.
+
+    raises:
+
+    returns:
+
+
+    """
+
+    print(list(patients_tissues_samples.keys()))
+    for patient in patients_tissues_samples:
+        print("patient: " + patient)
+        for tissue in patients_tissues_samples[patient]:
+            print("tissue: " + tissue)
+            for sample in patients_tissues_samples[patient][tissue]:
+                print("sample: " + sample)
+    pass
+
+########################################################
+
+##########
+
+
+##########
 # Tissues and patients.
 
 def select_tissues_patients(
@@ -814,6 +924,53 @@ def execute_procedure(dock=None):
 
     # Read source information from file.
     source = read_source(dock=dock)
+
+    ########################################################################
+    # Move this stuff to the "selection" procedure?
+    ################################################
+    # Organization of samples by patients and tissues.
+    # Collect unique patients, unique tissues for each patient, and unique
+    # samples for each tissue of each patient.
+    utility.print_terminal_partition(level=2)
+    print("Organization of samples by hierarchy of patients and tissues.")
+    print("Collection of hierarchical groups by patient, tissue, and sample.")
+    utility.print_terminal_partition(level=4)
+    print(
+        "data hierarchy is " +
+        "patients (714) -> tissues (30) -> samples (11688) -> genes (~50,000)"
+    )
+    patients_tissues_samples = collect_patients_tissues_samples(
+        data_samples_tissues_patients=data_samples_tissues_patients
+    )
+    if False:
+        expand_print_patients_tissues_samples(
+            patients_tissues_samples=patients_tissues_samples
+        )
+    print("Printing first 10 unique patients...")
+    print(list(patients_tissues_samples.keys())[:9])
+    print("Printing groups for patient 'GTEX-14LZ3'... ")
+    print(patients_tissues_samples["GTEX-14LZ3"])
+
+    # Organization of samples by tissues and patients.
+    # Collect unique tissues, unique patients for each tissue, and unique
+    # samples for each patient of each tissue.
+    utility.print_terminal_partition(level=2)
+    print("Organization of samples by hierarchy of tissues and patients.")
+    print("Collection of hierarchical groups by tissue, patient, and sample.")
+    utility.print_terminal_partition(level=4)
+    print(
+        "data hierarchy is " +
+        "tissue (30) -> patients (714) -> samples (11688) -> genes (~50,000)"
+    )
+    tissues_patients_samples = collect_tissues_patients_samples(
+        data_samples_tissues_patients=data_samples_tissues_patients
+    )
+    print("Printing first 10 unique tissues...")
+    print(list(tissues_patients_samples.keys())[:9])
+    print("Printing groups for tissue 'Bladder'... ")
+    print(tissues_patients_samples["Bladder"])
+    ########################################################################
+
 
     ##################################################
     ##################################################

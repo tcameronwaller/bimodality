@@ -32,8 +32,12 @@ cd $path_program
 echo "Now set to call routine and procedures."
 
 #python3 interface.py main --dock $path_dock --access
-python3 interface.py main --dock $path_dock --assembly
+#python3 interface.py main --dock $path_dock --assembly
 #python3 interface.py main --dock $path_dock --sample
+
+Rscript expression.R $path_dock
+
+
 #python3 interface.py main --dock $path_dock --selection
 #python3 interface.py main --dock $path_dock --organization
 #python3 interface.py main --dock $path_dock --split
