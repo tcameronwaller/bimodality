@@ -13,21 +13,20 @@
 # Standard
 
 import os
-import math
-import statistics
 import pickle
+import statistics
 
 # Relevant
 
 import numpy
 import pandas
-#import cmapPy.pandasGEXpress.parse
-#import cmapPy.pandasGEXpress.gct2gctx
-
-import gtfparse
+import sklearn
+import sklearn.datasets
+import sklearn.decomposition
 
 # Custom
 
+import organization
 import utility
 
 #dir()
@@ -35,6 +34,42 @@ import utility
 
 ###############################################################################
 # Functionality
+
+
+def read_source(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_tissue = os.path.join(dock, "tissue")
+    path_gene_tissue = os.path.join(
+        path_tissue, "data_gene_tissue.pickle"
+    )
+    path_component = os.path.join(
+        path_tissue, "data_gene_tissue_component.pickle"
+    )
+    # Read information from file.
+    data_gene_tissue = pandas.read_pickle(
+        path_gene_tissue
+    )
+    data_gene_tissue_component = pandas.read_pickle(path_component)
+    # Compile and return information.
+    return {
+        "data_gene_tissue": data_gene_tissue,
+        "data_gene_tissue_component": data_gene_tissue_component,
+    }
+
 
 
 ###############################################################################
@@ -55,14 +90,32 @@ def execute_procedure(dock=None):
 
     """
 
-    print("Hello beautiful world!")
+    # Read source information from file.
+    source = read_source(dock=dock)
 
-    path_access = os.path.join(dock, "access")
-    path_map = os.path.join(path_access, "annotation_gene_gencode.gtf")
-    utility.print_file_lines(path_file=path_map, start=0, stop=10)
+    # Specify directories and files.
+    path_tissue = os.path.join(dock, "tissue")
+    utility.confirm_path_directory(path_tissue)
+    path_gene_tissue = os.path.join(
+        path_tissue, "data_gene_tissue.txt"
+    )
+    path_component = os.path.join(
+        path_tissue, "data_gene_tissue_component.txt"
+    )
+    # Write information to file.
+    source["data_gene_tissue"].to_csv(
+        path_or_buf=path_gene_tissue,
+        sep="\t",
+        header=True,
+        index=False,
+    )
+    source["data_gene_tissue_component"].to_csv(
+        path_or_buf=path_component,
+        sep="\t",
+        header=True,
+        index=False,
+    )
 
-
-    # TODO: need to remove version number from Ensembl ids...
 
 
     pass

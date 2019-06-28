@@ -17,16 +17,19 @@ import textwrap
 # Custom.
 import access
 import assembly
-import tissue
+import measurement
+import sample
 import selection
-import organization
-import split
-import shuffle
-import pipe
-import collection
-import combination
-import analysis
-import function
+import tissue
+if False:
+    import organization
+    import split
+    import shuffle
+    import pipe
+    import collection
+    import combination
+    import analysis
+    import function
 import metric
 import plot
 import test
@@ -160,16 +163,31 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
-        "-tissue", "--tissue", dest="tissue", action="store_true",
+        "-measurement", "--measurement", dest="measurement",
+        action="store_true",
         help=(
-            "Exploration of attributes and relations of samples."
+            "Selection of genes and measurements of interest for further " +
+            "analysis."
+        )
+    )
+    parser_main.add_argument(
+        "-sample", "--sample", dest="sample", action="store_true",
+        help=(
+            "Selection of samples, patients, and tissues of interest for " +
+            "further analysis."
         )
     )
     parser_main.add_argument(
         "-selection", "--selection", dest="selection", action="store_true",
         help=(
-            "Selection of tissues, patients, and genes of interest for " +
-            "further analyses."
+            "Coordination of selection of samples and genes of interest for " +
+            "further analysis."
+        )
+    )
+    parser_main.add_argument(
+        "-tissue", "--tissue", dest="tissue", action="store_true",
+        help=(
+            "Comparison of minor and major categories of tissues."
         )
     )
     parser_main.add_argument(
@@ -344,16 +362,26 @@ def evaluate_main_parameters(arguments):
         print("... executing assembly procedure ...")
         # Execute procedure.
         assembly.execute_procedure(dock=arguments.dock)
-    if arguments.tissue:
+    if arguments.measurement:
         # Report status.
-        print("... executing tissue procedure ...")
+        print("... executing measurement procedure ...")
         # Execute procedure.
-        tissue.execute_procedure(dock=arguments.dock)
+        measurement.execute_procedure(dock=arguments.dock)
+    if arguments.sample:
+        # Report status.
+        print("... executing sample procedure ...")
+        # Execute procedure.
+        sample.execute_procedure(dock=arguments.dock)
     if arguments.selection:
         # Report status.
         print("... executing selection procedure ...")
         # Execute procedure.
         selection.execute_procedure(dock=arguments.dock)
+    if arguments.tissue:
+        # Report status.
+        print("... executing tissue procedure ...")
+        # Execute procedure.
+        tissue.execute_procedure(dock=arguments.dock)
     if arguments.organization:
         # Report status.
         print("... executing organization procedure ...")

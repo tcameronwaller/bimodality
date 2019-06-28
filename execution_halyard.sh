@@ -2,13 +2,17 @@
 
 #chmod u+x script.sh
 
+# Execution
+# $ bash execution_halyard.sh
+
 path_project="/media/tcameronwaller/primary/data/local/work/project/2019_bimodality/"
 subpath_repository="repository/"
 path_repository="$path_project$subpath_repository"
 subpath_program="repository/bimodality/"
 path_program="$path_project$subpath_program"
 subpath_dock="dock/"
-path_dock="$path_project$subpath_dock"
+#path_dock="$path_project$subpath_dock"
+path_dock="/home/tcameronwaller/dock/"
 
 # Suppress echo each command to console.
 set +x
@@ -33,12 +37,12 @@ echo "Now set to call routine and procedures."
 
 #python3 interface.py main --dock $path_dock --access
 #python3 interface.py main --dock $path_dock --assembly
+#python3 interface.py main --dock $path_dock --measurement
 #python3 interface.py main --dock $path_dock --sample
-
-Rscript expression.R $path_dock
-
-
 #python3 interface.py main --dock $path_dock --selection
+#python3 interface.py main --dock $path_dock --tissue
+
+
 #python3 interface.py main --dock $path_dock --organization
 #python3 interface.py main --dock $path_dock --split
 
@@ -51,5 +55,11 @@ Rscript expression.R $path_dock
 #python3 interface.py main --dock $path_dock --function
 
 #python3 interface.py main --dock $path_dock --metric
-#python3 interface.py main --dock $path_dock --plot
+python3 interface.py main --dock $path_dock --plot
+
+
+#python3 interface.py main --dock $path_dock --test
+
+
+#Rscript expression.R $path_dock
 

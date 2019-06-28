@@ -63,7 +63,7 @@ def define_source():
             "suffix": "xlsx",
             "compression": False,
         },
-        "description_patient": {
+        "description_person": {
             "path": (
                 "https://storage.googleapis.com/gtex_analysis_v7/annotations/"
             ),
@@ -79,7 +79,7 @@ def define_source():
             "suffix": "txt",
             "compression": False,
         },
-        "attribute_patient": {
+        "attribute_person": {
             "path": (
                 "https://storage.googleapis.com/gtex_analysis_v7/annotations/"
             ),
@@ -151,13 +151,13 @@ def download_files(reference=None, path_local=None):
         reference=reference, key="description_sample", path_local=path_local
     )
     wrap_download_file(
-        reference=reference, key="description_patient", path_local=path_local
+        reference=reference, key="description_person", path_local=path_local
     )
     wrap_download_file(
         reference=reference, key="attribute_sample", path_local=path_local
     )
     wrap_download_file(
-        reference=reference, key="attribute_patient", path_local=path_local
+        reference=reference, key="attribute_person", path_local=path_local
     )
     wrap_download_file(
         reference=reference, key="count_gene", path_local=path_local
@@ -243,13 +243,13 @@ def extract_files(reference=None, path_local=None):
         reference=reference, key="description_sample", path_local=path_local
     )
     wrap_extract_file(
-        reference=reference, key="description_patient", path_local=path_local
+        reference=reference, key="description_person", path_local=path_local
     )
     wrap_extract_file(
         reference=reference, key="attribute_sample", path_local=path_local
     )
     wrap_extract_file(
-        reference=reference, key="attribute_patient", path_local=path_local
+        reference=reference, key="attribute_person", path_local=path_local
     )
     wrap_extract_file(
         reference=reference, key="count_gene", path_local=path_local

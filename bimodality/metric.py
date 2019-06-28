@@ -24,15 +24,17 @@ import textwrap
 import numpy
 import pandas
 import scipy.stats
-import rpy2
-import rpy2.robjects
-import rpy2.robjects.packages
-#utils = rpy2.robjects.packages.importr("utils")
-#base = rpy2.robjects.packages.importr("base")
-#utils.install_packages("diptest")
-diptest = rpy2.robjects.packages.importr("diptest")
+if False:
+    import rpy2
+    import rpy2.robjects
+    import rpy2.robjects.packages
+    #utils = rpy2.robjects.packages.importr("utils")
+    #base = rpy2.robjects.packages.importr("base")
+    #utils.install_packages("diptest")
+    diptest = rpy2.robjects.packages.importr("diptest")
 import sklearn
 import sklearn.mixture
+import unidip
 
 # Custom
 
@@ -104,6 +106,26 @@ def calculate_bimodality_coefficient(series=None):
 
 
 def calculate_dip_statistic(series=None):
+    """
+    Calculates the Hartigans' dip statistic of a series.
+
+    arguments:
+        series (list<float>): series of values of type float
+
+    raises:
+
+    returns:
+        (float): value of dip statistic
+
+    """
+
+    # Calculate the Hartigans' dip test statistic.
+    dip = unidip.dip.dip_fn(series, is_hist=False, just_dip=True)
+    #dip = diptest.dip_test(series_r, simulate_p_value=True, B=1000)
+    return dip
+
+
+def calculate_dip_statistic_r(series=None):
     """
     Calculates the Hartigans' dip statistic of a series.
 
