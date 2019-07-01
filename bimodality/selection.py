@@ -23,6 +23,7 @@ import pandas
 
 # Custom
 
+import measurement
 import organization
 import utility
 
@@ -109,34 +110,6 @@ def select_samples(
     return samples
 
 
-def select_genes_detection(data_gene_signal=None):
-    """
-    Selects detectable genes with nonzero signals.
-
-    arguments:
-        data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples, tissues, and persons.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals for all samples, tissues,
-            and persons.
-
-    """
-
-    utility.print_terminal_partition(level=2)
-    print(
-        "Selection of detectable genes with nonzero signals in persons " +
-        "and tissues of interest."
-    )
-    print("genes, original: " + str(data_gene_signal.shape[1]))
-    data_nonzero = (data_gene_signal != 0)
-    data_signal = data_gene_signal.loc[ : , data_nonzero.any(axis="index")]
-    print("genes, detection: " + str(data_signal.shape[1]))
-    return data_signal
-
-
 def select_samples_genes(
     samples=None,
     data_gene_signal=None
@@ -171,12 +144,6 @@ def select_samples_genes(
     print(
         "count of samples of interest: " +
         str(data_samples.shape[1])
-    )
-
-    # Select genes with detectable, non-zero signal in tissues and persons of
-    # interest.
-    data_samples = select_genes_detection(
-        data_gene_signal=data_samples
     )
 
     # Return information.
@@ -236,8 +203,15 @@ def select_samples_genes_by_tissues(
         samples=samples,
         data_gene_signal=data_gene_signal
     )
+    # Filter genes by signal.
+    # Filter to keep only genes with signals beyond threshold in at least one
+    # sample.
+    data_gene_tissue_detection = measurement.filter_genes_by_signal_threshold(
+        data=data_gene_tissue,
+        threshold=1.0,
+    )
     # Return information.
-    return data_gene_tissue
+    return data_gene_tissue_detection
 
 
 def select_samples_genes_by_few_tissues(
@@ -274,9 +248,6 @@ def select_samples_genes_by_few_tissues(
         inplace=True
     )
     return data_selection
-
-
-
 
 
 ##########

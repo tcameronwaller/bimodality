@@ -313,6 +313,41 @@ def drop_undetectable_genes(data=None):
     return data_signal
 
 
+def filter_genes_by_signal_threshold(
+    data=None,
+    threshold=None,
+):
+    """
+    Filter genes to keep only those with signals beyond threshold in at least
+    one sample.
+
+    Data format should have samples across columns and genes across rows.
+
+    arguments:
+        data (object): Pandas data frame of genes' signals across samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+
+    """
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "Filter genes to keep only those with signals beyond threshold in " +
+        "at least one sample. \n" +
+        "Data format should have samples across columns and genes across rows."
+    )
+    print("signal threshold: " + str(threshold))
+    print("data dimensions before filter: " + str(data.shape))
+    data_threshold = (data >= threshold)
+    data_detection = data.loc[data_threshold.any(axis="columns"), : ]
+    print("data dimensions after filter: " + str(data_detection.shape))
+    utility.print_terminal_partition(level=3)
+    return data_detection
+
+
 def select_genes_counts(
     data_gene_count=None,
     data_gene_annotation=None,
@@ -428,7 +463,15 @@ def select_genes_signals(
     utility.print_terminal_partition(level=2)
     print("Removal of signals for undetectable genes.")
     # Drop undetectable genes.
-    data_gene_signal = drop_undetectable_genes(data=data_gene_signal)
+    #data_gene_signal = drop_undetectable_genes(data=data_gene_signal)
+
+    # Filter genes by signal.
+    # Filter to keep only genes with signals beyond threshold in at least one
+    # sample.
+    data_gene_signal = filter_genes_by_signal_threshold(
+        data=data_gene_signal,
+        threshold=1.0,
+    )
 
     utility.print_terminal_partition(level=2)
 
@@ -438,7 +481,14 @@ def select_genes_signals(
 
     print("Count of original genes: 56202")
     print("Count of protein-coding genes: 18842")
-    print("Count of detectable genes: 18813")
+    print(
+        "Count of detectable genes, signal beyond 0.0 in at least 1 sample: " +
+        "18813"
+    )
+    print(
+        "Count of detectable genes, signal beyond 1.0 in at least 1 sample: " +
+        "18511"
+    )
 
     print(data_gene_signal.iloc[0:10, 0:7])
 
