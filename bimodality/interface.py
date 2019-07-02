@@ -21,9 +21,9 @@ import measurement
 import sample
 import selection
 import tissue
+import split
 if False:
     import organization
-    import split
     import shuffle
     import pipe
     import collection
@@ -191,14 +191,18 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
+        "-split", "--split", dest="split", action="store_true",
+        help="Split genes' signals in tissues and patients by genes."
+    )
+
+
+
+
+    parser_main.add_argument(
         "-organization", "--organization", dest="organization",
         action="store_true",
         help="Organization of information for patients, tissues, samples, " +
         "and genes."
-    )
-    parser_main.add_argument(
-        "-split", "--split", dest="split", action="store_true",
-        help="Split genes' signals in tissues and patients by genes."
     )
     parser_main.add_argument(
         "-shuffle", "--shuffle", dest="shuffle", action="store_true",
@@ -382,16 +386,19 @@ def evaluate_main_parameters(arguments):
         print("... executing tissue procedure ...")
         # Execute procedure.
         tissue.execute_procedure(dock=arguments.dock)
-    if arguments.organization:
-        # Report status.
-        print("... executing organization procedure ...")
-        # Execute procedure.
-        organization.execute_procedure(dock=arguments.dock)
     if arguments.split:
         # Report status.
         print("... executing split procedure ...")
         # Execute procedure.
         split.execute_procedure(dock=arguments.dock)
+
+
+
+    if arguments.organization:
+        # Report status.
+        print("... executing organization procedure ...")
+        # Execute procedure.
+        organization.execute_procedure(dock=arguments.dock)
     if arguments.shuffle:
         # Report status.
         print("... executing shuffle procedure ...")

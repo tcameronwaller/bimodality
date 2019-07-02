@@ -266,6 +266,8 @@ def summarize_raw_data(
     print("Genes' signals are in Transcripts Per Million (TPM).")
     print(data_gene_signal)
     print(data_gene_signal.iloc[0:10, 0:10])
+    print("Count of genes: " + str(data_gene_signal.shape[0]))
+    print("Count of samples: " + str(data_gene_signal.shape[1]))
     #print(source["data_gene_signal"].loc[:,"GTEX-1117F-0226-SM-5GZZ7"])
 
     # How to reference information about a specific sample.

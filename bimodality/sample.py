@@ -96,14 +96,19 @@ def collect_persons_tissues_samples(data_samples_tissues_persons=None):
 
     """
 
+    data = data_samples_tissues_persons.copy(deep=True)
+    data.reset_index(
+        level="sample", inplace=True
+    )
+
     samples_tissues_persons = utility.convert_dataframe_to_records(
-        data=data_samples_tissues_persons
+        data=data
     )
     # Collect unique tissues and samples for each person.
     persons_tissues_samples = dict()
     for record in samples_tissues_persons:
         sample = record["sample"]
-        tissue = record["tissue"]
+        tissue = record["tissue_major"]
         person = record["person"]
         # Determine whether an entry already exists for the person.
         if person in persons_tissues_samples:
@@ -909,6 +914,15 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
+    print(source["data_samples_tissues_persons"])
+    data = source["data_samples_tissues_persons"].copy(deep=True)
+    data_spleen = data.loc[data["tissue_major"] == "spleen", :]
+    print(data_spleen)
+
+    data_salivary = data.loc[data["tissue_major"] == "salivary", :]
+    print(data_salivary)
+
+
     ########################################################################
     # Move this stuff to the "selection" procedure?
     ################################################
@@ -924,7 +938,7 @@ def execute_procedure(dock=None):
         "persons (714) -> tissues (30) -> samples (11688) -> genes (~50,000)"
     )
     persons_tissues_samples = collect_persons_tissues_samples(
-        data_samples_tissues_persons=data_samples_tissues_persons
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
     )
     if False:
         expand_print_persons_tissues_samples(
@@ -947,7 +961,7 @@ def execute_procedure(dock=None):
         "tissue (30) -> persons (714) -> samples (11688) -> genes (~50,000)"
     )
     tissues_persons_samples = collect_tissues_persons_samples(
-        data_samples_tissues_persons=data_samples_tissues_persons
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
     )
     print("Printing first 10 unique tissues...")
     print(list(tissues_persons_samples.keys())[:9])
@@ -960,12 +974,14 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
-    # Selection of tissues and persons of interest.
-    tissues_persons = select_tissues_persons(
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        persons_tissues_samples=source["persons_tissues_samples"],
-        tissues_persons_samples=source["tissues_persons_samples"]
-    )
+    if False:
+
+        # Selection of tissues and persons of interest.
+        tissues_persons = select_tissues_persons(
+            data_samples_tissues_persons=source["data_samples_tissues_persons"],
+            persons_tissues_samples=source["persons_tissues_samples"],
+            tissues_persons_samples=source["tissues_persons_samples"]
+        )
 
     ##################################################
     ##################################################
@@ -984,35 +1000,37 @@ def execute_procedure(dock=None):
     # TODO:
     # TODO:
 
+    if False:
 
-
-    # Selection of samples and genes of interest.
-    data_gene_signal = select_samples_genes(
-        tissues=tissues_persons["tissues"],
-        persons=tissues_persons["persons"],
-        data_gene_annotation=source["data_gene_annotation"],
-        data_gene_signal=source["data_gene_signal"]
-    )
+        # Selection of samples and genes of interest.
+        data_gene_signal = select_samples_genes(
+            tissues=tissues_persons["tissues"],
+            persons=tissues_persons["persons"],
+            data_gene_annotation=source["data_gene_annotation"],
+            data_gene_signal=source["data_gene_signal"]
+        )
 
     ##################################################
     ##################################################
     ##################################################
 
-    utility.print_terminal_partition(level=2)
-    print(
-        "Summary of signals."
-    )
-    print(data_gene_signal.iloc[0:10, 0:10])
-    print(data_gene_signal.shape)
+    if False:
 
-    # Compile information.
-    information = {
-        "tissues": tissues_persons["tissues"],
-        "persons": tissues_persons["persons"],
-        "data_gene_signal": data_gene_signal,
-    }
-    #Write product information to file.
-    write_product(dock=dock, information=information)
+        utility.print_terminal_partition(level=2)
+        print(
+            "Summary of signals."
+        )
+        print(data_gene_signal.iloc[0:10, 0:10])
+        print(data_gene_signal.shape)
+
+        # Compile information.
+        information = {
+            "tissues": tissues_persons["tissues"],
+            "persons": tissues_persons["persons"],
+            "data_gene_signal": data_gene_signal,
+        }
+        #Write product information to file.
+        write_product(dock=dock, information=information)
 
 
     # Scrap.

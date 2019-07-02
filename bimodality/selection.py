@@ -23,6 +23,7 @@ import pandas
 
 # Custom
 
+import assembly
 import measurement
 import organization
 import utility
@@ -70,109 +71,118 @@ def read_source(dock=None):
     }
 
 
-def select_samples(
-    tissues_major=None,
-    data_samples_tissues_persons=None
-):
-    """
-    Selects samples for tissues and persons of interest.
-
-    arguments:
-        tissues_major (list<str>): major tissues of interest
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples.
-
-    raises:
-
-    returns:
-        (list<str>): samples of interest
-
-    """
-
-    # Select samples from persons and tissues of interest.
-    utility.print_terminal_partition(level=2)
-    print("Selection of samples from persons and tissues of interest.")
-    print(
-        "count of samples, original: " +
-        str(data_samples_tissues_persons.shape[0])
-    )
-    data_samples = data_samples_tissues_persons.loc[
-        data_samples_tissues_persons["tissue_major"].isin(tissues_major),
-    ]
-    print(
-        "count of samples from tissues of interest: " +
-        str(data_samples.shape[0])
-    )
-    print(data_samples)
-    # Extract identifiers of samples.
-    samples = data_samples.index.to_list()
-    print(len(samples))
-    return samples
-
-
-def select_samples_genes(
-    samples=None,
-    data_gene_signal=None
-):
-    """
-    Selects samples and genes of interest for further analyses.
-
-    arguments:
-        samples (list<str>): samples of interest
-        data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples, tissues, and persons
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals for all samples, tissues,
-            and persons
-
-    """
-
-    # Select samples and genes of interest.
-    utility.print_terminal_partition(level=1)
-    print("Selection of samples and genes of interest.")
-    print(
-        "count of samples, original: " +
-        str(data_gene_signal.shape[1])
-    )
-    data_samples = data_gene_signal.loc[
-        :,
-        samples
-    ]
-    print(
-        "count of samples of interest: " +
-        str(data_samples.shape[1])
-    )
-
-    # Return information.
-    return data_samples
-
-
-def select_samples_genes_by_tissues(
+def summarize_samples_genes(
     data_samples_tissues_persons=None,
     data_gene_signal=None
 ):
     """
-    Selects samples and genes by tissues of interest.
+    Summarize selection of samples and genes.
 
     arguments:
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples.
         data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples, tissues, and persons
+            samples.
 
     raises:
 
     returns:
-        (object): Pandas data frame of genes' signals for all samples, tissues,
-            and persons
 
     """
 
-    # Define tissues of interest.
-    tissues_major = [
+    utility.print_terminal_partition(level=1)
+    print("Summary of selection of samples and genes.")
+    # Counts of samples and genes.
+    print("Count of samples: " + str(data_gene_signal.shape[1]))
+    print("Count of genes: " + str(data_gene_signal.shape[0]))
+
+    # Major tissue categories.
+    data_samples_tissues_persons.copy(deep=True)
+    data_gene_signal = data_gene_signal.copy(deep=True)
+    # Transpose data structure.
+    # Organize genes across columns and samples across rows.
+    data_transposition = data_gene_signal.transpose(copy=True)
+    # Associate samples to persons and tissues.
+    data_factor = assembly.associate_samples_persons_tissues(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_sample=data_transposition,
+    )
+    groups = data_factor.groupby(level=["tissue_major"])
+    print("Count of major tissues: " + str(len(groups)))
+    for name, group in groups:
+        print(name)
+    data_factor.reset_index(
+        level=["tissue_major"],
+        inplace=True
+    )
+    data_adipose = data_factor.loc[data_factor["tissue_major"] == "adipose", :]
+    print(data_adipose)
+
+    pass
+
+
+def select_samples_by_exclusion(
+    data_samples_tissues_persons=None,
+):
+    """
+    Selects samples by exclusion of specific tissues or persons.
+
+    arguments:
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
+
+    raises:
+
+    returns:
+        (list<str>): identifiers of samples
+
+    """
+
+    # Define tissues for exclusion.
+    # These tissues are extra-corporeal tissues, such as cell lines.
+    # skin, fibroblast
+    # blood, lymphocyte
+    tissues_extracorp = []
+    tissues_extracorp.append("fibroblast")
+    tissues_extracorp.append("lymphocyte")
+    data_samples_corp = data_samples_tissues_persons.loc[
+        ~data_samples_tissues_persons["tissue_minor"].isin(tissues_extracorp),
+    ]
+    # These tissues have fewer than 50 total samples.
+    tissues_coverage = []
+    tissues_coverage.append("kidney")
+    tissues_coverage.append("bladder")
+    tissues_coverage.append("cervix")
+    tissues_coverage.append("fallopius")
+    data_samples_coverage = data_samples_corp.loc[
+        ~data_samples_corp["tissue_major"].isin(tissues_coverage),
+    ]
+    # Extract identifiers of samples.
+    samples = data_samples_coverage.index.to_list()
+    # Return information.
+    return samples
+
+
+def select_samples_by_inclusion(
+    data_samples_tissues_persons=None,
+):
+    """
+    Selects samples by inclusion of specific tissues or persons.
+
+    arguments:
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
+
+    raises:
+
+    returns:
+        (list<str>): identifiers of samples
+
+    """
+
+    # Define tissues for inclusion.
+    # These tissues are not sex-specific.
+    tissues_sex = [
         "adipose",
         "adrenal",
         "artery",
@@ -189,29 +199,60 @@ def select_samples_genes_by_tissues(
         "pituitary",
         "skin",
         "intestine",
+        "salivary",
         "spleen",
         "stomach",
         "thyroid",
     ]
-    # Select samples and genes of interest.
-    samples = select_samples(
-        tissues_major=tissues_major,
-        data_samples_tissues_persons=data_samples_tissues_persons
-    )
-    # Selection of samples and genes of interest.
-    data_gene_tissue = select_samples_genes(
-        samples=samples,
-        data_gene_signal=data_gene_signal
-    )
+    data_samples_sex = data_samples_tissues_persons.loc[
+        data_samples_tissues_persons["tissue_major"].isin(tissues_sex),
+    ]
+    # Extract identifiers of samples.
+    samples = data_samples_sex.index.to_list()
+    # Return information.
+    return samples
+
+
+def select_samples_genes(
+    samples=None,
+    data_gene_signal=None
+):
+    """
+    Selects genes' signals for samples of interest.
+
+    arguments:
+        samples (list<str>): identifiers of samples
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+    """
+
+    # Select genes' signals for samples of interest.
+    utility.print_terminal_partition(level=1)
+    data_sample = data_gene_signal.loc[:, samples]
+
     # Filter genes by signal.
     # Filter to keep only genes with signals beyond threshold in at least one
     # sample.
-    data_gene_tissue_detection = measurement.filter_genes_by_signal_threshold(
-        data=data_gene_tissue,
+    data_detection_gene = measurement.filter_genes_by_signal_threshold(
+        data=data_sample,
         threshold=1.0,
     )
+
+    # Filter samples by signal.
+    # Filter to keep only samples with signals beyond threshold in at least one
+    # gene.
+    data_detection_sample = measurement.filter_samples_by_signal_threshold(
+        data=data_detection_gene,
+        threshold=1.0,
+    )
+
     # Return information.
-    return data_gene_tissue_detection
+    return data_detection_sample
 
 
 def select_samples_genes_by_few_tissues(
@@ -275,8 +316,8 @@ def write_product(dock=None, information=None):
     path_gene_signal = os.path.join(
         path_selection, "data_gene_signal.pickle"
     )
-    path_gene_sample = os.path.join(
-        path_selection, "data_gene_sample.pickle"
+    path_gene_factor = os.path.join(
+        path_selection, "data_gene_signal_factor.pickle"
     )
     # Write information to file.
     pandas.to_pickle(
@@ -284,8 +325,8 @@ def write_product(dock=None, information=None):
         path_gene_signal
     )
     pandas.to_pickle(
-        information["data_gene_sample"],
-        path_gene_sample
+        information["data_gene_signal_factor"],
+        path_gene_factor
     )
     pass
 
@@ -311,28 +352,58 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
-    # Select samples and genes by relevant major tissues.
-    data_gene_signal = select_samples_genes_by_tissues(
+    # Summarize original counts of samples and genes.
+    summarize_samples_genes(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_signal=source["data_gene_signal"],
     )
-    print(data_gene_signal)
-    # Associate genes to persons and tissues for each sample.
-    data_gene_sample = organization.associate_genes_samples_persons_tissues(
+
+    # Select samples by exclusion.
+    # Exclude samples for extra-corporeal tissues, such as cell lines.
+    # Exclude samples for tissues with fewer than 100 total samples.
+    samples_exclusion = select_samples_by_exclusion(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_signal=data_gene_signal,
     )
-    print(data_gene_sample)
-    # Select data for individual tissues.
-    if False:
-        data_gene_selection = select_samples_genes_by_few_tissues(
-            tissues_major=["brain"],
-            data_gene_sample=data_gene_sample,
-        )
+    print(len(samples_exclusion))
+    # Select samples by inclusion.
+    samples_inclusion = select_samples_by_inclusion(
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+    )
+    print(len(samples_inclusion))
+    # Select the union of exclusion and inclusion samples.
+    samples = utility.filter_common_elements(
+        list_one=samples_exclusion,
+        list_two=samples_inclusion,
+    )
+    utility.print_terminal_partition(level=2)
+    print("Count of samples to select: " + str(len(samples)))
+    # Select genes' signals for specific samples.
+    data_gene_signal_selection = select_samples_genes(
+        samples=samples,
+        data_gene_signal=source["data_gene_signal"],
+    )
+    print(data_gene_signal_selection)
+
+    # Summarize original counts of samples and genes.
+    summarize_samples_genes(
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_signal=data_gene_signal_selection,
+    )
+
+    # Transpose data structure.
+    # Organize genes across columns and samples across rows.
+    data_transposition = data_gene_signal_selection.transpose(copy=True)
+    # Associate samples to persons and tissues.
+    data_gene_signal_factor = assembly.associate_samples_persons_tissues(
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_sample=data_transposition,
+    )
+    print(data_gene_signal_factor)
+
     # Compile information.
     information = {
-        "data_gene_signal": data_gene_signal,
-        "data_gene_sample": data_gene_sample,
+        "data_gene_signal": data_gene_signal_selection,
+        "data_gene_signal_factor": data_gene_signal_factor,
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

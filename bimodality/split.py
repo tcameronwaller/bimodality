@@ -36,6 +36,7 @@ import utility
 # Functionality
 
 
+
 def read_source(dock=None):
     """
     Reads and organizes source information from file
@@ -52,35 +53,23 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_organization = os.path.join(dock, "organization")
-    path_mean = os.path.join(
-        path_organization, "data_gene_signal_mean.pickle"
+    path_assembly = os.path.join(dock, "assembly")
+    path_samples_tissues_persons = os.path.join(
+        path_assembly, "data_samples_tissues_persons.pickle"
     )
-    path_median = os.path.join(
-        path_organization, "data_gene_signal_median.pickle"
-    )
-    path_imputation = os.path.join(
-        path_organization, "data_gene_signal_imputation.pickle"
-    )
-    path_log = os.path.join(
-        path_organization, "data_gene_signal_log.pickle"
-    )
-    path_standard = os.path.join(
-        path_organization, "data_gene_signal_standard.pickle"
+    path_selection = os.path.join(dock, "selection")
+    path_gene_signal = os.path.join(
+        path_selection, "data_gene_signal.pickle"
     )
     # Read information from file.
-    data_gene_signal_mean = pandas.read_pickle(path_mean)
-    data_gene_signal_median = pandas.read_pickle(path_median)
-    data_gene_signal_imputation = pandas.read_pickle(path_imputation)
-    data_gene_signal_log = pandas.read_pickle(path_log)
-    data_gene_signal_standard = pandas.read_pickle(path_standard)
+    data_samples_tissues_persons = pandas.read_pickle(
+        path_samples_tissues_persons
+    )
+    data_gene_signal = pandas.read_pickle(path_gene_signal)
     # Compile and return information.
     return {
-        "data_gene_signal_mean": data_gene_signal_mean,
-        "data_gene_signal_median": data_gene_signal_median,
-        "data_gene_signal_imputation": data_gene_signal_imputation,
-        "data_gene_signal_log": data_gene_signal_log,
-        "data_gene_signal_standard": data_gene_signal_standard,
+        "data_samples_tissues_persons": data_samples_tissues_persons,
+        "data_gene_signal": data_gene_signal,
     }
 
 
@@ -203,28 +192,34 @@ def execute_procedure(dock=None):
     source = read_source(dock=dock)
 
     # Summary.
-    print(source["data_gene_signal_standard"].iloc[0:10, 0:10])
+    print(source["data_gene_signal"].iloc[0:10, 0:10])
 
-    # Consider using pandas.DataFrame.round(decimals=10)
+    # Before I split... I need to aggregate the tissue categories... I need the same major tissues for every patient...
+    # Maybe I can go ahead and aggregate major tissue types within the tissue procedure?
+    # When I do that, I should also describe the variance of each gene across minor tissue types...
 
-    # Split genes' signals across tissues and patients by gene.
-    genes_signals_patients_tissues = split_genes_signals(
-        data_gene_signal=source["data_gene_signal_standard"]
-    )
+    if False:
 
-    # Organize genes' identifiers.
-    # Format of genes' identifiers needs to be readable by Bash as an array.
-    genes = source["data_gene_signal_standard"].columns.to_list()
-    print("count of genes: " + str(len(genes)))
+        # Consider using pandas.DataFrame.round(decimals=10)
 
-    # Compile information.
-    information = {
-        "genes": genes,
-        "genes_signals_patients_tissues": genes_signals_patients_tissues,
-    }
+        # Split genes' signals across tissues and patients by gene.
+        genes_signals_patients_tissues = split_genes_signals(
+            data_gene_signal=source["data_gene_signal_standard"]
+        )
 
-    #Write product information to file.
-    write_product(dock=dock, information=information)
+        # Organize genes' identifiers.
+        # Format of genes' identifiers needs to be readable by Bash as an array.
+        genes = source["data_gene_signal_standard"].columns.to_list()
+        print("count of genes: " + str(len(genes)))
+
+        # Compile information.
+        information = {
+            "genes": genes,
+            "genes_signals_patients_tissues": genes_signals_patients_tissues,
+        }
+
+        #Write product information to file.
+        write_product(dock=dock, information=information)
 
     pass
 

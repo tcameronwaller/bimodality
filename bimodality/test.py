@@ -53,21 +53,18 @@ def read_source(dock=None):
 
     # Specify directories and files.
     path_tissue = os.path.join(dock, "tissue")
-    path_gene_tissue = os.path.join(
-        path_tissue, "data_gene_tissue.pickle"
-    )
-    path_component = os.path.join(
-        path_tissue, "data_gene_tissue_component.pickle"
+    path_report = os.path.join(
+        path_tissue, "data_gene_sample_report.txt"
     )
     # Read information from file.
-    data_gene_tissue = pandas.read_pickle(
-        path_gene_tissue
+    data_gene_sample_report = pandas.read_csv(
+        path_report,
+        sep="\t",
+        header=0,
     )
-    data_gene_tissue_component = pandas.read_pickle(path_component)
     # Compile and return information.
     return {
-        "data_gene_tissue": data_gene_tissue,
-        "data_gene_tissue_component": data_gene_tissue_component,
+        "data_gene_sample_report": data_gene_sample_report,
     }
 
 
@@ -92,29 +89,15 @@ def execute_procedure(dock=None):
 
     # Read source information from file.
     source = read_source(dock=dock)
+    data = source["data_gene_sample_report"]
+    data.set_index(
+        ["sample", "person", "tissue_major", "tissue_minor"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    print(data)
 
-    # Specify directories and files.
-    path_tissue = os.path.join(dock, "tissue")
-    utility.confirm_path_directory(path_tissue)
-    path_gene_tissue = os.path.join(
-        path_tissue, "data_gene_tissue.txt"
-    )
-    path_component = os.path.join(
-        path_tissue, "data_gene_tissue_component.txt"
-    )
-    # Write information to file.
-    source["data_gene_tissue"].to_csv(
-        path_or_buf=path_gene_tissue,
-        sep="\t",
-        header=True,
-        index=False,
-    )
-    source["data_gene_tissue_component"].to_csv(
-        path_or_buf=path_component,
-        sep="\t",
-        header=True,
-        index=False,
-    )
 
 
 

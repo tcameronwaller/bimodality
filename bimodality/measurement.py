@@ -74,6 +74,7 @@ License:
 # Standard
 
 import os
+import math
 
 # Relevant
 
@@ -348,6 +349,128 @@ def filter_genes_by_signal_threshold(
     return data_detection
 
 
+def filter_samples_by_signal_threshold(
+    data=None,
+    threshold=None,
+):
+    """
+    Filter samples to keep only those with signals beyond threshold in at least
+    one gene.
+
+    Data format should have samples across columns and genes across rows.
+
+    arguments:
+        data (object): Pandas data frame of genes' signals across samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+
+    """
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "Filter samples to keep only those with signals beyond threshold in " +
+        "at least one gene. \n" +
+        "Data format should have samples across columns and genes across rows."
+    )
+    print("signal threshold: " + str(threshold))
+    print("data dimensions before filter: " + str(data.shape))
+    data_threshold = (data >= threshold)
+    data_detection = data.loc[:, data_threshold.any(axis="index")]
+    print("data dimensions after filter: " + str(data_detection.shape))
+    utility.print_terminal_partition(level=3)
+    return data_detection
+
+
+def transform_gene_signal_log(
+    data_gene_signal=None,
+    pseudo_count=None,
+):
+    """
+    Transforms values of genes' signals to base-two logarithmic space.
+
+    arguments:
+        data_gene_signal_mean (object): Pandas data frame of mean values of
+            genes' signals for all tissues of all persons.
+        pseudo_count (float): value to add to signal before transformation
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of signals for all genes across
+            specific persons and tissues.
+
+    """
+
+    # Transform genes' signals to base-2 logarithmic space.
+    # Transform before calculation of any median or mean values. <- maybe false
+    # Logarithms are not distributive.
+    # To accommodate gene signals of 0.0, add a pseudo count of 2.0 to all
+    # counts before calculation of the base-2 logarithm.
+    # log-2 signal = log2(TPM + pseudo-count)
+    # pseudo-count = 1.0
+    utility.print_terminal_partition(level=2)
+    print("Transformation of genes' signals to base-2 logarithmic space.")
+    print(
+        "To accommodate gene signals of 0.0, add a pseudo count of 1.0-5.0 " +
+        "to all counts before calculation of the base-2 logarithm."
+    )
+    data_gene_signal_log = calculate_logarithm_gene_signal(
+        pseudo_count=pseudo_count,
+        data_gene_signal=data_gene_signal
+    )
+    print(data_gene_signal_log.iloc[0:10, 0:10])
+
+    return data_gene_signal_log
+
+
+def calculate_logarithm_gene_signal(pseudo_count=None, data_gene_signal=None):
+    """
+    Calculates the base-2 logarithm of genes' signals in each sample.
+
+    Original gene signals are in transcript counts per million (TPM).
+
+    To accommodate gene signals of 0.0, add a pseudo count of 1.0 to all counts
+    before calculation of the base-2 logarithm.
+
+    arguments:
+        pseudo_count (float): Pseudo count to add to gene signal before
+            transformation to avoid values of zero.
+        data_gene_signal (object): Pandas data frame of signals for all genes
+            across specific persons and tissues.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of base-2 logarithmic signals for all genes
+            across specific persons and tissues.
+
+    """
+
+    # lambda x: math.log((x + 1), 2)
+
+    # An alternative approach would be to set the label columns to indices.
+    if False:
+        data_gene_signal_index = data_gene_signal.set_index(
+            ["Name", "Description"], append=True, drop=True
+        )
+        data_gene_signal_log = data_gene_signal_index.apply(
+            lambda value: 2 * value
+        )
+        data_log = data_signal_index.copy()
+        data_log.iloc[0:, 2:] = data_log.iloc[0:, 2:].applymap(
+            lambda value: math.log((value + 1.0), 2)
+        )
+
+    data_log = data_gene_signal.applymap(
+        lambda value: math.log((value + pseudo_count), 2)
+    )
+    # Reverse an index to a column.
+    return data_log
+
+
 def select_genes_counts(
     data_gene_count=None,
     data_gene_annotation=None,
@@ -437,6 +560,8 @@ def select_genes_signals(
     utility.print_terminal_partition(level=1)
     print("Selection of genes' signals.")
 
+    print("count of samples, original: " + str(data_gene_signal.shape[1]))
+
     # Select genes that encode proteins.
     data_gene_signal = select_genes_protein(
         data_gene_annotation=data_gene_annotation,
@@ -473,6 +598,15 @@ def select_genes_signals(
         threshold=1.0,
     )
 
+    # Filter samples by signal.
+    # Filter to keep only samples with signals beyond threshold in at least one
+    # gene.
+    data_gene_signal = filter_samples_by_signal_threshold(
+        data=data_gene_signal,
+        threshold=1.0,
+    )
+
+
     utility.print_terminal_partition(level=2)
 
     print(data_gene_signal.iloc[0:10, 0:7])
@@ -491,6 +625,8 @@ def select_genes_signals(
     )
 
     print(data_gene_signal.iloc[0:10, 0:7])
+
+    print("count of samples, final: " + str(data_gene_signal.shape[1]))
 
     # Return information.
     return data_gene_signal

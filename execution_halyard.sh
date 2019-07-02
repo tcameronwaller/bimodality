@@ -41,10 +41,9 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --sample
 #python3 interface.py main --dock $path_dock --selection
 python3 interface.py main --dock $path_dock --tissue
-
+#python3 interface.py main --dock $path_dock --split
 
 #python3 interface.py main --dock $path_dock --organization
-#python3 interface.py main --dock $path_dock --split
 
 #python3 interface.py main --dock $path_dock --shuffle --count 10000
 #nohup python3 interface.py main --dock $path_dock --pipe --local > $path_dock/report.out &
@@ -55,7 +54,7 @@ python3 interface.py main --dock $path_dock --tissue
 #python3 interface.py main --dock $path_dock --function
 
 #python3 interface.py main --dock $path_dock --metric
-python3 interface.py main --dock $path_dock --plot
+#python3 interface.py main --dock $path_dock --plot
 
 
 #python3 interface.py main --dock $path_dock --test

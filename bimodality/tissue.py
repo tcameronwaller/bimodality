@@ -27,7 +27,7 @@ import sklearn.decomposition
 # Custom
 
 import assembly
-import organization
+import measurement
 import utility
 
 #dir()
@@ -64,20 +64,15 @@ def read_source(dock=None):
     path_gene_signal = os.path.join(
         path_selection, "data_gene_signal.pickle"
     )
-    path_gene_sample = os.path.join(
-        path_selection, "data_gene_sample.pickle"
-    )
     # Read information from file.
     data_samples_tissues_persons = pandas.read_pickle(
         path_samples_tissues_persons
     )
     data_gene_signal = pandas.read_pickle(path_gene_signal)
-    data_gene_sample = pandas.read_pickle(path_gene_sample)
     # Compile and return information.
     return {
         "data_samples_tissues_persons": data_samples_tissues_persons,
         "data_gene_signal": data_gene_signal,
-        "data_gene_sample": data_gene_sample,
     }
 
 
@@ -217,11 +212,15 @@ def normalize_standardize_gene_signal(
     # Transform genes' signals to logarithmic space.
     # Transform values of genes' signals to base-2 logarithmic space.
     print(data_gene_signal)
-    data_normal = organization.transform_gene_signal_log(
-        data_gene_signal=data_gene_signal
+    data_normal = measurement.transform_gene_signal_log(
+        data_gene_signal=data_gene_signal,
+        pseudo_count=1.0,
     )
     # Transform genes' signals to standard or z-score space.
     # Calculate standard score for each gene.
+    # Standard score is undefined if the series has inadequate variance.
+    # Consider filtering before calculation.
+    # Alternatively, filter afterwards.
     data_normal_standard = standardize_gene_signal(
         data_gene_signal=data_normal
     )
@@ -765,6 +764,63 @@ def organize_differential_expression(
 
 
 ##########
+# Dispersion in genes' signals within tissues
+
+
+def calculate_gene_tissue_dispersion(
+    data_samples_tissues_persons=None,
+    data_gene_signal=None
+):
+    """
+    Calculates the dispersion of genes' signals across samples within major
+    tissue categories.
+
+    arguments:
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+
+    """
+
+
+    # TODO: Aggregate genes' signals for each patient across minor tissue categories...
+    # Groupby the data by major tissue type
+    # Calculate the variance of each gene within each major tissue type
+    # TODO: Save a report of the variance of each gene across each major tissue type...
+
+
+    # Transpose data structure.
+    # Organize genes across columns and samples across rows.
+    data_transposition = data_gene_signal.transpose(copy=True)
+    # Associate samples to persons and tissues.
+    data_sample = assembly.associate_samples_persons_tissues(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_sample=data_transposition,
+    )
+    print(data_sample)
+    # Split data by major tissue category.
+    groups = data_sample.groupby(level=["tissue_major"])
+    for name, group in groups:
+        print(name)
+        print(group)
+
+
+    pass
+
+
+
+
+
+
+
+
+##########
 # Product
 
 
@@ -786,8 +842,8 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_tissue = os.path.join(dock, "tissue")
     utility.confirm_path_directory(path_tissue)
-    path_sample_normal_standard = os.path.join(
-        path_tissue, "data_gene_sample_report.txt"
+    path_gene_factor = os.path.join(
+        path_tissue, "data_gene_signal_factor.pickle"
     )
     path_component_variance = os.path.join(
         path_tissue, "data_component_variance.pickle"
@@ -808,11 +864,9 @@ def write_product(dock=None, information=None):
         path_tissue, "data_sample_component.txt"
     )
     # Write information to file.
-    information["data_gene_sample_report"].to_csv(
-        path_or_buf=path_sample_normal_standard,
-        sep="\t",
-        header=True,
-        index=False,
+    pandas.to_pickle(
+        information["data_gene_signal_factor"],
+        path_gene_factor
     )
     pandas.to_pickle(
         information["data_component_variance"],
@@ -928,17 +982,30 @@ def execute_procedure(dock=None):
             data=source["data_gene_sample"]
         )
         print(data_gene_tissue)
+
+    # Describe variance across categories of tissues.
     # Normalize and standardized gene's signals for principal components.
     data_gene_signal_normal_standard = normalize_standardize_gene_signal(
         data_gene_signal=source["data_gene_signal"]
     )
-    # Prepare report of normalization and standardization.
-    data_temporary = data_gene_signal_normal_standard.transpose(copy=True)
-    print(data_temporary)
-    data_gene_sample_report = assembly.associate_samples_persons_tissues(
+    print("Data after normalization and standardization.")
+    print(data_gene_signal_normal_standard)
+
+    # Prepare report of data after normalization and standardization.
+    # Transpose data structure.
+    # Organize genes across columns and samples across rows.
+    data_transposition = data_gene_signal_normal_standard.transpose(copy=True)
+    # Associate samples to persons and tissues.
+    data_gene_signal_factor = assembly.associate_samples_persons_tissues(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_sample=data_temporary,
+        data_gene_sample=data_transposition,
     )
+    print(
+        "Genes' signals after normalization and standardization with " +
+        "samples and factors."
+    )
+    print(data_gene_signal_factor)
+
     # Calculate principal components.
     report_component = calculate_principal_components(
         data_gene_signal=data_gene_signal_normal_standard,
@@ -955,9 +1022,29 @@ def execute_procedure(dock=None):
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_sample=report_component["data_component"],
     )
+
+    # Revert to orignal genes' signals before normalization or standardization.
+
+    if False:
+
+        # Describe the dispersion in each gene's signal within each major tissue
+        # category.
+        data_gene_tissue_dispersion = calculate_gene_tissue_dispersion(
+            data_samples_tissues_persons=source["data_samples_tissues_persons"],
+            data_gene_signal=source["data_gene_signal"],
+        )
+
+    # Aggregate genes' signals across minor tissue categories.
+    # TODO: Revert to the original data data with samples across rows and genes across columns
+    # Groupby both major tissue type AND patient
+    # Aggregate the signal for each gene across minor tissue types...
+
+    # TODO: Save a report of the non-sex-specific tissues
+    # TODO: Describe also the minor tissue composition of each of these major tissue types...
+
     # Compile information.
     information = {
-        "data_gene_sample_report": data_gene_sample_report,
+        "data_gene_signal_factor": data_gene_signal_factor,
         "data_component_variance": report_component["data_component_variance"],
         "data_component": report_component["data_component"],
         "data_sample_component": data_sample_component,
