@@ -192,7 +192,7 @@ def define_main_subparser(subparsers=None):
     )
     parser_main.add_argument(
         "-split", "--split", dest="split", action="store_true",
-        help="Split genes' signals in tissues and patients by genes."
+        help="Split genes' signals across samples by genes."
     )
 
 

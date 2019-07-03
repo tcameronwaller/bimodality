@@ -40,8 +40,8 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --measurement
 #python3 interface.py main --dock $path_dock --sample
 #python3 interface.py main --dock $path_dock --selection
-python3 interface.py main --dock $path_dock --tissue
-#python3 interface.py main --dock $path_dock --split
+#python3 interface.py main --dock $path_dock --tissue
+python3 interface.py main --dock $path_dock --split
 
 #python3 interface.py main --dock $path_dock --organization
 

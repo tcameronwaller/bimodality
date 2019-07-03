@@ -26,15 +26,15 @@ import scipy.stats
 
 # Custom
 
-import metric
+import assembly
 import utility
+
 
 #dir()
 #importlib.reload()
 
 ###############################################################################
 # Functionality
-
 
 
 def read_source(dock=None):
@@ -73,7 +73,7 @@ def read_source(dock=None):
     }
 
 
-def split_genes_signals(data_gene_signal=None):
+def split_genes_signals_old(data_gene_signal=None):
     """
     Splits genes' signals across patients and tissues by genes.
 
@@ -135,6 +135,92 @@ def split_genes_signals(data_gene_signal=None):
     return genes_signals
 
 
+def split_genes_signals(
+    data_samples_tissues_persons=None,
+    data_gene_signal=None
+):
+    """
+    Splits genes' signals across samples by gene.
+
+    arguments:
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+        (list<object>): Collection of Pandas data frames.
+
+    """
+
+    # Split genes' signals across tissues and patients by gene.
+    utility.print_terminal_partition(level=2)
+    print(
+        "Split of genes' signals across samples by gene."
+    )
+
+    # Associate samples to factors.
+    utility.print_terminal_partition(level=2)
+    print(
+        "Association of samples to factors."
+    )
+    # Transpose data structure.
+    # Organize genes across columns and samples across rows.
+    data_transposition = data_gene_signal.transpose(copy=True)
+    # Associate samples to persons and tissues.
+    data_factor = assembly.associate_samples_persons_tissues(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_sample=data_transposition,
+    )
+    print(data_factor)
+    # Stack by gene.
+    utility.print_terminal_partition(level=2)
+    print("Stack of genes to factors.")
+    data_long = data_factor.stack("gene").to_frame(name="signal")
+    data_long.reset_index(
+        level=["sample", "person", "tissue_major", "tissue_minor", "gene"],
+        inplace=True
+    )
+    data_long.set_index(
+        ["gene", "sample", "person", "tissue_major", "tissue_minor"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    print(data_long)
+
+    # Split by gene.
+    utility.print_terminal_partition(level=2)
+    print("Split of genes' signals across samples by gene.")
+    groups = data_long.groupby("gene")
+    print("Count of groups by genes: " + str(len(groups)))
+    # Collect data frames by gene.
+    genes_samples_signals = dict()
+    for name, group in groups:
+        data = group.copy(deep=True)
+        genes_samples_signals[name] = data
+        if name == "ENSG00000186092":
+            print(name)
+            print(group)
+    # Access data by gene.
+    print("Access data for a single gene.")
+    print(genes_samples_signals["ENSG00000186092"])
+
+    # Return information.
+    return genes_samples_signals
+
+    if False:
+        print(data_long.shape)
+        data_stack = data_long.unstack(level="tissue")
+        data_stack.columns = data_stack.columns.get_level_values(1)
+        print(data_stack)
+        print(data_stack.shape)
+        data_stack.reset_index(level="gene", inplace=True)
+        groups = data_stack.groupby("gene")
+
+
 def write_product(dock=None, information=None):
     """
     Writes product information to file.
@@ -153,19 +239,18 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_split = os.path.join(dock, "split")
     utility.confirm_path_directory(path_split)
-    path_gene = os.path.join(
+    path_genes = os.path.join(
         path_split, "genes.txt"
     )
     path_signal = os.path.join(
-        path_split, "genes_signals_patients_tissues.pickle"
+        path_split, "genes_samples_signals.pickle"
     )
     # Write information to file.
     utility.write_file_text_list(
-        information=information["genes"], path_file=path_gene
+        information=information["genes"], path_file=path_genes
     )
-    pandas.to_pickle(
-        information["genes_signals_patients_tissues"], path_signal
-    )
+    with open(path_signal, "wb") as file_product:
+        pickle.dump(information["genes_samples_signals"], file_product)
 
     pass
 
@@ -198,28 +283,27 @@ def execute_procedure(dock=None):
     # Maybe I can go ahead and aggregate major tissue types within the tissue procedure?
     # When I do that, I should also describe the variance of each gene across minor tissue types...
 
-    if False:
+    # Consider using pandas.DataFrame.round(decimals=10)
 
-        # Consider using pandas.DataFrame.round(decimals=10)
+    # Split genes' signals across tissues and patients by gene.
+    genes_samples_signals = split_genes_signals(
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_signal=source["data_gene_signal"]
+    )
 
-        # Split genes' signals across tissues and patients by gene.
-        genes_signals_patients_tissues = split_genes_signals(
-            data_gene_signal=source["data_gene_signal_standard"]
-        )
+    # Organize genes' identifiers.
+    # Format of genes' identifiers needs to be readable by Bash as an array.
+    genes = source["data_gene_signal"].index.to_list()
+    print("count of genes: " + str(len(genes)))
 
-        # Organize genes' identifiers.
-        # Format of genes' identifiers needs to be readable by Bash as an array.
-        genes = source["data_gene_signal_standard"].columns.to_list()
-        print("count of genes: " + str(len(genes)))
+    # Compile information.
+    information = {
+        "genes": genes,
+        "genes_samples_signals": genes_samples_signals,
+    }
 
-        # Compile information.
-        information = {
-            "genes": genes,
-            "genes_signals_patients_tissues": genes_signals_patients_tissues,
-        }
-
-        #Write product information to file.
-        write_product(dock=dock, information=information)
+    #Write product information to file.
+    write_product(dock=dock, information=information)
 
     pass
 

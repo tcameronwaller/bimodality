@@ -60,7 +60,7 @@ def read_source(dock=None):
     path_gene_annotation = os.path.join(
         path_access, "annotation_gene_gencode.gtf"
     )
-    #path_gene_count = os.path.join(path_access, "count_gene.gct")
+    path_gene_count = os.path.join(path_access, "count_gene.gct")
     path_gene_signal = os.path.join(path_access, "signal_gene.gct")
     path_customization = os.path.join(dock, "customization")
     path_tissues_major = os.path.join(
@@ -82,12 +82,12 @@ def read_source(dock=None):
         header=0,
     )
     data_gene_annotation = gtfparse.read_gtf(path_gene_annotation)
-    #data_gene_count = pandas.read_csv(
-    #    path_gene_count,
-    #    sep="\t",
-    #    header=2,
+    data_gene_count = pandas.read_csv(
+        path_gene_count,
+        sep="\t",
+        header=2,
         #nrows=1000,
-    #)
+    )
     data_gene_signal = pandas.read_csv(
         path_gene_signal,
         sep="\t",
@@ -109,19 +109,19 @@ def read_source(dock=None):
         "data_person_attribute": data_person_attribute,
         "data_sample_attribute": data_sample_attribute,
         "data_gene_annotation": data_gene_annotation,
-        #"data_gene_count": data_gene_count,
+        "data_gene_count": data_gene_count,
         "data_gene_signal": data_gene_signal,
         "data_tissues_major": data_tissues_major,
         "data_tissues_minor": data_tissues_minor,
     }
 
 
-# Optionally, conserve memory by reading large files and organizing them
-# all within sub-routines such as "organize_genes_annotations" so that garbage
-# collection can clear memory after the sub-routine completes.
+##########
+# Organization of samples' attributes, specifically associations to persons
+# and tissues.
 
 
-def read_source_gene_annotation(dock=None):
+def read_source_sample(dock=None):
     """
     Reads and organizes source information from file.
 
@@ -138,82 +138,57 @@ def read_source_gene_annotation(dock=None):
 
     # Specify directories and files.
     path_access = os.path.join(dock, "access")
-    path_gene_annotation = os.path.join(
-        path_access, "annotation_gene_gencode.gtf"
+    path_attribute_sample = os.path.join(path_access, "attribute_sample.txt")
+    path_attribute_person = os.path.join(path_access, "attribute_person.txt")
+    path_customization = os.path.join(dock, "customization")
+    path_tissues_major = os.path.join(
+        path_customization, "translation_tissues_major.tsv"
     )
-    # Read information from file.
-    data_gene_annotation = gtfparse.read_gtf(path_gene_annotation)
-    # Return information.
-    return data_gene_annotation
-
-
-def read_source_gene_count(dock=None):
-    """
-    Reads and organizes source information from file.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_access = os.path.join(dock, "access")
-    path_gene_count = os.path.join(path_access, "count_gene.gct")
-    # Read information from file.
-    data_gene_count = pandas.read_csv(
-        path_gene_count,
-        sep="\t",
-        header=2,
-        #nrows=1000,
+    path_tissues_minor = os.path.join(
+        path_customization, "translation_tissues_minor.tsv"
     )
-    # Return information.
-    return data_gene_count
-
-
-def read_source_gene_signal(dock=None):
-    """
-    Reads and organizes source information from file.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_access = os.path.join(dock, "access")
     path_gene_signal = os.path.join(path_access, "signal_gene.gct")
     # Read information from file.
+    #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
+    data_person_attribute = pandas.read_csv(
+        path_attribute_person,
+        sep="\t",
+        header=0,
+    )
+    data_sample_attribute = pandas.read_csv(
+        path_attribute_sample,
+        sep="\t",
+        header=0,
+    )
+    data_tissues_major = pandas.read_csv(
+        path_tissues_major,
+        sep="\t",
+        header=0,
+    )
+    data_tissues_minor = pandas.read_csv(
+        path_tissues_minor,
+        sep="\t",
+        header=0,
+    )
     data_gene_signal = pandas.read_csv(
         path_gene_signal,
         sep="\t",
         header=2,
         #nrows=1000,
     )
-    # Return information.
-    return data_gene_signal
+    # Compile and return information.
+    return {
+        "data_person_attribute": data_person_attribute,
+        "data_sample_attribute": data_sample_attribute,
+        "data_tissues_major": data_tissues_major,
+        "data_tissues_minor": data_tissues_minor,
+        "data_gene_signal": data_gene_signal,
+    }
 
 
-##########
-# Summary.
-
-
-def summarize_raw_data(
+def summarize_raw_data_sample(
     data_person_attribute=None,
     data_sample_attribute=None,
-    data_gene_annotation=None,
-    data_gene_signal=None
 ):
     """
     Optimizes data types.
@@ -222,10 +197,6 @@ def summarize_raw_data(
         data_person_attribute (object): Pandas data frame of attributes for all
             samples.
         data_sample_attribute (object): Pandas data frame of attributes for all
-            samples.
-        data_gene_annotation (object): Pandas data frame of annotation of
-            genes.
-        data_gene_signal (object): Pandas data frame of genes' signals for all
             samples.
 
     raises:
@@ -254,34 +225,7 @@ def summarize_raw_data(
     print(data_sample_attribute)
     print(data_sample_attribute.iloc[0:10, 0:7])
 
-    # Summarize table of genes' annotations.
-    utility.print_terminal_partition(level=2)
-    print("Summary of table of genes' annotations from GENCODE version 29.")
-    print(data_gene_annotation)
-    print(data_gene_annotation.iloc[0:10, 0:10])
-
-    # Summarize table of genes' signals in all samples.
-    utility.print_terminal_partition(level=2)
-    print("Summary of table of genes' signals in all samples.")
-    print("Genes' signals are in Transcripts Per Million (TPM).")
-    print(data_gene_signal)
-    print(data_gene_signal.iloc[0:10, 0:10])
-    print("Count of genes: " + str(data_gene_signal.shape[0]))
-    print("Count of samples: " + str(data_gene_signal.shape[1]))
-    #print(source["data_gene_signal"].loc[:,"GTEX-1117F-0226-SM-5GZZ7"])
-
-    # How to reference information about a specific sample.
-    if False:
-        print(data_sample_attribute.loc[
-            data_sample_attribute["SAMPID"] == "GTEX-1117F-0003-SM-58Q7G"
-        ]
-        )
     pass
-
-
-##########
-# Organization of samples' attributes, specifically associations to persons
-# and tissues.
 
 
 def extract_gtex_sample_person_identifier(sample=None):
@@ -419,26 +363,14 @@ def collect_samples_tissues_persons(
 
 
 def organize_samples_tissues_persons(
-    data_person_attribute=None,
-    data_sample_attribute=None,
-    data_gene_signal=None,
-    data_tissues_major=None,
-    data_tissues_minor=None,
+    dock=None,
 ):
     """
-    Optimizes data types.
+    Organize information about samples.
 
     arguments:
-        data_person_attribute (object): Pandas data frame of attributes for
-            all persons
-        data_sample_attribute (object): Pandas data frame of attributes for all
-            samples
-        data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples
-        data_tissues_major (object): Pandas data frame of translations for
-            names of major tissues
-        data_tissues_minor (object): Pandas data frame of translations for
-            names of minor tissues
+        dock (str): path to root or dock directory for source and product
+            directories and files
 
     raises:
 
@@ -446,6 +378,15 @@ def organize_samples_tissues_persons(
         (object): Pandas data frame of persons and tissues for all samples
 
     """
+
+    # Read source information from file.
+    source = read_source_sample(dock=dock)
+
+    # Summarize the structures of the raw data.
+    summarize_raw_data_sample(
+        data_person_attribute=source["data_person_attribute"],
+        data_sample_attribute=source["data_sample_attribute"],
+    )
 
     # Extract association of samples to persons and tissues.
     utility.print_terminal_partition(level=1)
@@ -455,6 +396,11 @@ def organize_samples_tissues_persons(
     # Collect tissues and persons for each sample.
     utility.print_terminal_partition(level=2)
     print("Collection of tissues and persons for each sample.")
+    print(
+        "Extract sample identifiers from the original data for genes' " +
+        "signals."
+    )
+    print("These samples are comprehensive before any filters or selection.")
     print("Extract person identifiers from sample identifiers.")
     # Extract identifiers of samples with measurements for genes.
     # Extract names of columns.
@@ -463,16 +409,16 @@ def organize_samples_tissues_persons(
     # NumPy array
     #headers = data_gene_signal.columns.values
     # List
-    headers = data_gene_signal.columns.to_list()
+    headers = source["data_gene_signal"].columns.to_list()
     # Exclude name and description.
     samples = headers[2:]
     # Collect information about samples.
     samples_tissues_persons = collect_samples_tissues_persons(
         samples=samples,
-        data_person_attribute=data_person_attribute,
-        data_sample_attribute=data_sample_attribute,
-        data_tissues_major=data_tissues_major,
-        data_tissues_minor=data_tissues_minor,
+        data_person_attribute=source["data_person_attribute"],
+        data_sample_attribute=source["data_sample_attribute"],
+        data_tissues_major=source["data_tissues_major"],
+        data_tissues_minor=source["data_tissues_minor"],
     )
     data_samples_tissues_persons = utility.convert_records_to_dataframe(
         records=samples_tissues_persons
@@ -504,6 +450,68 @@ def organize_samples_tissues_persons(
 
 ##########
 # Organization of genes' annotations.
+
+
+def read_source_gene_annotation(dock=None):
+    """
+    Reads and organizes source information from file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_access = os.path.join(dock, "access")
+    path_gene_annotation = os.path.join(
+        path_access, "annotation_gene_gencode.gtf"
+    )
+    # Read information from file.
+    #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
+    data_gene_annotation = gtfparse.read_gtf(path_gene_annotation)
+    # Compile and return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+    }
+
+
+def summarize_raw_data_gene_annotation(
+    data_gene_annotation=None,
+):
+    """
+    Optimizes data types.
+
+    arguments:
+        data_gene_annotation (object): Pandas data frame of annotation of
+            genes.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Samples beginning with code person "K-562" seem to be exceptions.
+    # These samples do not seem to have any attributes or measurements.
+    # These samples all seem to be for tissue "Bone Marrow".
+
+    # Summarize the structures of the raw data.
+    utility.print_terminal_partition(level=1)
+    print("Summary of structures of raw data tables.")
+
+    # Summarize table of genes' annotations.
+    utility.print_terminal_partition(level=2)
+    print("Summary of table of genes' annotations from GENCODE version 29.")
+    print(data_gene_annotation)
+    print(data_gene_annotation.iloc[0:10, 0:10])
+
+    pass
 
 
 def extract_gene_identifier(string):
@@ -560,13 +568,14 @@ def define_redundant_records():
 
 
 def organize_genes_annotations(
-    data=None
+    dock=None
 ):
     """
     Organizes genes' annotations.
 
     arguments:
-        data (object): Pandas data frame of genes' annotations from GENCODE.
+        dock (str): path to root or dock directory for source and product
+            directories and files
 
     raises:
 
@@ -575,14 +584,22 @@ def organize_genes_annotations(
 
     """
 
+    # Read source information from file.
+    source = read_source_gene_annotation(dock=dock)
+
+    # Summarize the structures of the raw data.
+    summarize_raw_data_gene_annotation(
+        data_gene_annotation=source["data_gene_annotation"],
+    )
+
     # Organize annotations of genes.
     utility.print_terminal_partition(level=1)
     print("Organization of genes' annotations.")
 
     # Define and select relevant columns.
-    print(data.shape)
+    print(source["data_gene_annotation"].shape)
     columns = ["feature", "gene_id", "gene_type", "gene_name"]
-    data_interest = data.loc[ :, columns]
+    data_interest = source["data_gene_annotation"].loc[ :, columns]
     print(data_interest.shape)
     print(data_interest.iloc[0:10, 0:15])
     # Select entries for genes.
@@ -648,7 +665,75 @@ def organize_genes_annotations(
 
 
 ##########
-# Organization of genes' signals.
+# Organization of genes' counts.
+
+
+def read_source_gene_count(dock=None):
+    """
+    Reads and organizes source information from file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_access = os.path.join(dock, "access")
+    path_gene_count = os.path.join(path_access, "count_gene.gct")
+    # Read information from file.
+    #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
+    data_gene_count = pandas.read_csv(
+        path_gene_count,
+        sep="\t",
+        header=2,
+        #nrows=1000,
+    )
+    # Compile and return information.
+    return {
+        "data_gene_count": data_gene_count,
+    }
+
+
+def summarize_raw_data_gene_count(
+    data_gene_count=None,
+):
+    """
+    Optimizes data types.
+
+    arguments:
+        data_gene_count (object): Pandas data frame of genes' counts across
+            samples.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Samples beginning with code person "K-562" seem to be exceptions.
+    # These samples do not seem to have any attributes or measurements.
+    # These samples all seem to be for tissue "Bone Marrow".
+
+    # Summarize the structures of the raw data.
+    utility.print_terminal_partition(level=1)
+    print("Summary of structures of raw data tables.")
+
+    # Summarize table of genes' signals in all samples.
+    utility.print_terminal_partition(level=2)
+    print("Summary of table of genes' counts in all samples.")
+    print("Genes' counts represent reads mapped to genes.")
+    print(data_gene_count)
+    print(data_gene_count.iloc[0:10, 0:10])
+    print("Count of genes: " + str(data_gene_count.shape[0]))
+    print("Count of samples: " + str(data_gene_count.shape[1]))
+
+    pass
 
 
 def organize_data_axes_indices(data=None):
@@ -747,23 +832,29 @@ def convert_data_types(data=None, type=None):
 
 
 def organize_genes_counts(
-    data_gene_count=None,
-    data_gene_annotation=None,
+    dock=None,
 ):
     """
     Organizes counts of genes.
 
     arguments:
-        data_gene_count (object): Pandas data frame of genes' counts for all
-            samples.
-        data_gene_annotation (object): Pandas data frame of genes' annotations
+        dock (str): path to root or dock directory for source and product
+            directories and files
 
     raises:
 
     returns:
-        (object): Pandas data frame of genes' counts for all samples
+        (object): Pandas data frame of genes' counts across samples
 
     """
+
+    # Read source information from file.
+    source = read_source_gene_count(dock=dock)
+
+    # Summarize the structures of the raw data.
+    summarize_raw_data_gene_count(
+        data_gene_count=source["data_gene_count"],
+    )
 
     # Organize genes' signals.
     utility.print_terminal_partition(level=1)
@@ -771,7 +862,7 @@ def organize_genes_counts(
 
     # Organize data with names and indices.
     data_gene_count = organize_data_axes_indices(
-        data=data_gene_count
+        data=source["data_gene_count"]
     )
 
     # Optimize data types.
@@ -784,25 +875,104 @@ def organize_genes_counts(
     return data_gene_count
 
 
-def organize_genes_signals(
+
+##########
+# Organization of genes' signals.
+
+
+def read_source_gene_signal(dock=None):
+    """
+    Reads and organizes source information from file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_access = os.path.join(dock, "access")
+    path_gene_signal = os.path.join(path_access, "signal_gene.gct")
+    # Read information from file.
+    #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
+    data_gene_signal = pandas.read_csv(
+        path_gene_signal,
+        sep="\t",
+        header=2,
+        #nrows=1000,
+    )
+    # Compile and return information.
+    return {
+        "data_gene_signal": data_gene_signal,
+    }
+
+
+def summarize_raw_data_gene_signal(
     data_gene_signal=None,
-    data_gene_annotation=None,
+):
+    """
+    Optimizes data types.
+
+    arguments:
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Samples beginning with code person "K-562" seem to be exceptions.
+    # These samples do not seem to have any attributes or measurements.
+    # These samples all seem to be for tissue "Bone Marrow".
+
+    # Summarize the structures of the raw data.
+    utility.print_terminal_partition(level=1)
+    print("Summary of structures of raw data tables.")
+
+    # Summarize table of genes' signals in all samples.
+    utility.print_terminal_partition(level=2)
+    print("Summary of table of genes' signals in all samples.")
+    print("Genes' signals are in Transcripts Per Million (TPM).")
+    print(data_gene_signal)
+    print(data_gene_signal.iloc[0:10, 0:10])
+    print("Count of genes: " + str(data_gene_signal.shape[0]))
+    print("Count of samples: " + str(data_gene_signal.shape[1]))
+    #print(source["data_gene_signal"].loc[:,"GTEX-1117F-0226-SM-5GZZ7"])
+
+    pass
+
+
+def organize_genes_signals(
+    dock=None,
 ):
     """
     Collects tissues, persons, and genes' signals for each sample.
 
     arguments:
-        data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples
-        data_gene_annotation (object): Pandas data frame of genes' annotations
+        dock (str): path to root or dock directory for source and product
+            directories and files
 
     raises:
 
     returns:
-        (object): Pandas data frame of genes' signals for all samples, tissues,
-            and persons
+        (object): Pandas data frame of genes' signals across samples
 
     """
+
+    # Read source information from file.
+    source = read_source_gene_signal(dock=dock)
+
+    # Summarize the structures of the raw data.
+    summarize_raw_data_gene_signal(
+        data_gene_signal=source["data_gene_signal"],
+    )
 
     # Organize genes' signals.
     utility.print_terminal_partition(level=1)
@@ -810,7 +980,7 @@ def organize_genes_signals(
 
     # Organize data with names and indices.
     data_gene_signal = organize_data_axes_indices(
-        data=data_gene_signal
+        data=source["data_gene_signal"]
     )
 
     # Optimize data types.
@@ -917,6 +1087,9 @@ def associate_samples_persons_tissues(
     """
     Associates samples, persons, and tissues for each gene's signal.
 
+    The table data_gene_sample needs to have samples across rows and genes
+    across columns.
+
     arguments:
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples.
@@ -950,8 +1123,6 @@ def associate_samples_persons_tissues(
     return data_gene_sample_person_tissue
 
 
-
-
 ##########
 # Product.
 
@@ -977,12 +1148,15 @@ def write_product(dock=None, information=None):
     path_samples_tissues_persons = os.path.join(
         path_assembly, "data_samples_tissues_persons.pickle"
     )
+    path_samples_tissues_persons_text = os.path.join(
+        path_assembly, "data_samples_tissues_persons.txt"
+    )
     path_gene_annotation = os.path.join(
         path_assembly, "data_gene_annotation.pickle"
     )
-    #path_gene_count = os.path.join(
-    #    path_assembly, "data_gene_count.pickle"
-    #)
+    path_gene_count = os.path.join(
+        path_assembly, "data_gene_count.pickle"
+    )
     path_gene_signal = os.path.join(
         path_assembly, "data_gene_signal.pickle"
     )
@@ -992,14 +1166,20 @@ def write_product(dock=None, information=None):
         information["data_samples_tissues_persons"],
         path_samples_tissues_persons
     )
+    information["data_samples_tissues_persons"].to_csv(
+        path_or_buf=path_samples_tissues_persons_text,
+        sep="\t",
+        header=True,
+        index=False,
+    )
     pandas.to_pickle(
         information["data_gene_annotation"],
         path_gene_annotation
     )
-    #pandas.to_pickle(
-    #    information["data_gene_count"],
-    #    path_gene_count
-    #)
+    pandas.to_pickle(
+        information["data_gene_count"],
+        path_gene_count
+    )
     pandas.to_pickle(
         information["data_gene_signal"],
         path_gene_signal
@@ -1025,30 +1205,18 @@ def execute_procedure(dock=None):
 
     """
 
+    # Memory conservation
     # Data for genes' signals is extensive.
     # Conserve memory.
     # Avoid unnecessary copies of the data.
     # Containerize portions of script within separate functions.
     # Collect garbage frequently.
     # Optimize data types of genes' signals.
+    # Organize independent portions of data separately to avoid storing data
+    # within memory unnecessarily.
 
     # Enable automatic garbage collection to clear memory.
     gc.enable()
-
-    # Read source information from file.
-    source = read_source(dock=dock)
-
-    ##################################################
-    ##################################################
-    ##################################################
-
-    # Summarize the structures of the raw data.
-    summarize_raw_data(
-        data_person_attribute=source["data_person_attribute"],
-        data_sample_attribute=source["data_sample_attribute"],
-        data_gene_annotation=source["data_gene_annotation"],
-        data_gene_signal=source["data_gene_signal"]
-    )
 
     ##################################################
     ##################################################
@@ -1056,12 +1224,11 @@ def execute_procedure(dock=None):
 
     # Organize associations of samples to persons and tissues.
     data_samples_tissues_persons = organize_samples_tissues_persons(
-        data_person_attribute=source["data_person_attribute"],
-        data_sample_attribute=source["data_sample_attribute"],
-        data_gene_signal=source["data_gene_signal"],
-        data_tissues_major=source["data_tissues_major"],
-        data_tissues_minor=source["data_tissues_minor"],
+        dock=dock,
     )
+
+    # Collect garbage to clear memory.
+    gc.collect()
 
     ##################################################
     ##################################################
@@ -1069,7 +1236,7 @@ def execute_procedure(dock=None):
 
     # Organize genes' annotations.
     data_gene_annotation = organize_genes_annotations(
-        data=source["data_gene_annotation"]
+        dock=dock,
     )
 
     # Collect garbage to clear memory.
@@ -1080,15 +1247,20 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize genes' counts.
-    #data_gene_count = organize_genes_counts(
-    #    data_gene_count=source["data_gene_count"],
-    #    data_gene_annotation=data_gene_annotation,
-    #)
+    data_gene_count = organize_genes_counts(
+        dock=dock,
+    )
+
+    # Collect garbage to clear memory.
+    gc.collect()
+
+    ##################################################
+    ##################################################
+    ##################################################
 
     # Organize genes' signals.
     data_gene_signal = organize_genes_signals(
-        data_gene_signal=source["data_gene_signal"],
-        data_gene_annotation=data_gene_annotation,
+        dock=dock,
     )
 
     # Collect garbage to clear memory.
@@ -1102,7 +1274,7 @@ def execute_procedure(dock=None):
     information = {
         "data_samples_tissues_persons": data_samples_tissues_persons,
         "data_gene_annotation": data_gene_annotation,
-        #"data_gene_count": data_gene_count,
+        "data_gene_count": data_gene_count,
         "data_gene_signal": data_gene_signal
     }
 

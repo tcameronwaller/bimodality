@@ -56,6 +56,9 @@ def read_source(dock=None):
         path_assembly, "data_samples_tissues_persons.pickle"
     )
     path_measurement = os.path.join(dock, "measurement")
+    path_gene_count = os.path.join(
+        path_measurement, "data_gene_count.pickle"
+    )
     path_gene_signal = os.path.join(
         path_measurement, "data_gene_signal.pickle"
     )
@@ -63,16 +66,19 @@ def read_source(dock=None):
     data_samples_tissues_persons = pandas.read_pickle(
         path_samples_tissues_persons
     )
+    data_gene_count = pandas.read_pickle(path_gene_count)
     data_gene_signal = pandas.read_pickle(path_gene_signal)
     # Compile and return information.
     return {
         "data_samples_tissues_persons": data_samples_tissues_persons,
+        "data_gene_count": data_gene_count,
         "data_gene_signal": data_gene_signal,
     }
 
 
 def summarize_samples_genes(
     data_samples_tissues_persons=None,
+    data_gene_count=None,
     data_gene_signal=None
 ):
     """
@@ -80,9 +86,11 @@ def summarize_samples_genes(
 
     arguments:
         data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples.
-        data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples.
+            and tissues for all samples
+        data_gene_count (object): Pandas data frame of genes' counts across
+            samples
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
 
     raises:
 
@@ -90,15 +98,23 @@ def summarize_samples_genes(
 
     """
 
+    # Copy data.
+    data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
+    data_gene_count = data_gene_count.copy(deep=True)
+    data_gene_signal = data_gene_signal.copy(deep=True)
+
     utility.print_terminal_partition(level=1)
     print("Summary of selection of samples and genes.")
     # Counts of samples and genes.
+    print("Genes' counts...")
+    print("Count of samples: " + str(data_gene_count.shape[1]))
+    print("Count of genes: " + str(data_gene_count.shape[0]))
+
+    print("Genes' signals...")
     print("Count of samples: " + str(data_gene_signal.shape[1]))
     print("Count of genes: " + str(data_gene_signal.shape[0]))
 
     # Major tissue categories.
-    data_samples_tissues_persons.copy(deep=True)
-    data_gene_signal = data_gene_signal.copy(deep=True)
     # Transpose data structure.
     # Organize genes across columns and samples across rows.
     data_transposition = data_gene_signal.transpose(copy=True)
@@ -240,7 +256,7 @@ def select_samples_genes(
     # sample.
     data_detection_gene = measurement.filter_genes_by_signal_threshold(
         data=data_sample,
-        threshold=1.0,
+        threshold=1,
     )
 
     # Filter samples by signal.
@@ -248,7 +264,7 @@ def select_samples_genes(
     # gene.
     data_detection_sample = measurement.filter_samples_by_signal_threshold(
         data=data_detection_gene,
-        threshold=1.0,
+        threshold=1,
     )
 
     # Return information.
@@ -313,20 +329,34 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_selection = os.path.join(dock, "selection")
     utility.confirm_path_directory(path_selection)
+    path_gene_count = os.path.join(
+        path_selection, "data_gene_count.pickle"
+    )
+    path_gene_count_factor = os.path.join(
+        path_selection, "data_gene_count_factor.pickle"
+    )
     path_gene_signal = os.path.join(
         path_selection, "data_gene_signal.pickle"
     )
-    path_gene_factor = os.path.join(
+    path_gene_signal_factor = os.path.join(
         path_selection, "data_gene_signal_factor.pickle"
     )
     # Write information to file.
+    pandas.to_pickle(
+        information["data_gene_count"],
+        path_gene_count
+    )
+    pandas.to_pickle(
+        information["data_gene_count_factor"],
+        path_gene_count_factor
+    )
     pandas.to_pickle(
         information["data_gene_signal"],
         path_gene_signal
     )
     pandas.to_pickle(
         information["data_gene_signal_factor"],
-        path_gene_factor
+        path_gene_signal_factor
     )
     pass
 
@@ -355,6 +385,7 @@ def execute_procedure(dock=None):
     # Summarize original counts of samples and genes.
     summarize_samples_genes(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_count=source["data_gene_count"],
         data_gene_signal=source["data_gene_signal"],
     )
 
@@ -377,6 +408,14 @@ def execute_procedure(dock=None):
     )
     utility.print_terminal_partition(level=2)
     print("Count of samples to select: " + str(len(samples)))
+
+    # Select genes' signals for specific samples.
+    data_gene_count_selection = select_samples_genes(
+        samples=samples,
+        data_gene_signal=source["data_gene_count"],
+    )
+    print(data_gene_count_selection)
+
     # Select genes' signals for specific samples.
     data_gene_signal_selection = select_samples_genes(
         samples=samples,
@@ -387,8 +426,19 @@ def execute_procedure(dock=None):
     # Summarize original counts of samples and genes.
     summarize_samples_genes(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_count=data_gene_count_selection,
         data_gene_signal=data_gene_signal_selection,
     )
+
+    # Transpose data structure.
+    # Organize genes across columns and samples across rows.
+    data_transposition = data_gene_count_selection.transpose(copy=True)
+    # Associate samples to persons and tissues.
+    data_gene_count_factor = assembly.associate_samples_persons_tissues(
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_sample=data_transposition,
+    )
+    print(data_gene_count_factor)
 
     # Transpose data structure.
     # Organize genes across columns and samples across rows.
@@ -402,6 +452,8 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
+        "data_gene_count": data_gene_count_selection,
+        "data_gene_count_factor": data_gene_count_factor,
         "data_gene_signal": data_gene_signal_selection,
         "data_gene_signal_factor": data_gene_signal_factor,
     }

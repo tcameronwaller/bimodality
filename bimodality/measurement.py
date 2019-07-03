@@ -112,6 +112,9 @@ def read_source(dock=None):
     path_gene_annotation = os.path.join(
         path_assembly, "data_gene_annotation.pickle"
     )
+    path_gene_count = os.path.join(
+        path_assembly, "data_gene_count.pickle"
+    )
     path_gene_signal = os.path.join(
         path_assembly, "data_gene_signal.pickle"
     )
@@ -119,10 +122,12 @@ def read_source(dock=None):
     data_gene_annotation = pandas.read_pickle(
         path_gene_annotation
     )
+    data_gene_count = pandas.read_pickle(path_gene_count)
     data_gene_signal = pandas.read_pickle(path_gene_signal)
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
+        "data_gene_count": data_gene_count,
         "data_gene_signal": data_gene_signal,
     }
 
@@ -479,7 +484,7 @@ def select_genes_counts(
     Selects genes' counts.
 
     arguments:
-        data_gene_count (object): Pandas data frame of genes' counts for all
+        data_gene_count (object): Pandas data frame of genes' counts across
             samples.
         data_gene_annotation (object): Pandas data frame of genes' annotations
 
@@ -493,6 +498,8 @@ def select_genes_counts(
     # Organize genes' signals.
     utility.print_terminal_partition(level=1)
     print("Selection of genes' counts.")
+
+    print("count of samples, original: " + str(data_gene_count.shape[1]))
 
     # Select genes that encode proteins.
     data_gene_count = select_genes_protein(
@@ -520,7 +527,23 @@ def select_genes_counts(
     utility.print_terminal_partition(level=2)
     print("Removal of signals for undetectable genes.")
     # Drop undetectable genes.
-    data_gene_count = drop_undetectable_genes(data=data_gene_count)
+    #data_gene_count = drop_undetectable_genes(data=data_gene_count)
+
+    # Filter genes by signal.
+    # Filter to keep only genes with signals beyond threshold in at least one
+    # sample.
+    data_gene_count = filter_genes_by_signal_threshold(
+        data=data_gene_count,
+        threshold=1,
+    )
+
+    # Filter samples by signal.
+    # Filter to keep only samples with signals beyond threshold in at least one
+    # gene.
+    data_gene_count = filter_samples_by_signal_threshold(
+        data=data_gene_count,
+        threshold=1,
+    )
 
     utility.print_terminal_partition(level=2)
 
@@ -530,7 +553,15 @@ def select_genes_counts(
 
     print("Count of original genes: 56202")
     print("Count of protein-coding genes: 18842")
-    print("Count of detectable genes: 18813")
+    print(
+        "Count of detectable genes, count beyond 0.0 in at least 1 sample: " +
+        "18813"
+    )
+    print(
+        "Count of detectable genes, count beyond 1 in at least 1 sample: " +
+        "18813"
+    )
+    print("count of samples, final: " + str(data_gene_count.shape[1]))
 
     # Return information.
     return data_gene_count
@@ -544,7 +575,7 @@ def select_genes_signals(
     Selects genes' signals.
 
     arguments:
-        data_gene_signal (object): Pandas data frame of genes' signals for all
+        data_gene_signal (object): Pandas data frame of genes' signals across
             samples
         data_gene_annotation (object): Pandas data frame of genes' annotations
 
@@ -623,9 +654,6 @@ def select_genes_signals(
         "Count of detectable genes, signal beyond 1.0 in at least 1 sample: " +
         "18511"
     )
-
-    print(data_gene_signal.iloc[0:10, 0:7])
-
     print("count of samples, final: " + str(data_gene_signal.shape[1]))
 
     # Return information.
@@ -650,11 +678,18 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_measurement = os.path.join(dock, "measurement")
     utility.confirm_path_directory(path_measurement)
+    path_gene_count = os.path.join(
+        path_measurement, "data_gene_count.pickle"
+    )
     path_gene_signal = os.path.join(
         path_measurement, "data_gene_signal.pickle"
     )
 
     # Write information to file.
+    pandas.to_pickle(
+        information["data_gene_count"],
+        path_gene_count
+    )
     pandas.to_pickle(
         information["data_gene_signal"],
         path_gene_signal
@@ -683,6 +718,12 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
+    # Organize genes' counts.
+    data_gene_count = select_genes_counts(
+        data_gene_count=source["data_gene_count"],
+        data_gene_annotation=source["data_gene_annotation"],
+    )
+
     # Organize genes' signals.
     data_gene_signal = select_genes_signals(
         data_gene_signal=source["data_gene_signal"],
@@ -691,6 +732,7 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
+        "data_gene_count": data_gene_count,
         "data_gene_signal": data_gene_signal
     }
 

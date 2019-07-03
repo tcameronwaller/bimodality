@@ -794,26 +794,97 @@ def calculate_gene_tissue_dispersion(
     # Calculate the variance of each gene within each major tissue type
     # TODO: Save a report of the variance of each gene across each major tissue type...
 
+    # Transpose data structure.
+    # Organize genes across columns and samples across rows.
+    data_transposition = data_gene_signal.transpose(copy=True)
+    # Associate samples to persons and tissues.
+    data_factor = assembly.associate_samples_persons_tissues(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_sample=data_transposition,
+    )
+    print(data_factor)
+
+    # Summarize groups by major and minor tissue categories.
+    # Split data by major and minor tissue categories.
+    utility.print_terminal_partition(level=2)
+    print("Groups of samples by major and minor tissues...")
+    groups = data_factor.groupby(level=["tissue_major", "tissue_minor"])
+    for name, group in groups:
+        print(name)
+        #print(group)
+
+    # Calculate dispersion in genes' signals across samples for each major
+    # tissue category.
+    # Split data by major tissue category and person.
+    utility.print_terminal_partition(level=2)
+    print(
+        "Calculate dispersion in genes' signals across samples for each " +
+        "major tissue category."
+    )
+    groups = data_factor.groupby(level=["tissue_major"])
+    # Aggregate genes' signals within groups by relative variance.
+    # Some genes' signals in some groups have means of zero.
+    data_dispersion = groups.aggregate(
+        lambda x: (x.var() / x.mean())
+    )
+    print(data_dispersion)
+
+    return data_dispersion
+
+
+##########
+# Aggregation of genes' signals by person and major tissue category
+# This material is scrap, since I decided to move this step to the organization
+# procedure.
+
+def aggregate_gene_signal_tissue(
+    data_samples_tissues_persons=None,
+    data_gene_signal=None
+):
+    """
+    Aggregates genes' signals across samples for any minor tissue categories.
+
+    arguments:
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+
+    """
 
     # Transpose data structure.
     # Organize genes across columns and samples across rows.
     data_transposition = data_gene_signal.transpose(copy=True)
     # Associate samples to persons and tissues.
-    data_sample = assembly.associate_samples_persons_tissues(
+    data_factor = assembly.associate_samples_persons_tissues(
         data_samples_tissues_persons=data_samples_tissues_persons,
         data_gene_sample=data_transposition,
     )
-    print(data_sample)
-    # Split data by major tissue category.
-    groups = data_sample.groupby(level=["tissue_major"])
+    print(data_factor)
+
+    # Split data by person and major tissue category.
+    utility.print_terminal_partition(level=2)
+    print("Groups of samples by person and major tissue...")
+    groups = data_factor.groupby(level=["person", "tissue_major"])
     for name, group in groups:
-        print(name)
-        print(group)
+        person = name[0]
+        if person == "GTEX-1117F":
+            print(name)
+            print(group)
+    # Aggregate genes' signals within groups by mean.
+    utility.print_terminal_partition(level=2)
+    print(
+        "Aggregate genes' signals within groups by mean."
+    )
+    data_mean = groups.aggregate(statistics.mean)
+    print(data_mean)
 
-
-    pass
-
-
+    return data_mean
 
 
 
@@ -863,6 +934,9 @@ def write_product(dock=None, information=None):
     path_sample_component_text = os.path.join(
         path_tissue, "data_sample_component.txt"
     )
+    path_gene_dispersion = os.path.join(
+        path_tissue, "data_gene_tissue_dispersion.pickle"
+    )
     # Write information to file.
     pandas.to_pickle(
         information["data_gene_signal_factor"],
@@ -898,6 +972,11 @@ def write_product(dock=None, information=None):
         header=True,
         index=False,
     )
+    pandas.to_pickle(
+        information["data_gene_tissue_dispersion"],
+        path_gene_dispersion
+    )
+
 
     pass
 
@@ -1024,23 +1103,17 @@ def execute_procedure(dock=None):
     )
 
     # Revert to orignal genes' signals before normalization or standardization.
-
-    if False:
-
-        # Describe the dispersion in each gene's signal within each major tissue
-        # category.
-        data_gene_tissue_dispersion = calculate_gene_tissue_dispersion(
-            data_samples_tissues_persons=source["data_samples_tissues_persons"],
-            data_gene_signal=source["data_gene_signal"],
-        )
-
-    # Aggregate genes' signals across minor tissue categories.
-    # TODO: Revert to the original data data with samples across rows and genes across columns
-    # Groupby both major tissue type AND patient
-    # Aggregate the signal for each gene across minor tissue types...
-
-    # TODO: Save a report of the non-sex-specific tissues
-    # TODO: Describe also the minor tissue composition of each of these major tissue types...
+    # Describe the dispersion in each gene's signal within each major tissue
+    # category.
+    utility.print_terminal_partition(level=2)
+    print(
+        "Dispersion of each gene's signal across samples from each major " +
+        "tissue..."
+    )
+    data_gene_tissue_dispersion = calculate_gene_tissue_dispersion(
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_signal=source["data_gene_signal"],
+    )
 
     # Compile information.
     information = {
@@ -1048,6 +1121,7 @@ def execute_procedure(dock=None):
         "data_component_variance": report_component["data_component_variance"],
         "data_component": report_component["data_component"],
         "data_sample_component": data_sample_component,
+        "data_gene_tissue_dispersion": data_gene_tissue_dispersion,
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

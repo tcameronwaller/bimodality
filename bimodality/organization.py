@@ -49,35 +49,21 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
-    path_persons_tissues_samples = os.path.join(
-        path_assembly, "persons_tissues_samples.pickle"
+    path_split = os.path.join(dock, "split")
+    path_genes = os.path.join(
+        path_split, "genes.txt"
     )
-    path_gene_signal_assembly = os.path.join(
-        path_assembly, "data_gene_signal.pickle"
-    )
-    path_selection = os.path.join(dock, "selection")
-    path_tissues = os.path.join(path_selection, "tissues.pickle")
-    path_persons = os.path.join(path_selection, "persons.pickle")
-    path_gene_signal_selection = os.path.join(
-        path_selection, "data_gene_signal.pickle"
+    path_signal = os.path.join(
+        path_split, "genes_samples_signals.pickle"
     )
     # Read information from file.
-    with open(path_persons_tissues_samples, "rb") as file_source:
-        persons_tissues_samples = pickle.load(file_source)
-    with open(path_tissues, "rb") as file_source:
-        tissues = pickle.load(file_source)
-    with open(path_persons, "rb") as file_source:
-        persons = pickle.load(file_source)
-    data_gene_signal_assembly = pandas.read_pickle(path_gene_signal_assembly)
-    data_gene_signal_selection = pandas.read_pickle(path_gene_signal_selection)
+    genes = utility.read_file_text_list(path_genes)
+    with open(path_signal, "rb") as file_source:
+        genes_samples_signals = pickle.load(file_source)
     # Compile and return information.
     return {
-        "persons_tissues_samples": persons_tissues_samples,
-        "tissues": tissues,
-        "persons": persons,
-        "data_gene_signal_assembly": data_gene_signal_assembly,
-        "data_gene_signal_selection": data_gene_signal_selection,
+        "genes": genes,
+        "genes_samples_signals": genes_samples_signals,
     }
 
 
@@ -949,22 +935,38 @@ def write_product(dock=None, information=None):
 # Procedure
 
 
-def execute_procedure(dock=None):
+def execute_procedure(
+    selection=None,
+    count=None,
+    data_gene_sample_signal=None
+):
     """
     Function to execute module's main behavior.
 
     arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
+        selection (str): method for selection of tissues and patients, either
+            "availability" for selection by minimal count of tissues, or
+            "imputation" for selection by same tissues with imputation
+        count (int): either minimal count of tissues for selection by
+            "availability" or maximal count of imputation for selection by
+            "imputation"
+        data_gene_sample_signal (object): Pandas data frame of a gene's signals
+            across samples
 
     raises:
 
     returns:
+        (dict): report about gene, list of gene's signals across persons
 
     """
 
-    # Read source information from file.
-    source = read_source(dock=dock)
+    # Aggregate genes' signals within groups by person and major tissue
+    # category.
+    data_gene_signal_tissue = aggregate_gene_signal_tissue(
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_signal=source["data_gene_signal"],
+    )
+
 
     print(source["data_gene_signal_assembly"].iloc[0:25, 0:10])
     print(source["data_gene_signal_assembly"].shape)
@@ -1014,14 +1016,11 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
-        "data_gene_signal_mean": aggregation["mean"],
-        "data_gene_signal_median": aggregation["median"],
-        "data_gene_signal_imputation": data_gene_signal_imputation,
-        "data_gene_signal_log": data_gene_signal_log,
-        "data_gene_signal_standard": data_gene_signal_standard,
+        "report": report,
+        "gene_persons_signals": gene_persons_signals,
     }
-    #Write product information to file.
-    write_product(dock=dock, information=information)
+    # Return information.
+    return information
 
 
 
