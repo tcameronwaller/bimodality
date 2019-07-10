@@ -416,17 +416,18 @@ def transform_gene_signal_log(
     # counts before calculation of the base-2 logarithm.
     # log-2 signal = log2(TPM + pseudo-count)
     # pseudo-count = 1.0
-    utility.print_terminal_partition(level=2)
-    print("Transformation of genes' signals to base-2 logarithmic space.")
-    print(
-        "To accommodate gene signals of 0.0, add a pseudo count of 1.0-5.0 " +
-        "to all counts before calculation of the base-2 logarithm."
-    )
+    if False:
+        utility.print_terminal_partition(level=2)
+        print("Transformation of genes' signals to base-2 logarithmic space.")
+        print(
+            "To accommodate gene signals of 0.0, add a pseudo count of 1.0-5.0 " +
+            "to all counts before calculation of the base-2 logarithm."
+        )
     data_gene_signal_log = calculate_logarithm_gene_signal(
         pseudo_count=pseudo_count,
         data_gene_signal=data_gene_signal
     )
-    print(data_gene_signal_log.iloc[0:10, 0:10])
+    #print(data_gene_signal_log.iloc[0:10, 0:10])
 
     return data_gene_signal_log
 

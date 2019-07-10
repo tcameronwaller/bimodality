@@ -128,6 +128,10 @@ def calculate_probability_equal_greater(
     return probability
 
 
+# TODO: This is an important function...
+# TODO: eliminate the combination score...
+# TODO: just calculate p-values for all modality metrics
+
 def calculate_probabilities_genes(
     genes_scores_distributions=None
 ):
@@ -876,6 +880,12 @@ def execute_procedure(dock=None):
     )
     #print(source["genes_scores_distributions"]["ENSG00000005483"])
     #print(genes_probabilities["ENSG00000005483"])
+
+
+    # TODO: ...
+    # Use Fisher's or Stouffer's method to combine p-values for all modality
+    # metrics...
+    # Rank genes by the combined p-value
 
     # Organize gene summary.
     data_summary_genes = organize_summary_genes(

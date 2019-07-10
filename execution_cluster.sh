@@ -13,7 +13,7 @@
 # Specify priority 0-15.
 #$ -p -7
 # Specify count of concurrent processes.
-#$ -tc 200
+#$ -tc 300
 # Specify long process.
 #$ -l long
 # Specify memory per process.

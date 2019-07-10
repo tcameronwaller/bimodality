@@ -54,41 +54,48 @@ def read_source(dock=None):
 
     # Specify directories and files.
     path_split = os.path.join(dock, "split")
-    path_signal = os.path.join(
-        path_split, "genes_signals_patients_tissues.pickle"
+    path_persons = os.path.join(
+        path_split, "persons.pickle"
+    )
+    path_tissues = os.path.join(
+        path_split, "tissues.pickle"
     )
     # Read information from file.
-    genes_signals_patients_tissues = pandas.read_pickle(path_signal)
+    with open(path_persons, "rb") as file_source:
+        persons = pickle.load(file_source)
+    with open(path_tissues, "rb") as file_source:
+        tissues = pickle.load(file_source)
     # Compile and return information.
     return {
-        "genes_signals_patients_tissues": genes_signals_patients_tissues,
+        "persons": persons,
+        "tissues": tissues,
     }
 
 
 def create_matrix(
-    width=None,
-    length=None
+    dimension_zero=None,
+    dimension_one=None
 ):
     """
     Creates matrix of indices.
 
     arguments:
-        width (int): Count of indices in the first level axis, columns.
-        length (int): Count of indices in the second level axis, rows.
+        dimension_zero (int): count of indices in the first dimension or axis
+        dimension_one (int): count of indices in the second dimension or axis
 
     raises:
 
     returns:
-        (list<list<int>>): Matrix of indices.
+        (list<list<int>>): matrix of indices
 
     """
 
     # Base indices on zero.
-    range_width = list(range(width))
-    range_length = list(range(length))
+    range_zero = list(range(dimension_zero))
+    range_one = list(range(dimension_one))
     matrix = list()
-    for index in range_width:
-        matrix.append(copy.copy(range_length))
+    for index in range_zero:
+        matrix.append(copy.copy(range_one))
     return matrix
 
 
@@ -144,36 +151,37 @@ def copy_matrices_shuffle_values(
 
 def create_shuffle_indices(
     count=None,
-    width=None,
-    length=None
+    dimension_zero=None,
+    dimension_one=None
 ):
     """
     Creates matrices of indices to shuffle values.
 
+    Dimensions of the shuffle matrix should match the count of tissues and
+    persons in the actual matrices for genes' signals.
+
     arguments:
-        count (int): Count of matrices to create.
-        width (int): Count of indices in the first level axis, columns.
-        length (int): Count of indices in the second level axis, rows.
+        count (int): count of matrices to create
+        dimension_zero (int): count of indices in the first dimension or axis
+        dimension_one (int): count of indices in the second dimension or axis
 
     raises:
 
     returns:
-        (list<list<list<int>>>): Matrices of indices.
+        (list<list<list<int>>>): matrices of indices
 
     """
-
-    # Dimensions of the shuffle matrix should match the count of tissues and
-    # patients in the actual matrices for genes' signals.
 
     # Structure the matrices of shuffle indices as lists of lists.
     # The implicit semantics of data frames bind values within rows across
     # multiple columns.
     # Use a simple list matrix instead to make shuffles convenient.
-    # The top dimension should be for tissues to allow convenient shuffles of
-    # patients for each tissue.
 
-    # Generate template matrix for permutations of patients and tissues.
-    matrix = create_matrix(width=width, length=length)
+    # Generate template matrix for permutations of persons and tissues.
+    matrix = create_matrix(
+        dimension_zero=dimension_zero,
+        dimension_one=dimension_one
+    )
 
     # Create and shuffle copies of the template matrix.
     matrices = copy_matrices_shuffle_values(count=count, matrix=matrix)
@@ -189,28 +197,150 @@ def create_shuffle_indices(
 
     # Print representation of first matrix.
     # Convert matrix to a data frame for a clear representation.
-    data = pandas.DataFrame(data=matrices[0]).transpose()
+    data = pandas.DataFrame(data=matrices[0])
     print(data)
 
-    # Demonstrate access to values.
-    # Matrix structure has tissues on first axis and patients on second axis.
-    print("Access individual value from first matrix.")
-    print(
-        "Matrix structure of shuffle indices has tissues on first axis and " +
-        "patients on second axis."
-    )
-    print(
-        "Matrix structure of genes' signals has tissues on columns and " +
-        "patients on rows."
-    )
-    print(
-        "Notice differences in access for matrices of indices versus signals."
-    )
     print(matrices[0][5][10])
-    print(data.loc[10, 5])
+    print(data.loc[5, 10])
 
     # Return information.
     return matrices
+
+
+# convert dataframe to matrix using dataframe.values
+# shuffle the matrix by indices using a map function as in... https://stackoverflow.com/questions/26194389/how-to-rearrange-array-based-upon-index-array
+# assign the shuffled matrix back to the same persons indices and tissues columns in a new pandas dataframe using the Pandas dataframe constructor
+
+#sorted_matrix = np.array(list(map(
+    #lambda index, sort: sort[index], index_matrix, matrix_to_sort
+#)))
+
+
+
+def shuffle_gene_signals_iterative(
+    data_gene_signals=None,
+    shuffle=None
+):
+    """
+    Shuffles the association of gene's signals between tissues and persons.
+
+    This method is iterative and inefficient.
+
+    This method requires dimension zero to correspond to tissues and dimension
+    one to correspond to persons.
+
+    arguments:
+        data_gene_signals (object): Pandas data frame of a gene's signals
+            across persons and tissues
+        shuffle (list<list<int>>): matrix of indices
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across persons and
+            tissues
+
+    """
+
+    # Determine values and counts of tissues and persons.
+    tissues = data_gene_signals.columns.to_list()
+    persons = data_gene_signals.index.to_list()
+    count_tissues = len(tissues)
+    count_persons = len(persons)
+
+    # Collect gene's signals.
+    gene_signals_shuffle = list()
+    for index_person in range(count_persons):
+        person = persons[index_person]
+        record = dict()
+        record["person"] = person
+        for index_tissue in range(count_tissues):
+            tissue = tissues[index_tissue]
+            index_person_shuffle = shuffle[index_tissue][index_person]
+            signal = (
+                data_gene_signals.iloc[index_person_shuffle, index_tissue]
+            )
+            record[tissue] = signal
+        gene_signals_shuffle.append(record)
+
+    # Convert records to data frame.
+    data = utility.convert_records_to_dataframe(
+        records=gene_signals_shuffle
+    )
+    data.rename_axis(
+        columns="tissue",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    data.set_index(
+        "person",
+        drop=True,
+        inplace=True,
+    )
+    return data
+
+
+def shuffle_gene_signals(
+    data_gene_signals=None,
+    shuffle=None
+):
+    """
+    Shuffles the association of gene's signals between tissues and persons.
+
+    This method requires less memory and less process time than the iterative
+    method.
+
+    This method requires dimension zero to correspond to persons and dimension
+    one to correspond to tissues.
+
+    arguments:
+        data_gene_signals (object): Pandas data frame of a gene's signals
+            across persons and tissues
+        shuffle (list<list<int>>): matrix of indices
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across persons and
+            tissues
+
+    """
+
+    # Copy data.
+    data = data_gene_signals.copy(deep=True)
+
+    # Determine values and counts of tissues and persons.
+    tissues = data.columns.to_list()
+    persons = data.index.to_list()
+
+    # Convert data to matrix.
+    matrix = data.values
+
+    # Sort data matrix's values by shuffle matrix's indices.
+    matrix_sort = numpy.array(list(map(
+        lambda index, sort: sort[numpy.array(index)], shuffle, matrix
+    )))
+
+    # Convert records to data frame.
+    data_sort = pandas.DataFrame(
+        data=matrix_sort,
+        index=persons,
+        columns=tissues,
+    )
+    data_sort.rename_axis(
+        columns="tissue",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    data_sort.rename_axis(
+        index="person",
+        axis="index",
+        copy=False,
+        inplace=True
+    )
+    return data_sort
 
 
 def write_product(dock=None, information=None):
@@ -261,35 +391,20 @@ def execute_procedure(dock=None, count=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
-    # Determine dimensions of the patient-tissue signal matrix for each gene.
-    print(source["genes_signals_patients_tissues"]["ENSG00000029363"].shape)
-    count_tissues = (
-        source["genes_signals_patients_tissues"]["ENSG00000029363"].shape[1]
-    )
-    count_patients = (
-        source["genes_signals_patients_tissues"]["ENSG00000029363"].shape[0]
-    )
-
     # Report.
     utility.print_terminal_partition(level=3)
     print(
         "Creating " + str(count) + " shuffles for matrices of dimensions " +
-        str(count_tissues) + " by " + str(count_patients) + "."
+        str(source["persons"]) + " by " + str(source["tissues"]) + "."
     )
     utility.print_terminal_partition(level=3)
 
     # Create shuffle indices.
     shuffles = create_shuffle_indices(
         count=count,
-        width=count_tissues,
-        length=count_patients
+        dimension_zero=source["persons"],
+        dimension_one=source["tissues"],
     )
-
-    # when I apply the shuffle indices to the actual gene signal matrix, I might need to reset the gene signal matrix to have a numeric index
-    # Consider doing this in split when setting up the gene matrices originally.
-    # Consider changing the "patient" to a column instead of an index.
-    # Then define some sort of mapping function to map a gene's matrix to values using the shuffle coordinates in the shuffle matrices...
-
 
     # Compile information.
     information = {

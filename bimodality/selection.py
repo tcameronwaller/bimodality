@@ -391,7 +391,7 @@ def execute_procedure(dock=None):
 
     # Select samples by exclusion.
     # Exclude samples for extra-corporeal tissues, such as cell lines.
-    # Exclude samples for tissues with fewer than 100 total samples.
+    # Exclude samples for tissues with fewer than 50 total samples.
     samples_exclusion = select_samples_by_exclusion(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
     )

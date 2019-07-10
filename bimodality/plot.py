@@ -1439,6 +1439,79 @@ def plot_charts_tissue(
 
 
 
+
+
+def read_source_restriction(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_collection = os.path.join(dock, "collection")
+    path_genes_patients = os.path.join(
+        path_collection, "genes_patients.pickle"
+    )
+    # Read information from file.
+    with open(path_genes_patients, "rb") as file_source:
+        genes_patients = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "genes_patients": genes_patients,
+    }
+
+
+def plot_charts_restriction(
+    dock=None
+):
+    """
+    Plots charts from the tissue process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    path_restriction = os.path.join(path_plot, "restriction")
+    utility.confirm_path_directory(path_restriction)
+    # Read source information from file.
+    source = read_source_restriction(dock=dock)
+    # Principal components.
+    print(source["genes_patients"])
+    print(str(len(source["genes_patients"])))
+    # Create charts for combinations of principal components.
+    plot_chart_restriction_genes_patients(
+        data=data,
+        fonts=fonts,
+        colors=colors,
+        path=path_tissue
+    )
+
+    pass
+
+
+
+
 ###############################################################################
 # Procedure
 
@@ -1460,7 +1533,8 @@ def execute_procedure(dock=None):
 
     #plot_charts_analysis(dock=dock)
     #plot_charts_sample(dock=dock)
-    plot_charts_tissue(dock=dock)
+    #plot_charts_tissue(dock=dock)
+    plot_charts_restriction(dock=dock)
 
     pass
 

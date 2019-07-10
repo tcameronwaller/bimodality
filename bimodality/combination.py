@@ -410,6 +410,13 @@ def execute_procedure(dock=None):
 
     """
 
+    #########################################################
+
+    # TODO: ...
+    # This procedure is mostly obsolete now... the analysis procedure replaces
+
+    ###########################################################
+
     # Read source information from file.
     source = read_source(dock=dock)
 

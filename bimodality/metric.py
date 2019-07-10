@@ -35,6 +35,7 @@ if False:
 import sklearn
 import sklearn.mixture
 import unidip
+import diptest
 
 # Custom
 
@@ -120,8 +121,17 @@ def calculate_dip_statistic(series=None):
     """
 
     # Calculate the Hartigans' dip test statistic.
-    dip = unidip.dip.dip_fn(series, is_hist=False, just_dip=True)
-    #dip = diptest.dip_test(series_r, simulate_p_value=True, B=1000)
+    # Python package "unidip".
+    #dip = unidip.dip.dip_fn(series, is_hist=False, just_dip=True)
+    #if False:
+    # Python package "diptest".
+    dip = diptest.dip(
+        numpy.array(series),
+        full_output=False,
+        min_is_0=True,
+        x_is_sorted=False,
+        )
+    #print("dip: " + str(dip))
     return dip
 
 

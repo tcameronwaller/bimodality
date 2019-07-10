@@ -18,6 +18,7 @@ import pickle
 import functools
 import multiprocessing
 import datetime
+import gc
 
 # Relevant
 
@@ -27,6 +28,10 @@ import scipy.stats
 
 # Custom
 
+import shuffle
+import organization
+import restriction
+import distribution
 import metric
 import utility
 
@@ -37,7 +42,7 @@ import utility
 # Functionality
 
 
-def read_source(dock=None):
+def read_source_local_initial(dock=None):
     """
     Reads and organizes source information from file
 
@@ -57,309 +62,189 @@ def read_source(dock=None):
     path_genes = os.path.join(
         path_split, "genes.txt"
     )
-    path_signal = os.path.join(
-        path_split, "genes_signals_patients_tissues.pickle"
-    )
+    # Read information from file.
+    genes = utility.read_file_text_list(path_genes)
+    # Compile and return information.
+    return {
+        "genes": genes,
+    }
+
+
+def read_source(
+    gene=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
     path_shuffle = os.path.join(dock, "shuffle")
     path_shuffles = os.path.join(
         path_shuffle, "shuffles.pickle"
     )
+    path_split = os.path.join(dock, "split")
+    path_collection = os.path.join(path_split, "collection")
+    path_gene = os.path.join(path_collection, (gene + ".pickle"))
     # Read information from file.
-    genes = utility.read_file_text_list(path_genes)
-    with open(path_signal, "rb") as file_source:
-        genes_signals_patients_tissues = pickle.load(file_source)
     with open(path_shuffles, "rb") as file_source:
         shuffles = pickle.load(file_source)
+    data_gene_samples_signals = pandas.read_pickle(path_gene)
     # Compile and return information.
     return {
-        "genes": genes,
-        "genes_signals_patients_tissues": genes_signals_patients_tissues,
+        "data_gene_samples_signals": data_gene_samples_signals,
         "shuffles": shuffles,
     }
 
 
-def calculate_sum_gene_signal_tissue(data_gene_signals=None):
+##########
+# Distribution
+
+
+def describe_gene_signal_distribution(
+    method=None,
+    count=None,
+    tissues=None,
+    data_gene_persons_tissues_signals=None,
+):
     """
-    Calculates the sum of genes' signals across tissues for each patient.
+    Prepares and describes the distribution of a gene's signals across persons.
 
     arguments:
-        data_gene_signals (object): Pandas data frame of a single gene's
-            signals across specific patients and tissues.
+        method (str): method for selection of tissues and patients, either
+            "availability" for selection by minimal count of tissues, or
+            "imputation" for selection by same tissues with imputation
+        count (int): either minimal count of tissues for selection by
+            "availability" or maximal count of imputation for selection by
+            "imputation"
+        tissues (list<str>): specific tissues to select by "imputation" method
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
 
     raises:
 
     returns:
-        (object): Pandas data frame of sum of standard score signals for all
-            genes across tissues for each patient.
+        (dict): information about the distribution of a gene's signals across
+            persons
 
     """
 
-    # Drop the tissue designations.
-    if False:
-        data_gene_signals.reset_index(level=["tissue"], inplace=True)
-        data_gene_signals.drop(
-            labels="tissue",
-            axis="columns",
-            inplace=True
-        )
-    # Apply calculation to groups.
-    data_sum = data_gene_signals.sum(axis="columns").to_frame(name="value")
-    return data_sum
+    # Restriction
+    collection_restriction = restriction.execute_procedure(
+        method=method,
+        count=count,
+        tissues=tissues,
+        data_gene_persons_tissues_signals=(
+            data_gene_persons_tissues_signals
+        ),
+    )
 
-
-def calculate_mean_gene_signal_patient(data_gene_signals=None):
-    """
-    Calculates the sum of genes' signals across patients for each tissue.
-
-    arguments:
-        data_gene_signals (object): Pandas data frame of a single gene's
-            signals across specific patients and tissues.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of sum of standard score signals for all
-            genes across tissues for each patient.
-
-    """
-
-    data = data_gene_signals.aggregate(statistics.mean, axis="index")
-    return data
-
-
-def calculate_bimodality_metrics(values=None):
-    """
-    Calculates metrics of bimodality.
-
-    arguments:
-        values (list<float>): Values for which to evaluate distribution.
-
-    raises:
-
-    returns:
-        (dict<float>): Values of metrics of bimodality.
-
-    """
-
-    # Calculate metrics of bimodality.
-    coefficient = metric.calculate_bimodality_coefficient(series=values)
-    dip = metric.calculate_dip_statistic(series=values)
-    mixture = metric.calculate_mixture_model_score(series=values)
+    # Distribution
+    collection_distribution = distribution.execute_procedure(
+        data_gene_persons_tissues_signals=(
+            collection_restriction["data_gene_persons_tissues_signals"]
+        ),
+    )
 
     # Compile information.
     information = {
-        "coefficient": coefficient,
-        "dip": dip,
-        "mixture": mixture,
+        "report_restriction": collection_restriction["report_gene"],
+        "values": collection_distribution["values"],
+        "scores": collection_distribution["scores"],
+        "report_distribution": collection_distribution["report_gene"],
     }
 
     # Return information.
     return information
 
 
-def analyze_gene_signal_distribution(data_gene_signals=None):
+##########
+# Shuffle
+
+
+def shuffle_gene_signal_distribution(
+    method=None,
+    count=None,
+    tissues=None,
+    shuffles=None,
+    data_gene_persons_tissues_signals=None,
+):
     """
-    Analyzes the distribution of a single gene's signals across tissues and
-    patients.
+    Prepares and describes the distribution of a gene's signals across persons.
 
     arguments:
-        data_gene_signals (object): Pandas data frame of a single gene's
-            signals across specific patients and tissues.
+        method (str): method for selection of tissues and patients, either
+            "availability" for selection by minimal count of tissues, or
+            "imputation" for selection by same tissues with imputation
+        count (int): either minimal count of tissues for selection by
+            "availability" or maximal count of imputation for selection by
+            "imputation"
+        tissues (list<str>): specific tissues to select by "imputation" method
+        shuffles (list<list<list<int>>>): matrices of indices
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
 
     raises:
 
     returns:
-        (dict): Values of a gene's aggregate abundance across tissues and
-            scores from this distribution.
+        (dict): information about the distribution of a gene's signals across
+            persons
 
     """
 
-    # Check that the mean of gene's signals across patients are consistent with
-    # shuffles.
-    # As the signals are in standard score space, the means center around zero.
-    # Consistency in the actual values suggests that the shuffles were correct.
-    if False:
-        data_check = calculate_mean_gene_signal_patient(
-            data_gene_signals=data_gene_signals
+    # Initialize collections of metrics.
+    coefficients = list()
+    dips = list()
+    mixtures = list()
+    # Iterate on shuffles.
+    for shuffle_matrix in shuffles:
+        # Shuffle gene's signals.
+        data_shuffle = shuffle.shuffle_gene_signals(
+            data_gene_signals=data_gene_persons_tissues_signals,
+            shuffle=shuffle_matrix
         )
-        print(
-            "Check that sum of all patients signals for each tissue does " +
-            "not change across shuffles."
+        # Prepare and describe distribution of shuffle of gene's signals.
+        distribution_shuffle = describe_gene_signal_distribution(
+            method=method,
+            count=count,
+            tissues=tissues,
+            data_gene_persons_tissues_signals=data_shuffle
         )
-        print(data_check)
-        print(data_gene_signals.shape)
-
-    # Aggregate signals by tissues.
-    data_gene_signal_aggregation = calculate_sum_gene_signal_tissue(
-        data_gene_signals=data_gene_signals
-    )
-    #print(data_gene_signal_aggregation)
-    values = data_gene_signal_aggregation["value"].to_list()
-    #print(values)
-
-    # Calculate metrics of bimodality.
-    scores = calculate_bimodality_metrics(values=values)
-    #print(scores)
-
+        # Collect metrics.
+        coefficients.append(
+            distribution_shuffle["scores"]["coefficient"]
+        )
+        dips.append(
+            distribution_shuffle["scores"]["dip"]
+        )
+        mixtures.append(
+            distribution_shuffle["scores"]["mixture"]
+        )
+        pass
     # Compile information.
     information = {
-        "values": values,
-        "scores": scores
+        "coefficient": coefficients,
+        "dip": dips,
+        "mixture": mixtures,
     }
+
     # Return information.
     return information
 
 
-def shuffle_gene_signals(
-    data_gene_signals=None,
-    shuffle=None
-):
-    """
-    Shuffles the association between tissues and patients of gene's signals.
-
-    arguments:
-        data_gene_signals (object): Pandas data frame of a single gene's
-            signals across specific patients and tissues.
-        shuffle (list<list<int>>): Matrix of indices.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of a single gene's signals across specific
-            patients and tissues.
-
-    """
-
-    # Determine identities and counts of tissues and patients.
-    tissues = data_gene_signals.columns.to_list()
-    patients = data_gene_signals.index.to_list()
-    count_tissues = len(tissues)
-    count_patients = len(patients)
-
-    # Collect gene's signals.
-    gene_signals_shuffle = list()
-    for index_patient in range(count_patients):
-        patient = patients[index_patient]
-        record = dict()
-        record["patient"] = patient
-        for index_tissue in range(count_tissues):
-            tissue = tissues[index_tissue]
-            index_patient_shuffle = shuffle[index_tissue][index_patient]
-            signal = (
-                data_gene_signals.iloc[index_patient_shuffle, index_tissue]
-            )
-            record[tissue] = signal
-        gene_signals_shuffle.append(record)
-
-    # Convert records to data frame.
-    data = utility.convert_records_to_dataframe(
-        records=gene_signals_shuffle
-    )
-    data.rename_axis(
-        columns="tissue",
-        axis="columns",
-        copy=False,
-        inplace=True
-    )
-    data.set_index(
-        "patient",
-        drop=True,
-        inplace=True,
-    )
-    return data
-
-
-def collect_shuffle_distributions_score(
-    data_gene_signals=None,
-    shuffles=None
-):
-    """
-    Collects across random shuffles the distribution of a gene's scores.
-
-    arguments:
-        data_gene_signals (object): Pandas data frame of a single gene's
-            signals across specific patients and tissues.
-        shuffles (list<list<list<int>>>): Matrices of indices.
-
-    raises:
-
-    returns:
-        (dict<list<float>>): Values of metrics of bimodality.
-
-    """
-
-    # Initialize collection of metrics.
-    distributions = dict()
-    distributions["coefficient"] = list()
-    distributions["dip"] = list()
-    distributions["mixture"] = list()
-    # Iterate on shuffles.
-    for shuffle in shuffles:
-
-        # Shuffle gene's signals.
-        data_gene_signals_shuffle = shuffle_gene_signals(
-            data_gene_signals=data_gene_signals,
-            shuffle=shuffle
-        )
-        #print(data_gene_signals_shuffle.iloc[0:10, :])
-
-        # Analyze gene's signals.
-        information = analyze_gene_signal_distribution(
-            data_gene_signals=data_gene_signals_shuffle
-        )
-        scores = information["scores"]
-
-        # Collect metrics.
-        distributions["coefficient"].append(scores["coefficient"])
-        distributions["dip"].append(scores["dip"])
-        distributions["mixture"].append(scores["mixture"])
-
-    # Return information.
-    return distributions
-
-
-def collect_shuffle_distribution_value(
-    data_gene_signals=None,
-    shuffles=None
-):
-    """
-    Collects across random shuffles the distribution of a gene's values.
-
-    arguments:
-        data_gene_signals (object): Pandas data frame of a single gene's
-            signals across specific patients and tissues.
-        shuffles (list<list<list<int>>>): Matrices of indices.
-
-    raises:
-
-    returns:
-        (list<float>): Values
-
-    """
-
-    # Initialize collection of metrics.
-    distribution = list()
-    # Iterate on shuffles.
-    for shuffle in shuffles:
-
-        # Shuffle gene's signals.
-        data_gene_signals_shuffle = shuffle_gene_signals(
-            data_gene_signals=data_gene_signals,
-            shuffle=shuffle
-        )
-        #print(data_gene_signals_shuffle.iloc[0:10, :])
-
-        # Analyze gene's signals.
-        information = analyze_gene_signal_distribution(
-            data_gene_signals=data_gene_signals_shuffle
-        )
-        values = information["values"]
-
-        # Collect metrics.
-        distribution.extend(values)
-
-    # Return information.
-    return distribution
+##########
+# Product
 
 
 def write_product(gene=None, dock=None, information=None):
@@ -383,29 +268,49 @@ def write_product(gene=None, dock=None, information=None):
     utility.confirm_path_directory(path_pipe)
     path_gene = os.path.join(path_pipe, gene)
     utility.confirm_path_directory(path_gene)
-    path_scores = os.path.join(
-        path_gene, "scores.pickle"
+    path_report_organization = os.path.join(
+        path_gene, "report_organization.pickle"
     )
-    path_distributions = os.path.join(
-        path_gene, "distributions.pickle"
+    path_report_restriction = os.path.join(
+        path_gene, "report_restriction.pickle"
+    )
+    path_report_distribution = os.path.join(
+        path_gene, "report_distribution.pickle"
+    )
+    path_scores_real = os.path.join(
+        path_gene, "scores_real.pickle"
+    )
+    path_scores_shuffle = os.path.join(
+        path_gene, "scores_shuffle.pickle"
     )
     # Write information to file.
-    with open(path_scores, "wb") as file_product:
-        pickle.dump(information["scores"], file_product)
-    with open(path_distributions, "wb") as file_product:
-        pickle.dump(information["distributions"], file_product)
+    with open(path_report_organization, "wb") as file_product:
+        pickle.dump(information["report_organization"], file_product)
+    with open(path_report_restriction, "wb") as file_product:
+        pickle.dump(information["report_restriction"], file_product)
+    with open(path_report_distribution, "wb") as file_product:
+        pickle.dump(information["report_distribution"], file_product)
+    with open(path_scores_real, "wb") as file_product:
+        pickle.dump(information["scores_real"], file_product)
+    with open(path_scores_shuffle, "wb") as file_product:
+        pickle.dump(information["scores_shuffle"], file_product)
 
     pass
 
 
-def execute_process(gene=None, genes_signals=None, shuffles=None, dock=None):
+###############################################################################
+# Procedure
+
+
+def execute_procedure(
+    gene=None,
+    dock=None
+):
     """
     Function to execute module's main behavior.
 
     arguments:
         gene (str): identifier of single gene for which to execute the process.
-        genes_signals (dict<object>): Collection of matrices.
-        shuffles (list<list<list<int>>>): Matrices of indices.
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -415,78 +320,66 @@ def execute_process(gene=None, genes_signals=None, shuffles=None, dock=None):
 
     """
 
-    # Access gene's signals.
-    # "ENSG00000029363"
-    data_gene_signals = (
-        genes_signals[gene].copy(deep=True)
-    )
-    #print(gene)
-    #print(data_gene_signals.iloc[0:10, :])
+    # Enable automatic garbage collection to clear memory.
+    gc.enable()
 
-    # Analyze the gene's real signals.
-    information = analyze_gene_signal_distribution(
-        data_gene_signals=data_gene_signals
-    )
-    scores = information["scores"]
-    #print(scores)
+    # Report gene.
 
-    # Collect random distributions of scores.
-    distributions = collect_shuffle_distributions_score(
-        data_gene_signals=data_gene_signals,
-        shuffles=shuffles
+    print("gene: " + gene)
+
+    # Read source information from file.
+    source = read_source(
+        gene=gene,
+        dock=dock
     )
-    #print(distributions["coefficient"][0:100])
-    #print(str(len(distributions["coefficient"])))
+
+    # Collect garbage to clear memory.
+    gc.collect()
+
+    # Organize data for analysis.
+    collection_organization = organization.execute_procedure(
+        data_gene_samples_signals=source["data_gene_samples_signals"]
+    )
+
+    # Prepare and describe distribution of real gene's signals.
+    # Method for selection is either "availability" or "imputation".
+    # Specific tissues are only relevant to "imputation" method.
+    tissues = [
+        "adipose", "blood", "colon", "esophagus", "heart", "muscle",
+        "lung", "nerve", "skin", "thyroid",
+    ]
+    distribution_real = describe_gene_signal_distribution(
+        method="availability",
+        count=7,
+        tissues=tissues,
+        data_gene_persons_tissues_signals=(
+            collection_organization["data_gene_persons_tissues_signals"]
+        )
+    )
+
+    # Prepare and describe distributions of shuffles of gene's signals.
+    scores_shuffle = shuffle_gene_signal_distribution(
+        method="availability",
+        count=7,
+        tissues=tissues,
+        shuffles=source["shuffles"],
+        data_gene_persons_tissues_signals=(
+            collection_organization["data_gene_persons_tissues_signals"]
+        )
+    )
 
     # Compile information.
     information = {
-        "scores": scores,
-        "distributions": distributions
+        "report_organization": collection_organization["report_gene"],
+        "report_restriction": distribution_real["report_restriction"],
+        "report_distribution": distribution_real["report_distribution"],
+        "scores_real": distribution_real["scores"],
+        "scores_shuffle": scores_shuffle,
     }
     #Write product information to file.
     write_product(gene=gene, dock=dock, information=information)
 
-    # Return gene identifier as verification of process completion.
-    #return gene
-
     pass
-
-
-# Scrap
-
-
-def calculate_sum_score_gene_signal_by_patient(data_gene_signal=None):
-    """
-    Calculates the sum of genes' signals across tissues for each patient.
-
-    arguments:
-        data_gene_signal (object): Pandas data frame of signals for all genes
-            across specific patients and tissues.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of sum of standard score signals for all
-            genes across tissues for each patient.
-
-    """
-
-    # Drop the tissue designations.
-    data_gene_signal.reset_index(level=["tissue"], inplace=True)
-    data_gene_signal.drop(
-        labels="tissue",
-        axis="columns",
-        inplace=True
-    )
-    # Define groups.
-    groups = data_gene_signal.groupby(level="patient")
-    # Apply calculation to groups.
-    data_sum = groups.aggregate(lambda x: x.sum())
-    return data_sum
-
-
-###############################################################################
-# Procedure
 
 
 def execute_procedure_local(dock=None):
@@ -503,72 +396,41 @@ def execute_procedure_local(dock=None):
 
     """
 
-    # 4. Collect shuffle metrics for gene
-    # 4.1. Apply shuffles to the gene's matrix... iterate on the previously-computed shuffle indices
-    # 4.2. For each shuffle, aggregate and calculate metrics
-    # 4.3. Collect metrics for the gene... probably within a list or dictionary?
-    # 5. Compile a report for the gene, probably consisting of multiple files.
-    # 6. Create a directory on file for the gene.
-    # 7. Save to file the report for the individual gene: real metrics, shuffle distribution, etc.
-
     # Read source information from file.
-    source = read_source(dock=dock)
+    source = read_source_local_initial(dock=dock)
 
     print("count of genes: " + str(len(source["genes"])))
-    print("count of shuffles: " + str(len(source["shuffles"])))
+    #print("count of shuffles: " + str(len(source["shuffles"])))
 
     # Report date and time.
     print(datetime.datetime.now())
 
-    # Shuffles: 1,000
-    # Machine: halyard
-    # Concurrent cores: 8
-    # Speed per core: 3.9 GHz
-    # Memory: 16.3 Gigabytes
-    # Genes: 100
-    # Duration: 16 minutes
-    # Estimate for 18,000 genes: 48 hours
-
-    # Shuffles: 1,000
-    # Machine: semillion
-    # Concurrent cores: 8
-    # Speed per core: 3.5 GHz
-    # Memory: 16.3 Gigabytes
-    # Genes: 100
-    # Duration: 27 minutes
-    # Estimate for 18,000 genes: 80 hours
-
-
-    # Shuffles: 10,000
-    # Concurrent cores: 8
-    # Speed per core: 3.9 GHz
-    # Memory: 22.5 Gigabytes
-    # Genes: 8
-    # Duration: 12 minutes
-    # Running 8 processes concurrently requires approximately 22.5 Gigabytes of
-    # memory.
-    # Each process, then, requires approximately 3 Gigabytes of memory.
-    # Running each batch of processes equal to the count of cores requires
-    # approximately 12 minutes.
-    # (18,000 genes) / (8 cores) = 2,250 batches
-    # (12 minutes / batch) * (2,250 batches) = (27,000 minutes) = (450 hours)
+    # Remove previous files to avoid version or batch confusion.
+    path_pipe = os.path.join(dock, "pipe")
+    utility.remove_directory(path=path_pipe)
 
     # Set up partial function for iterative execution.
     # Each iteration uses the same values for "genes_signals", "shuffles", and
     # "dock" variables.
-    execute_process_gene = functools.partial(
-        execute_process,
-        genes_signals=source["genes_signals_patients_tissues"],
-        shuffles=source["shuffles"],
+    execute_procedure_gene = functools.partial(
+        execute_procedure,
         dock=dock
     )
 
     # Initialize multiprocessing pool.
-    pool = multiprocessing.Pool(processes=os.cpu_count())
+    # Iterative shuffle procedure.
+    # 4 concurrent processes require approximately 60% of 32 Gigabytes memory.
+    # 5 concurrent processes require approximately 75% of 32 Gigabytes memory.
+    # 6 concurrent processes require approximately 90% of 32 Gigabytes memory.
+    # Index shuffle procedure.
+    # 6 concurrent processes require approximately 50% of 32 Gigabytes memory.
+    # 7 concurrent processes require approximately 65% of 32 Gigabytes memory.
+    #pool = multiprocessing.Pool(processes=os.cpu_count())
+    pool = multiprocessing.Pool(processes=7)
 
     # Iterate on genes.
-    #report = pool.map(execute_process_gene, source["genes"][0:5])
-    report = pool.map(execute_process_gene, source["genes"])
+    report = pool.map(execute_procedure_gene, source["genes"][0:14])
+    #report = pool.map(execute_procedure_gene, source["genes"])
 
     # Report.
     #print("Process complete for the following genes...")
@@ -595,22 +457,9 @@ def execute_procedure_remote(dock=None, gene=None):
 
     """
 
-    # 4. Collect shuffle metrics for gene
-    # 4.1. Apply shuffles to the gene's matrix... iterate on the previously-computed shuffle indices
-    # 4.2. For each shuffle, aggregate and calculate metrics
-    # 4.3. Collect metrics for the gene... probably within a list or dictionary?
-    # 5. Compile a report for the gene, probably consisting of multiple files.
-    # 6. Create a directory on file for the gene.
-    # 7. Save to file the report for the individual gene: real metrics, shuffle distribution, etc.
-
-    # Read source information from file.
-    source = read_source(dock=dock)
-
     # Execute procedure.
-    execute_process(
+    execute_procedure(
         gene=gene,
-        genes_signals=source["genes_signals_patients_tissues"],
-        shuffles=source["shuffles"],
         dock=dock
     )
 

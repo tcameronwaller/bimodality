@@ -168,7 +168,7 @@ def standardize_gene_signal(data_gene_signal=None):
 
 def calculate_standard_score_gene_signal_by_gene(data_gene_signal=None):
     """
-    Calculates the standard (z-score) of genes' signals for each gene.
+    Calculates the standard (z-score) of genes' signals across each gene.
 
     The standard scores are relative to gene.
     The values of mean and standard deviation are across all samples for each
@@ -551,6 +551,8 @@ def define_tissue_comparisons():
     return comparisons
 
 
+
+
 def check_index_column_sequence_match(
     data_index=None,
     data_column=None,
@@ -761,134 +763,6 @@ def organize_differential_expression(
         data_gene_count=source["data_gene_count"],
     )
     pass
-
-
-##########
-# Dispersion in genes' signals within tissues
-
-
-def calculate_gene_tissue_dispersion(
-    data_samples_tissues_persons=None,
-    data_gene_signal=None
-):
-    """
-    Calculates the dispersion of genes' signals across samples within major
-    tissue categories.
-
-    arguments:
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples.
-        data_gene_signal (object): Pandas data frame of genes' signals across
-            samples
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals across samples
-
-    """
-
-
-    # TODO: Aggregate genes' signals for each patient across minor tissue categories...
-    # Groupby the data by major tissue type
-    # Calculate the variance of each gene within each major tissue type
-    # TODO: Save a report of the variance of each gene across each major tissue type...
-
-    # Transpose data structure.
-    # Organize genes across columns and samples across rows.
-    data_transposition = data_gene_signal.transpose(copy=True)
-    # Associate samples to persons and tissues.
-    data_factor = assembly.associate_samples_persons_tissues(
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        data_gene_sample=data_transposition,
-    )
-    print(data_factor)
-
-    # Summarize groups by major and minor tissue categories.
-    # Split data by major and minor tissue categories.
-    utility.print_terminal_partition(level=2)
-    print("Groups of samples by major and minor tissues...")
-    groups = data_factor.groupby(level=["tissue_major", "tissue_minor"])
-    for name, group in groups:
-        print(name)
-        #print(group)
-
-    # Calculate dispersion in genes' signals across samples for each major
-    # tissue category.
-    # Split data by major tissue category and person.
-    utility.print_terminal_partition(level=2)
-    print(
-        "Calculate dispersion in genes' signals across samples for each " +
-        "major tissue category."
-    )
-    groups = data_factor.groupby(level=["tissue_major"])
-    # Aggregate genes' signals within groups by relative variance.
-    # Some genes' signals in some groups have means of zero.
-    data_dispersion = groups.aggregate(
-        lambda x: (x.var() / x.mean())
-    )
-    print(data_dispersion)
-
-    return data_dispersion
-
-
-##########
-# Aggregation of genes' signals by person and major tissue category
-# This material is scrap, since I decided to move this step to the organization
-# procedure.
-
-def aggregate_gene_signal_tissue(
-    data_samples_tissues_persons=None,
-    data_gene_signal=None
-):
-    """
-    Aggregates genes' signals across samples for any minor tissue categories.
-
-    arguments:
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples.
-        data_gene_signal (object): Pandas data frame of genes' signals across
-            samples
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals across samples
-
-    """
-
-    # Transpose data structure.
-    # Organize genes across columns and samples across rows.
-    data_transposition = data_gene_signal.transpose(copy=True)
-    # Associate samples to persons and tissues.
-    data_factor = assembly.associate_samples_persons_tissues(
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        data_gene_sample=data_transposition,
-    )
-    print(data_factor)
-
-    # Split data by person and major tissue category.
-    utility.print_terminal_partition(level=2)
-    print("Groups of samples by person and major tissue...")
-    groups = data_factor.groupby(level=["person", "tissue_major"])
-    for name, group in groups:
-        person = name[0]
-        if person == "GTEX-1117F":
-            print(name)
-            print(group)
-    # Aggregate genes' signals within groups by mean.
-    utility.print_terminal_partition(level=2)
-    print(
-        "Aggregate genes' signals within groups by mean."
-    )
-    data_mean = groups.aggregate(statistics.mean)
-    print(data_mean)
-
-    return data_mean
-
-
-
-
 
 
 ##########

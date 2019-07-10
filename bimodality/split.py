@@ -27,6 +27,7 @@ import scipy.stats
 # Custom
 
 import assembly
+import organization
 import utility
 
 
@@ -73,68 +74,6 @@ def read_source(dock=None):
     }
 
 
-def split_genes_signals_old(data_gene_signal=None):
-    """
-    Splits genes' signals across patients and tissues by genes.
-
-    arguments:
-        data_gene_signal (object): Pandas data frame of signals for all genes
-            across specific patients and tissues.
-
-    raises:
-
-    returns:
-        (dict<object>): Collection of matrices.
-
-    """
-
-    # Split genes' signals across tissues and patients by gene.
-    utility.print_terminal_partition(level=2)
-    print(
-        "Split of genes' signals across patients and tissues by gene."
-    )
-    print(
-        "Organize patients-tissues matrices for each gene within a " +
-        "data frame."
-    )
-    print(
-        "Organize patients as rows and tissues as columns."
-    )
-    print(
-        "In subsequent analyses, patients are higher in hierarchy than " +
-        "tissues."
-    )
-
-    # Change data's structure.
-    data_long = data_gene_signal.stack("gene").to_frame(name="value")
-    print(data_long)
-    print(data_long.shape)
-    data_stack = data_long.unstack(level="tissue")
-    data_stack.columns = data_stack.columns.get_level_values(1)
-    print(data_stack)
-    print(data_stack.shape)
-    data_stack.reset_index(level="gene", inplace=True)
-    groups = data_stack.groupby("gene")
-    # Collect matrices for each gene.
-    genes_signals = dict()
-    for name, group in groups:
-        data = group.copy(deep=True)
-        data.drop(
-            labels="gene",
-            axis="columns",
-            inplace=True
-        )
-        genes_signals[name] = data
-    # Print single matrix.
-    print("Access to matrix for a single gene.")
-    print(genes_signals["ENSG00000029363"])
-    print("Access to value for single patient and tissue for a single gene.")
-    print(genes_signals["ENSG00000029363"].loc["GTEX-117YW", "Blood"])
-
-    # Return information.
-    return genes_signals
-
-
 def split_genes_signals(
     data_samples_tissues_persons=None,
     data_gene_signal=None
@@ -151,7 +90,8 @@ def split_genes_signals(
     raises:
 
     returns:
-        (list<object>): Collection of Pandas data frames.
+        (dict<object>): collection of Pandas data frames of genes' signals
+            across samples
 
     """
 
@@ -179,22 +119,38 @@ def split_genes_signals(
     utility.print_terminal_partition(level=2)
     print("Stack of genes to factors.")
     data_long = data_factor.stack("gene").to_frame(name="signal")
+    # Organize data.
     data_long.reset_index(
         level=["sample", "person", "tissue_major", "tissue_minor", "gene"],
         inplace=True
     )
-    data_long.set_index(
-        ["gene", "sample", "person", "tissue_major", "tissue_minor"],
+    data_long.drop(
+        labels=["sample", "tissue_minor"],
+        axis="columns",
+        inplace=True
+    )
+    # Convert data types.
+    data_type = data_long.astype(
+        {
+            "gene": "str",
+            "person": "category",
+            "tissue_major": "category",
+            "signal": "float32",
+        },
+        copy=True,
+    )
+    data_type.set_index(
+        ["gene", "person", "tissue_major"],
         append=False,
         drop=True,
         inplace=True
     )
-    print(data_long)
+    print(data_type)
 
     # Split by gene.
     utility.print_terminal_partition(level=2)
     print("Split of genes' signals across samples by gene.")
-    groups = data_long.groupby("gene")
+    groups = data_type.groupby("gene")
     print("Count of groups by genes: " + str(len(groups)))
     # Collect data frames by gene.
     genes_samples_signals = dict()
@@ -211,14 +167,44 @@ def split_genes_signals(
     # Return information.
     return genes_samples_signals
 
-    if False:
-        print(data_long.shape)
-        data_stack = data_long.unstack(level="tissue")
-        data_stack.columns = data_stack.columns.get_level_values(1)
-        print(data_stack)
-        print(data_stack.shape)
-        data_stack.reset_index(level="gene", inplace=True)
-        groups = data_stack.groupby("gene")
+
+def summarize_gene_samples_signals(
+    data_gene_samples_signals=None,
+):
+    """
+    Summarize information about a gene's samples and signals.
+
+    arguments:
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+
+    raises:
+
+    returns:
+        (dict): counts of persons and tissues
+
+    """
+
+    print(data_gene_samples_signals)
+    utility.print_terminal_partition(level=2)
+    print("Determine counts of persons and tissues.")
+    print("Split gene's signals by person.")
+    groups = data_gene_samples_signals.groupby("person")
+    persons = len(groups)
+    print("Count of groups by person: " + str(persons))
+    # Count of persons = 710
+    print("Split gene's signals by major tissue category.")
+    groups = data_gene_samples_signals.groupby("tissue_major")
+    tissues = len(groups)
+    print("Count of groups by tissue: " + str(tissues))
+    # Count of tissues = 20
+    # Compile information.
+    information = {
+        "persons": persons,
+        "tissues": tissues,
+    }
+    # Return information.
+    return information
 
 
 def write_product(dock=None, information=None):
@@ -242,16 +228,49 @@ def write_product(dock=None, information=None):
     path_genes = os.path.join(
         path_split, "genes.txt"
     )
+    path_persons = os.path.join(
+        path_split, "persons.pickle"
+    )
+    path_tissues = os.path.join(
+        path_split, "tissues.pickle"
+    )
     path_signal = os.path.join(
         path_split, "genes_samples_signals.pickle"
     )
+    path_demo = os.path.join(
+        path_split, "demonstration_gene_samples_signals.pickle"
+    )
     # Write information to file.
+
+    # List of genes needs to be easy to read in Bash.
     utility.write_file_text_list(
         information=information["genes"], path_file=path_genes
     )
+    with open(path_persons, "wb") as file_product:
+        pickle.dump(information["persons"], file_product)
+    with open(path_tissues, "wb") as file_product:
+        pickle.dump(information["tissues"], file_product)
     with open(path_signal, "wb") as file_product:
         pickle.dump(information["genes_samples_signals"], file_product)
+    pandas.to_pickle(
+        information["data_gene_samples_signals"],
+        path_demo
+    )
 
+    # Write separate files for genes.
+    # Specify directories and files.
+    path_collection = os.path.join(path_split, "collection")
+    utility.confirm_path_directory(path_collection)
+    # Iterate on genes.
+    for gene in information["genes"]:
+        # Specify directories and files.
+        path_gene = os.path.join(path_collection, (gene + ".pickle"))
+        # Write information to file.
+        pandas.to_pickle(
+            information["genes_samples_signals"][gene],
+            path_gene
+        )
+        pass
     pass
 
 
@@ -279,12 +298,6 @@ def execute_procedure(dock=None):
     # Summary.
     print(source["data_gene_signal"].iloc[0:10, 0:10])
 
-    # Before I split... I need to aggregate the tissue categories... I need the same major tissues for every patient...
-    # Maybe I can go ahead and aggregate major tissue types within the tissue procedure?
-    # When I do that, I should also describe the variance of each gene across minor tissue types...
-
-    # Consider using pandas.DataFrame.round(decimals=10)
-
     # Split genes' signals across tissues and patients by gene.
     genes_samples_signals = split_genes_signals(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
@@ -296,10 +309,25 @@ def execute_procedure(dock=None):
     genes = source["data_gene_signal"].index.to_list()
     print("count of genes: " + str(len(genes)))
 
+    # Summarize information for a single gene.
+    # Access data for single gene for demonstration.
+    data_gene_samples_signals = genes_samples_signals["ENSG00000186092"]
+    persons_tissues = summarize_gene_samples_signals(
+        data_gene_samples_signals=data_gene_samples_signals
+    )
+
+    # Write the entire collection of all genes' signals to a single file.
+    # Also write each gene's signals to a separate file.
+    # Conserve memory in parallel pipeline by reading data for each gene
+    # separately.
+
     # Compile information.
     information = {
         "genes": genes,
+        "persons": persons_tissues["persons"],
+        "tissues": persons_tissues["tissues"],
         "genes_samples_signals": genes_samples_signals,
+        "data_gene_samples_signals": data_gene_samples_signals,
     }
 
     #Write product information to file.

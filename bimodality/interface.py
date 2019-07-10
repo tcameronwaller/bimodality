@@ -22,11 +22,14 @@ import sample
 import selection
 import tissue
 import split
+import shuffle
+import organization
+import restriction
+import distribution
+import pipe
+import collection
+
 if False:
-    import organization
-    import shuffle
-    import pipe
-    import collection
     import combination
     import analysis
     import function
@@ -190,20 +193,12 @@ def define_main_subparser(subparsers=None):
             "Comparison of minor and major categories of tissues."
         )
     )
+
     parser_main.add_argument(
         "-split", "--split", dest="split", action="store_true",
         help="Split genes' signals across samples by genes."
     )
 
-
-
-
-    parser_main.add_argument(
-        "-organization", "--organization", dest="organization",
-        action="store_true",
-        help="Organization of information for patients, tissues, samples, " +
-        "and genes."
-    )
     parser_main.add_argument(
         "-shuffle", "--shuffle", dest="shuffle", action="store_true",
         help=(
@@ -217,6 +212,7 @@ def define_main_subparser(subparsers=None):
             "Count of shuffles to generate in shuffle procedure."
         )
     )
+
     parser_main.add_argument(
         "-pipe", "--pipe", dest="pipe", action="store_true",
         help=(
@@ -242,6 +238,24 @@ def define_main_subparser(subparsers=None):
         help=(
             "Identifier of a single gene for pipe procedure."
         )
+    )
+
+    parser_main.add_argument(
+        "-organization", "--organization", dest="organization",
+        action="store_true",
+        help="Organization of information for each gene about signals " +
+        "across persons and tissues."
+    )
+    parser_main.add_argument(
+        "-restriction", "--restriction", dest="restriction",
+        action="store_true",
+        help="Restriction of analysis for each gene to specific persons " +
+        "and tissues."
+    )
+    parser_main.add_argument(
+        "-distribution", "--distribution", dest="distribution",
+        action="store_true",
+        help="Distribution of gene's signals across people."
     )
     parser_main.add_argument(
         "-collection", "--collection", dest="collection",
@@ -392,18 +406,12 @@ def evaluate_main_parameters(arguments):
         # Execute procedure.
         split.execute_procedure(dock=arguments.dock)
 
-
-
-    if arguments.organization:
-        # Report status.
-        print("... executing organization procedure ...")
-        # Execute procedure.
-        organization.execute_procedure(dock=arguments.dock)
     if arguments.shuffle:
         # Report status.
         print("... executing shuffle procedure ...")
         # Execute procedure.
         shuffle.execute_procedure(dock=arguments.dock, count=arguments.count)
+
     if arguments.pipe:
         if arguments.local:
             # Report status.
@@ -415,6 +423,23 @@ def evaluate_main_parameters(arguments):
             pipe.execute_procedure_remote(
                 dock=arguments.dock, gene=arguments.gene
             )
+
+    if arguments.organization:
+        # Report status.
+        print("... executing organization procedure ...")
+        # Execute procedure.
+        organization.test(dock=arguments.dock)
+    if arguments.restriction:
+        # Report status.
+        print("... executing restriction procedure ...")
+        # Execute procedure.
+        restriction.test(dock=arguments.dock)
+    if arguments.distribution:
+        # Report status.
+        print("... executing distribution procedure ...")
+        # Execute procedure.
+        distribution.test(dock=arguments.dock)
+
     if arguments.collection:
         # Report status.
         print("... executing collection procedure ...")
