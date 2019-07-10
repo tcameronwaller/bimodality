@@ -5,7 +5,7 @@
 # Specify shell.
 #$ -S /bin/bash
 # Specify name of job.
-#$ -N shuffles
+#$ -N gene_modality_shuffles
 # Transfer system variables, such as PATH.
 #$ -V
 # Specify use of current working directory.
