@@ -15,19 +15,19 @@ import textwrap
 # Relevant.
 
 # Custom.
-import access
-import assembly
+#import access
+#import assembly
 import measurement
-import sample
-import selection
-import tissue
-import split
+#import sample
+#import selection
+#import tissue
+#import split
 import shuffle
 import organization
 import restriction
 import distribution
 import pipe
-import collection
+#import collection
 
 if False:
     import combination
@@ -35,7 +35,7 @@ if False:
     import function
 import metric
 #import plot
-import test
+#import test
 import utility
 
 #dir()

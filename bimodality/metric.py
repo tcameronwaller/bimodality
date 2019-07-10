@@ -34,7 +34,7 @@ if False:
     diptest = rpy2.robjects.packages.importr("diptest")
 import sklearn
 import sklearn.mixture
-import unidip
+#import unidip
 import diptest
 
 # Custom
