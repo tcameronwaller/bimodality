@@ -47,13 +47,14 @@ echo "Now set to call routine and procedures."
 # Batch
 
 #python3 interface.py main --dock $path_dock --split
-python3 interface.py main --dock $path_dock --shuffle --count 10
+python3 interface.py main --dock $path_dock --shuffle --count 1
 
 #python3 interface.py main --dock $path_dock --organization
 #python3 interface.py main --dock $path_dock --restriction
 #python3 interface.py main --dock $path_dock --distribution
 
 python3 interface.py main --dock $path_dock --pipe --local
+
 #python3 interface.py main --dock $path_dock --pipe --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --pipe --local > $path_dock/report.out &
 

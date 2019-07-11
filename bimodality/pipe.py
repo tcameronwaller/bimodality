@@ -295,6 +295,14 @@ def write_product(gene=None, dock=None, information=None):
     with open(path_scores_shuffle, "wb") as file_product:
         pickle.dump(information["scores_shuffle"], file_product)
 
+    if False:
+        # Check values for specific genes.
+        print(information["report_organization"])
+        print(information["report_restriction"])
+        print(information["report_distribution"])
+        print(information["scores_real"])
+        print(information["scores_shuffle"])
+
     pass
 
 
@@ -304,13 +312,18 @@ def write_product(gene=None, dock=None, information=None):
 
 def execute_procedure(
     gene=None,
+    shuffles=None,
+    data_gene_samples_signals=None,
     dock=None
 ):
     """
     Function to execute module's main behavior.
 
     arguments:
-        gene (str): identifier of single gene for which to execute the process.
+        gene (str): identifier of single gene for which to execute the process
+        shuffles (list<list<list<int>>>): matrices of indices
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -320,25 +333,9 @@ def execute_procedure(
 
     """
 
-    # Enable automatic garbage collection to clear memory.
-    gc.enable()
-
-    # Report gene.
-
-    print("gene: " + gene)
-
-    # Read source information from file.
-    source = read_source(
-        gene=gene,
-        dock=dock
-    )
-
-    # Collect garbage to clear memory.
-    gc.collect()
-
     # Organize data for analysis.
     collection_organization = organization.execute_procedure(
-        data_gene_samples_signals=source["data_gene_samples_signals"]
+        data_gene_samples_signals=data_gene_samples_signals
     )
 
     # Prepare and describe distribution of real gene's signals.
@@ -362,7 +359,7 @@ def execute_procedure(
         method="availability",
         count=7,
         tissues=tissues,
-        shuffles=source["shuffles"],
+        shuffles=shuffles,
         data_gene_persons_tissues_signals=(
             collection_organization["data_gene_persons_tissues_signals"]
         )
@@ -403,7 +400,8 @@ def execute_procedure_local(dock=None):
     #print("count of shuffles: " + str(len(source["shuffles"])))
 
     # Report date and time.
-    print(datetime.datetime.now())
+    start = datetime.datetime.now()
+    print(start)
 
     # Remove previous files to avoid version or batch confusion.
     path_pipe = os.path.join(dock, "pipe")
@@ -413,7 +411,7 @@ def execute_procedure_local(dock=None):
     # Each iteration uses the same values for "genes_signals", "shuffles", and
     # "dock" variables.
     execute_procedure_gene = functools.partial(
-        execute_procedure,
+        execute_procedure_local_sub,
         dock=dock
     )
 
@@ -429,7 +427,11 @@ def execute_procedure_local(dock=None):
     pool = multiprocessing.Pool(processes=7)
 
     # Iterate on genes.
-    report = pool.map(execute_procedure_gene, source["genes"][0:14])
+    check_genes=[
+        "ENSG00000198965",
+    ]
+    #report = pool.map(execute_procedure_gene, check_genes)
+    report = pool.map(execute_procedure_gene, source["genes"][4000:])
     #report = pool.map(execute_procedure_gene, source["genes"])
 
     # Report.
@@ -437,9 +439,61 @@ def execute_procedure_local(dock=None):
     #print(str(len(report)))
 
     # Report date and time.
-    print(datetime.datetime.now())
+    end = datetime.datetime.now()
+    print(end)
+    print("duration: " + str(end - start))
 
     pass
+
+
+def execute_procedure_local_sub(gene=None, dock=None):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+        gene (str): identifier of single gene for which to execute the process.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Enable automatic garbage collection to clear memory.
+    #gc.enable()
+
+    # Report gene.
+    #print("gene: " + gene)
+
+    # Read source information from file.
+    source = read_source(
+        gene=gene,
+        dock=dock
+    )
+
+    # Collect garbage to clear memory.
+    #gc.collect()
+
+    # Execute procedure.
+    execute_procedure(
+        gene=gene,
+        shuffles=source["shuffles"],
+        data_gene_samples_signals=source["data_gene_samples_signals"],
+        dock=dock
+    )
+
+    # Report contents of directory.
+    path_pipe = os.path.join(dock, "pipe")
+    directories = os.listdir(path_pipe)
+    count = len(directories)
+    if (count % 10 == 0):
+        print("complete genes: " + str(len(directories)))
+
+    pass
+
+
 
 
 def execute_procedure_remote(dock=None, gene=None):
@@ -458,12 +512,56 @@ def execute_procedure_remote(dock=None, gene=None):
     """
 
     # Execute procedure.
-    execute_procedure(
+    execute_procedure_remote_sub(
         gene=gene,
         dock=dock
     )
 
     pass
+
+
+
+def execute_procedure_remote_sub(gene=None, dock=None):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+        gene (str): identifier of single gene for which to execute the process.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Enable automatic garbage collection to clear memory.
+    gc.enable()
+
+    # Report gene.
+    #print("gene: " + gene)
+
+    # Read source information from file.
+    source = read_source(
+        gene=gene,
+        dock=dock
+    )
+
+    # Collect garbage to clear memory.
+    gc.collect()
+
+    # Execute procedure.
+    execute_procedure(
+        gene=gene,
+        shuffles=source["shuffles"],
+        data_gene_samples_signals=source["data_gene_samples_signals"],
+        dock=dock
+    )
+
+    pass
+
+
 
 
 if (__name__ == "__main__"):

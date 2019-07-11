@@ -104,9 +104,13 @@ def calculate_standard_score_gene_signal_by_tissue(
 
     """
 
+    # Calculate standard score.
+    # This method inserts missing values if the standard deviation is zero.
     data_gene_standard = data_gene_persons_tissues_signals.apply(
-        lambda x: (x - x.mean()) / x.std(),
-        axis="columns",
+        lambda x: (
+            ((x - x.mean()) / x.std())
+        ),
+        axis="index",
     )
     return data_gene_standard
 
@@ -138,30 +142,30 @@ def standardize_gene_signal(
         utility.print_terminal_partition(level=3)
         print("Summary statistics for gene signals before standardization.")
         print(data_gene_persons_tissues_signals.iloc[0:10, 0:10])
-        data_mean = data_gene_persons_tissues_signals.apply(
+        data_mean = data_gene_persons_tissues_signals.aggregate(
             lambda x: x.mean(),
-            axis="columns"
+            axis="index"
         )
         print("Mean")
         print(data_mean.iloc[0:10])
-        data_deviation = data_gene_persons_tissues_signals.apply(
+        data_deviation = data_gene_persons_tissues_signals.aggregate(
             lambda x: x.std(),
-            axis="columns"
+            axis="index"
         )
         print("Standard deviation")
         print(data_deviation.iloc[0:10])
         utility.print_terminal_partition(level=3)
         print("Summary statistics for gene signals after standardization.")
         print(data_gene_signal_standard.iloc[0:10, 0:10])
-        data_mean = data_gene_signal_standard.apply(
+        data_mean = data_gene_signal_standard.aggregate(
             lambda x: x.mean(),
-            axis="columns"
+            axis="index"
         )
         print("Mean")
         print(data_mean.iloc[0:10])
-        data_deviation = data_gene_signal_standard.apply(
+        data_deviation = data_gene_signal_standard.aggregate(
             lambda x: x.std(),
-            axis="columns"
+            axis="index"
         )
         print("Standard deviation")
         print(data_deviation.iloc[0:10])
@@ -264,10 +268,21 @@ def calculate_bimodality_metrics(
 
     """
 
-    # Calculate metrics of bimodality.
-    coefficient = metric.calculate_bimodality_coefficient(series=values)
-    dip = metric.calculate_dip_statistic(series=values)
-    mixture = metric.calculate_mixture_model_score(series=values)
+    # Check count of values.
+    values_count = len(values)
+    if values_count < 10:
+        print("***Warning: current gene has values for < 10 persons.***")
+        # Unable to calculate metrics for small distribution.
+        coefficient = float("nan")
+        dip = float("nan")
+        mixture = float("nan")
+        pass
+    else:
+        # Calculate metrics of bimodality.
+        coefficient = metric.calculate_bimodality_coefficient(series=values)
+        dip = metric.calculate_dip_statistic(series=values)
+        mixture = metric.calculate_mixture_model_score(series=values)
+        pass
 
     # Compile information.
     information = {
@@ -416,21 +431,94 @@ def test(dock=None):
     print("Printing gene report... specifically data_gene_persons_signals")
     print(information["report_gene"]["data_gene_persons_signals"])
 
-    utility.print_terminal_partition(level=2)
+    ###########################################################################
+
+    utility.print_terminal_partition(level=1)
     print("Now let's test the shuffle procedure...")
 
+    utility.print_terminal_partition(level=2)
+    print("Here's the original matrix before shuffle.")
+    matrix = shuffle.create_matrix(
+        dimension_zero=20,
+        dimension_one=406
+    )
+    # Print representation of matrix.
+    # Convert matrix to a data frame for a clear representation.
+    data = pandas.DataFrame(data=matrix)
+    print(data)
+
+    # Transpose matrix to match data dimensions.
+    matrix_array = numpy.array(matrix)
+    matrix_transpose = numpy.transpose(matrix_array)
+    # Print representation of matrix.
+    # Convert matrix to a data frame for a clear representation.
+    data = pandas.DataFrame(data=matrix_transpose)
+    print(data)
+
+    # Create and shuffle copies of the template matrix.
+    utility.print_terminal_partition(level=2)
+    matrices = shuffle.copy_matrices_shuffle_values(count=10, matrix=matrix)
+    # Print representation of matrix.
+    # Convert matrix to a data frame for a clear representation.
+    matrix_shuffle = matrices[0]
+    print("raw matrix after shuffle")
+    print(matrix_shuffle)
+    matrix_shuffle_transpose = numpy.transpose(numpy.array(matrix_shuffle))
+    data = pandas.DataFrame(data=matrix_shuffle_transpose)
+    print("transposition of the matrix after shuffle")
+    print(data)
+
+    ###########################################################################
+
+    # Check that shuffles occur on proper axis.
+    utility.print_terminal_partition(level=1)
+    print("normalize and standardize data... then shuffle")
+    print("Notice that shuffle should not change z-score mean and std.")
+
+    # Normalize and standardize gene's signals.
+    # Transform gene's signals to base-two logarithmic space.
+    # Transform gene's signals to standard, z-score space.
+    data_normal_standard = normalize_standardize_gene_signal(
+        data_gene_persons_tissues_signals=source["data_restriction_signals"],
+    )
+
+    # Compare summary statistics before and after transformation.
+    utility.print_terminal_partition(level=3)
     print("data before shuffle...")
-    print(source["data_organization_signals"])
+    print(data_normal_standard.iloc[0:10, 0:10])
+    data_mean = data_normal_standard.aggregate(
+        lambda x: x.mean(),
+        axis="index"
+    )
+    print("Mean")
+    print(data_mean.iloc[0:10])
+    data_deviation = data_normal_standard.aggregate(
+        lambda x: x.std(),
+        axis="index"
+    )
+    print("Standard deviation")
+    print(data_deviation.iloc[0:10])
 
     # Shuffle gene's signals.
     utility.print_terminal_partition(level=3)
-    print("index procedure...")
     data_shuffle = shuffle.shuffle_gene_signals(
-        data_gene_signals=source["data_organization_signals"],
-        shuffle=source["shuffles"][0]
+        data_gene_signals=data_normal_standard,
+        shuffle=matrices[0]
     )
-    print("data after shuffle")
-    print(data_shuffle)
+    print("data after shuffle...")
+    print(data_shuffle.iloc[0:10, 0:10])
+    data_mean = data_shuffle.aggregate(
+        lambda x: x.mean(),
+        axis="index"
+    )
+    print("Mean")
+    print(data_mean.iloc[0:10])
+    data_deviation = data_shuffle.aggregate(
+        lambda x: x.std(),
+        axis="index"
+    )
+    print("Standard deviation")
+    print(data_deviation.iloc[0:10])
 
 
     pass

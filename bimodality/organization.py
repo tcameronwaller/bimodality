@@ -264,7 +264,7 @@ def calculate_gene_tissue_variation(
     # Aggregate genes' signals within groups by relative variance.
     # Some genes' signals in some groups have means of zero.
     data_variation = groups.aggregate(
-        lambda x: (x.std() / x.mean())
+        lambda x: (x.std() / x.mean()) if (x.mean() != 0) else (numpy.nan)
     )
     return data_variation
 
@@ -296,7 +296,7 @@ def calculate_gene_tissue_dispersion(
     # Aggregate genes' signals within groups by relative variance.
     # Some genes' signals in some groups have means of zero.
     data_dispersion = groups.aggregate(
-        lambda x: (x.var() / x.mean())
+        lambda x: (x.var() / x.mean()) if (x.mean() != 0) else (numpy.nan)
     )
     return data_dispersion
 

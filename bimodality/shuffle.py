@@ -309,22 +309,32 @@ def shuffle_gene_signals(
 
     # Copy data.
     data = data_gene_signals.copy(deep=True)
-
     # Determine values and counts of tissues and persons.
     tissues = data.columns.to_list()
     persons = data.index.to_list()
-
     # Convert data to matrix.
-    matrix = data.values
+    # Transpose data matrix to match shuffle dimension.
+    # Shuffle occurs on dimension one (persons).
+    matrix_data = numpy.transpose(data.values)
+    #print("data matrix before shuffle")
+    #print(pandas.DataFrame(data=matrix_data))
+    #print(matrix_data.shape)
+
+    # Organize shuffle matrix.
+    matrix_shuffle = numpy.array(shuffle)
+    #print("shuffle matrix before shuffle")
+    #print(pandas.DataFrame(data=matrix_shuffle))
+    #print(matrix_shuffle.shape)
 
     # Sort data matrix's values by shuffle matrix's indices.
-    matrix_sort = numpy.array(list(map(
-        lambda index, sort: sort[numpy.array(index)], shuffle, matrix
+    matrix_data_sort = numpy.array(list(map(
+        lambda index, sort: sort[index], matrix_shuffle, matrix_data
     )))
+    matrix_sort_transpose = numpy.transpose(matrix_data_sort)
 
     # Convert records to data frame.
     data_sort = pandas.DataFrame(
-        data=matrix_sort,
+        data=matrix_sort_transpose,
         index=persons,
         columns=tissues,
     )
@@ -394,16 +404,18 @@ def execute_procedure(dock=None, count=None):
     # Report.
     utility.print_terminal_partition(level=3)
     print(
-        "Creating " + str(count) + " shuffles for matrices of dimensions " +
-        str(source["persons"]) + " by " + str(source["tissues"]) + "."
+        "Creating " + str(count) + " shuffles for matrices of dimension " +
+        "zero: " + str(source["tissues"]) + " by dimension one: " +
+        str(source["persons"]) + ". "
+        "Notice that shuffles occur across dimension one."
     )
     utility.print_terminal_partition(level=3)
 
     # Create shuffle indices.
     shuffles = create_shuffle_indices(
         count=count,
-        dimension_zero=source["persons"],
-        dimension_one=source["tissues"],
+        dimension_zero=source["tissues"],
+        dimension_one=source["persons"],
     )
 
     # Compile information.

@@ -401,7 +401,7 @@ def execute_procedure(dock=None):
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
     )
     print(len(samples_inclusion))
-    # Select the union of exclusion and inclusion samples.
+    # Select samples that are in both exclusion and inclusion lists.
     samples = utility.filter_common_elements(
         list_one=samples_exclusion,
         list_two=samples_inclusion,

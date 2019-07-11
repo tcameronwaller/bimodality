@@ -19,9 +19,9 @@ import textwrap
 #import assembly
 import measurement
 #import sample
-#import selection
+import selection
 #import tissue
-#import split
+import split
 import shuffle
 import organization
 import restriction
