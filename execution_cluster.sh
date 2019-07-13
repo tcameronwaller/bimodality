@@ -32,7 +32,7 @@
 
 # Specify index for iterative arguments for each processes.
 # -t 1-$count_genes
-#$ -t 1-18804
+#$ -t 1-18299
 
 # Organize paths.
 

@@ -610,6 +610,27 @@ def filter_common_elements(list_one=None, list_two=None):
     return list(filter(match, list_two))
 
 
+def filter_unique_union_elements(list_one=None, list_two=None):
+    """
+    Filters unique elements from union of two lists.
+
+    arguments:
+        list_one (list): list of elements
+        list_two (list): list of elements
+
+    returns:
+        (list): elements that both of two lists include
+
+    raises:
+
+    """
+
+    union = list_one + list_two
+    unique = collect_unique_elements(elements_original=union)
+    return unique
+
+
+
 def collect_records_targets_by_categories(
     target=None,
     category=None,

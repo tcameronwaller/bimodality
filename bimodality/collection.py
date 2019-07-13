@@ -55,41 +55,50 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_split = os.path.join(dock, "split")
+    path_combination = os.path.join(dock, "combination")
     path_genes = os.path.join(
-        path_split, "genes.txt"
+        path_combination, "genes.txt"
     )
     path_pipe = os.path.join(dock, "pipe")
+    #path_pipe = os.path.join(dock, "pipe_2019-07-10_10-shuffles_availability")
     # Read information from file.
     genes = utility.read_file_text_list(path_genes)
-    genes_scores_distributions = read_collect_genes_scores_distributions(
+    genes_scores_shuffles_imputation = read_collect_genes_scores_shuffles(
         genes=genes,
-        path=path_pipe
+        path_pipe=path_pipe,
+        method="imputation",
     )
-    if False:
-        genes_persons = read_collect_genes_patients(
-            path=path_pipe
-        )
+    genes_scores_shuffles_availability = read_collect_genes_scores_shuffles(
+        genes=genes,
+        path_pipe=path_pipe,
+        method="availability",
+    )
     # Compile and return information.
     return {
         "genes": genes,
-        #"genes_persons": genes_persons,
-        "genes_scores_distributions": genes_scores_distributions
+        "genes_scores_shuffles_imputation": genes_scores_shuffles_imputation,
+        "genes_scores_shuffles_availability": (
+            genes_scores_shuffles_availability
+        ),
     }
 
 
-def read_collect_genes_scores_distributions(path=None):
+def read_collect_genes_scores_shuffles(
+    genes=None,
+    path_pipe=None,
+    method=None,
+):
     """
     Collects information about genes.
 
     Data structure.
-    - genes_scores_distributions (dict)
+    - genes_scores_shuffles (dict)
     -- gene (dict)
     --- scores (dict)
     ---- coefficient (float)
     ---- dip (float)
     ---- mixture (float)
-    --- distributions (dict)
+    --- shuffles (dict)
     ---- coefficient (list)
     ----- value (float)
     ---- dip (list)
@@ -100,7 +109,10 @@ def read_collect_genes_scores_distributions(path=None):
 
     arguments:
         genes (list<str>): identifiers of genes
-        path (str): path to directory
+        path_pipe (str): path to pipe directory
+        method (str): method for selection of tissues and patients, either
+            "availability" for selection by minimal count of tissues, or
+            "imputation" for selection by same tissues with imputation
 
     raises:
 
@@ -117,36 +129,40 @@ def read_collect_genes_scores_distributions(path=None):
     )
     # Check contents of directory.
     print("Check that directories exist for all genes.")
-    directories = os.listdir(path)
+    directories = os.listdir(path_pipe)
     match = utility.compare_lists_by_mutual_inclusion(
         list_one=genes, list_two=directories
     )
     print("Genes and directories match: " + str(match))
 
     # Collect information about genes.
-    genes_scores_distributions = dict()
+    genes_scores_shuffles = dict()
     # Iterate on directories for genes.
     for gene in genes:
         # Report progress.
-        print(gene)
-        # Create entry for gene.
-        genes_scores_distributions[gene] = dict()
+        #print(gene)
         # Specify directories and files.
-        path_gene = os.path.join(path, gene)
-        path_scores = os.path.join(path_gene, "scores_real.pickle")
-        path_distributions = os.path.join(
-            path_gene, "scores_shuffle.pickle"
+        path_gene = os.path.join(path_pipe, gene)
+        path_method = os.path.join(path_gene, method)
+        path_scores = os.path.join(
+            path_method, "scores.pickle"
+        )
+        path_shuffles = os.path.join(
+            path_method, "shuffles.pickle"
         )
         # Read information from file.
         with open(path_scores, "rb") as file_source:
             scores = pickle.load(file_source)
-        with open(path_distributions, "rb") as file_source:
-            distributions = pickle.load(file_source)
+        with open(path_shuffles, "rb") as file_source:
+            shuffles = pickle.load(file_source)
+        # Create entry for gene.
+        genes_scores_shuffles[gene] = dict()
         # Compile information.
-        genes_scores_distributions[gene]["scores"] = scores
-        genes_scores_distributions[gene]["distributions"] = distributions
+        genes_scores_shuffles[gene]["scores"] = scores
+        genes_scores_shuffles[gene]["shuffles"] = shuffles
+
     # Return information.
-    return genes_scores_distributions
+    return genes_scores_shuffles
 
 
 def read_collect_genes_patients(path=None):
@@ -288,22 +304,22 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_collection = os.path.join(dock, "collection")
     utility.confirm_path_directory(path_collection)
-    path_distributions = os.path.join(
-        path_collection, "genes_scores_distributions.pickle"
+    path_scores_shuffles_imputation = os.path.join(
+        path_collection, "genes_scores_shuffles_imputation.pickle"
     )
-    path_genes_patients = os.path.join(
-        path_collection, "genes_patients.pickle"
+    path_scores_shuffles_availability = os.path.join(
+        path_collection, "genes_scores_shuffles_availability.pickle"
     )
     # Write information to file.
-    with open(path_genes_patients, "wb") as file_product:
+    with open(path_scores_shuffles_imputation, "wb") as file_product:
         pickle.dump(
-            information["genes_patients"], file_product
+            information["genes_scores_shuffles_imputation"], file_product
         )
-    if False:
-        with open(path_distributions, "wb") as file_product:
-            pickle.dump(
-                information["genes_scores_distributions"], file_product
-            )
+    with open(path_scores_shuffles_availability, "wb") as file_product:
+        pickle.dump(
+            information["genes_scores_shuffles_availability"], file_product
+        )
+
     pass
 
 
@@ -342,8 +358,12 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
-        #"genes_scores_distributions": source["genes_scores_distributions"],
-        "genes_patients": source["genes_patients"],
+        "genes_scores_shuffles_imputation": (
+            source["genes_scores_shuffles_imputation"]
+        ),
+        "genes_scores_shuffles_availability": (
+            source["genes_scores_shuffles_availability"]
+        ),
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

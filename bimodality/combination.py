@@ -29,7 +29,7 @@ import scipy.stats
 
 # Custom
 
-import metric
+import rank
 import utility
 
 #dir()
@@ -61,19 +61,32 @@ def read_source(dock=None):
         path_split, "genes.txt"
     )
     path_collection = os.path.join(dock, "collection")
-    path_distributions = os.path.join(
-        path_collection, "genes_scores_distributions.pickle"
+    path_scores_availability = os.path.join(
+        path_collection, "genes_scores_shuffles_availability.pickle"
+    )
+    path_scores_imputation = os.path.join(
+        path_collection, "genes_scores_shuffles_imputation.pickle"
     )
     # Read information from file.
     genes = utility.read_file_text_list(path_genes)
-    with open(path_distributions, "rb") as file_source:
-        genes_scores_distributions = pickle.load(file_source)
+    with open(path_scores_availability, "rb") as file_source:
+        genes_scores_shuffles_availability = pickle.load(file_source)
+    with open(path_scores_imputation, "rb") as file_source:
+        genes_scores_shuffles_imputation = pickle.load(file_source)
     # Compile and return information.
     return {
         "genes": genes,
-        "genes_scores_distributions": genes_scores_distributions
+        "genes_scores_shuffles_availability": (
+            genes_scores_shuffles_availability
+        ),
+        "genes_scores_shuffles_imputation": (
+            genes_scores_shuffles_imputation
+        ),
     }
 
+
+# Combination scores by mean
+# This method is old and less accurate than combination of p-values by Stouffer
 
 def filter_genes_scores_variance(
     genes_scores_distributions=None,
@@ -140,9 +153,6 @@ def filter_genes_scores_variance(
     print("count of genes after filter by variance: " + str(count))
     # Return information.
     return genes_scores_distributions
-
-
-# Score
 
 
 def calculate_combination_scores(
@@ -363,6 +373,9 @@ def calculate_standard_scores_distributions(
     return information
 
 
+# Product
+
+
 def write_product(dock=None, information=None):
     """
     Writes product information to file.
@@ -381,14 +394,14 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_combination = os.path.join(dock, "combination")
     utility.confirm_path_directory(path_combination)
-    path_distributions = os.path.join(
-        path_combination, "genes_scores_distributions.pickle"
+    path_genes = os.path.join(
+        path_combination, "genes.txt"
     )
     # Write information to file.
-    with open(path_distributions, "wb") as file_product:
-        pickle.dump(
-            information["genes_scores_distributions"], file_product
-        )
+    # List of genes needs to be easy to read in Bash.
+    utility.write_file_text_list(
+        information=information["genes"], path_file=path_genes
+    )
     pass
 
 
@@ -410,36 +423,59 @@ def execute_procedure(dock=None):
 
     """
 
-    #########################################################
-
-    # TODO: ...
-    # This procedure is mostly obsolete now... the analysis procedure replaces
-
-    ###########################################################
+    # The purpose of this procedure is to compare and integrate genes'
+    # distributions and rankings from both the "imputation" and "availability"
+    # methods for selection of tissues and persons.
 
     # Read source information from file.
     source = read_source(dock=dock)
 
-    # Filter genes by variance across shuffles of their scores.
-    # Presumably these genes have inadequate real measurements.
-    # 18804 genes before filter (TCW, 2019-04-22)
-    # 18797 genes after filter (TCW, 2019-04-22).
-    genes_scores_distributions = filter_genes_scores_variance(
-        genes_scores_distributions=source["genes_scores_distributions"],
-        threshold=1E-25
+    # Calculate genes' probabilities of bimodality.
+    data_genes_probabilities_availability = rank.calculate_probabilities_genes(
+        genes_scores_shuffles=(
+            source["genes_scores_shuffles_availability"]
+        ),
     )
+    data_genes_probabilities_imputation = rank.calculate_probabilities_genes(
+        genes_scores_shuffles=(
+            source["genes_scores_shuffles_imputation"]
+        ),
+    )
+    print(data_genes_probabilities_availability)
+    print(data_genes_probabilities_imputation)
 
-    # Combine modality scores.
-    # This procedure requires approximately 1.5 hours to run in a single
-    # process on a 3.9 Gigahertz processor.
-    genes_scores_distributions = calculate_combination_scores(
-        genes_scores_distributions=genes_scores_distributions
+    # Rank genes by probabilities.
+    data_ranks_availability = rank.rank_genes(
+        data_genes_probabilities=data_genes_probabilities_availability,
+        rank="combination",
+        method="threshold",
+        threshold=0.02,
+        count=1000,
     )
-    #print(genes_scores_distributions_complete["ENSG00000183878"])
+    data_ranks_imputation = rank.rank_genes(
+        data_genes_probabilities=data_genes_probabilities_imputation,
+        rank="combination",
+        method="threshold",
+        threshold=0.02,
+        count=1000,
+    )
+    print(data_ranks_availability)
+    print(data_ranks_imputation)
+
+    # Extract identifiers of genes.
+    genes_availability = data_ranks_availability.index.to_list()
+    genes_imputation = data_ranks_imputation.index.to_list()
+
+    # Combine consensus genes.
+    genes_combination = utility.filter_unique_union_elements(
+        list_one=genes_availability,
+        list_two=genes_imputation,
+    )
+    print("Count of consensus genes: " + str(len(genes_combination)))
 
     # Compile information.
     information = {
-        "genes_scores_distributions": genes_scores_distributions,
+        "genes": genes_combination,
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

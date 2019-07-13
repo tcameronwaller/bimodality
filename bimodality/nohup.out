@@ -1,0 +1,25 @@
+--------------------------------------------------
+... call to main routine ...
+... executing pipe procedure ...
+count of genes: 18299
+2019-07-10 21:20:59.848126
+Traceback (most recent call last):
+  File "interface.py", line 508, in <module>
+    execute_procedure()
+  File "interface.py", line 504, in execute_procedure
+    arguments.func(arguments)
+  File "interface.py", line 420, in evaluate_main_parameters
+    pipe.execute_procedure_local(dock=arguments.dock)
+  File "/media/tcameronwaller/primary/data/local/work/project/2019_bimodality/repository/bimodality/pipe.py", line 435, in execute_procedure_local
+    report = pool.map(execute_procedure_gene, source["genes"])
+  File "/usr/lib/python3.6/multiprocessing/pool.py", line 266, in map
+    return self._map_async(func, iterable, mapstar, chunksize).get()
+  File "/usr/lib/python3.6/multiprocessing/pool.py", line 638, in get
+    self.wait(timeout)
+  File "/usr/lib/python3.6/multiprocessing/pool.py", line 635, in wait
+    self._event.wait(timeout)
+  File "/usr/lib/python3.6/threading.py", line 551, in wait
+    signaled = self._cond.wait(timeout)
+  File "/usr/lib/python3.6/threading.py", line 295, in wait
+    waiter.acquire()
+KeyboardInterrupt

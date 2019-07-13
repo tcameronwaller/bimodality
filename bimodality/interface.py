@@ -27,10 +27,10 @@ import organization
 import restriction
 import distribution
 import pipe
-#import collection
+import collection
+import combination
 
 if False:
-    import combination
     import analysis
     import function
 import metric

@@ -41,25 +41,31 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --assembly
 #python3 interface.py main --dock $path_dock --measurement
 #python3 interface.py main --dock $path_dock --sample
-#python3 interface.py main --dock $path_dock --selection
+python3 interface.py main --dock $path_dock --selection
 #python3 interface.py main --dock $path_dock --tissue
 
 # Batch
 
-#python3 interface.py main --dock $path_dock --split
-python3 interface.py main --dock $path_dock --shuffle --count 1
+python3 interface.py main --dock $path_dock --split
+
+# 25 shuffles for 12,116 genes will require 10 hours
+# 50 shuffles for 12,116 genes will require 18 hours
+python3 interface.py main --dock $path_dock --shuffle --count 500
 
 #python3 interface.py main --dock $path_dock --organization
 #python3 interface.py main --dock $path_dock --restriction
 #python3 interface.py main --dock $path_dock --distribution
 
-python3 interface.py main --dock $path_dock --pipe --local
+#python3 interface.py main --dock $path_dock --pipe --local
 
 #python3 interface.py main --dock $path_dock --pipe --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --pipe --local > $path_dock/report.out &
 
 #python3 interface.py main --dock $path_dock --collection
 #python3 interface.py main --dock $path_dock --combination
+
+
+
 #python3 interface.py main --dock $path_dock --analysis
 #python3 interface.py main --dock $path_dock --function
 

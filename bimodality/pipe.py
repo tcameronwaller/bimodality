@@ -42,11 +42,15 @@ import utility
 # Functionality
 
 
-def read_source_local_initial(dock=None):
+def read_source_local_initial(
+    source_genes=None,
+    dock=None
+):
     """
     Reads and organizes source information from file
 
     arguments:
+        source_genes (str): name of directory from which to obtain genes list
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -58,9 +62,12 @@ def read_source_local_initial(dock=None):
     """
 
     # Specify directories and files.
-    path_split = os.path.join(dock, "split")
+    if source_genes == "split":
+        path_source = os.path.join(dock, "split")
+    elif source_genes == "combination":
+        path_source = os.path.join(dock, "combination")
     path_genes = os.path.join(
-        path_split, "genes.txt"
+        path_source, "genes.txt"
     )
     # Read information from file.
     genes = utility.read_file_text_list(path_genes)
@@ -268,46 +275,77 @@ def write_product(gene=None, dock=None, information=None):
     utility.confirm_path_directory(path_pipe)
     path_gene = os.path.join(path_pipe, gene)
     utility.confirm_path_directory(path_gene)
+    path_imputation = os.path.join(path_gene, "imputation")
+    utility.confirm_path_directory(path_imputation)
+    path_availability = os.path.join(path_gene, "availability")
+    utility.confirm_path_directory(path_availability)
+
     path_report_organization = os.path.join(
         path_gene, "report_organization.pickle"
     )
-    path_report_restriction = os.path.join(
-        path_gene, "report_restriction.pickle"
+    # Imputation method
+    path_imputation_report_restriction = os.path.join(
+        path_imputation, "report_restriction.pickle"
     )
-    path_report_distribution = os.path.join(
-        path_gene, "report_distribution.pickle"
+    path_imputation_report_distribution = os.path.join(
+        path_imputation, "report_distribution.pickle"
     )
-    path_scores_real = os.path.join(
-        path_gene, "scores_real.pickle"
+    path_imputation_scores = os.path.join(
+        path_imputation, "scores.pickle"
     )
-    path_scores_shuffle = os.path.join(
-        path_gene, "scores_shuffle.pickle"
+    path_imputation_shuffles = os.path.join(
+        path_imputation, "shuffles.pickle"
     )
+    # Availability method
+    path_availability_report_restriction = os.path.join(
+        path_availability, "report_restriction.pickle"
+    )
+    path_availability_report_distribution = os.path.join(
+        path_availability, "report_distribution.pickle"
+    )
+    path_availability_scores = os.path.join(
+        path_availability, "scores.pickle"
+    )
+    path_availability_shuffles = os.path.join(
+        path_availability, "shuffles.pickle"
+    )
+
     # Write information to file.
     with open(path_report_organization, "wb") as file_product:
         pickle.dump(information["report_organization"], file_product)
-    with open(path_report_restriction, "wb") as file_product:
-        pickle.dump(information["report_restriction"], file_product)
-    with open(path_report_distribution, "wb") as file_product:
-        pickle.dump(information["report_distribution"], file_product)
-    with open(path_scores_real, "wb") as file_product:
-        pickle.dump(information["scores_real"], file_product)
-    with open(path_scores_shuffle, "wb") as file_product:
-        pickle.dump(information["scores_shuffle"], file_product)
+    # Imputation method
+    with open(path_imputation_report_restriction, "wb") as file_product:
+        pickle.dump(information["report_restriction_imputation"], file_product)
+    with open(path_imputation_report_distribution, "wb") as file_product:
+        pickle.dump(
+            information["report_distribution_imputation"], file_product
+        )
+    with open(path_imputation_scores, "wb") as file_product:
+        pickle.dump(information["scores_imputation"], file_product)
+    with open(path_imputation_shuffles, "wb") as file_product:
+        pickle.dump(information["shuffles_imputation"], file_product)
 
-    if False:
-        # Check values for specific genes.
-        print(information["report_organization"])
-        print(information["report_restriction"])
-        print(information["report_distribution"])
-        print(information["scores_real"])
-        print(information["scores_shuffle"])
+    # Imputation method
+    with open(path_availability_report_restriction, "wb") as file_product:
+        pickle.dump(
+            information["report_restriction_availability"], file_product
+        )
+    with open(path_availability_report_distribution, "wb") as file_product:
+        pickle.dump(
+            information["report_distribution_availability"], file_product
+        )
+    with open(path_availability_scores, "wb") as file_product:
+        pickle.dump(information["scores_availability"], file_product)
+    with open(path_availability_shuffles, "wb") as file_product:
+        pickle.dump(information["shuffles_availability"], file_product)
 
     pass
 
 
 ###############################################################################
 # Procedure
+
+# Change procedure to run and collect both by "availability" and "imputation" methods...
 
 
 def execute_procedure(
@@ -345,7 +383,15 @@ def execute_procedure(
         "adipose", "blood", "colon", "esophagus", "heart", "muscle",
         "lung", "nerve", "skin", "thyroid",
     ]
-    distribution_real = describe_gene_signal_distribution(
+    distribution_imputation = describe_gene_signal_distribution(
+        method="imputation",
+        count=7,
+        tissues=tissues,
+        data_gene_persons_tissues_signals=(
+            collection_organization["data_gene_persons_tissues_signals"]
+        )
+    )
+    distribution_availability = describe_gene_signal_distribution(
         method="availability",
         count=7,
         tissues=tissues,
@@ -355,7 +401,16 @@ def execute_procedure(
     )
 
     # Prepare and describe distributions of shuffles of gene's signals.
-    scores_shuffle = shuffle_gene_signal_distribution(
+    shuffles_imputation = shuffle_gene_signal_distribution(
+        method="imputation",
+        count=7,
+        tissues=tissues,
+        shuffles=shuffles,
+        data_gene_persons_tissues_signals=(
+            collection_organization["data_gene_persons_tissues_signals"]
+        )
+    )
+    shuffles_availability = shuffle_gene_signal_distribution(
         method="availability",
         count=7,
         tissues=tissues,
@@ -368,10 +423,22 @@ def execute_procedure(
     # Compile information.
     information = {
         "report_organization": collection_organization["report_gene"],
-        "report_restriction": distribution_real["report_restriction"],
-        "report_distribution": distribution_real["report_distribution"],
-        "scores_real": distribution_real["scores"],
-        "scores_shuffle": scores_shuffle,
+        "report_restriction_imputation": (
+            distribution_imputation["report_restriction"]
+        ),
+        "report_restriction_availability": (
+            distribution_availability["report_restriction"]
+        ),
+        "report_distribution_imputation": (
+            distribution_imputation["report_distribution"]
+        ),
+        "report_distribution_availability": (
+            distribution_availability["report_distribution"]
+        ),
+        "scores_imputation": distribution_imputation["scores"],
+        "scores_availability": distribution_availability["scores"],
+        "shuffles_imputation": shuffles_imputation,
+        "shuffles_availability": shuffles_availability,
     }
     #Write product information to file.
     write_product(gene=gene, dock=dock, information=information)
@@ -394,7 +461,7 @@ def execute_procedure_local(dock=None):
     """
 
     # Read source information from file.
-    source = read_source_local_initial(dock=dock)
+    source = read_source_local_initial(source_genes="combination", dock=dock)
 
     print("count of genes: " + str(len(source["genes"])))
     #print("count of shuffles: " + str(len(source["shuffles"])))
@@ -424,14 +491,14 @@ def execute_procedure_local(dock=None):
     # 6 concurrent processes require approximately 50% of 32 Gigabytes memory.
     # 7 concurrent processes require approximately 65% of 32 Gigabytes memory.
     #pool = multiprocessing.Pool(processes=os.cpu_count())
-    pool = multiprocessing.Pool(processes=7)
+    pool = multiprocessing.Pool(processes=8)
 
     # Iterate on genes.
     check_genes=[
         "ENSG00000198965",
     ]
     #report = pool.map(execute_procedure_gene, check_genes)
-    report = pool.map(execute_procedure_gene, source["genes"][4000:])
+    report = pool.map(execute_procedure_gene, source["genes"][0:64])
     #report = pool.map(execute_procedure_gene, source["genes"])
 
     # Report.
