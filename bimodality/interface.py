@@ -15,10 +15,10 @@ import textwrap
 # Relevant.
 
 # Custom.
-#import access
-#import assembly
+import access
+import assembly
 import measurement
-#import sample
+import sample
 import selection
 #import tissue
 import split
@@ -29,6 +29,7 @@ import distribution
 import pipe
 import collection
 import combination
+import regression
 
 if False:
     import analysis
@@ -214,6 +215,13 @@ def define_main_subparser(subparsers=None):
     )
 
     parser_main.add_argument(
+        "-candidacy", "--candidacy", dest="candidacy", action="store_true",
+        help=(
+            "Evaluate genes' candidacy prior to shuffles."
+        )
+    )
+
+    parser_main.add_argument(
         "-pipe", "--pipe", dest="pipe", action="store_true",
         help=(
             "Analyze real and shuffle signals for a single gene."
@@ -257,6 +265,7 @@ def define_main_subparser(subparsers=None):
         action="store_true",
         help="Distribution of gene's signals across people."
     )
+
     parser_main.add_argument(
         "-collection", "--collection", dest="collection",
         action="store_true",
@@ -272,6 +281,14 @@ def define_main_subparser(subparsers=None):
             "Combination of multiple scores for distribution modality."
         )
     )
+    parser_main.add_argument(
+        "-regression", "--regression", dest="regression",
+        action="store_true",
+        help=(
+            "Regression analysis of persons for individual genes."
+        )
+    )
+
     parser_main.add_argument(
         "-analysis", "--analysis", dest="analysis", action="store_true",
         help="Analysis of real, shuffle, and simulation data sets."
@@ -406,6 +423,11 @@ def evaluate_main_parameters(arguments):
         # Execute procedure.
         split.execute_procedure(dock=arguments.dock)
 
+    if arguments.candidacy:
+        # Report status.
+        print("... executing candidacy procedure ...")
+        # Execute procedure.
+        candidacy.execute_procedure(dock=arguments.dock)
     if arguments.shuffle:
         # Report status.
         print("... executing shuffle procedure ...")
@@ -450,6 +472,12 @@ def evaluate_main_parameters(arguments):
         print("... executing combination procedure ...")
         # Execute procedure.
         combination.execute_procedure(dock=arguments.dock)
+    if arguments.regression:
+        # Report status.
+        print("... executing regression procedure ...")
+        # Execute procedure.
+        regression.execute_procedure(dock=arguments.dock)
+
     if arguments.analysis:
         # Report status.
         print("... executing analysis procedure ...")

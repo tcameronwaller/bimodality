@@ -11,7 +11,7 @@
 # Specify use of current working directory.
 #$ -cwd
 # Specify priority 0-15.
-#$ -p -7
+#$ -p -10
 # Specify count of concurrent processes.
 #$ -tc 300
 # Specify long process.
@@ -27,8 +27,8 @@
 # -l h_rt=48:00:00
 # -l s_rt=48:00:00
 # Specify destinations for standard output and error.
-#$ -o /cellar/users/tcwaller/out
-#$ -e /cellar/users/tcwaller/error
+#$ -o /cellar/users/tcwaller/Data/dock/out
+#$ -e /cellar/users/tcwaller/Data/dock/error
 
 # Specify index for iterative arguments for each processes.
 # -t 1-$count_genes

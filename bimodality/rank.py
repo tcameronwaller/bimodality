@@ -164,9 +164,11 @@ def calculate_probabilities_genes(
         score_coefficient = gene_scores["scores"]["coefficient"]
         score_dip = gene_scores["scores"]["dip"]
         score_mixture = gene_scores["scores"]["mixture"]
+        score_combination = gene_scores["scores"]["combination"]
         distribution_coefficient = gene_scores["shuffles"]["coefficient"]
         distribution_dip = gene_scores["shuffles"]["dip"]
         distribution_mixture = gene_scores["shuffles"]["mixture"]
+        distribution_combination = gene_scores["shuffles"]["combination"]
         # Calculate p-values.
         # These scores of bimodality indicate greater bimodality as values
         # increase.
@@ -185,12 +187,17 @@ def calculate_probabilities_genes(
             value=score_mixture,
             distribution=distribution_mixture
         )
+        probability_combination = calculate_probability_equal_greater(
+            value=score_combination,
+            distribution=distribution_combination
+        )
         # Calculate combination of p-values.
-        probability_combination = scipy.stats.combine_pvalues(
-            [probability_coefficient, probability_dip, probability_mixture],
-            method="stouffer",
-            weights=None,
-        )[1]
+        if False:
+            probability_combination = scipy.stats.combine_pvalues(
+                [probability_coefficient, probability_dip, probability_mixture],
+                method="stouffer",
+                weights=None,
+            )[1]
         # Compile information.
         record = dict()
         record["gene"] = gene

@@ -55,9 +55,9 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_combination = os.path.join(dock, "combination")
+    path_split = os.path.join(dock, "split")
     path_genes = os.path.join(
-        path_combination, "genes.txt"
+        path_split, "genes.txt"
     )
     path_pipe = os.path.join(dock, "pipe")
     #path_pipe = os.path.join(dock, "pipe_2019-07-10_10-shuffles_availability")

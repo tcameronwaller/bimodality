@@ -156,34 +156,37 @@ def filter_genes_scores_variance(
 
 
 def calculate_combination_scores(
-    genes_scores_distributions=None
+    genes_scores_shuffles=None
 ):
     """
     Calculates a score from combination of the dip statistic and the bimodality
     coefficient.
 
     Data structure.
-    - genes_scores_distributions (dict)
+    - genes_scores_shuffles (dict)
     -- gene (dict)
     --- scores (dict)
     ---- combination (float)
     ---- coefficient (float)
     ---- dip (float)
-    --- distributions (dict)
+    ---- mixture (float)
+    --- shuffles (dict)
     ---- combination (list)
     ----- value (float)
     ---- coefficient (list)
     ----- value (float)
     ---- dip (list)
     ----- value (float)
+    ---- mixture (list)
+    ----- value (float)
 
     arguments:
-        genes_scores_distributions (dict<dict<dict>>): information about genes
+        genes_scores_shuffles (dict<dict<dict>>): information about genes
 
     raises:
 
     returns:
-        (dict<dict<dict>>): information about genes scores and distributions
+        (dict<dict<dict>>): information about genes' scores and shuffles
 
     """
 
@@ -194,16 +197,16 @@ def calculate_combination_scores(
     # Collect information about genes.
     #information = copy.deepcopy(genes_scores_distributions)
     # Extract identifiers of genes with scores.
-    genes = list(genes_scores_distributions.keys())
+    genes = list(genes_scores_shuffles.keys())
     # Iterate on genes.
     for gene in genes:
         # Report progress.
         #print(gene)
         # Access information about gene's scores and distributions.
-        gene_scores_distributions = genes_scores_distributions[gene]
+        scores_shuffles = genes_scores_shuffles[gene]
         # Convert gene's scores and distributions to standard, z-score, space.
-        standard = calculate_standard_scores_distributions(
-            scores_distributions=gene_scores_distributions
+        standard = calculate_standard_scores_shuffles(
+            scores_shuffles=scores_shuffles
         )
         # Calculate combination scores.
         combination = statistics.mean([
@@ -212,20 +215,20 @@ def calculate_combination_scores(
             standard["scores"]["mixture"],
         ])
         combinations = list()
-        for index in range(len(standard["distributions"]["coefficient"])):
-            coefficient = standard["distributions"]["coefficient"][index]
-            dip = standard["distributions"]["dip"][index]
-            mixture = standard["distributions"]["mixture"][index]
+        for index in range(len(standard["shuffles"]["coefficient"])):
+            coefficient = standard["shuffles"]["coefficient"][index]
+            dip = standard["shuffles"]["dip"][index]
+            mixture = standard["shuffles"]["mixture"][index]
             value = statistics.mean([coefficient, dip, mixture])
             combinations.append(value)
             pass
         # Compile information.
-        genes_scores_distributions[gene]["scores"]["combination"] = combination
-        genes_scores_distributions[gene]["distributions"]["combination"] = (
+        genes_scores_shuffles[gene]["scores"]["combination"] = combination
+        genes_scores_shuffles[gene]["shuffles"]["combination"] = (
             combinations
         )
     # Return information.
-    return genes_scores_distributions
+    return genes_scores_shuffles
 
 
 def calculate_standard_score(
@@ -249,7 +252,10 @@ def calculate_standard_score(
 
     """
 
-    return ((value - mean) / deviation)
+    if deviation != 0:
+        return ((value - mean) / deviation)
+    else:
+        return float("nan")
 
 
 def calculate_standard_scores(
@@ -284,8 +290,8 @@ def calculate_standard_scores(
     return values_standard
 
 
-def calculate_standard_scores_distributions(
-    scores_distributions=None
+def calculate_standard_scores_shuffles(
+    scores_shuffles=None
 ):
     """
     Calculates a gene's scores and distributions in standard, z-score, space.
@@ -302,25 +308,25 @@ def calculate_standard_scores_distributions(
     ---- value (float)
 
     arguments:
-        scores_distributions (dict<dict>): information about a gene's scores
-            and distributions
+        scores_shuffles (dict<dict>): information about a gene's scores
+            and shuffles
 
     raises:
 
     returns:
-        (dict<dict>): information about a gene's scores and distributions
+        (dict<dict>): information about a gene's scores and shuffles
 
     """
 
     # Access information about gene's scores and distributions.
-    coefficient = scores_distributions["scores"]["coefficient"]
-    dip = scores_distributions["scores"]["dip"]
-    mixture = scores_distributions["scores"]["mixture"]
+    coefficient = scores_shuffles["scores"]["coefficient"]
+    dip = scores_shuffles["scores"]["dip"]
+    mixture = scores_shuffles["scores"]["mixture"]
     coefficients = (
-        scores_distributions["distributions"]["coefficient"]
+        scores_shuffles["shuffles"]["coefficient"]
     )
-    dips = scores_distributions["distributions"]["dip"]
-    mixtures = scores_distributions["distributions"]["mixture"]
+    dips = scores_shuffles["shuffles"]["dip"]
+    mixtures = scores_shuffles["shuffles"]["mixture"]
     # Convert gene's scores and distributions to standard, z-score, space.
     mean_coefficient = statistics.mean(coefficients)
     deviation_coefficient = statistics.stdev(coefficients)
@@ -365,10 +371,10 @@ def calculate_standard_scores_distributions(
     information["scores"]["coefficient"] = coefficient_standard
     information["scores"]["dip"] = dip_standard
     information["scores"]["mixture"] = mixture_standard
-    information["distributions"] = dict()
-    information["distributions"]["coefficient"] = coefficients_standard
-    information["distributions"]["dip"] = dips_standard
-    information["distributions"]["mixture"] = mixtures_standard
+    information["shuffles"] = dict()
+    information["shuffles"]["coefficient"] = coefficients_standard
+    information["shuffles"]["dip"] = dips_standard
+    information["shuffles"]["mixture"] = mixtures_standard
     # Return information.
     return information
 
@@ -430,15 +436,32 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
+    # Calculate combination scores.
+    # Transform coefficient, dip, and mixture scores to standard z-score space.
+    # Calculate the combination score as the mean of the other three scores in
+    # standard space.
+    # Also calculate shuffle distributions of these scores in order to
+    # calculate probabilities.
+    genes_scores_shuffles_availability = calculate_combination_scores(
+        genes_scores_shuffles=source["genes_scores_shuffles_availability"]
+    )
+    genes_scores_shuffles_imputation = calculate_combination_scores(
+        genes_scores_shuffles=source["genes_scores_shuffles_imputation"]
+    )
+
+    print("done with calculation of combination scores...")
+
     # Calculate genes' probabilities of bimodality.
     data_genes_probabilities_availability = rank.calculate_probabilities_genes(
         genes_scores_shuffles=(
-            source["genes_scores_shuffles_availability"]
+            #source["genes_scores_shuffles_availability"]
+            genes_scores_shuffles_availability
         ),
     )
     data_genes_probabilities_imputation = rank.calculate_probabilities_genes(
         genes_scores_shuffles=(
-            source["genes_scores_shuffles_imputation"]
+            #source["genes_scores_shuffles_imputation"]
+            genes_scores_shuffles_imputation
         ),
     )
     print(data_genes_probabilities_availability)
@@ -449,14 +472,14 @@ def execute_procedure(dock=None):
         data_genes_probabilities=data_genes_probabilities_availability,
         rank="combination",
         method="threshold",
-        threshold=0.02,
+        threshold=0.002,
         count=1000,
     )
     data_ranks_imputation = rank.rank_genes(
         data_genes_probabilities=data_genes_probabilities_imputation,
         rank="combination",
         method="threshold",
-        threshold=0.02,
+        threshold=0.002,
         count=1000,
     )
     print(data_ranks_availability)
