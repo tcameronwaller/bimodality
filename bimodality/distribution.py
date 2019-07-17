@@ -268,20 +268,28 @@ def calculate_bimodality_metrics(
 
     """
 
-    # Check count of values.
-    values_count = len(values)
-    if values_count < 10:
-        print("***Warning: current gene has values for < 10 persons.***")
-        # Unable to calculate metrics for small distribution.
-        coefficient = float("nan")
-        dip = float("nan")
-        mixture = float("nan")
-        pass
-    else:
+    # Count non-missing values.
+    count_valid = len(values)
+
+    # Calculate standard deviation of values.
+    deviation = numpy.std(values, axis=0)
+
+    # Evaluate distribution's suitability for analysis.
+    if (
+        (count_valid > 10) and
+        (deviation > 0)
+    ):
         # Calculate metrics of bimodality.
         coefficient = metric.calculate_bimodality_coefficient(series=values)
         dip = metric.calculate_dip_statistic(series=values)
         mixture = metric.calculate_mixture_model_score(series=values)
+        pass
+    else:
+        print("*Warning: current gene has inadequate distribution of scores.*")
+        # Unable to calculate metrics for small distribution.
+        coefficient = float("nan")
+        dip = float("nan")
+        mixture = float("nan")
         pass
 
     # Compile information.

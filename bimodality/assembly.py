@@ -348,14 +348,14 @@ def collect_samples_tissues_persons(
         person = extract_gtex_sample_person_identifier(sample=sample)
         sex_raw = data_person_attribute.at[person, "SEX"]
         sex = translate_sex(value=sex_raw)
-        age = data_person_attribute.at[person, "AGE"]
+        age_range = data_person_attribute.at[person, "AGE"]
         record = {
             "sample": sample,
             "tissue_major": tissue_major,
             "tissue_minor": tissue_minor,
             "person": person,
             "sex": sex,
-            "age": age,
+            "age_range": age_range,
         }
         samples_tissues_persons.append(record)
     # Return information.

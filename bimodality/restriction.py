@@ -157,6 +157,11 @@ def select_persons_tissues(
             thresh=count,
             inplace=False,
         )
+        data_nonzero = (data_selection != 0)
+        data_selection = (
+            data_selection.loc[data_nonzero.any(axis="columns"), : ]
+        )
+
         pass
     elif method == "imputation":
         # Select tissues of interest.
@@ -167,6 +172,10 @@ def select_persons_tissues(
             how="all",
             thresh=count,
             inplace=False,
+        )
+        data_nonzero = (data_selection != 0)
+        data_selection = (
+            data_selection.loc[data_nonzero.any(axis="columns"), : ]
         )
         pass
     # Return information.
@@ -258,7 +267,7 @@ def prepare_report_gene(
     # Describe specific tissues for which each person has valid signals for
     # gene without imputation.
     data_persons_tissues = data_gene_persons_tissues_signals.applymap(
-        lambda x: pandas.notna(x),
+        lambda x: (1) if (pandas.notna(x)) else (0)
     )
 
     # Describe counts of tissues for which each person has valid signals for
@@ -279,8 +288,8 @@ def prepare_report_gene(
 
     # Compile information.
     information = {
-        "data_persons_tissues": data_persons_tissues,
-        "data_persons_tissues_count": data_persons_tissues_count,
+        "data_gene_persons_tissues": data_persons_tissues,
+        "data_gene_persons_tissues_count": data_persons_tissues_count,
         "persons": persons,
         "persons_tissues_mean": mean,
         "persons_tissues_median": median,

@@ -105,74 +105,228 @@ def read_source(
     }
 
 
+##########
+# Gene's persons and signals
 
-def organize_data(
+
+def organize_persons_attributes(
+    persons=None,
     data_samples_tissues_persons=None,
-    data_persons_tissues=None,
+):
+    """
+    Organizes persons' attributes.
+
+    arguments:
+        persons (list<str>): list of persons of interest
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues for all samples
+
+    """
+
+    # Define functions
+    def translate_sex(sex):
+        if sex == "female":
+            return 1
+        elif sex == "male":
+            return 0
+
+    def translate_age(age):
+        ages_text = [
+            "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80-89",
+            "90-99", "100-109",
+        ]
+        ages_number = [
+            25, 35, 45, 55, 65, 75, 85, 95, 105
+        ]
+        # Match indices.
+        if age in ages_text:
+            return ages_number[ages_text.index(age)]
+        else:
+            return float("nan")
+
+    # Copy data.
+    data_persons = data_samples_tissues_persons.copy(deep=True)
+
+    # Select persons and attributes of interest.
+    data_persons.reset_index(
+        level="sample",
+        inplace=True
+    )
+    data_persons = data_persons.loc[
+        data_persons["person"].isin(persons),
+    ]
+    data_persons.drop(
+        labels=["sample", "tissue_major", "tissue_minor"],
+        axis="columns",
+        inplace=True
+    )
+    data_persons.drop_duplicates(
+        subset=None,
+        keep="first",
+        inplace=True,
+    )
+    data_persons.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
+    # Organize persons' sex and age.
+    data_persons["female"] = (
+        data_persons["sex"].apply(translate_sex)
+    )
+    data_persons["age"] = (
+        data_persons["age_range"].apply(translate_age)
+    )
+    data_persons.drop(
+        labels=["sex", "age_range"],
+        axis="columns",
+        inplace=True
+    )
+    # Return data.
+    return data_persons
+
+
+def organize_gene_persons_signals(
+    data_samples_tissues_persons=None,
+    data_gene_persons_tissues=None,
     data_gene_persons_signals=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        gene (str): identifier of a gene
-        method (str): method for selection of tissues and patients, either
-            "availability" for selection by minimal count of tissues, or
-            "imputation" for selection by same tissues with imputation
-        dock (str): path to root or dock directory for source and product
-            directories and files
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+        data_gene_persons_tissues (object): Pandas data frame of a gene's
+            selection of tissues across persons
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate signals across persons
 
     raises:
 
     returns:
-        (object): source information
+        (object): Pandas data frame of a gene's aggregate signals across
+            persons with persons's attributes
 
     """
 
-    print(source["data_samples_tissues_persons"])
-    print(source["data_persons_tissues"])
-    print(source["data_gene_persons_signals"])
+    # Select persons of interest.
+    persons = data_gene_persons_signals.index.to_list()
 
-
-    # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
-    path_samples_tissues_persons = os.path.join(
-        path_assembly, "data_samples_tissues_persons.pickle"
-    )
-    path_pipe = os.path.join(dock, "pipe")
-    path_gene = os.path.join(path_pipe, gene)
-    path_method = os.path.join(path_gene, method)
-
-    path_report_restriction = os.path.join(
-        path_method, "report_restriction.pickle"
-    )
-    path_report_distribution = os.path.join(
-        path_method, "report_distribution.pickle"
+    # Organize information about persons.
+    data_persons_attributes = organize_persons_attributes(
+        persons=persons,
+        data_samples_tissues_persons=data_samples_tissues_persons,
     )
 
-    # Read information from file.
-    data_samples_tissues_persons = pandas.read_pickle(
-        path_samples_tissues_persons
+    # Organize information about persons' tissues.
+
+    # Join
+    data_persons_signals = data_gene_persons_signals.join(
+        data_persons_attributes,
+        how="left",
+        on="person"
     )
-    with open(path_report_restriction, "rb") as file_source:
-        report_restriction = pickle.load(file_source)
-    with open(path_report_distribution, "rb") as file_source:
-        report_distribution = pickle.load(file_source)
-
-    # Access information.
-    data_persons_tissues = report_restriction["data_persons_tissues"]
-    data_gene_persons_signals = (
-        report_distribution["data_gene_persons_signals"]
+    data_persons_tissues_signals = data_persons_signals.join(
+        data_gene_persons_tissues,
+        how="left",
+        on="person"
     )
 
-    # Compile and return information.
-    return {
-        "data_samples_tissues_persons": data_samples_tissues_persons,
-        "data_persons_tissues": data_persons_tissues,
-        "data_gene_persons_signals": data_gene_persons_signals,
-    }
+    # Return information
+    return data_persons_tissues_signals
 
 
+def select_values_by_binary_category(
+    category=None,
+    value=None,
+    data=None
+):
+    """
+    Selects a gene's aggregate scores by binary category.
+
+    arguments:
+        category (str): name of a category
+        value (int): value of a category
+        data (object): Pandas data frame of values across binary groups
+
+    raises:
+
+    returns:
+        (list<float>): values for a group
+
+    """
+
+    # Select values of gene's scores by attribute category.
+    data_selection = data.loc[
+        data[category] == value, :
+    ]
+    return data_selection["value"].to_list()
+
+
+def evaluate_variance_by_binary_groups(
+    groups=None,
+    data=None
+):
+    """
+    Evaluates the variance between values in binary groups by one-way analysis
+    of variance.
+
+    The probability is sometimes a missing value.
+    This missing value does not seem to indicate missing values in the groups.
+    Potential problems
+        1. a specific group lacks values
+        2. multiple groups have the same values
+
+    arguments:
+        groups (list<str>): names of binary groups
+        data (object): Pandas data frame of values across binary groups
+
+    raises:
+
+    returns:
+        (dict<float>): values of results from the analysis of variance
+
+    """
+
+    # Collect values in each group.
+    groups_values = list()
+    for group in groups:
+        values = select_values_by_binary_category(
+            category=group,
+            value=1,
+            data=data,
+        )
+        if len(values) > 2:
+            groups_values.append(values)
+    # Analyze variance.
+    # Use splat operator to extract arguments from list.
+    # Alternative: scipy.stats.f_oneway(*[df[col] for col in df])
+    # The probability is sometimes a missing value.
+    # Even when this probability is missing, there do not seem to be
+    # irregularities in the values.
+    if (len(groups_values) > 1):
+        report = scipy.stats.f_oneway(*groups_values)
+        # Compile information.
+        information = {
+            "statistic": report[0],
+            "probability": report[1],
+        }
+    else:
+        # Compile information.
+        information = {
+            "statistic": float("nan"),
+            "probability": float("nan"),
+        }
+    # Return information.
+    return information
 
 
 
@@ -360,105 +514,6 @@ def execute_procedure(dock=None):
     )
 
     # Organize persons' signals and properties.
-
-    print(source["data_samples_tissues_persons"])
-    print(source["data_persons_tissues"])
-    print(source["data_gene_persons_signals"])
-
-    persons = source["data_gene_persons_signals"].index.to_list()
-    print("persons")
-    data_samples_tissues_persons = source["data_samples_tissues_persons"].loc[
-        source["data_samples_tissues_persons"]["person"].isin(persons),
-    ]
-    print(data_samples_tissues_persons)
-    data_samples_tissues_persons.reset_index(
-        level="sample",
-        inplace=True
-    )
-    data_samples_tissues_persons.drop(
-        labels=["sample", "tissue_major", "tissue_minor"],
-        axis="columns",
-        inplace=True
-    )
-    data_samples_tissues_persons.drop_duplicates(
-        subset=None,
-        keep="first",
-        inplace=True,
-    )
-    data_samples_tissues_persons.set_index(
-        ["person"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    print(data_samples_tissues_persons)
-
-    # Translate tissue
-    def translate_tissue(value):
-        if value:
-            return 1
-        else:
-            return 0
-    data_persons_tissues = source["data_persons_tissues"].applymap(
-        translate_tissue,
-    )
-    print(data_persons_tissues)
-
-
-
-
-    # Join
-    data_persons_signals = source["data_gene_persons_signals"].join(
-        data_samples_tissues_persons,
-        how="left",
-        on="person"
-    )
-    print(data_persons_signals)
-
-    data_persons_tissues_signals = data_persons_signals.join(
-        data_persons_tissues,
-        how="left",
-        on="person"
-    )
-    print(data_persons_tissues_signals)
-
-    # Translate sex.
-    def translate_sex(sex):
-        if sex == "female":
-            return 2
-        elif sex == "male":
-            return 1
-    data_persons_tissues_signals["sex"] = (
-        data_persons_tissues_signals["sex"].apply(translate_sex)
-    )
-    # Translate age.
-    def translate_age(age):
-        if age == "20-29":
-            return 25
-        elif age == "30-39":
-            return 35
-        elif age == "40-49":
-            return 45
-        elif age == "50-59":
-            return 55
-        elif age == "60-69":
-            return 65
-        elif age == "70-79":
-            return 75
-        elif age == "80-89":
-            return 85
-        elif age == "90-99":
-            return 95
-        elif age == "100-109":
-            return 105
-    data_persons_tissues_signals["age"] = (
-        data_persons_tissues_signals["age"].apply(translate_age)
-    )
-    print(data_persons_tissues_signals)
-
-
-
-
 
     if True:
         data_independence = data_persons_tissues_signals.drop(

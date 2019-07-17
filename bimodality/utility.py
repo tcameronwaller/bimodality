@@ -115,7 +115,7 @@ def remove_directory(path=None):
     if os.path.exists(path):
         # Only for empty directory.
         #os.rmdir(path)
-        # For non empyt directory.
+        # For non empty directory.
         shutil.rmtree(path)
 
 

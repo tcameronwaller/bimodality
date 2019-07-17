@@ -35,22 +35,21 @@ cd $path_program
 
 echo "Now set to call routine and procedures."
 
-# Organization
+# Preparation Routine
 
-python3 interface.py main --dock $path_dock --access
-python3 interface.py main --dock $path_dock --assembly
-python3 interface.py main --dock $path_dock --measurement
+#python3 interface.py main --dock $path_dock --access
+#python3 interface.py main --dock $path_dock --assembly
+#python3 interface.py main --dock $path_dock --measurement
 #python3 interface.py main --dock $path_dock --sample
-python3 interface.py main --dock $path_dock --selection
+#python3 interface.py main --dock $path_dock --selection
 #python3 interface.py main --dock $path_dock --tissue
 
-# Batch
+# Batch Routine
 
-python3 interface.py main --dock $path_dock --split
+#python3 interface.py main --dock $path_dock --split
+python3 interface.py main --dock $path_dock --candidacy
 
-# 25 shuffles for 12,116 genes will require 10 hours
-# 50 shuffles for 12,116 genes will require 18 hours
-python3 interface.py main --dock $path_dock --shuffle --count 1000
+#python3 interface.py main --dock $path_dock --shuffle --count 1000
 
 #python3 interface.py main --dock $path_dock --organization
 #python3 interface.py main --dock $path_dock --restriction
@@ -62,6 +61,9 @@ python3 interface.py main --dock $path_dock --shuffle --count 1000
 #nohup python3 interface.py main --dock $path_dock --pipe --local > $path_dock/report.out &
 
 #python3 interface.py main --dock $path_dock --collection
+
+# Analysis Routine
+
 #python3 interface.py main --dock $path_dock --combination
 #python3 interface.py main --dock $path_dock --regression
 

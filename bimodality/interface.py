@@ -15,19 +15,23 @@ import textwrap
 # Relevant.
 
 # Custom.
+
 import access
 import assembly
 import measurement
 import sample
 import selection
-#import tissue
+import tissue
+
 import split
+import candidacy
 import shuffle
 import organization
 import restriction
 import distribution
 import pipe
 import collection
+
 import combination
 import regression
 
@@ -427,7 +431,7 @@ def evaluate_main_parameters(arguments):
         # Report status.
         print("... executing candidacy procedure ...")
         # Execute procedure.
-        candidacy.execute_procedure(dock=arguments.dock)
+        candidacy.execute_procedure_local(dock=arguments.dock)
     if arguments.shuffle:
         # Report status.
         print("... executing shuffle procedure ...")
