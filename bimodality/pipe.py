@@ -64,6 +64,8 @@ def read_source_local_initial(
     # Specify directories and files.
     if source_genes == "split":
         path_source = os.path.join(dock, "split")
+    elif source_genes == "candidacy":
+        path_source = os.path.join(dock, "candidacy")
     elif source_genes == "combination":
         path_source = os.path.join(dock, "combination")
     path_genes = os.path.join(
@@ -380,12 +382,30 @@ def execute_procedure(
     # Method for selection is either "availability" or "imputation".
     # Specific tissues are only relevant to "imputation" method.
     tissues = [
-        "adipose", "blood", "colon", "esophagus", "heart", "muscle",
-        "lung", "nerve", "skin", "thyroid",
-    ]
+        "adipose", # 552
+        #"adrenal", # 190
+        "artery", # 551
+        "blood", # 407
+        "brain", # 254
+        "colon", # 371
+        "esophagus", # 513
+        "heart", # 399
+        #"liver", # 175
+        "lung", # 427
+        "muscle", # 564
+        "nerve", # 414
+        "pancreas", # 248
+        #"pituitary", # 183
+        "skin", # 583
+        #"intestine", # 137
+        #"salivary", # 97 # now excluded at "selection" procedure... threshold 100
+        #"spleen", # 162
+        "stomach", # 262
+        "thyroid", # 446
+    ] # 300
     distribution_imputation = describe_gene_signal_distribution(
         method="imputation",
-        count=7,
+        count=10,
         tissues=tissues,
         data_gene_persons_tissues_signals=(
             collection_organization["data_gene_persons_tissues_signals"]
@@ -393,7 +413,7 @@ def execute_procedure(
     )
     distribution_availability = describe_gene_signal_distribution(
         method="availability",
-        count=7,
+        count=10,
         tissues=tissues,
         data_gene_persons_tissues_signals=(
             collection_organization["data_gene_persons_tissues_signals"]
@@ -403,7 +423,7 @@ def execute_procedure(
     # Prepare and describe distributions of shuffles of gene's signals.
     shuffles_imputation = shuffle_gene_signal_distribution(
         method="imputation",
-        count=7,
+        count=10,
         tissues=tissues,
         shuffles=shuffles,
         data_gene_persons_tissues_signals=(
@@ -412,7 +432,7 @@ def execute_procedure(
     )
     shuffles_availability = shuffle_gene_signal_distribution(
         method="availability",
-        count=7,
+        count=10,
         tissues=tissues,
         shuffles=shuffles,
         data_gene_persons_tissues_signals=(
@@ -461,7 +481,7 @@ def execute_procedure_local(dock=None):
     """
 
     # Read source information from file.
-    source = read_source_local_initial(source_genes="combination", dock=dock)
+    source = read_source_local_initial(source_genes="candidacy", dock=dock)
 
     print("count of genes: " + str(len(source["genes"])))
     #print("count of shuffles: " + str(len(source["shuffles"])))
@@ -498,7 +518,7 @@ def execute_procedure_local(dock=None):
         "ENSG00000198965",
     ]
     #report = pool.map(execute_procedure_gene, check_genes)
-    report = pool.map(execute_procedure_gene, source["genes"][0:64])
+    report = pool.map(execute_procedure_gene, source["genes"][0:8])
     #report = pool.map(execute_procedure_gene, source["genes"])
 
     # Report.
@@ -561,8 +581,6 @@ def execute_procedure_local_sub(gene=None, dock=None):
     pass
 
 
-
-
 def execute_procedure_remote(dock=None, gene=None):
     """
     Function to execute module's main behavior.
@@ -585,7 +603,6 @@ def execute_procedure_remote(dock=None, gene=None):
     )
 
     pass
-
 
 
 def execute_procedure_remote_sub(gene=None, dock=None):
@@ -627,8 +644,6 @@ def execute_procedure_remote_sub(gene=None, dock=None):
     )
 
     pass
-
-
 
 
 if (__name__ == "__main__"):

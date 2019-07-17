@@ -50,7 +50,7 @@ path_dock="$path_project/$subpath_dock"
 #mkdir $path_dock
 
 # Define iteration variables.
-readarray genes < $path_dock/split/genes.txt
+readarray genes < $path_dock/candidacy/genes.txt
 #echo ${genes[@]}
 #echo $genes[0]
 #echo $genes[1]

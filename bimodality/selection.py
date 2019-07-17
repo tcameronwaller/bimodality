@@ -199,26 +199,26 @@ def select_samples_by_inclusion(
     # Define tissues for inclusion.
     # These tissues are not sex-specific.
     tissues_sex = [
-        "adipose",
-        "adrenal",
-        "artery",
-        "blood",
-        "brain",
-        "colon",
-        "esophagus",
-        "heart",
-        "liver",
-        "lung",
-        "muscle",
-        "nerve",
-        "pancreas",
-        "pituitary",
-        "skin",
-        "intestine",
-        "salivary",
-        "spleen",
-        "stomach",
-        "thyroid",
+        "adipose", # 552
+        "adrenal", # 190
+        "artery", # 551
+        "blood", # 407
+        "brain", # 254
+        "colon", # 371
+        "esophagus", # 513
+        "heart", # 399
+        "liver", # 175
+        "lung", # 427
+        "muscle", # 564
+        "nerve", # 414
+        "pancreas", # 248
+        "pituitary", # 183
+        "skin", # 583
+        "intestine", # 137
+        #"salivary", # 97
+        "spleen", # 162
+        "stomach", # 262
+        "thyroid", # 446
     ]
     data_samples_sex = data_samples_tissues_persons.loc[
         data_samples_tissues_persons["tissue_major"].isin(tissues_sex),

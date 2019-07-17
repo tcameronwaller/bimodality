@@ -19,6 +19,7 @@ import functools
 import multiprocessing
 import datetime
 import gc
+import time
 
 # Relevant
 
@@ -166,26 +167,26 @@ def determine_gene_signal_distribution(
     # This strategy sets a simple threshold at 200 persons with samples for
     # each of these tissues.
     tissues = [
-        "adipose",
-        #"adrenal",
-        "artery",
-        "blood",
-        "brain",
-        "colon",
-        "esophagus",
-        "heart",
-        #"liver",
-        "lung",
-        "muscle",
-        "nerve",
-        "pancreas",
-        #"pituitary",
-        "skin",
-        #"intestine",
-        #"salivary",
-        #"spleen",
-        "stomach",
-        "thyroid",
+        "adipose", # 552
+        #"adrenal", # 190
+        "artery", # 551
+        "blood", # 407
+        "brain", # 254
+        "colon", # 371
+        "esophagus", # 513
+        "heart", # 399
+        #"liver", # 175
+        "lung", # 427
+        "muscle", # 564
+        "nerve", # 414
+        "pancreas", # 248
+        #"pituitary", # 183
+        "skin", # 583
+        #"intestine", # 137
+        #"salivary", # 97 # now excluded at "selection" procedure... threshold 100
+        #"spleen", # 162
+        "stomach", # 262
+        "thyroid", # 446
     ] # 300
     distribution = pipe.describe_gene_signal_distribution(
         method=method,
@@ -303,7 +304,7 @@ def evaluate_gene_tissues(
     # Evaluate whether gene's scores differ by tissue selection.
     if (
         (math.isnan(report["probability"])) or
-        (report["probability"] > 0.05)
+        (report["probability"] > 0.07)
     ):
         return True
     else:
@@ -371,9 +372,11 @@ def evaluate_gene_candidacy(
         return True
     else:
         if (not signal):
-            print("Gene: " + gene + " failed signal candidacy!")
+            #print("Gene: " + gene + " failed signal candidacy!")
+            pass
         if (not tissue):
-            print("Gene: " + gene + " failed tissue candidacy!")
+            #print("Gene: " + gene + " failed tissue candidacy!")
+            pass
         return False
 
 
@@ -444,7 +447,7 @@ def read_collect_write_genes(
         path_candidacy, "genes_imputation.txt"
     )
     path_genes_availability = os.path.join(
-        path_candidacy, "genes_avaiability.txt"
+        path_candidacy, "genes_availability.txt"
     )
     # Read genes.
     genes_imputation = os.listdir(path_imputation)
@@ -473,6 +476,55 @@ def read_collect_write_genes(
     )
 
     pass
+
+
+def report_gene_tissue_persons(
+    gene=None,
+    count=None,
+    dock=None,
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        gene (str): identifier of a gene
+        count (int): either minimal count of tissues for selection by
+            "availability" or maximal count of imputation for selection by
+            "imputation"
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source(
+        gene=gene,
+        dock=dock
+    )
+    # Determine gene's distribution of aggregate tissue scores across persons.
+    imputation = determine_gene_signal_distribution(
+        gene=gene,
+        method="imputation",
+        count=count,
+        data_gene_samples_signals=source["data_gene_samples_signals"],
+    )
+    availability = determine_gene_signal_distribution(
+        gene=gene,
+        method="availability",
+        count=count,
+        data_gene_samples_signals=source["data_gene_samples_signals"],
+    )
+    utility.print_terminal_partition(level=2)
+    print("Persons by imputation and availability methods...")
+    print(imputation["data_gene_persons_signals"].size)
+    print(availability["data_gene_persons_signals"].size)
+
+    pass
+
 
 
 ###############################################################################
@@ -507,7 +559,7 @@ def execute_procedure(
     candidacy_imputation = evaluate_gene_candidacy(
         gene=gene,
         method="imputation",
-        count=7,
+        count=10,
         data_samples_tissues_persons=data_samples_tissues_persons,
         data_gene_samples_signals=data_gene_samples_signals,
     )
@@ -590,37 +642,21 @@ def execute_procedure_local(dock=None):
         "ENSG00000198965",
     ]
     #report = pool.map(execute_procedure_gene, check_genes)
-    report = pool.map(execute_procedure_gene, source["genes"][0:100])
-    #report = pool.map(execute_procedure_gene, source["genes"])
+    #report = pool.map(execute_procedure_gene, source["genes"][0:10])
+    report = pool.map(execute_procedure_gene, source["genes"])
+
+    # Pause procedure.
+    time.sleep(5.0)
 
     # Report.
     #print("Process complete for the following genes...")
     #print(str(len(report)))
 
-    # Read source information from file.
-    source = read_source(
-        gene="ENSG00000231925",
-        dock=dock
-    )
-
-    # Determine gene's distribution of aggregate tissue scores across persons.
-    imputation = determine_gene_signal_distribution(
+    report_gene_tissue_persons(
         gene="ENSG00000231925", # TAPBP
-        method="imputation",
         count=10,
-        data_gene_samples_signals=source["data_gene_samples_signals"],
+        dock=dock,
     )
-    availability = determine_gene_signal_distribution(
-        gene="ENSG00000231925", # TAPBP
-        method="availability",
-        count=10,
-        data_gene_samples_signals=source["data_gene_samples_signals"],
-    )
-
-    utility.print_terminal_partition(level=2)
-    print("Persons availability by imputation and availability methods...")
-    print(imputation["data_gene_persons_signals"].size)
-    print(availability["data_gene_persons_signals"].size)
 
     # Collect genes.
     read_collect_write_genes(dock=dock)
