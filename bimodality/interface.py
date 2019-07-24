@@ -33,13 +33,13 @@ import pipe
 import collection
 
 import combination
-import regression
+import category
 
 if False:
     import analysis
     import function
 import metric
-#import plot
+import plot
 #import test
 import utility
 
@@ -286,10 +286,10 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
-        "-regression", "--regression", dest="regression",
+        "-category", "--category", dest="category",
         action="store_true",
         help=(
-            "Regression analysis of persons for individual genes."
+            "Analysis of groups of persons for individual genes."
         )
     )
 
@@ -476,11 +476,11 @@ def evaluate_main_parameters(arguments):
         print("... executing combination procedure ...")
         # Execute procedure.
         combination.execute_procedure(dock=arguments.dock)
-    if arguments.regression:
+    if arguments.category:
         # Report status.
-        print("... executing regression procedure ...")
+        print("... executing category procedure ...")
         # Execute procedure.
-        regression.execute_procedure(dock=arguments.dock)
+        category.execute_procedure(dock=arguments.dock)
 
     if arguments.analysis:
         # Report status.

@@ -129,9 +129,10 @@ def select_persons_tissues(
     specific tissues.
 
     arguments:
-        method (str): method for selection of tissues and patients, either
-            "availability" for selection by minimal count of tissues, or
-            "imputation" for selection by same tissues with imputation
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
         count (int): either minimal count of tissues for selection by
             "availability" or maximal count of imputation for selection by
             "imputation"
@@ -278,7 +279,7 @@ def prepare_report_gene(
     )
 
     # Calculate count of persons.
-    persons = data_persons_tissues.size
+    persons = data_persons_tissues.shape[0]
 
     # Calculate mean count of tissues per person.
     mean = data_persons_tissues.mean()
@@ -288,6 +289,7 @@ def prepare_report_gene(
 
     # Compile information.
     information = {
+        "data_gene_persons_tissues_signals": data_gene_persons_tissues_signals,
         "data_gene_persons_tissues": data_persons_tissues,
         "data_gene_persons_tissues_count": data_persons_tissues_count,
         "persons": persons,
@@ -649,9 +651,10 @@ def execute_procedure(
     Function to execute module's main behavior.
 
     arguments:
-        method (str): method for selection of tissues and patients, either
-            "availability" for selection by minimal count of tissues, or
-            "imputation" for selection by same tissues with imputation
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
         count (int): either minimal count of tissues for selection by
             "availability" or maximal count of imputation for selection by
             "imputation"

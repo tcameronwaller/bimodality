@@ -121,6 +121,15 @@ def standardize_gene_signal(
     """
     Transforms values of genes' signals to standard or z-score space.
 
+    Data has persons across rows and tissues across columns.
+
+             tissue_1 tissue_2 tissue_3 tissue_4 tissue_5
+    person_1 ...      ...      ...      ...      ...
+    person_2 ...      ...      ...      ...      ...
+    person_3 ...      ...      ...      ...      ...
+    person_4 ...      ...      ...      ...      ...
+    person_5 ...      ...      ...      ...      ...
+
     arguments:
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
@@ -177,7 +186,16 @@ def normalize_standardize_gene_signal(
     data_gene_persons_tissues_signals=None
 ):
     """
-    Normalizes and standardizes genes' signals across persons and tissues
+    Normalizes and standardizes genes' signals across persons and tissues.
+
+    Data has persons across rows and tissues across columns.
+
+             tissue_1 tissue_2 tissue_3 tissue_4 tissue_5
+    person_1 ...      ...      ...      ...      ...
+    person_2 ...      ...      ...      ...      ...
+    person_3 ...      ...      ...      ...      ...
+    person_4 ...      ...      ...      ...      ...
+    person_5 ...      ...      ...      ...      ...
 
     arguments:
         data_gene_persons_tissues_signals (object): Pandas data frame of a
@@ -264,34 +282,14 @@ def calculate_bimodality_metrics(
     raises:
 
     returns:
-        (dict<float>): Values of metrics of bimodality.
+        (dict<float>): values of metrics of bimodality
 
     """
 
-    # Count non-missing values.
-    count_valid = len(values)
-
-    # Calculate standard deviation of values.
-    deviation = numpy.std(values, axis=0)
-
-    # Evaluate distribution's suitability for analysis.
-    if (
-        (count_valid > 10) and
-        (deviation > 0)
-    ):
-        # Calculate metrics of bimodality.
-        coefficient = metric.calculate_bimodality_coefficient(series=values)
-        dip = metric.calculate_dip_statistic(series=values)
-        mixture = metric.calculate_mixture_model_score(series=values)
-        pass
-    else:
-        print("*Warning: current gene has inadequate distribution of scores.*")
-        # Unable to calculate metrics for small distribution.
-        coefficient = float("nan")
-        dip = float("nan")
-        mixture = float("nan")
-        pass
-
+    # Calculate metrics of bimodality.
+    coefficient = metric.calculate_bimodality_coefficient(series=values)
+    dip = metric.calculate_dip_statistic(series=values)
+    mixture = metric.calculate_mixture_model_score(series=values)
     # Compile information.
     information = {
         "coefficient": coefficient,
@@ -303,11 +301,35 @@ def calculate_bimodality_metrics(
     return information
 
 
-def determine_distribution_values_scores(
+def generate_null_metrics():
+    """
+    Generates null metrics.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<float>): values of metrics of bimodality
+
+    """
+
+    # Compile information.
+    information = {
+        "coefficient": float("nan"),
+        "dip": float("nan"),
+        "mixture": float("nan"),
+    }
+
+    # Return information.
+    return information
+
+
+def determine_gene_persons_signals(
     data_gene_persons_signals=None
 ):
     """
-    Determines metrics of a distribution's modality.
+    Determines a gene's values of tissue-aggregate scores across persons.
 
     arguments:
         data_gene_persons_signals (object): Pandas data frame of a gene's
@@ -316,7 +338,7 @@ def determine_distribution_values_scores(
     raises:
 
     returns:
-        (dict<float>): Values of metrics of bimodality.
+        (dict): gene's tissue-aggregate scores across persons
 
     """
 
@@ -330,34 +352,10 @@ def determine_distribution_values_scores(
     )
     values = data["value"].to_list()
 
-    # Convert the scale of the values.
-    if False:
-        values_scale = list(scipy.stats.zscore(values))
-        values_scale = numpy.apply_along_axis(
-            lambda x: (x - x.mean()) / x.std(),
-            0,
-            numpy.array(values)
-        )
-        values_scale = numpy.apply_along_axis(
-            lambda x: x * 10000000000,
-            0,
-            numpy.array(values)
-        )
-
-    # Calculate metrics of bimodality.
-    scores = calculate_bimodality_metrics(values=values)
-
-    # Prepare gene report.
-    # Describe gene's aggregate signals across persons.
-    report_gene = prepare_report_gene(
-        data_gene_persons_signals=data,
-    )
-
     # Compile information.
     information = {
-        "report_gene": report_gene,
+        "data": data,
         "values": values,
-        "scores": scores
     }
     # Return information.
     return information
@@ -376,7 +374,7 @@ def prepare_report_gene(
 
     arguments:
         data_gene_persons_signals (object): Pandas data frame of a gene's
-            aggregate signals across persons
+            aggregate, pan-tissue signals across persons
 
     raises:
 
@@ -533,12 +531,14 @@ def test(dock=None):
 
 
 def execute_procedure(
-    data_gene_persons_tissues_signals=None
+    metric=None,
+    data_gene_persons_tissues_signals=None,
 ):
     """
     Function to execute module's main behavior.
 
     arguments:
+        metric (bool): whether to calculate metrics for gene's distribution
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
 
@@ -568,22 +568,48 @@ def execute_procedure(
         data_gene_persons_tissues_signals=data_normal_standard,
     )
 
-
-    # TODO: Keep track of final distribution values for each patient's identifier...
-    # TODO: construct a report for the distribution procedure...
-
-    # Determine values and scores of distribution.
-    # Rescale the values before calculating modality scores on the
-    # distribution.
-    collection = determine_distribution_values_scores(
+    # Determine values of gene's tissue-aggregate signals across persons.
+    # This procedure includes basic filters.
+    collection = determine_gene_persons_signals(
         data_gene_persons_signals=data_gene_persons_signals
+    )
+
+    # Metric
+    # Determine whether to calculate metrics for gene's distribution.
+    if metric:
+        population = candidacy.evaluate_gene_population(
+            threshold=100,
+            data_gene_persons_signals=collection["data"],
+        )
+        signal = candidacy.evaluate_gene_signal(
+            threshold=0.0,
+            data_gene_persons_signals=collection["data"],
+        )
+        if signal and population:
+            # Calculate metrics.
+            # Calculate metrics of bimodality.
+            scores = calculate_bimodality_metrics(values=collection["values"])
+            pass
+        else:
+            # Generate missing values.
+            scores = generate_null_metrics()
+            pass
+    else:
+        # Generate missing values.
+        scores = generate_null_metrics()
+        pass
+
+    # Prepare gene report.
+    # Describe gene's aggregate signals across persons.
+    report_gene = prepare_report_gene(
+        data_gene_persons_signals=collection["data"],
     )
 
     # Compile information.
     information = {
         "values": collection["values"],
-        "scores": collection["scores"],
-        "report_gene": collection["report_gene"],
+        "scores": scores,
+        "report_gene": report_gene,
     }
     # Return information.
     return information

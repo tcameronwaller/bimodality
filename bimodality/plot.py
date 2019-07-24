@@ -509,9 +509,9 @@ def plot_scatter_cluster(
     index = 0
     for name, group in groups:
         values_x = group[abscissa].to_list()
-        mean_x = statistics.median(values_x)
+        mean_x = statistics.mean(values_x)
         values_y = group[ordinate].to_list()
-        mean_y = statistics.median(values_y)
+        mean_y = statistics.mean(values_y)
         axes.text(
             mean_x,
             mean_y,
@@ -1286,19 +1286,38 @@ def read_source_tissue(dock=None):
 
     # Specify directories and files.
     path_tissue = os.path.join(dock, "tissue")
-    path_sample_component = os.path.join(
-        path_tissue, "data_sample_component.pickle"
+
+    path_variance_all = os.path.join(
+        path_tissue, "data_component_variance_all.pickle"
     )
+    path_component_all = os.path.join(
+        path_tissue, "data_factor_component_all.pickle"
+    )
+    path_variance_few = os.path.join(
+        path_tissue, "data_component_variance_few.pickle"
+    )
+    path_component_few = os.path.join(
+        path_tissue, "data_factor_component_few.pickle"
+    )
+
     # Read information from file.
-    data_sample_component = pandas.read_pickle(path_sample_component)
+    data_variance_all = pandas.read_pickle(path_variance_all)
+    data_component_all = pandas.read_pickle(path_component_all)
+    data_variance_few = pandas.read_pickle(path_variance_few)
+    data_component_few = pandas.read_pickle(path_component_few)
     # Compile and return information.
     return {
-        "data_sample_component": data_sample_component,
+        "data_variance_all": data_variance_all,
+        "data_component_all": data_component_all,
+        "data_variance_few": data_variance_few,
+        "data_component_few": data_component_few,
     }
 
 
 def plot_chart_tissue_component(
-    data=None,
+    data_component=None,
+    data_variance=None,
+    file_suffix=None,
     fonts=None,
     colors=None,
     path=None,
@@ -1307,7 +1326,11 @@ def plot_chart_tissue_component(
     Plots charts from the tissue process.
 
     arguments:
-        data (object): Pandas data frame with information about samples
+        data_component (object): Pandas data frame with information about
+            components
+        data_variance (object): Pandas data frame with information about
+            variance of each component
+        file_suffix (str): suffix to append to the end of file names
         fonts (dict<object>): references to definitions of font properties
         colors (dict<tuple>): references to definitions of color properties
         path (str): path to directory
@@ -1319,8 +1342,32 @@ def plot_chart_tissue_component(
     """
 
     # Organize data.
+    # Extract the variance of each component.
+    variance_one = data_variance.loc[
+        data_variance["component"] == 1,
+        "variance"
+    ]
+    variance_one = round(float(variance_one * 100), 1)
+
+    variance_two = data_variance.loc[
+        data_variance["component"] == 2,
+        "variance"
+    ]
+    variance_two = round(float(variance_two * 100), 1)
+
+    variance_three = data_variance.loc[
+        data_variance["component"] == 3,
+        "variance"
+    ]
+    variance_three = round(float(variance_three * 100), 1)
+
+    # Principal components for all tissues.
+    data_component = data_component.reset_index(
+        level=["sample", "person", "tissue_major", "tissue_minor"],
+        inplace=False
+    )
     # Drop the sample designations.
-    data.drop(
+    data_component.drop(
         labels=["tissue_minor"],
         axis="columns",
         inplace=True
@@ -1330,18 +1377,18 @@ def plot_chart_tissue_component(
     # Component 1 and Component 2.
     # Create figures.
     figure = plot_scatter_cluster(
-        data=data,
+        data=data_component,
         abscissa="component_1",
         ordinate="component_2",
-        label_horizontal="Principal Component 1",
-        label_vertical="Principal Component 2",
+        label_horizontal=("Component 1 (" + str(variance_one) + "%)"),
+        label_vertical=("Component 2 (" + str(variance_two) + "%)"),
         factor="tissue_major",
         fonts=fonts,
         colors=colors,
         legend=True,
     )
     # Specify directories and files.
-    file = ("tissue_components_1_2.svg")
+    file = ("tissue_components_1_2" + file_suffix + ".svg")
     path_file = os.path.join(path, file)
     # Write figure.
     write_figure(
@@ -1352,18 +1399,18 @@ def plot_chart_tissue_component(
     # Component 1 and Component 3.
     # Create figures.
     figure = plot_scatter_cluster(
-        data=data,
+        data=data_component,
         abscissa="component_1",
         ordinate="component_3",
-        label_horizontal="Principal Component 1",
-        label_vertical="Principal Component 3",
+        label_horizontal=("Component 1 (" + str(variance_one) + "%)"),
+        label_vertical=("Component 3 (" + str(variance_three) + "%)"),
         factor="tissue_major",
         fonts=fonts,
         colors=colors,
         legend=True,
     )
     # Specify directories and files.
-    file = ("tissue_components_1_3.svg")
+    file = ("tissue_components_1_3" + file_suffix + ".svg")
     path_file = os.path.join(path, file)
     # Write figure.
     write_figure(
@@ -1374,18 +1421,18 @@ def plot_chart_tissue_component(
     # Component 2 and Component 3.
     # Create figures.
     figure = plot_scatter_cluster(
-        data=data,
+        data=data_component,
         abscissa="component_2",
         ordinate="component_3",
-        label_horizontal="Principal Component 2",
-        label_vertical="Principal Component 3",
+        label_horizontal=("Component 2 (" + str(variance_two) + "%)"),
+        label_vertical=("Component 3 (" + str(variance_three) + "%)"),
         factor="tissue_major",
         fonts=fonts,
         colors=colors,
         legend=True,
     )
     # Specify directories and files.
-    file = ("tissue_components_2_3.svg")
+    file = ("tissue_components_2_3" + file_suffix + ".svg")
     path_file = os.path.join(path, file)
     # Write figure.
     write_figure(
@@ -1419,20 +1466,35 @@ def plot_charts_tissue(
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     path_tissue = os.path.join(path_plot, "tissue")
+    utility.remove_directory(path=path_tissue)
     utility.confirm_path_directory(path_tissue)
     # Read source information from file.
     source = read_source_tissue(dock=dock)
-    # Principal components.
-    data = source["data_sample_component"].reset_index(
-        level=["sample", "person", "tissue_major", "tissue_minor"],
-        inplace=False
-    )
+
+    # All tissues.
     # Create charts for combinations of principal components.
+    path_study = os.path.join(path_tissue, "all")
+    utility.confirm_path_directory(path_study)
     plot_chart_tissue_component(
-        data=data,
+        data_component=source["data_component_all"],
+        data_variance=source["data_variance_all"],
+        file_suffix="",
         fonts=fonts,
         colors=colors,
-        path=path_tissue
+        path=path_study
+    )
+
+    # Few tissues.
+    # Create charts for combinations of principal components.
+    path_study = os.path.join(path_tissue, "few")
+    utility.confirm_path_directory(path_study)
+    plot_chart_tissue_component(
+        data_component=source["data_component_few"],
+        data_variance=source["data_variance_few"],
+        file_suffix="",
+        fonts=fonts,
+        colors=colors,
+        path=path_study
     )
 
     pass
@@ -1533,8 +1595,8 @@ def execute_procedure(dock=None):
 
     #plot_charts_analysis(dock=dock)
     #plot_charts_sample(dock=dock)
-    #plot_charts_tissue(dock=dock)
-    plot_charts_restriction(dock=dock)
+    plot_charts_tissue(dock=dock)
+    #plot_charts_restriction(dock=dock)
 
     pass
 

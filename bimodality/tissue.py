@@ -28,6 +28,7 @@ import sklearn.decomposition
 
 import assembly
 import measurement
+import selection
 import utility
 
 #dir()
@@ -77,7 +78,7 @@ def read_source(dock=None):
 
 
 ##########
-# Principle components
+# Summary
 
 
 def calculate_gene_signal_mean_by_minor_tissues(
@@ -114,9 +115,22 @@ def calculate_gene_signal_mean_by_minor_tissues(
     return data_mean
 
 
+##########
+# Normalization, Standardization
+
+
 def standardize_gene_signal(data_gene_signal=None):
     """
     Transforms values of genes' signals to standard or z-score space.
+
+    Data has genes across rows and samples across columns.
+
+           sample_1 sample_2 sample_3 sample_4 sample_5
+    gene_1 ...      ...      ...      ...      ...
+    gene_2 ...      ...      ...      ...      ...
+    gene_3 ...      ...      ...      ...      ...
+    gene_4 ...      ...      ...      ...      ...
+    gene_5 ...      ...      ...      ...      ...
 
     arguments:
         data_gene_signal (object): Pandas data frame of genes' signals across
@@ -196,7 +210,16 @@ def normalize_standardize_gene_signal(
     data_gene_signal=None
 ):
     """
-    Normalizes and standardizes genes' signals across all samples
+    Normalizes and standardizes genes' signals across all samples.
+
+    Data has genes across rows and samples across columns.
+
+           sample_1 sample_2 sample_3 sample_4 sample_5
+    gene_1 ...      ...      ...      ...      ...
+    gene_2 ...      ...      ...      ...      ...
+    gene_3 ...      ...      ...      ...      ...
+    gene_4 ...      ...      ...      ...      ...
+    gene_5 ...      ...      ...      ...      ...
 
     arguments:
         data_gene_signal (object): Pandas data frame of genes' signals across
@@ -236,16 +259,20 @@ def normalize_standardize_gene_signal(
     return data_normal_standard
 
 
+##########
+# Principle components
+
+
 def calculate_principal_components(
-    data_gene_signal=None,
+    data=None,
     components=None,
 ):
     """
     Calculates the principal components.
 
     arguments:
-        data_gene_signal (object): Pandas data frame of genes' signals across
-            samples
+        data (object): Pandas data frame of signals with features across rows
+            and observations across columns
         components (int): count of principle components
 
     raises:
@@ -258,7 +285,7 @@ def calculate_principal_components(
     # Organize data for principle component analysis.
     # Organize features (genes) across columns and instances (samples) across
     # rows.
-    data = data_gene_signal.transpose(copy=True)
+    data = data.transpose(copy=True)
     # Organize data as an array of arrays.
     matrix = data.to_numpy()
     # Execute principle component analysis.
@@ -296,11 +323,72 @@ def calculate_principal_components(
     )
     # Compile information.
     information = {
-        "data_component": data_component,
+        "data_sample_component": data_component,
         "data_component_variance": data_component_variance,
     }
     # Return information.
     return information
+
+
+def calculate_report_gene_sample_principal_components(
+    data=None,
+    data_samples_factors=None,
+    components=None,
+):
+    """
+    Calculates the principal components for genes as features and samples as
+    observations.
+
+    arguments:
+        data (object): Pandas data frame of signals with features across rows
+            and observations across columns
+        data_samples_factors (object): Pandas data frame of factors for each
+            sample
+        components (int): count of principle components
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of principle components for each factor
+
+    """
+
+    # Describe variance across categories of tissues.
+    # Normalize and standardized gene's signals for principal components.
+    data_normal_standard = normalize_standardize_gene_signal(
+        data_gene_signal=data
+    )
+    print("Data after normalization and standardization.")
+    print(data_normal_standard)
+
+    report = calculate_principal_components(
+        data=data_normal_standard,
+        components=10
+    )
+    utility.print_terminal_partition(level=2)
+    print("Report from principal component analysis...")
+    print("Explained variance by each principal component...")
+    print(report["data_component_variance"])
+    utility.print_terminal_partition(level=3)
+    print(report["data_sample_component"])
+    # Associate samples to major and minor tissue types.
+    data_factor_component = assembly.associate_samples_persons_tissues(
+        data_samples_tissues_persons=data_samples_factors,
+        data_gene_sample=report["data_sample_component"],
+    )
+    utility.print_terminal_partition(level=3)
+    print(data_factor_component)
+
+    # Compile information.
+    information = {
+        "data_component_variance": report["data_component_variance"],
+        "data_sample_component": report["data_sample_component"],
+        "data_factor_component": data_factor_component,
+    }
+    # Return information.
+    return information
+
+
 
 
 ##########
@@ -790,67 +878,52 @@ def write_product(dock=None, information=None):
     path_gene_factor = os.path.join(
         path_tissue, "data_gene_signal_factor.pickle"
     )
-    path_component_variance = os.path.join(
-        path_tissue, "data_component_variance.pickle"
+    path_component_variance_all = os.path.join(
+        path_tissue, "data_component_variance_all.pickle"
     )
-    path_component = os.path.join(
-        path_tissue, "data_component.pickle"
+    path_factor_component_all = os.path.join(
+        path_tissue, "data_factor_component_all.pickle"
     )
-    path_sample_component = os.path.join(
-        path_tissue, "data_sample_component.pickle"
+    path_component_variance_few = os.path.join(
+        path_tissue, "data_component_variance_few.pickle"
     )
-    path_component_variance_text = os.path.join(
-        path_tissue, "data_component_variance.txt"
-    )
-    path_component_text = os.path.join(
-        path_tissue, "data_component.txt"
-    )
-    path_sample_component_text = os.path.join(
-        path_tissue, "data_sample_component.txt"
-    )
-    path_gene_dispersion = os.path.join(
-        path_tissue, "data_gene_tissue_dispersion.pickle"
-    )
-    # Write information to file.
-    pandas.to_pickle(
-        information["data_gene_signal_factor"],
-        path_gene_factor
-    )
-    pandas.to_pickle(
-        information["data_component_variance"],
-        path_component_variance
-    )
-    pandas.to_pickle(
-        information["data_component"],
-        path_component
-    )
-    pandas.to_pickle(
-        information["data_sample_component"],
-        path_sample_component
-    )
-    information["data_component_variance"].to_csv(
-        path_or_buf=path_component_variance_text,
-        sep="\t",
-        header=True,
-        index=False,
-    )
-    information["data_component"].to_csv(
-        path_or_buf=path_component_text,
-        sep="\t",
-        header=True,
-        index=False,
-    )
-    information["data_sample_component"].to_csv(
-        path_or_buf=path_sample_component_text,
-        sep="\t",
-        header=True,
-        index=False,
-    )
-    pandas.to_pickle(
-        information["data_gene_tissue_dispersion"],
-        path_gene_dispersion
+    path_factor_component_few = os.path.join(
+        path_tissue, "data_factor_component_few.pickle"
     )
 
+    # Write information to file.
+    if False:
+        pandas.to_pickle(
+            information["data_gene_signal_factor"],
+            path_gene_factor
+        )
+        pass
+
+    pandas.to_pickle(
+        information["data_component_variance_all"],
+        path_component_variance_all
+    )
+    pandas.to_pickle(
+        information["data_factor_component_all"],
+        path_factor_component_all
+    )
+
+    pandas.to_pickle(
+        information["data_component_variance_few"],
+        path_component_variance_few
+    )
+    pandas.to_pickle(
+        information["data_factor_component_few"],
+        path_factor_component_few
+    )
+
+    if False:
+        information["data_component_variance"].to_csv(
+            path_or_buf=path_component_variance_text,
+            sep="\t",
+            header=True,
+            index=False,
+        )
 
     pass
 
@@ -928,6 +1001,63 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
+    # Calculate principal components.
+    # 1. Compare all 19 non-sexual tissues with samples for more than 100
+    # persons.
+    utility.print_terminal_partition(level=1)
+    print("Principal components across all 19 non-sexual tissues...")
+    utility.print_terminal_partition(level=2)
+    report_component_all = calculate_report_gene_sample_principal_components(
+        data=source["data_gene_signal"],
+        data_samples_factors=source["data_samples_tissues_persons"],
+        components=10
+    )
+
+    # Calculate principal components.
+    # 2. Compare remainder tissues after removal of blood, brain, and
+    # pituitary, as these tissues seem to dominate variance.
+    utility.print_terminal_partition(level=1)
+    print("Principal components across fewer tissues...")
+    utility.print_terminal_partition(level=2)
+    # Define tissues for inclusion.
+    # These tissues are not sex-specific.
+    tissues = [
+        "adipose", # 552
+        "adrenal", # 190
+        "artery", # 551
+        #"blood", # 407
+        #"brain", # 254
+        "colon", # 371
+        "esophagus", # 513
+        "heart", # 399
+        "liver", # 175
+        "lung", # 427
+        "muscle", # 564
+        "nerve", # 414
+        "pancreas", # 248
+        #"pituitary", # 183
+        "skin", # 583
+        "intestine", # 137
+        "spleen", # 162
+        "stomach", # 262
+        "thyroid", # 446
+    ]
+    samples = selection.select_samples_by_tissue(
+        tissues=tissues,
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+    )
+    data_few = selection.select_samples_genes(
+        samples=samples,
+        threshold=True,
+        data_gene_signal=source["data_gene_signal"],
+    )
+    print(data_few)
+    report_component_few = calculate_report_gene_sample_principal_components(
+        data=data_few,
+        data_samples_factors=source["data_samples_tissues_persons"],
+        components=10
+    )
+
     # Calculate mean of genes' signals across all samples for each minor tissue
     # type.
     if False:
@@ -936,66 +1066,35 @@ def execute_procedure(dock=None):
         )
         print(data_gene_tissue)
 
-    # Describe variance across categories of tissues.
-    # Normalize and standardized gene's signals for principal components.
-    data_gene_signal_normal_standard = normalize_standardize_gene_signal(
-        data_gene_signal=source["data_gene_signal"]
-    )
-    print("Data after normalization and standardization.")
-    print(data_gene_signal_normal_standard)
-
-    # Prepare report of data after normalization and standardization.
-    # Transpose data structure.
-    # Organize genes across columns and samples across rows.
-    data_transposition = data_gene_signal_normal_standard.transpose(copy=True)
-    # Associate samples to persons and tissues.
-    data_gene_signal_factor = assembly.associate_samples_persons_tissues(
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_sample=data_transposition,
-    )
-    print(
-        "Genes' signals after normalization and standardization with " +
-        "samples and factors."
-    )
-    print(data_gene_signal_factor)
-
-    # Calculate principal components.
-    report_component = calculate_principal_components(
-        data_gene_signal=data_gene_signal_normal_standard,
-        components=10
-    )
-    utility.print_terminal_partition(level=2)
-    print("Report from principal component analysis...")
-    print("Explained variance by each principal component...")
-    print(report_component["data_component_variance"])
-    utility.print_terminal_partition(level=3)
-    print(report_component["data_component"])
-    # Associate samples to major and minor tissue types.
-    data_sample_component = assembly.associate_samples_persons_tissues(
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_sample=report_component["data_component"],
-    )
-
-    # Revert to orignal genes' signals before normalization or standardization.
-    # Describe the dispersion in each gene's signal within each major tissue
-    # category.
-    utility.print_terminal_partition(level=2)
-    print(
-        "Dispersion of each gene's signal across samples from each major " +
-        "tissue..."
-    )
-    data_gene_tissue_dispersion = calculate_gene_tissue_dispersion(
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_signal=source["data_gene_signal"],
-    )
+        # Prepare report of data after normalization and standardization.
+        # Transpose data structure.
+        # Organize genes across columns and samples across rows.
+        data_transposition = data_gene_signal_normal_standard.transpose(copy=True)
+        # Associate samples to persons and tissues.
+        data_gene_signal_factor = assembly.associate_samples_persons_tissues(
+            data_samples_tissues_persons=source["data_samples_tissues_persons"],
+            data_gene_sample=data_transposition,
+        )
+        print(
+            "Genes' signals after normalization and standardization with " +
+            "samples and factors."
+        )
+        print(data_gene_signal_factor)
 
     # Compile information.
     information = {
-        "data_gene_signal_factor": data_gene_signal_factor,
-        "data_component_variance": report_component["data_component_variance"],
-        "data_component": report_component["data_component"],
-        "data_sample_component": data_sample_component,
-        "data_gene_tissue_dispersion": data_gene_tissue_dispersion,
+        "data_component_variance_all": (
+            report_component_all["data_component_variance"]
+        ),
+        "data_factor_component_all": (
+            report_component_all["data_factor_component"]
+        ),
+        "data_component_variance_few": (
+            report_component_few["data_component_variance"]
+        ),
+        "data_factor_component_few": (
+            report_component_few["data_factor_component"]
+        ),
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

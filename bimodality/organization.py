@@ -136,6 +136,33 @@ def organize_gene_signal_persons_tissues(
     data_gene_persons_tissues_signals = series.unstack(
         level="tissue_major"
     )
+
+    # Pandas sets the new columns as categorical type.
+    # This categorical type is restrictive.
+    # Organize data.
+
+    data_gene_persons_tissues_signals.columns = (
+        data_gene_persons_tissues_signals.columns.astype(str)
+    )
+    data_gene_persons_tissues_signals.rename_axis(
+        columns="",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    if False:
+        data_gene_persons_tissues_signals.reset_index(
+            level="person",
+            drop=False,
+            inplace=True
+        )
+        data_gene_persons_tissues_signals.set_index(
+            ["person"],
+            append=False,
+            drop=True,
+            inplace=True
+        )
+
     # Return information.
     return data_gene_persons_tissues_signals
 

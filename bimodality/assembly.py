@@ -62,6 +62,12 @@ def read_source(dock=None):
     )
     path_gene_count = os.path.join(path_access, "count_gene.gct")
     path_gene_signal = os.path.join(path_access, "signal_gene.gct")
+
+    path_access_private = os.path.join(dock, "access_private")
+    path_attribute_person_private = os.path.join(
+        path_access_private, "attribute_person.txt"
+    )
+
     path_customization = os.path.join(dock, "customization")
     path_tissues_major = os.path.join(
         path_customization, "translation_tissues_major.tsv"
@@ -69,6 +75,11 @@ def read_source(dock=None):
     path_tissues_minor = os.path.join(
         path_customization, "translation_tissues_minor.tsv"
     )
+
+    # TODO: include translation for person attributes
+
+
+
     # Read information from file.
     #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
     data_person_attribute = pandas.read_csv(
@@ -140,6 +151,12 @@ def read_source_sample(dock=None):
     path_access = os.path.join(dock, "access")
     path_attribute_sample = os.path.join(path_access, "attribute_sample.txt")
     path_attribute_person = os.path.join(path_access, "attribute_person.txt")
+
+    path_access_private = os.path.join(dock, "access_private")
+    path_attribute_person_private = os.path.join(
+        path_access_private, "attribute_person.txt"
+    )
+
     path_customization = os.path.join(dock, "customization")
     path_tissues_major = os.path.join(
         path_customization, "translation_tissues_major.tsv"
@@ -147,6 +164,9 @@ def read_source_sample(dock=None):
     path_tissues_minor = os.path.join(
         path_customization, "translation_tissues_minor.tsv"
     )
+
+    # TODO: include translation for person attributes
+
     path_gene_signal = os.path.join(path_access, "signal_gene.gct")
     # Read information from file.
     #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)

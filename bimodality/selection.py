@@ -220,17 +220,47 @@ def select_samples_by_inclusion(
         "stomach", # 262
         "thyroid", # 446
     ]
-    data_samples_sex = data_samples_tissues_persons.loc[
-        data_samples_tissues_persons["tissue_major"].isin(tissues_sex),
+
+    samples = select_samples_by_tissue(
+        tissues=tissues_sex,
+        data_samples_tissues_persons=data_samples_tissues_persons,
+    )
+    # Return information.
+    return samples
+
+
+def select_samples_by_tissue(
+    tissues=None,
+    data_samples_tissues_persons=None,
+):
+    """
+    Selects samples by specific tissues.
+
+    arguments:
+        tissues (list<str>): identifiers of tissues
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+
+    raises:
+
+    returns:
+        (list<str>): identifiers of samples
+
+    """
+
+    # Select samples by major tissues.
+    data_samples = data_samples_tissues_persons.loc[
+        data_samples_tissues_persons["tissue_major"].isin(tissues),
     ]
     # Extract identifiers of samples.
-    samples = data_samples_sex.index.to_list()
+    samples = data_samples.index.to_list()
     # Return information.
     return samples
 
 
 def select_samples_genes(
     samples=None,
+    threshold=None,
     data_gene_signal=None
 ):
     """
@@ -238,6 +268,7 @@ def select_samples_genes(
 
     arguments:
         samples (list<str>): identifiers of samples
+        threshold (bool): whether to filter genes and samples by threshold
         data_gene_signal (object): Pandas data frame of genes' signals across
             samples
 
@@ -249,26 +280,27 @@ def select_samples_genes(
 
     # Select genes' signals for samples of interest.
     utility.print_terminal_partition(level=1)
-    data_sample = data_gene_signal.loc[:, samples]
+    data_selection = data_gene_signal.loc[:, samples]
 
-    # Filter genes by signal.
-    # Filter to keep only genes with signals beyond threshold in at least one
-    # sample.
-    data_detection_gene = measurement.filter_genes_by_signal_threshold(
-        data=data_sample,
-        threshold=1,
-    )
-
-    # Filter samples by signal.
-    # Filter to keep only samples with signals beyond threshold in at least one
-    # gene.
-    data_detection_sample = measurement.filter_samples_by_signal_threshold(
-        data=data_detection_gene,
-        threshold=1,
-    )
+    if threshold:
+        # Filter genes by signal.
+        # Filter to keep only genes with signals beyond threshold in at least
+        # one sample.
+        data_detection_gene = measurement.filter_genes_by_signal_threshold(
+            data=data_selection,
+            threshold=1,
+        )
+        # Filter samples by signal.
+        # Filter to keep only samples with signals beyond threshold in at least
+        # one gene.
+        data_detection_sample = measurement.filter_samples_by_signal_threshold(
+            data=data_detection_gene,
+            threshold=1,
+        )
+        data_selection = data_detection_sample
 
     # Return information.
-    return data_detection_sample
+    return data_selection
 
 
 def select_samples_genes_by_few_tissues(
@@ -412,6 +444,7 @@ def execute_procedure(dock=None):
     # Select genes' signals for specific samples.
     data_gene_count_selection = select_samples_genes(
         samples=samples,
+        threshold=True,
         data_gene_signal=source["data_gene_count"],
     )
     print(data_gene_count_selection)
@@ -419,6 +452,7 @@ def execute_procedure(dock=None):
     # Select genes' signals for specific samples.
     data_gene_signal_selection = select_samples_genes(
         samples=samples,
+        threshold=True,
         data_gene_signal=source["data_gene_signal"],
     )
     print(data_gene_signal_selection)

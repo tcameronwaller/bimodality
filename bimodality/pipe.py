@@ -33,6 +33,7 @@ import organization
 import restriction
 import distribution
 import metric
+import category
 import utility
 
 #dir()
@@ -121,23 +122,88 @@ def read_source(
 # Distribution
 
 
-def describe_gene_signal_distribution(
+def determine_gene_distributions(
+    gene=None,
+    metric=None,
+    correlation=None,
+    data_gene_samples_signals=None,
+):
+    """
+    Prepares and describes the distributions of a gene's signals across
+    persons.
+
+    arguments:
+        gene (str): identifier of gene
+        metric (bool): whether to calculate metrics for gene's distribution
+        correlation (bool): whether to calculate tissue-tissue correlations for
+            gene's distribution
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+
+    raises:
+
+    returns:
+        (dict): information about the distribution of a gene's signals across
+            persons
+
+    """
+
+    # Organize data for analysis.
+    collection_organization = organization.execute_procedure(
+        data_gene_samples_signals=data_gene_samples_signals
+    )
+
+    # Determine distributions of gene's signals by multiple methods.
+    imputation = determine_gene_distribution(
+        gene=gene,
+        metric=metric,
+        method="imputation",
+        correlation=correlation,
+        data_gene_persons_tissues_signals=(
+            collection_organization["data_gene_persons_tissues_signals"]
+        ),
+    )
+    availability = determine_gene_distribution(
+        gene=gene,
+        metric=metric,
+        method="availability",
+        correlation=correlation,
+        data_gene_persons_tissues_signals=(
+            collection_organization["data_gene_persons_tissues_signals"]
+        ),
+    )
+
+    # Compile information.
+    information = {
+        "organization": collection_organization,
+        "imputation": imputation,
+        "availability": availability,
+    }
+
+    # Return information.
+    return information
+
+
+def determine_gene_distribution(
+    gene=None,
+    metric=None,
     method=None,
-    count=None,
-    tissues=None,
+    correlation=None,
     data_gene_persons_tissues_signals=None,
 ):
     """
-    Prepares and describes the distribution of a gene's signals across persons.
+    Prepares and describes the distributions of a gene's signals across
+    persons.
 
     arguments:
-        method (str): method for selection of tissues and patients, either
-            "availability" for selection by minimal count of tissues, or
-            "imputation" for selection by same tissues with imputation
-        count (int): either minimal count of tissues for selection by
-            "availability" or maximal count of imputation for selection by
-            "imputation"
-        tissues (list<str>): specific tissues to select by "imputation" method
+        gene (str): identifier of gene
+        metric (bool): whether to calculate metrics for gene's distribution
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
+        correlation (bool): whether to calculate tissue-tissue correlations for
+            gene's distribution
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
 
@@ -149,10 +215,35 @@ def describe_gene_signal_distribution(
 
     """
 
+    # Specify tissues for the imputation method of the restriction procedure.
+    # This selection includes all non-sexual tissues with coverage of samples
+    # from at least 200 persons.
+    tissues = [
+        "adipose", # 552
+        #"adrenal", # 190
+        "artery", # 551
+        "blood", # 407
+        "brain", # 254
+        "colon", # 371
+        "esophagus", # 513
+        "heart", # 399
+        #"liver", # 175
+        "lung", # 427
+        "muscle", # 564
+        "nerve", # 414
+        "pancreas", # 248
+        #"pituitary", # 183
+        "skin", # 583
+        #"intestine", # 137
+        #"spleen", # 162
+        "stomach", # 262
+        "thyroid", # 446
+    ]
+
     # Restriction
     collection_restriction = restriction.execute_procedure(
         method=method,
-        count=count,
+        count=10,
         tissues=tissues,
         data_gene_persons_tissues_signals=(
             data_gene_persons_tissues_signals
@@ -160,11 +251,34 @@ def describe_gene_signal_distribution(
     )
 
     # Distribution
+    # Use the final "data_gene_persons_tissues_signals" from restriction
+    # procedure after imputation.
     collection_distribution = distribution.execute_procedure(
+        metric=metric,
         data_gene_persons_tissues_signals=(
             collection_restriction["data_gene_persons_tissues_signals"]
         ),
     )
+
+    # Tissue-tissue correlations.
+    # Determine whether to calculate tissue-tissue correlations.
+    if correlation:
+        # Calculate tissue-tissue correlations across persons.
+        # Use the data before imputation to grasp correlations across real
+        # values.
+        report_restriction = collection_restriction["report_gene"]
+        collection_category = (
+            category.calculate_mean_tissue_pairwise_correlations(
+                data_gene_persons_tissues_signals=(
+                    report_restriction["data_gene_persons_tissues_signals"]
+                )
+            )
+        )
+        pass
+    else:
+        # Generate missing values.
+        collection_category = {}
+        pass
 
     # Compile information.
     information = {
@@ -172,6 +286,7 @@ def describe_gene_signal_distribution(
         "values": collection_distribution["values"],
         "scores": collection_distribution["scores"],
         "report_distribution": collection_distribution["report_gene"],
+        "report_category": collection_category
     }
 
     # Return information.
@@ -182,10 +297,10 @@ def describe_gene_signal_distribution(
 # Shuffle
 
 
-def shuffle_gene_signal_distribution(
-    method=None,
-    count=None,
-    tissues=None,
+def shuffle_gene_distributions(
+    gene=None,
+    metric=None,
+    correlation=None,
     shuffles=None,
     data_gene_persons_tissues_signals=None,
 ):
@@ -193,13 +308,71 @@ def shuffle_gene_signal_distribution(
     Prepares and describes the distribution of a gene's signals across persons.
 
     arguments:
-        method (str): method for selection of tissues and patients, either
-            "availability" for selection by minimal count of tissues, or
-            "imputation" for selection by same tissues with imputation
-        count (int): either minimal count of tissues for selection by
-            "availability" or maximal count of imputation for selection by
-            "imputation"
-        tissues (list<str>): specific tissues to select by "imputation" method
+        gene (str): identifier of gene
+        metric (bool): whether to calculate metrics for gene's distribution
+        correlation (bool): whether to calculate tissue-tissue correlations for
+            gene's distribution
+        shuffles (list<list<list<int>>>): matrices of indices
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (dict): information about the distribution of a gene's signals across
+            persons
+
+    """
+
+
+    # Determine distributions of gene's signals by multiple methods.
+    imputation = shuffle_gene_distribution(
+        gene=gene,
+        metric=metric,
+        method="imputation",
+        correlation=correlation,
+        shuffles=shuffles,
+        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
+    )
+    availability = shuffle_gene_distribution(
+        gene=gene,
+        metric=metric,
+        method="availability",
+        correlation=correlation,
+        shuffles=shuffles,
+        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
+    )
+
+    # Compile information.
+    information = {
+        "imputation": imputation,
+        "availability": availability,
+    }
+
+    # Return information.
+    return information
+
+
+def shuffle_gene_distribution(
+    gene=None,
+    metric=None,
+    method=None,
+    correlation=None,
+    shuffles=None,
+    data_gene_persons_tissues_signals=None,
+):
+    """
+    Prepares and describes the distribution of a gene's signals across persons.
+
+    arguments:
+        gene (str): identifier of gene
+        metric (bool): whether to calculate metrics for gene's distribution
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
+        correlation (bool): whether to calculate tissue-tissue correlations for
+            gene's distribution
         shuffles (list<list<list<int>>>): matrices of indices
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
@@ -223,22 +396,25 @@ def shuffle_gene_signal_distribution(
             data_gene_signals=data_gene_persons_tissues_signals,
             shuffle=shuffle_matrix
         )
-        # Prepare and describe distribution of shuffle of gene's signals.
-        distribution_shuffle = describe_gene_signal_distribution(
+        # Determine distributions of gene's signals
+        collection = determine_gene_distribution(
+            gene=gene,
+            metric=metric,
             method=method,
-            count=count,
-            tissues=tissues,
-            data_gene_persons_tissues_signals=data_shuffle
+            correlation=correlation,
+            data_gene_persons_tissues_signals=(
+                collection_organization["data_gene_persons_tissues_signals"]
+            ),
         )
         # Collect metrics.
         coefficients.append(
-            distribution_shuffle["scores"]["coefficient"]
+            collection["scores"]["coefficient"]
         )
         dips.append(
-            distribution_shuffle["scores"]["dip"]
+            collection["scores"]["dip"]
         )
         mixtures.append(
-            distribution_shuffle["scores"]["mixture"]
+            collection["scores"]["mixture"]
         )
         pass
     # Compile information.
@@ -315,31 +491,32 @@ def write_product(gene=None, dock=None, information=None):
     # Write information to file.
     with open(path_report_organization, "wb") as file_product:
         pickle.dump(information["report_organization"], file_product)
+
     # Imputation method
     with open(path_imputation_report_restriction, "wb") as file_product:
-        pickle.dump(information["report_restriction_imputation"], file_product)
+        pickle.dump(information["imputation"]["report_restriction"], file_product)
     with open(path_imputation_report_distribution, "wb") as file_product:
         pickle.dump(
-            information["report_distribution_imputation"], file_product
+            information["imputation"]["report_distribution"], file_product
         )
     with open(path_imputation_scores, "wb") as file_product:
-        pickle.dump(information["scores_imputation"], file_product)
+        pickle.dump(information["imputation"]["scores"], file_product)
     with open(path_imputation_shuffles, "wb") as file_product:
-        pickle.dump(information["shuffles_imputation"], file_product)
+        pickle.dump(information["imputation"]["shuffles"], file_product)
 
     # Imputation method
     with open(path_availability_report_restriction, "wb") as file_product:
         pickle.dump(
-            information["report_restriction_availability"], file_product
+            information["availability"]["report_restriction"], file_product
         )
     with open(path_availability_report_distribution, "wb") as file_product:
         pickle.dump(
-            information["report_distribution_availability"], file_product
+            information["availability"]["report_distribution"], file_product
         )
     with open(path_availability_scores, "wb") as file_product:
-        pickle.dump(information["scores_availability"], file_product)
+        pickle.dump(information["availability"]["scores"], file_product)
     with open(path_availability_shuffles, "wb") as file_product:
-        pickle.dump(information["shuffles_availability"], file_product)
+        pickle.dump(information["availability"]["shuffles"], file_product)
 
     pass
 
@@ -360,7 +537,7 @@ def execute_procedure(
     Function to execute module's main behavior.
 
     arguments:
-        gene (str): identifier of single gene for which to execute the process
+        gene (str): identifier of gene
         shuffles (list<list<list<int>>>): matrices of indices
         data_gene_samples_signals (object): Pandas data frame of a gene's
             signals across samples
@@ -373,92 +550,52 @@ def execute_procedure(
 
     """
 
-    # Organize data for analysis.
-    collection_organization = organization.execute_procedure(
-        data_gene_samples_signals=data_gene_samples_signals
-    )
-
     # Prepare and describe distribution of real gene's signals.
-    # Method for selection is either "availability" or "imputation".
-    # Specific tissues are only relevant to "imputation" method.
-    tissues = [
-        "adipose", # 552
-        #"adrenal", # 190
-        "artery", # 551
-        "blood", # 407
-        "brain", # 254
-        "colon", # 371
-        "esophagus", # 513
-        "heart", # 399
-        #"liver", # 175
-        "lung", # 427
-        "muscle", # 564
-        "nerve", # 414
-        "pancreas", # 248
-        #"pituitary", # 183
-        "skin", # 583
-        #"intestine", # 137
-        #"salivary", # 97 # now excluded at "selection" procedure... threshold 100
-        #"spleen", # 162
-        "stomach", # 262
-        "thyroid", # 446
-    ] # 300
-    distribution_imputation = describe_gene_signal_distribution(
-        method="imputation",
-        count=10,
-        tissues=tissues,
-        data_gene_persons_tissues_signals=(
-            collection_organization["data_gene_persons_tissues_signals"]
-        )
-    )
-    distribution_availability = describe_gene_signal_distribution(
-        method="availability",
-        count=10,
-        tissues=tissues,
-        data_gene_persons_tissues_signals=(
-            collection_organization["data_gene_persons_tissues_signals"]
-        )
+
+    # Determine gene's distributions of aggregate tissue scores across persons.
+    observation = determine_gene_distributions(
+        gene=gene,
+        metric=True,
+        correlation=False,
+        data_gene_samples_signals=data_gene_samples_signals,
     )
 
-    # Prepare and describe distributions of shuffles of gene's signals.
-    shuffles_imputation = shuffle_gene_signal_distribution(
-        method="imputation",
-        count=10,
-        tissues=tissues,
+    # Shuffle gene's distributions.
+    permutation = shuffle_gene_distributions(
+        gene=gene,
+        metric=True,
+        correlation=False,
         shuffles=shuffles,
         data_gene_persons_tissues_signals=(
-            collection_organization["data_gene_persons_tissues_signals"]
-        )
-    )
-    shuffles_availability = shuffle_gene_signal_distribution(
-        method="availability",
-        count=10,
-        tissues=tissues,
-        shuffles=shuffles,
-        data_gene_persons_tissues_signals=(
-            collection_organization["data_gene_persons_tissues_signals"]
-        )
+            observation["organization"]["data_gene_persons_tissues_signals"]
+        ),
     )
 
     # Compile information.
+    information_imputation = {
+        "report_restriction": (
+            observation["imputation"]["report_restriction"]
+        ),
+        "report_distribution": (
+            observation["imputation"]["report_distribution"]
+        ),
+        "scores": observation["imputation"]["scores"],
+        "shuffles": permutation["imputation"],
+    }
+    information_availability = {
+        "report_restriction": (
+            observation["availability"]["report_restriction"]
+        ),
+        "report_distribution": (
+            observation["availability"]["report_distribution"]
+        ),
+        "scores": observation["availability"]["scores"],
+        "shuffles": permutation["availability"],
+    }
     information = {
-        "report_organization": collection_organization["report_gene"],
-        "report_restriction_imputation": (
-            distribution_imputation["report_restriction"]
-        ),
-        "report_restriction_availability": (
-            distribution_availability["report_restriction"]
-        ),
-        "report_distribution_imputation": (
-            distribution_imputation["report_distribution"]
-        ),
-        "report_distribution_availability": (
-            distribution_availability["report_distribution"]
-        ),
-        "scores_imputation": distribution_imputation["scores"],
-        "scores_availability": distribution_availability["scores"],
-        "shuffles_imputation": shuffles_imputation,
-        "shuffles_availability": shuffles_availability,
+        "report_organization": observation["organization"]["report_gene"],
+        "imputation": information_imputation,
+        "availability": information_availability,
     }
     #Write product information to file.
     write_product(gene=gene, dock=dock, information=information)

@@ -31,7 +31,7 @@ import scipy.stats
 
 import organization
 import pipe
-import regression
+import category
 import utility
 
 #dir()
@@ -123,103 +123,41 @@ def read_source(
 # Candidacy
 
 
-def determine_gene_signal_distribution(
-    gene=None,
-    method=None,
-    count=None,
-    data_gene_samples_signals=None,
+def evaluate_gene_population(
+    threshold=None,
+    data_gene_persons_signals=None
 ):
     """
-    Determine gene's distribution of aggregate tissue scores across persons.
+    Evaluates the a gene's representation across persons.
 
     arguments:
-        gene (str): identifier of single gene for which to execute the process
-        method (str): method for selection of tissues and patients, either
-            "availability" for selection by minimal count of tissues, or
-            "imputation" for selection by same tissues with imputation
-        count (int): either minimal count of tissues for selection by
-            "availability" or maximal count of imputation for selection by
-            "imputation"
-        data_gene_samples_signals (object): Pandas data frame of a gene's
-            signals across samples
+        threshold (int): minimal count of persons
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate, pan-tissue signals across persons
 
     raises:
 
     returns:
-        (bool): whether the gene is a candidate
+        (bool): whether the gene has representation across an adequate
+            population of persons
 
     """
 
-    # Organize data for analysis.
-    collection_organization = organization.execute_procedure(
-        data_gene_samples_signals=data_gene_samples_signals
-    )
-
-    # Prepare and describe distribution of real gene's signals.
-    # Method for selection is either "availability" or "imputation".
-    # Specific tissues are only relevant to "imputation" method.
-
-    if False:
-        tissues = [
-            "adipose", "blood", "colon", "esophagus", "heart", "muscle",
-            "lung", "nerve", "skin", "thyroid",
-        ] # 416
-    # This strategy sets a simple threshold at 200 persons with samples for
-    # each of these tissues.
-    tissues = [
-        "adipose", # 552
-        #"adrenal", # 190
-        "artery", # 551
-        "blood", # 407
-        "brain", # 254
-        "colon", # 371
-        "esophagus", # 513
-        "heart", # 399
-        #"liver", # 175
-        "lung", # 427
-        "muscle", # 564
-        "nerve", # 414
-        "pancreas", # 248
-        #"pituitary", # 183
-        "skin", # 583
-        #"intestine", # 137
-        #"salivary", # 97 # now excluded at "selection" procedure... threshold 100
-        #"spleen", # 162
-        "stomach", # 262
-        "thyroid", # 446
-    ] # 300
-    distribution = pipe.describe_gene_signal_distribution(
-        method=method,
-        count=count,
-        tissues=tissues,
-        data_gene_persons_tissues_signals=(
-            collection_organization["data_gene_persons_tissues_signals"]
-        )
-    )
-
-    # Compile information.
-    information = {
-        "data_gene_persons_tissues": (
-            distribution["report_restriction"]["data_gene_persons_tissues"]
-        ),
-        "data_gene_persons_signals": (
-            distribution["report_distribution"]["data_gene_persons_signals"]
-        )
-    }
-    # Return information.
-    return information
+    count_persons = data_gene_persons_signals.size
+    return (count_persons > threshold)
 
 
-def evaluate_gene_signals(
+def evaluate_gene_signal(
+    threshold=None,
     data_gene_persons_signals=None
 ):
     """
-    Evaluates the suitability of a gene's aggregate tissue signals across
-    persons.
+    Evaluates the gene's aggregate tissue signals across persons.
 
     arguments:
+        threshold (float): minimal standard deviation
         data_gene_persons_signals (object): Pandas data frame of a gene's
-            aggregate signals across persons
+            aggregate, pan-tissue signals across persons
 
     raises:
 
@@ -228,37 +166,16 @@ def evaluate_gene_signals(
 
     """
 
-    # Extract values of distribution.
-    # Remove missing values.
-    data = data_gene_persons_signals.copy(deep=True)
-
-    # Count non-missing values.
-    data_valid = data.dropna(
-        axis="index",
-        how="any",
-        inplace=False,
-    )
-    count_valid = data_valid.size
-
-    # Count non-zero values.
-    data_nonzero = (data != 0)
-    data_signal = data.loc[data_nonzero.any(axis="columns"), : ]
-    count_signal = data_signal.size
-
     # Calculate standard deviation of values.
-    deviation = numpy.std(data["value"].values, axis=0)
-
-    # Evaluate distribution's suitability for analysis.
-    if (
-        (count_valid > 10) and
-        (deviation > 0)
-    ):
-        return True
-    else:
-        return False
+    deviation = numpy.std(data_gene_persons_signals["value"].values, axis=0)
+    return deviation > threshold
 
 
-def evaluate_gene_tissues(
+# TODO: this function will eventually need to accommodate additional attributes of persons...
+
+def evaluate_gene_tissue(
+    threshold_proportion=None,
+    threshold_probability=None,
     data_samples_tissues_persons=None,
     data_gene_persons_tissues=None,
     data_gene_persons_signals=None,
@@ -268,12 +185,15 @@ def evaluate_gene_tissues(
     scores.
 
     arguments:
+        threshold_proportion (float): minimal proportion of persons for
+            inclusion of a tissue's group in analysis
+        threshold_probability (float): minimal probability for candidacy
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples
         data_gene_persons_tissues (object): Pandas data frame of a gene's
             selection of tissues across persons
         data_gene_persons_signals (object): Pandas data frame of a gene's
-            aggregate signals across persons
+            aggregate, pan-tissue signals across persons
 
     raises:
 
@@ -283,11 +203,15 @@ def evaluate_gene_tissues(
     """
 
     # Organize information about gene's scores across persons and tissues.
-    data_persons_tissues_signals = regression.organize_gene_persons_signals(
+    data_persons_tissues_signals = category.organize_gene_persons_signals(
         data_samples_tissues_persons=data_samples_tissues_persons,
         data_gene_persons_tissues=data_gene_persons_tissues,
         data_gene_persons_signals=data_gene_persons_signals,
     )
+
+    # Determine minimal count of persons for inclusion of a tissue's group.
+    count_persons = data_gene_persons_signals.size
+    threshold_count = threshold_proportion * count_persons
 
     # Determine whether tissue selection confounds gene's aggregate scores
     # across persons.
@@ -296,39 +220,127 @@ def evaluate_gene_tissues(
     tissues.remove("value")
     tissues.remove("female")
     tissues.remove("age")
-    report = regression.evaluate_variance_by_binary_groups(
+    report = category.evaluate_variance_by_binary_groups(
         groups=tissues,
+        threshold=threshold_count,
         data=data_persons_tissues_signals,
     )
 
     # Evaluate whether gene's scores differ by tissue selection.
     if (
         (math.isnan(report["probability"])) or
-        (report["probability"] > 0.07)
+        (report["probability"] >= threshold_probability)
     ):
         return True
     else:
         return False
 
 
-def evaluate_gene_candidacy(
+def evaluate_gene_candidacy_method(
     gene=None,
     method=None,
-    count=None,
+    data_samples_tissues_persons=None,
+    collection=None,
+):
+    """
+    Evaluates a gene's candidacy for further bimodal analysis by multiple
+    criteria.
+
+    1. candidacy by population
+    - gene must have tissue-aggregate signals across at least 100 persons
+    2. candidacy by signal
+    - gene's tissue-aggregate signals across persons must have a standard
+        deviation greater than 0
+    3. candidacy by tissue independence
+    - consider tissues with representation in at least 5% of persons
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
+        collection (dict): information about a gene's distribution
+
+    raises:
+
+    returns:
+        (dict<bool>): information about gene's candidacy
+
+    """
+
+    data_gene_persons_tissues = (
+        collection[method]["report_restriction"]["data_gene_persons_tissues"]
+    )
+    data_gene_persons_signals = (
+        collection[method]["report_distribution"]["data_gene_persons_signals"]
+    )
+    data_gene_mean_correlations = (
+        collection[method]["report_category"]["data_gene_mean_correlations"]
+    )
+
+    # Determine whether the gene's distribution is adequate.
+    # Distribution procedure applies filters to the gene's tissue-aggregate
+    # scores across persons.
+
+    # Determine whether gene has representation across adequate persons.
+    population = evaluate_gene_population(
+        threshold=100,
+        data_gene_persons_signals=data_gene_persons_signals,
+    )
+
+    # Determine whether gene's tissue-aggregate scores across persons have
+    # adequate variance to apply metrics to the distribution.
+    signal = evaluate_gene_signal(
+        threshold=0.0,
+        data_gene_persons_signals=data_gene_persons_signals,
+    )
+
+    # Determine whether the gene's distribution is dependent on tissue
+    # selection.
+
+    # TODO: include in this function an evaluation on the basis of tissue-tissue correlation...
+
+    tissue = evaluate_gene_tissue(
+        threshold_proportion=0.1,
+        threshold_probability=0.05,
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_persons_tissues=data_gene_persons_tissues,
+        data_gene_persons_signals=data_gene_persons_signals,
+    )
+
+    # Compile information.
+    information = {
+        "population": population,
+        "signal": signal,
+        "tissue": tissue,
+    }
+
+    # Return information.
+    return information
+
+
+def evaluate_gene_candidacy(
+    gene=None,
     data_samples_tissues_persons=None,
     data_gene_samples_signals=None,
 ):
     """
-    Function to execute module's main behavior.
+    Evaluates a gene's candidacy for further bimodal analysis by multiple
+    criteria.
+
+    1. candidacy by population
+    - gene must have tissue-aggregate signals across at least 100 persons
+    2. candidacy by signal
+    - gene's tissue-aggregate signals across persons must have a standard
+        deviation greater than 0
+    3. candidacy by tissue independence
+    - consider tissues with representation in at least 5% of persons
 
     arguments:
-        gene (str): identifier of single gene for which to execute the process
-        method (str): method for selection of tissues and patients, either
-            "availability" for selection by minimal count of tissues, or
-            "imputation" for selection by same tissues with imputation
-        count (int): either minimal count of tissues for selection by
-            "availability" or maximal count of imputation for selection by
-            "imputation"
+        gene (str): identifier of a gene
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples.
         data_gene_samples_signals (object): Pandas data frame of a gene's
@@ -337,56 +349,225 @@ def evaluate_gene_candidacy(
     raises:
 
     returns:
-        (bool): whether the gene is a candidate
+        (dict<dict<bool>>): information about gene's candidacy
 
     """
 
-    # Determine gene's distribution of aggregate tissue scores across persons.
-    collection = determine_gene_signal_distribution(
+    # Determine gene's distributions of aggregate tissue scores across persons.
+    collection = pipe.determine_gene_distributions(
         gene=gene,
-        method=method,
-        count=count,
+        metric=False,
+        correlation=True,
         data_gene_samples_signals=data_gene_samples_signals,
     )
 
-    # Determine whether the gene's distribution is adequate.
-    # Determine whether gene's aggregate scores across tissues have adequate
-    # variance to apply metrics to the distribution.
-    signal = evaluate_gene_signals(
-        data_gene_persons_signals=collection["data_gene_persons_signals"],
-    )
-
-    # Determine whether the gene's distribution is dependent on tissue
-    # selection.
-    tissue = evaluate_gene_tissues(
+    imputation = evaluate_gene_candidacy_method(
+        gene=gene,
+        method="imputation",
         data_samples_tissues_persons=data_samples_tissues_persons,
-        data_gene_persons_tissues=collection["data_gene_persons_tissues"],
-        data_gene_persons_signals=collection["data_gene_persons_signals"],
+        collection=collection,
     )
 
-    # Evaluate gene's candidacy.
+    availability = evaluate_gene_candidacy_method(
+        gene=gene,
+        method="availability",
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        collection=collection,
+    )
+
+    # Compile information.
+    information = {
+        "imputation": imputation,
+        "availability": availability,
+    }
+
+    # Return information.
+    return information
+
+
+def report_gene_candidacy(
+    gene=None,
+    candidacy=None,
+    dock=None,
+):
+    """
+    Reports a gene's candidacy.
+
+    arguments:
+        gene (str): identifier of a gene
+        candidacy (dict<dict<bool>>): information about gene's candidacy
+            and tissues for all samples.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+
+    """
+
+    # Write gene to dummy list to keep track.
+    write_product(
+        gene=gene,
+        method="count",
+        type="null",
+        dock=dock,
+    )
+
+    # All
     if (
-        signal and
-        tissue
+        candidacy["imputation"]["population"] and
+        candidacy["imputation"]["signal"] and
+        candidacy["imputation"]["tissue"] and
+        candidacy["availability"]["population"] and
+        candidacy["availability"]["signal"] and
+        candidacy["availability"]["tissue"]
     ):
-        return True
-    else:
-        if (not signal):
-            #print("Gene: " + gene + " failed signal candidacy!")
-            pass
-        if (not tissue):
-            #print("Gene: " + gene + " failed tissue candidacy!")
-            pass
-        return False
+        write_product(
+            gene=gene,
+            method="all",
+            type="null",
+            dock=dock,
+        )
+
+    # Imputation
+    if (
+        candidacy["imputation"]["population"] and
+        candidacy["imputation"]["signal"] and
+        candidacy["imputation"]["tissue"]
+    ):
+        write_product(
+            gene=gene,
+            method="imputation",
+            type="all",
+            dock=dock,
+        )
+    # Population
+    if candidacy["imputation"]["population"]:
+        write_product(
+            gene=gene,
+            method="imputation",
+            type="population",
+            dock=dock,
+        )
+    # Signal
+    if candidacy["imputation"]["signal"]:
+        write_product(
+            gene=gene,
+            method="imputation",
+            type="signal",
+            dock=dock,
+        )
+    # Tissue
+    if candidacy["imputation"]["tissue"]:
+        write_product(
+            gene=gene,
+            method="imputation",
+            type="tissue",
+            dock=dock,
+        )
+
+    # Availability
+    if (
+        candidacy["availability"]["population"] and
+        candidacy["availability"]["signal"] and
+        candidacy["availability"]["tissue"]
+    ):
+        write_product(
+            gene=gene,
+            method="availability",
+            type="all",
+            dock=dock,
+        )
+    # Population
+    if candidacy["availability"]["population"]:
+        write_product(
+            gene=gene,
+            method="availability",
+            type="population",
+            dock=dock,
+        )
+    # Signal
+    if candidacy["availability"]["signal"]:
+        write_product(
+            gene=gene,
+            method="availability",
+            type="signal",
+            dock=dock,
+        )
+    # Tissue
+    if candidacy["availability"]["tissue"]:
+        write_product(
+            gene=gene,
+            method="availability",
+            type="tissue",
+            dock=dock,
+        )
+
+    pass
 
 
 ##########
 # Product
 
 
+def create_directories(
+    dock=None,
+):
+    """
+    Creates directories.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Create directories.
+    path_candidacy = os.path.join(dock, "candidacy")
+    path_count = os.path.join(path_candidacy, "count")
+    path_all = os.path.join(path_candidacy, "all")
+
+    path_imputation = os.path.join(path_candidacy, "imputation")
+    path_imputation_all = os.path.join(path_imputation, "all")
+    path_imputation_population = os.path.join(path_imputation, "population")
+    path_imputation_signal = os.path.join(path_imputation, "signal")
+    path_imputation_tissue = os.path.join(path_imputation, "tissue")
+
+    path_availability = os.path.join(path_candidacy, "availability")
+    path_availability_all = os.path.join(path_availability, "all")
+    path_availability_population = os.path.join(path_availability, "population")
+    path_availability_signal = os.path.join(path_availability, "signal")
+    path_availability_tissue = os.path.join(path_availability, "tissue")
+
+    utility.confirm_path_directory(path_candidacy)
+    utility.confirm_path_directory(path_count)
+    utility.confirm_path_directory(path_all)
+
+    utility.confirm_path_directory(path_imputation)
+    utility.confirm_path_directory(path_imputation_all)
+    utility.confirm_path_directory(path_imputation_population)
+    utility.confirm_path_directory(path_imputation_signal)
+    utility.confirm_path_directory(path_imputation_tissue)
+
+    utility.confirm_path_directory(path_availability)
+    utility.confirm_path_directory(path_availability_all)
+    utility.confirm_path_directory(path_availability_population)
+    utility.confirm_path_directory(path_availability_signal)
+    utility.confirm_path_directory(path_availability_tissue)
+
+    pass
+
+
 def write_product(
     gene=None,
     method=None,
+    type=None,
     dock=None,
 ):
     """
@@ -396,6 +577,7 @@ def write_product(
         gene (str): identifier of single gene for which to execute the process
         method (str): list to which to append the gene, "all", "imputation", or
             "availability"
+        type (str): type of criterion for candidacy
         dock (str): path to root or dock directory for source and product
             directories and files.
 
@@ -407,10 +589,18 @@ def write_product(
 
     # Specify directories and files.
     path_candidacy = os.path.join(dock, "candidacy")
-    utility.confirm_path_directory(path_candidacy)
+    #utility.confirm_path_directory(path_candidacy)
     path_method = os.path.join(path_candidacy, method)
-    utility.confirm_path_directory(path_method)
-    path_gene = os.path.join(path_method, (gene))
+    #utility.confirm_path_directory(path_method)
+
+    if (method == "count") or (method == "all"):
+        path_gene = os.path.join(path_method, (gene))
+        pass
+    else:
+        path_type = os.path.join(path_method, type)
+        #utility.confirm_path_directory(path_type)
+        path_gene = os.path.join(path_type, (gene))
+        pass
 
     # Write information to file.
     utility.write_file_text_list(
@@ -439,40 +629,101 @@ def read_collect_write_genes(
 
     # Specify directories and files.
     path_candidacy = os.path.join(dock, "candidacy")
+    path_count = os.path.join(path_candidacy, "count")
     path_all = os.path.join(path_candidacy, "all")
+
     path_imputation = os.path.join(path_candidacy, "imputation")
+    path_imputation_all = os.path.join(path_imputation, "all")
+    path_imputation_population = os.path.join(path_imputation, "population")
+    path_imputation_signal = os.path.join(path_imputation, "signal")
+    path_imputation_tissue = os.path.join(path_imputation, "tissue")
+
     path_availability = os.path.join(path_candidacy, "availability")
-    path_genes = os.path.join(path_candidacy, "genes.txt")
-    path_genes_imputation = os.path.join(
-        path_candidacy, "genes_imputation.txt"
+    path_availability_all = os.path.join(path_availability, "all")
+    path_availability_population = os.path.join(path_availability, "population")
+    path_availability_signal = os.path.join(path_availability, "signal")
+    path_availability_tissue = os.path.join(path_availability, "tissue")
+
+    path_genes_all = os.path.join(path_candidacy, "genes_all.txt")
+    path_genes_imputation_all = os.path.join(
+        path_candidacy, "genes_imputation_all.txt"
     )
-    path_genes_availability = os.path.join(
-        path_candidacy, "genes_availability.txt"
+    path_genes_availability_all = os.path.join(
+        path_candidacy, "genes_availability_all.txt"
     )
+
     # Read genes.
-    genes_imputation = os.listdir(path_imputation)
-    genes_availability = os.listdir(path_availability)
+    genes_all = os.listdir(path_all)
+
+    genes_imputation_all = os.listdir(path_imputation_all)
+    genes_imputation_population = os.listdir(path_imputation_population)
+    genes_imputation_signal = os.listdir(path_imputation_signal)
+    genes_imputation_tissue = os.listdir(path_imputation_tissue)
+
+    genes_availability_all = os.listdir(path_availability_all)
+    genes_availability_population = os.listdir(path_availability_population)
+    genes_availability_signal = os.listdir(path_availability_signal)
+    genes_availability_tissue = os.listdir(path_availability_tissue)
+
     utility.remove_directory(path=path_all)
+    utility.remove_directory(path=path_count)
     utility.remove_directory(path=path_imputation)
     utility.remove_directory(path=path_availability)
-    print("Count of imputation genes: " + str(len(genes_imputation)))
-    print("Count of availability genes: " + str(len(genes_availability)))
-    # Combine genes.
-    genes_combination = utility.filter_unique_union_elements(
-        list_one=genes_imputation,
-        list_two=genes_availability,
+
+    utility.print_terminal_partition(level=1)
+    print("Counts of genes in candidacy categories...")
+
+    print(
+        "all (both imputation and availability): " +
+        str(len(genes_all))
     )
-    print("Count of consensus genes: " + str(len(genes_combination)))
+
+    print(
+        "imputation all (population, signal, and tissue): " +
+        str(len(genes_imputation_all))
+    )
+    print(
+        "imputation population: " +
+        str(len(genes_imputation_population))
+    )
+    print(
+        "imputation signal: " +
+        str(len(genes_imputation_signal))
+    )
+    print(
+        "imputation tissue: " +
+        str(len(genes_imputation_tissue))
+    )
+
+
+    print(
+        "availability all (population, signal, and tissue): " +
+        str(len(genes_availability_all))
+    )
+    print(
+        "availability population: " +
+        str(len(genes_availability_population))
+    )
+    print(
+        "availability signal: " +
+        str(len(genes_availability_signal))
+    )
+    print(
+        "availability tissue: " +
+        str(len(genes_availability_tissue))
+    )
+
 
     # Write information to file.
     utility.write_file_text_list(
-        information=genes_imputation, path_file=path_genes_imputation
+        information=genes_all, path_file=path_genes_all
     )
     utility.write_file_text_list(
-        information=genes_availability, path_file=path_genes_availability
+        information=genes_imputation_all, path_file=path_genes_imputation_all
     )
     utility.write_file_text_list(
-        information=genes_combination, path_file=path_genes
+        information=genes_availability_all,
+        path_file=path_genes_availability_all,
     )
 
     pass
@@ -555,41 +806,16 @@ def execute_procedure(
     """
 
     # Evaluate gene's candidacy.
-    # Imputation
-    candidacy_imputation = evaluate_gene_candidacy(
+    candidacy = evaluate_gene_candidacy(
         gene=gene,
-        method="imputation",
-        count=10,
         data_samples_tissues_persons=data_samples_tissues_persons,
         data_gene_samples_signals=data_gene_samples_signals,
     )
-    if candidacy_imputation:
-        #Write product information to file.
-        write_product(
-            gene=gene,
-            method="imputation",
-            dock=dock,
-        )
-    # Availability
-    candidacy_availability = evaluate_gene_candidacy(
-        gene=gene,
-        method="availability",
-        count=10,
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        data_gene_samples_signals=data_gene_samples_signals,
-    )
-    if candidacy_availability:
-        #Write product information to file.
-        write_product(
-            gene=gene,
-            method="availability",
-            dock=dock,
-        )
 
-    #Write product information to file.
-    write_product(
+    # Determine gene's candidacy and write reports.
+    report_gene_candidacy(
         gene=gene,
-        method="all",
+        candidacy=candidacy,
         dock=dock,
     )
 
@@ -610,6 +836,13 @@ def execute_procedure_local(dock=None):
 
     """
 
+    # Remove previous files to avoid version or batch confusion.
+    path_candidacy = os.path.join(dock, "candidacy")
+    utility.remove_directory(path=path_candidacy)
+
+    # Create directories.
+    create_directories(dock=dock)
+
     # Read source information from file.
     source = read_source_initial(
         source_genes="split",
@@ -621,29 +854,32 @@ def execute_procedure_local(dock=None):
     start = datetime.datetime.now()
     print(start)
 
-    # Remove previous files to avoid version or batch confusion.
-    path_candidacy = os.path.join(dock, "candidacy")
-    utility.remove_directory(path=path_candidacy)
+    if True:
+        execute_procedure_local_sub(
+            gene="ENSG00000231925", # TAPBP
+            dock=dock,
+        )
 
-    # Set up partial function for iterative execution.
-    # Each iteration uses the same values for "genes_signals", "shuffles", and
-    # "dock" variables.
-    execute_procedure_gene = functools.partial(
-        execute_procedure_local_sub,
-        dock=dock
-    )
+    if False:
+        # Set up partial function for iterative execution.
+        # Each iteration uses the same values for "genes_signals", "shuffles", and
+        # "dock" variables.
+        execute_procedure_gene = functools.partial(
+            execute_procedure_local_sub,
+            dock=dock
+        )
 
-    # Initialize multiprocessing pool.
-    #pool = multiprocessing.Pool(processes=os.cpu_count())
-    pool = multiprocessing.Pool(processes=8)
+        # Initialize multiprocessing pool.
+        #pool = multiprocessing.Pool(processes=os.cpu_count())
+        pool = multiprocessing.Pool(processes=8)
 
-    # Iterate on genes.
-    check_genes=[
-        "ENSG00000198965",
-    ]
-    #report = pool.map(execute_procedure_gene, check_genes)
-    #report = pool.map(execute_procedure_gene, source["genes"][0:10])
-    report = pool.map(execute_procedure_gene, source["genes"])
+        # Iterate on genes.
+        check_genes=[
+            "ENSG00000231925", # TAPBP
+        ]
+        report = pool.map(execute_procedure_gene, check_genes)
+        #report = pool.map(execute_procedure_gene, source["genes"][0:8])
+        #report = pool.map(execute_procedure_gene, source["genes"])
 
     # Pause procedure.
     time.sleep(5.0)
@@ -652,11 +888,12 @@ def execute_procedure_local(dock=None):
     #print("Process complete for the following genes...")
     #print(str(len(report)))
 
-    report_gene_tissue_persons(
-        gene="ENSG00000231925", # TAPBP
-        count=10,
-        dock=dock,
-    )
+    if False:
+        report_gene_tissue_persons(
+            gene="ENSG00000231925", # TAPBP
+            count=10,
+            dock=dock,
+        )
 
     # Collect genes.
     read_collect_write_genes(dock=dock)
@@ -703,8 +940,8 @@ def execute_procedure_local_sub(gene=None, dock=None):
 
     # Report contents of directory.
     path_candidacy = os.path.join(dock, "candidacy")
-    path_all = os.path.join(path_candidacy, "all")
-    files = os.listdir(path_all)
+    path_count = os.path.join(path_candidacy, "count")
+    files = os.listdir(path_count)
     count = len(files)
     if (count % 10 == 0):
         print("complete genes: " + str(len(files)))

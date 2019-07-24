@@ -21,6 +21,7 @@ import statistics
 import pickle
 import copy
 import random
+import itertools
 
 # Relevant
 
@@ -273,6 +274,7 @@ def select_values_by_binary_category(
 
 def evaluate_variance_by_binary_groups(
     groups=None,
+    threshold=None,
     data=None
 ):
     """
@@ -287,6 +289,7 @@ def evaluate_variance_by_binary_groups(
 
     arguments:
         groups (list<str>): names of binary groups
+        threshold (int): minimal count of values in a group for inclusion
         data (object): Pandas data frame of values across binary groups
 
     raises:
@@ -304,7 +307,7 @@ def evaluate_variance_by_binary_groups(
             value=1,
             data=data,
         )
-        if len(values) > 2:
+        if len(values) > threshold:
             groups_values.append(values)
     # Analyze variance.
     # Use splat operator to extract arguments from list.
@@ -327,6 +330,319 @@ def evaluate_variance_by_binary_groups(
         }
     # Return information.
     return information
+
+
+##########
+# Tissue-tissue correlation
+
+
+def calculate_pairwise_correlations(
+    data=None,
+    key=None,
+):
+    """
+    Calculates the pairwise correlation coefficients for multiple pairs of
+    features.
+
+    Data has observations across rows and features across columns.
+
+    index key           feature_1 feature_2 feature_3 feature_4 feature_5
+    0     observation_1 ...       ...       ...       ...       ...
+    1     observation_2 ...       ...       ...       ...       ...
+    2     observation_3 ...       ...       ...       ...       ...
+    3     observation_4 ...       ...       ...       ...       ...
+    4     observation_5 ...       ...       ...       ...       ...
+
+    arguments:
+        key (str): name of column to match observations
+        data (object): Pandas data frame of features across observations
+
+    raises:
+
+    returns:
+        (dict<dict<dict<float>>>): matrix of counts of common observations and
+            correlation coefficients from pairwise comparison of features
+
+    """
+
+    # Organize data.
+    data_copy = data.copy(deep=True)
+    data_copy.set_index(
+        keys=[key],
+        drop=True,
+        append=False,
+        inplace=True,
+    )
+    features = data_copy.columns.values.tolist()
+    # Determine pairs of features available for each observation.
+    # Use sequence-specific permutations to simplify assembly of matrix.
+    pairs = list(itertools.permutations(features, 2))
+
+    # Collect counts and correlations across pairs of features.
+    correlations = dict()
+    # Iterate on pairs of features.
+    for pair in pairs:
+        # Select data for pair of features.
+        data_pair = data_copy.loc[:, list(pair)]
+        # Remove observations with missing values for either feature.
+        data_pair.dropna(
+            axis="index",
+            how="any",
+            inplace=True,
+        )
+        # Determine observations for which pair of features has matching
+        # values.
+        count = data_pair.shape[0]
+        # Calculate correlation.
+        if count > 1:
+            correlation = scipy.stats.pearsonr(
+                data_pair[pair[0]].values,
+                data_pair[pair[1]].values,
+            )[0]
+            pass
+        else:
+            correlation = float("nan")
+            pass
+
+        # Collect information.
+        if not pair[0] in correlations:
+            correlations[pair[0]] = dict()
+            pass
+        correlations[pair[0]][pair[1]] = dict()
+        correlations[pair[0]][pair[1]]["count"] = count
+        correlations[pair[0]][pair[1]]["correlation"] = correlation
+
+    # Return information.
+    return correlations
+
+
+def calculate_mean_correlation(
+    observation,
+    correlations=None,
+):
+    """
+    Calculates the mean of pairwise correlation coefficients for multiple pairs
+    of features from a single observation.
+
+    arguments:
+        observation (object): Pandas series of features from a single
+            observation
+        correlations (dict<dict<dict<float>>>): matrix of counts of common
+            observations and correlation coefficients from pairwise comparison
+            of features
+
+    raises:
+
+    returns:
+        (float): mean of correlation coefficients
+
+    """
+
+    # Determine pairs of features for which observation has valid values.
+    # Remove features with missing values for the observation.
+    observation.dropna(
+        inplace=True,
+    )
+    # Extract names of valid features.
+    features = observation.index.values.tolist()
+    # Determine pairs of features.
+    pairs = list(itertools.combinations(features, 2))
+    #print(features)
+    #print(len(features))
+    #print(pairs)
+    # Collect counts and correlations across pairs of features.
+    records = list()
+    # Iterate on pairs of features.
+    for pair in pairs:
+        count = correlations[pair[0]][pair[1]]["count"]
+        correlation = correlations[pair[0]][pair[1]]["correlation"]
+        # Collection information.
+        record = dict()
+        record["count"] = count
+        record["correlation"] = correlation
+        records.append(record)
+    # Organize data.
+    data = utility.convert_records_to_dataframe(
+        records=records
+    )
+    # Apply Fisher's z transformation to correlation coefficients.
+    # Fisher's z transformation is equivalent to the inverse hyperbolic
+    # tangent.
+    if False:
+        data["transformation"] = data["correlation"].map(
+            lambda x: math.atanh(x),
+        )
+    data["transformation"] = data["correlation"].apply(
+        lambda x: numpy.arctanh(x),
+    )
+
+    # Calculate mean across transformations of correlations.
+    size = data.shape[0]
+    data["numerator"] = data.aggregate(
+        lambda row: ((row["count"] - 3) * row["transformation"]),
+        axis="columns",
+    )
+    data["denominator"] = data.aggregate(
+        #lambda row: (row["count"] - (3 * size)), # incorrect
+        #lambda row: ((row["count"] - 3) * size), # incorrect
+        lambda row: ((row["count"] - 3)),
+        axis="columns",
+    )
+    numerator = data["numerator"].aggregate("sum")
+    denominator = data["denominator"].aggregate("sum")
+    mean_transformation_weight = (numerator / denominator)
+    mean_transformation_simple = data["transformation"].aggregate("mean")
+
+    # Apply inverse Fisher's z transformation to mean.
+    # Inverse Fisher's z transformation is equivalent to the hyperbolic
+    # tangent.
+    mean_weight = math.tanh(mean_transformation_weight)
+    mean_simple = math.tanh(mean_transformation_simple)
+
+    return mean_weight
+
+
+def calculate_mean_pairwise_correlations(
+    correlations=None,
+    data=None,
+    key=None,
+):
+    """
+    Calculates the mean pairwise correlation coefficients for multiple pairs of
+    features across observations.
+
+    Data has observations across rows and features across columns.
+
+    index key           feature_1 feature_2 feature_3 feature_4 feature_5
+    0     observation_1 ...       ...       ...       ...       ...
+    1     observation_2 ...       ...       ...       ...       ...
+    2     observation_3 ...       ...       ...       ...       ...
+    3     observation_4 ...       ...       ...       ...       ...
+    4     observation_5 ...       ...       ...       ...       ...
+
+    arguments:
+        correlations (dict<dict<dict<float>>>): matrix of counts of common
+            observations and correlation coefficients from pairwise comparison
+            of features
+        key (str): name of column to match observations
+        data (object): Pandas data frame of features across observations
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of mean correlations across observations
+
+    """
+
+    # Organize data.
+    data_copy = data.copy(deep=True)
+    data_copy.set_index(
+        keys=[key],
+        drop=True,
+        append=False,
+        inplace=True,
+    )
+    features = data_copy.columns.values.tolist()
+
+    # Iterate on observations.
+    data_copy["correlation"] = data_copy.apply(
+        calculate_mean_correlation,
+        axis="columns",
+        raw=False,
+        correlations=correlations,
+    )
+
+    # Return information.
+    return data_copy
+
+
+def calculate_mean_tissue_pairwise_correlations(
+    data_gene_persons_tissues_signals=None
+):
+    """
+    Calculates the mean pairwise correlation coefficients between available
+    tissues across persons.
+
+    Source data has persons across rows and tissues across columns.
+
+    index    tissue_1 tissue_2 tissue_3 tissue_4 tissue_5
+    person_1 ...      ...      ...      ...      ...
+    person_2 ...      ...      ...      ...      ...
+    person_3 ...      ...      ...      ...      ...
+    person_4 ...      ...      ...      ...      ...
+    person_5 ...      ...      ...      ...      ...
+
+    Product data.
+
+    index    correlation_mean
+    person_1 ...
+    person_2 ...
+    person_3 ...
+    person_4 ...
+    person_5 ...
+
+    Method
+    1. determine pairs of available tissues
+    2. determine counts of usable persons for each pairwise tissue comparison
+    3. calculate correlation coefficients between pairs of tissues across
+        persons
+    4. organize counts and correlation coefficients within a tissue-tissue
+        adjacency matrix
+    5. calculate mean correlation coefficient for each person
+    5.1. determine pairs of tissues available for each person
+    5.2. collect counts and correlation coefficients for each pair of tissues
+    5.3. apply Fisher's z transformation to correlation coefficients
+    5.4. calculate mean Fisher's z transformation with consideration of counts
+    5.5. apply inverse Fisher's z transformation
+
+    arguments:
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a mean tissue-tissue correlation
+            coefficients across persons
+
+    """
+
+    # Organize data.
+    data_index = data_gene_persons_tissues_signals.reset_index(
+        level="person",
+        drop=False,
+        inplace=False
+    )
+    # Calculate pairwise correlations between pairs of tissues.
+    correlations = calculate_pairwise_correlations(
+        key="person",
+        data=data_index,
+    )
+
+    utility.print_terminal_partition(level=2)
+    print(correlations["adipose"]["artery"])
+    print(correlations["artery"]["adipose"])
+    print(correlations["lung"]["heart"])
+    print(correlations["heart"]["lung"])
+    utility.print_terminal_partition(level=2)
+
+    # Calculate mean tissue-tissue correlations across persons.
+    data_gene_mean_correlations = calculate_mean_pairwise_correlations(
+        correlations=correlations,
+        key="person",
+        data=data_index,
+    )
+
+    print(data_gene_mean_correlations)
+
+    # Compile information.
+    information = dict()
+    information["data_gene_mean_correlations"] = data_gene_mean_correlations
+
+    # Return information.
+    return information
+
+
 
 
 
