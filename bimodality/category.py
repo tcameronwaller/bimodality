@@ -130,12 +130,16 @@ def organize_persons_attributes(
     """
 
     # Define functions
-    def translate_sex(sex):
+    def translate_sex_female(sex):
         if sex == "female":
             return 1
         elif sex == "male":
             return 0
-
+    def translate_sex_male(sex):
+        if sex == "male":
+            return 1
+        elif sex == "female":
+            return 0
     def translate_age(age):
         ages_text = [
             "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80-89",
@@ -180,7 +184,10 @@ def organize_persons_attributes(
 
     # Organize persons' sex and age.
     data_persons["female"] = (
-        data_persons["sex"].apply(translate_sex)
+        data_persons["sex"].apply(translate_sex_female)
+    )
+    data_persons["male"] = (
+        data_persons["sex"].apply(translate_sex_male)
     )
     data_persons["age"] = (
         data_persons["age_range"].apply(translate_age)
@@ -194,10 +201,47 @@ def organize_persons_attributes(
     return data_persons
 
 
-def organize_gene_persons_signals(
+def organize_persons_tissues(
+    data_gene_persons_tissues=None,
+):
+    """
+    Organizes persons' tissues.
+
+    arguments:
+        data_gene_persons_tissues (object): Pandas data frame of a gene's
+            selection of tissues across persons
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's selection of tissues across
+            persons
+
+    """
+
+    # Define functions
+    def translate_tissue(tissue):
+        if tissue:
+            return 1
+        else:
+            return 0
+
+    # Copy data.
+    data_persons_tissues = data_gene_persons_tissues.copy(deep=True)
+
+    # Organize persons' tissues.
+    data_persons_tissues = (
+        data_persons_tissues.applymap(translate_tissue)
+    )
+    # Return data.
+    return data_persons_tissues
+
+
+def organize_persons_signals_groups(
     data_samples_tissues_persons=None,
     data_gene_persons_tissues=None,
-    data_gene_persons_signals=None
+    data_gene_persons_signals=None,
+    data_gene_mean_correlations=None,
 ):
     """
     Reads and organizes source information from file
@@ -209,12 +253,14 @@ def organize_gene_persons_signals(
             selection of tissues across persons
         data_gene_persons_signals (object): Pandas data frame of a gene's
             aggregate signals across persons
+        data_gene_mean_correlations (object): Pandas data frame of mean
+            tissue-tissue correlation coefficients across persons
 
     raises:
 
     returns:
-        (object): Pandas data frame of a gene's aggregate signals across
-            persons with persons's attributes
+        (object): Pandas data frame of a gene's aggregate pan-tissue signals
+            across persons with persons's attributes and groups
 
     """
 
@@ -226,110 +272,31 @@ def organize_gene_persons_signals(
         persons=persons,
         data_samples_tissues_persons=data_samples_tissues_persons,
     )
+    data_gene_persons_tissues_binary = organize_persons_tissues(
+        data_gene_persons_tissues=data_gene_persons_tissues
+    )
 
     # Organize information about persons' tissues.
 
     # Join
-    data_persons_signals = data_gene_persons_signals.join(
+    data_correlations = data_gene_persons_signals.join(
+        data_gene_mean_correlations,
+        how="left",
+        on="person"
+    )
+    data_attributes = data_correlations.join(
         data_persons_attributes,
         how="left",
         on="person"
     )
-    data_persons_tissues_signals = data_persons_signals.join(
-        data_gene_persons_tissues,
+    data_tissues = data_attributes.join(
+        data_gene_persons_tissues_binary,
         how="left",
         on="person"
     )
 
     # Return information
-    return data_persons_tissues_signals
-
-
-def select_values_by_binary_category(
-    category=None,
-    value=None,
-    data=None
-):
-    """
-    Selects a gene's aggregate scores by binary category.
-
-    arguments:
-        category (str): name of a category
-        value (int): value of a category
-        data (object): Pandas data frame of values across binary groups
-
-    raises:
-
-    returns:
-        (list<float>): values for a group
-
-    """
-
-    # Select values of gene's scores by attribute category.
-    data_selection = data.loc[
-        data[category] == value, :
-    ]
-    return data_selection["value"].to_list()
-
-
-def evaluate_variance_by_binary_groups(
-    groups=None,
-    threshold=None,
-    data=None
-):
-    """
-    Evaluates the variance between values in binary groups by one-way analysis
-    of variance.
-
-    The probability is sometimes a missing value.
-    This missing value does not seem to indicate missing values in the groups.
-    Potential problems
-        1. a specific group lacks values
-        2. multiple groups have the same values
-
-    arguments:
-        groups (list<str>): names of binary groups
-        threshold (int): minimal count of values in a group for inclusion
-        data (object): Pandas data frame of values across binary groups
-
-    raises:
-
-    returns:
-        (dict<float>): values of results from the analysis of variance
-
-    """
-
-    # Collect values in each group.
-    groups_values = list()
-    for group in groups:
-        values = select_values_by_binary_category(
-            category=group,
-            value=1,
-            data=data,
-        )
-        if len(values) > threshold:
-            groups_values.append(values)
-    # Analyze variance.
-    # Use splat operator to extract arguments from list.
-    # Alternative: scipy.stats.f_oneway(*[df[col] for col in df])
-    # The probability is sometimes a missing value.
-    # Even when this probability is missing, there do not seem to be
-    # irregularities in the values.
-    if (len(groups_values) > 1):
-        report = scipy.stats.f_oneway(*groups_values)
-        # Compile information.
-        information = {
-            "statistic": report[0],
-            "probability": report[1],
-        }
-    else:
-        # Compile information.
-        information = {
-            "statistic": float("nan"),
-            "probability": float("nan"),
-        }
-    # Return information.
-    return information
+    return data_tissues
 
 
 ##########
@@ -552,7 +519,14 @@ def calculate_mean_pairwise_correlations(
         correlations=correlations,
     )
 
-    # Return information.
+    # Organize data.
+    data_copy.drop(
+        labels=features,
+        axis="columns",
+        inplace=True
+    )
+
+    # Return data.
     return data_copy
 
 
@@ -602,12 +576,13 @@ def calculate_mean_tissue_pairwise_correlations(
     raises:
 
     returns:
-        (object): Pandas data frame of a mean tissue-tissue correlation
+        (object): Pandas data frame of mean tissue-tissue correlation
             coefficients across persons
 
     """
 
     # Organize data.
+    tissues = data_gene_persons_tissues_signals.columns.values.tolist()
     data_index = data_gene_persons_tissues_signals.reset_index(
         level="person",
         drop=False,
@@ -619,12 +594,12 @@ def calculate_mean_tissue_pairwise_correlations(
         data=data_index,
     )
 
-    utility.print_terminal_partition(level=2)
-    print(correlations["adipose"]["artery"])
-    print(correlations["artery"]["adipose"])
-    print(correlations["lung"]["heart"])
-    print(correlations["heart"]["lung"])
-    utility.print_terminal_partition(level=2)
+    #utility.print_terminal_partition(level=2)
+    #print(correlations["adipose"]["artery"])
+    #print(correlations["artery"]["adipose"])
+    #print(correlations["lung"]["heart"])
+    #print(correlations["heart"]["lung"])
+    #utility.print_terminal_partition(level=2)
 
     # Calculate mean tissue-tissue correlations across persons.
     data_gene_mean_correlations = calculate_mean_pairwise_correlations(
@@ -633,18 +608,154 @@ def calculate_mean_tissue_pairwise_correlations(
         data=data_index,
     )
 
-    print(data_gene_mean_correlations)
+    # Return information.
+    return data_gene_mean_correlations
 
-    # Compile information.
-    information = dict()
-    information["data_gene_mean_correlations"] = data_gene_mean_correlations
 
+##########
+# Analysis of Variance (ANOVA)
+
+
+def select_values_by_binary_category(
+    category=None,
+    value=None,
+    data=None
+):
+    """
+    Selects a gene's aggregate scores by binary category.
+
+    The dependent variable of interest must have column name "value".
+
+    arguments:
+        category (str): name of a category
+        value (int): value of a category
+        data (object): Pandas data frame of values across binary groups
+
+    raises:
+
+    returns:
+        (list<float>): values for a group
+
+    """
+
+    # Select values of gene's scores by attribute category.
+    data_selection = data.loc[
+        data[category] == value, :
+    ]
+    return data_selection["value"].values.tolist()
+
+
+def evaluate_variance_by_binary_groups(
+    groups=None,
+    threshold=None,
+    data=None
+):
+    """
+    Evaluates the variance between values in binary groups by one-way analysis
+    of variance.
+
+    The probability is sometimes a missing value.
+    This missing value does not seem to indicate missing values in the groups.
+    Potential problems
+        1. a specific group lacks values
+        2. multiple groups have the same values
+
+    arguments:
+        groups (list<str>): names of binary groups
+        threshold (int): minimal count of values in a group for inclusion
+        data (object): Pandas data frame of values across binary groups
+
+    raises:
+
+    returns:
+        (dict<float>): values of results from the analysis of variance
+
+    """
+
+    # Collect values in each group.
+    groups_values = list()
+    for group in groups:
+        values = select_values_by_binary_category(
+            category=group,
+            value=1,
+            data=data,
+        )
+        if len(values) > threshold:
+            groups_values.append(values)
+    # Analyze variance.
+    # Use splat operator to extract arguments from list.
+    # Alternative: scipy.stats.f_oneway(*[df[col] for col in df])
+    # The probability is sometimes a missing value.
+    # Even when this probability is missing, there do not seem to be
+    # irregularities in the values.
+    if (len(groups_values) > 1):
+        report = scipy.stats.f_oneway(*groups_values)
+        # Compile information.
+        information = {
+            "statistic": report[0],
+            "probability": report[1],
+        }
+    else:
+        # Compile information.
+        information = {
+            "statistic": float("nan"),
+            "probability": float("nan"),
+        }
     # Return information.
     return information
 
 
+##########
+# Regression
 
 
+def evaluate_correlation_by_linearity(
+    dependence=None,
+    independence=None,
+    data=None
+):
+    """
+    Evaluates the correlation between a dependent and independent variable by
+    linear regression.
+
+    arguments:
+        dependence (str): name of dependent variable
+        independence (list<str>): name of independent variable
+        data (object): Pandas data frame of values across binary groups
+
+    raises:
+
+    returns:
+        (dict<float>): values of results from the analysis of variance
+
+    """
+
+    # Access values of dependent and independent variables.
+    values_dependence = data[dependence].values.reshape(-1, 1)
+    if len(independence) > 1:
+        data_independence = data.loc[ :, independence]
+        values_independence = data_independence.values
+        pass
+    else:
+        values_independence = data[independence[0]].values.reshape(-1, 1)
+
+    # Define regression.
+    regression = LinearRegression(
+        fit_intercept=True,
+        normalize=False,
+        copy_X=True,
+        n_jobs=None
+    ).fit(
+        values_independence,
+        values_dependence,
+        sample_weight=None
+    )
+    score = regression.score(
+        values_independence,
+        values_dependence,
+        sample_weight=None
+    )
+    return score
 
 
 # Write.

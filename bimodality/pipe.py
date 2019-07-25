@@ -260,6 +260,9 @@ def determine_gene_distribution(
         ),
     )
 
+    # TODO: This should not be in the pipe procedure...
+    # TODO: this should be within the candidacy procedure...
+
     # Tissue-tissue correlations.
     # Determine whether to calculate tissue-tissue correlations.
     if correlation:

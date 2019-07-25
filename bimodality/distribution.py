@@ -386,8 +386,12 @@ def prepare_report_gene(
     # Prepare gene report.
     # Describe gene's aggregate signals across persons.
 
+    # Calculate count of persons.
+    persons = data_gene_persons_signals.shape[0]
+
     # Compile information.
     information = {
+        "persons": persons,
         "data_gene_persons_signals": data_gene_persons_signals,
     }
     # Return information.

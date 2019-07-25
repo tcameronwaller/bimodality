@@ -268,7 +268,7 @@ def prepare_report_gene(
     # Describe specific tissues for which each person has valid signals for
     # gene without imputation.
     data_persons_tissues = data_gene_persons_tissues_signals.applymap(
-        lambda x: (1) if (pandas.notna(x)) else (0)
+        lambda x: (True) if (pandas.notna(x)) else (False)
     )
 
     # Describe counts of tissues for which each person has valid signals for
@@ -282,10 +282,10 @@ def prepare_report_gene(
     persons = data_persons_tissues.shape[0]
 
     # Calculate mean count of tissues per person.
-    mean = data_persons_tissues.mean()
+    mean = data_persons_tissues_count.mean()
 
     # Calculate median count of tissues per person.
-    median = data_persons_tissues.median()
+    median = data_persons_tissues_count.median()
 
     # Compile information.
     information = {
@@ -293,8 +293,8 @@ def prepare_report_gene(
         "data_gene_persons_tissues": data_persons_tissues,
         "data_gene_persons_tissues_count": data_persons_tissues_count,
         "persons": persons,
-        "persons_tissues_mean": mean,
-        "persons_tissues_median": median,
+        "tissues_mean": mean,
+        "tissues_median": median,
     }
     # Return information.
     return information
@@ -716,6 +716,8 @@ def execute_procedure(
         # Describe counts of tissues across persons.
         # Describe specific tissues for which persons have valid signals for
         # gene without imputation.
+        # Importantly, the gene's report is on the basis of the data before
+        # imputation.
         report_gene = prepare_report_gene(
             data_gene_persons_tissues_signals=data_temporary,
         )
