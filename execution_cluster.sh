@@ -1,5 +1,12 @@
 #!/bin/bash
 
+#SBATCH --job-name=gene_distribution
+#SBATCH -o=$path_dock/out.txt
+#SBATCH -e=$path_dock/error.txt
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=5000
+#SBATCH --array=0-12823%250
+
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
 path_project="/cellar/users/tcwaller"
@@ -20,13 +27,6 @@ echo $count_genes
 
 #echo ${genes[@]}
 #echo $genes[0]
-
-#SBATCH --job-name=gene_distribution
-#SBATCH -o=$path_dock/out.txt
-#SBATCH -e=$path_dock/error.txt
-#SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=5000
-#SBATCH --array=0-12823%250
 
 gene=${genes[$SLURM_ARRAY_TASK_ID]}
 echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
