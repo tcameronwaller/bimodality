@@ -22,11 +22,11 @@ echo $count_genes
 #echo $genes[0]
 
 #SBATCH --job-name=gene_distribution
-#SBATCH --output=/cellar/users/tcwaller/Data/dock/out.txt
-#SBATCH --error=/cellar/users/tcwaller/Data/dock/error.txt
+#SBATCH -o=$path_dock/out.txt
+#SBATCH -e=$path_dock/error.txt
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=5000
-#SBATCH --array=0-$indices%250
+#SBATCH --array=0-12823%250
 
 gene=${genes[$SLURM_ARRAY_TASK_ID]}
 echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
