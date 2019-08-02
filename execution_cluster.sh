@@ -38,6 +38,6 @@ echo "gene: " $gene
 hostname
 date
 
-$path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --pipe --remote --gene $gene
+$path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --distribution --remote --gene $gene
 
 date
