@@ -5,7 +5,7 @@
 #SBATCH -e=$path_dock/error.txt
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=5000
-#SBATCH --array=0-12823%250
+#SBATCH --array=0-9000%250
 
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
