@@ -35,27 +35,26 @@ cd $path_program
 
 echo "Now set to call routine and procedures."
 
-# Preparation Routine
 
+# - Preparation Routine
+
+# -- essential procedures
 #python3 interface.py main --dock $path_dock --access
 #python3 interface.py main --dock $path_dock --assembly
+#python3 interface.py main --dock $path_dock --selection
 
-# Combine measurement and selection...
-# keep filters as simple as possible
-# apply the signal threshold just a single time
-
+# -- nonessential, exploratory procedures
 #python3 interface.py main --dock $path_dock --measurement
 #python3 interface.py main --dock $path_dock --sample
-#python3 interface.py main --dock $path_dock --selection
 #python3 interface.py main --dock $path_dock --tissue
 
-# Batch Routine
+# - Batch Routine
 
 #python3 interface.py main --dock $path_dock --split
 
 #python3 interface.py main --dock $path_dock --candidacy
 
-#python3 interface.py main --dock $path_dock --permutation --count 1000
+python3 interface.py main --dock $path_dock --permutation --count 1000
 
 #python3 interface.py main --dock $path_dock --distribution --local
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
@@ -63,7 +62,6 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --organization
 #python3 interface.py main --dock $path_dock --restriction
 #python3 interface.py main --dock $path_dock --aggregation
-
 
 #python3 interface.py main --dock $path_dock --collection
 
@@ -76,7 +74,7 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --analysis
 #python3 interface.py main --dock $path_dock --function
 
-python3 interface.py main --dock $path_dock --metric
+#python3 interface.py main --dock $path_dock --metric
 #python3 interface.py main --dock $path_dock --plot
 
 

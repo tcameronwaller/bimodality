@@ -270,61 +270,6 @@ def aggregate_gene_persons_signals(
 # Distribution.
 
 
-def calculate_bimodality_metrics(
-    values=None
-):
-    """
-    Calculates bimodality metrics for a distribution.
-
-    arguments:
-        values (list): values of a distribution
-
-    raises:
-
-    returns:
-        (dict<float>): values of metrics of bimodality
-
-    """
-
-    # Calculate metrics of bimodality.
-    coefficient = metric.calculate_bimodality_coefficient(series=values)
-    dip = metric.calculate_dip_statistic(series=values)
-    mixture = metric.calculate_mixture_model_score(series=values)
-    # Compile information.
-    information = {
-        "coefficient": coefficient,
-        "dip": dip,
-        "mixture": mixture,
-    }
-
-    # Return information.
-    return information
-
-
-def generate_null_metrics():
-    """
-    Generates null metrics.
-
-    arguments:
-
-    raises:
-
-    returns:
-        (dict<float>): values of metrics of bimodality
-
-    """
-
-    # Compile information.
-    information = {
-        "coefficient": float("nan"),
-        "dip": float("nan"),
-        "mixture": float("nan"),
-    }
-
-    # Return information.
-    return information
-
-
 def determine_gene_persons_signals(
     data_gene_persons_signals=None
 ):
@@ -535,14 +480,12 @@ def test(dock=None):
 
 
 def execute_procedure(
-    metric=None,
     data_gene_persons_tissues_signals=None,
 ):
     """
     Function to execute module's main behavior.
 
     arguments:
-        metric (bool): whether to calculate metrics for gene's distribution
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
 
@@ -578,31 +521,6 @@ def execute_procedure(
         data_gene_persons_signals=data_gene_persons_signals
     )
 
-    # Metric
-    # Determine whether to calculate metrics for gene's distribution.
-    if metric:
-        population = candidacy.evaluate_gene_population(
-            threshold=100,
-            data_gene_persons_signals=collection["data"],
-        )
-        signal = candidacy.evaluate_gene_signal(
-            threshold=0.0,
-            data_gene_persons_signals=collection["data"],
-        )
-        if signal and population:
-            # Calculate metrics.
-            # Calculate metrics of bimodality.
-            scores = calculate_bimodality_metrics(values=collection["values"])
-            pass
-        else:
-            # Generate missing values.
-            scores = generate_null_metrics()
-            pass
-    else:
-        # Generate missing values.
-        scores = generate_null_metrics()
-        pass
-
     # Prepare gene report.
     # Describe gene's aggregate signals across persons.
     report_gene = prepare_report_gene(
@@ -611,8 +529,8 @@ def execute_procedure(
 
     # Compile information.
     information = {
+        "data": collection["data"],
         "values": collection["values"],
-        "scores": scores,
         "report_gene": report_gene,
     }
     # Return information.

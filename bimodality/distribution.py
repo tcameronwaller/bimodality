@@ -33,6 +33,7 @@ import organization
 import restriction
 import aggregation
 import metric
+import candidacy
 import category
 import utility
 
@@ -122,10 +123,64 @@ def read_source(
 # Distribution
 
 
+def calculate_bimodality_metrics(
+    values=None
+):
+    """
+    Calculates bimodality metrics for a distribution.
+
+    arguments:
+        values (list): values of a distribution
+
+    raises:
+
+    returns:
+        (dict<float>): values of metrics of bimodality
+
+    """
+
+    # Calculate metrics of bimodality.
+    coefficient = metric.calculate_bimodality_coefficient(series=values)
+    dip = metric.calculate_dip_statistic(series=values)
+    mixture = metric.calculate_mixture_model_score(series=values)
+    # Compile information.
+    information = {
+        "coefficient": coefficient,
+        "dip": dip,
+        "mixture": mixture,
+    }
+
+    # Return information.
+    return information
+
+
+def generate_null_metrics():
+    """
+    Generates null metrics.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<float>): values of metrics of bimodality
+
+    """
+
+    # Compile information.
+    information = {
+        "coefficient": float("nan"),
+        "dip": float("nan"),
+        "mixture": float("nan"),
+    }
+
+    # Return information.
+    return information
+
+
 def determine_gene_distributions(
     gene=None,
-    metric=None,
-    correlation=None,
+    modality=None,
     data_gene_samples_signals=None,
 ):
     """
@@ -134,8 +189,7 @@ def determine_gene_distributions(
 
     arguments:
         gene (str): identifier of gene
-        metric (bool): whether to calculate metrics for gene's distribution
-        correlation (bool): whether to calculate tissue-tissue correlations for
+        modality (bool): whether to calculate metrics for the modality of
             gene's distribution
         data_gene_samples_signals (object): Pandas data frame of a gene's
             signals across samples
@@ -156,18 +210,16 @@ def determine_gene_distributions(
     # Determine distributions of gene's signals by multiple methods.
     imputation = determine_gene_distribution(
         gene=gene,
-        metric=metric,
+        modality=modality,
         method="imputation",
-        correlation=correlation,
         data_gene_persons_tissues_signals=(
             collection_organization["data_gene_persons_tissues_signals"]
         ),
     )
     availability = determine_gene_distribution(
         gene=gene,
-        metric=metric,
+        modality=modality,
         method="availability",
-        correlation=correlation,
         data_gene_persons_tissues_signals=(
             collection_organization["data_gene_persons_tissues_signals"]
         ),
@@ -186,9 +238,8 @@ def determine_gene_distributions(
 
 def determine_gene_distribution(
     gene=None,
-    metric=None,
+    modality=None,
     method=None,
-    correlation=None,
     data_gene_persons_tissues_signals=None,
 ):
     """
@@ -197,13 +248,12 @@ def determine_gene_distribution(
 
     arguments:
         gene (str): identifier of gene
-        metric (bool): whether to calculate metrics for gene's distribution
+        modality (bool): whether to calculate metrics for the modality of
+            gene's distribution
         method (str): method for selection of tissues and persons in
             restriction procedure, either "imputation" for selection by
             specific tissues with imputation or "availability" for selection by
             minimal count of tissues
-        correlation (bool): whether to calculate tissue-tissue correlations for
-            gene's distribution
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
 
@@ -250,46 +300,48 @@ def determine_gene_distribution(
         ),
     )
 
-    # Distribution
+    # Aggregation
     # Use the final "data_gene_persons_tissues_signals" from restriction
     # procedure after imputation.
-    collection_distribution = aggregation.execute_procedure(
-        metric=metric,
+    collection_aggregation = aggregation.execute_procedure(
         data_gene_persons_tissues_signals=(
             collection_restriction["data_gene_persons_tissues_signals"]
         ),
     )
 
-    # TODO: This should not be in the pipe procedure...
-    # TODO: this should be within the candidacy procedure...
-
-    # Tissue-tissue correlations.
-    # Determine whether to calculate tissue-tissue correlations.
-    if correlation:
-        # Calculate tissue-tissue correlations across persons.
-        # Use the data before imputation to grasp correlations across real
-        # values.
-        report_restriction = collection_restriction["report_gene"]
-        collection_category = (
-            category.calculate_mean_tissue_pairwise_correlations(
-                data_gene_persons_tissues_signals=(
-                    report_restriction["data_gene_persons_tissues_signals"]
-                )
-            )
+    # Determine distribution modality metrics.
+    # Determine whether to calculate metrics for gene's distribution.
+    if modality:
+        population = candidacy.evaluate_gene_population(
+            threshold=100,
+            data_gene_persons_signals=collection_aggregation["data"],
         )
-        pass
+        signal = candidacy.evaluate_gene_signal(
+            threshold=0.0,
+            data_gene_persons_signals=collection_aggregation["data"],
+        )
+        if signal and population:
+            # Calculate metrics.
+            # Calculate metrics of bimodality.
+            scores = calculate_bimodality_metrics(
+                values=collection_aggregation["values"]
+            )
+            pass
+        else:
+            # Generate missing values.
+            scores = generate_null_metrics()
+            pass
     else:
         # Generate missing values.
-        collection_category = {}
+        scores = generate_null_metrics()
         pass
 
     # Compile information.
     information = {
         "report_restriction": collection_restriction["report_gene"],
-        "values": collection_distribution["values"],
-        "scores": collection_distribution["scores"],
-        "report_distribution": collection_distribution["report_gene"],
-        "report_category": collection_category
+        "values": collection_aggregation["values"],
+        "scores": scores,
+        "report_aggregation": collection_aggregation["report_gene"],
     }
 
     # Return information.
@@ -302,8 +354,7 @@ def determine_gene_distribution(
 
 def shuffle_gene_distributions(
     gene=None,
-    metric=None,
-    correlation=None,
+    modality=None,
     permutations=None,
     data_gene_persons_tissues_signals=None,
 ):
@@ -312,8 +363,7 @@ def shuffle_gene_distributions(
 
     arguments:
         gene (str): identifier of gene
-        metric (bool): whether to calculate metrics for gene's distribution
-        correlation (bool): whether to calculate tissue-tissue correlations for
+        modality (bool): whether to calculate metrics for the modality of
             gene's distribution
         permutations (list<list<list<int>>>): matrices of permutation indices
         data_gene_persons_tissues_signals (object): Pandas data frame of a
@@ -331,17 +381,15 @@ def shuffle_gene_distributions(
     # Determine distributions of gene's signals by multiple methods.
     imputation = shuffle_gene_distribution(
         gene=gene,
-        metric=metric,
+        modality=modality,
         method="imputation",
-        correlation=correlation,
         permutations=permutations,
         data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
     )
     availability = shuffle_gene_distribution(
         gene=gene,
-        metric=metric,
+        modality=modality,
         method="availability",
-        correlation=correlation,
         permutations=permutations,
         data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
     )
@@ -358,9 +406,8 @@ def shuffle_gene_distributions(
 
 def shuffle_gene_distribution(
     gene=None,
-    metric=None,
+    modality=None,
     method=None,
-    correlation=None,
     permutations=None,
     data_gene_persons_tissues_signals=None,
 ):
@@ -369,13 +416,12 @@ def shuffle_gene_distribution(
 
     arguments:
         gene (str): identifier of gene
-        metric (bool): whether to calculate metrics for gene's distribution
+        modality (bool): whether to calculate metrics for the modality of
+            gene's distribution
         method (str): method for selection of tissues and persons in
             restriction procedure, either "imputation" for selection by
             specific tissues with imputation or "availability" for selection by
             minimal count of tissues
-        correlation (bool): whether to calculate tissue-tissue correlations for
-            gene's distribution
         permutations (list<list<list<int>>>): matrices of permutation indices
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
@@ -395,20 +441,18 @@ def shuffle_gene_distribution(
     # Iterate on permutations.
     for shuffle_matrix in permutations:
         # Shuffle gene's signals.
-        data_shuffle = shuffle.shuffle_gene_signals(
+        data_shuffle = permutation.shuffle_gene_signals(
             data_gene_signals=data_gene_persons_tissues_signals,
             shuffle=shuffle_matrix
         )
         # Determine distributions of gene's signals
         collection = determine_gene_distribution(
             gene=gene,
-            metric=metric,
+            modality=modality,
             method=method,
-            correlation=correlation,
-            data_gene_persons_tissues_signals=(
-                collection_organization["data_gene_persons_tissues_signals"]
-            ),
+            data_gene_persons_tissues_signals=data_shuffle,
         )
+
         # Collect metrics.
         coefficients.append(
             collection["scores"]["coefficient"]
@@ -452,9 +496,9 @@ def write_product(gene=None, dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_pipe = os.path.join(dock, "pipe")
-    utility.confirm_path_directory(path_pipe)
-    path_gene = os.path.join(path_pipe, gene)
+    path_distribution = os.path.join(dock, "distribution")
+    utility.confirm_path_directory(path_distribution)
+    path_gene = os.path.join(path_distribution, gene)
     utility.confirm_path_directory(path_gene)
     path_imputation = os.path.join(path_gene, "imputation")
     utility.confirm_path_directory(path_imputation)
@@ -468,8 +512,8 @@ def write_product(gene=None, dock=None, information=None):
     path_imputation_report_restriction = os.path.join(
         path_imputation, "report_restriction.pickle"
     )
-    path_imputation_report_distribution = os.path.join(
-        path_imputation, "report_distribution.pickle"
+    path_imputation_report_aggregation = os.path.join(
+        path_imputation, "report_aggregation.pickle"
     )
     path_imputation_scores = os.path.join(
         path_imputation, "scores.pickle"
@@ -481,8 +525,8 @@ def write_product(gene=None, dock=None, information=None):
     path_availability_report_restriction = os.path.join(
         path_availability, "report_restriction.pickle"
     )
-    path_availability_report_distribution = os.path.join(
-        path_availability, "report_distribution.pickle"
+    path_availability_report_aggregation = os.path.join(
+        path_availability, "report_aggregation.pickle"
     )
     path_availability_scores = os.path.join(
         path_availability, "scores.pickle"
@@ -498,9 +542,9 @@ def write_product(gene=None, dock=None, information=None):
     # Imputation method
     with open(path_imputation_report_restriction, "wb") as file_product:
         pickle.dump(information["imputation"]["report_restriction"], file_product)
-    with open(path_imputation_report_distribution, "wb") as file_product:
+    with open(path_imputation_report_aggregation, "wb") as file_product:
         pickle.dump(
-            information["imputation"]["report_distribution"], file_product
+            information["imputation"]["report_aggregation"], file_product
         )
     with open(path_imputation_scores, "wb") as file_product:
         pickle.dump(information["imputation"]["scores"], file_product)
@@ -512,9 +556,9 @@ def write_product(gene=None, dock=None, information=None):
         pickle.dump(
             information["availability"]["report_restriction"], file_product
         )
-    with open(path_availability_report_distribution, "wb") as file_product:
+    with open(path_availability_report_aggregation, "wb") as file_product:
         pickle.dump(
-            information["availability"]["report_distribution"], file_product
+            information["availability"]["report_aggregation"], file_product
         )
     with open(path_availability_scores, "wb") as file_product:
         pickle.dump(information["availability"]["scores"], file_product)
@@ -558,16 +602,14 @@ def execute_procedure(
     # Determine gene's distributions of aggregate tissue scores across persons.
     observation = determine_gene_distributions(
         gene=gene,
-        metric=True,
-        correlation=False,
+        modality=True,
         data_gene_samples_signals=data_gene_samples_signals,
     )
 
     # Shuffle gene's distributions.
-    permutation = shuffle_gene_distributions(
+    shuffle = shuffle_gene_distributions(
         gene=gene,
-        metric=True,
-        correlation=False,
+        modality=True,
         permutations=permutations,
         data_gene_persons_tissues_signals=(
             observation["organization"]["data_gene_persons_tissues_signals"]
@@ -579,21 +621,21 @@ def execute_procedure(
         "report_restriction": (
             observation["imputation"]["report_restriction"]
         ),
-        "report_distribution": (
-            observation["imputation"]["report_distribution"]
+        "report_aggregation": (
+            observation["imputation"]["report_aggregation"]
         ),
         "scores": observation["imputation"]["scores"],
-        "permutations": permutation["imputation"],
+        "permutations": shuffle["imputation"],
     }
     information_availability = {
         "report_restriction": (
             observation["availability"]["report_restriction"]
         ),
-        "report_distribution": (
-            observation["availability"]["report_distribution"]
+        "report_aggregation": (
+            observation["availability"]["report_aggregation"]
         ),
         "scores": observation["availability"]["scores"],
-        "permutations": permutation["availability"],
+        "permutations": shuffle["availability"],
     }
     information = {
         "report_organization": observation["organization"]["report_gene"],
@@ -621,7 +663,7 @@ def execute_procedure_local(dock=None):
     """
 
     # Read source information from file.
-    source = read_source_local_initial(source_genes="candidacy", dock=dock)
+    source = read_source_local_initial(source_genes="split", dock=dock)
 
     print("count of genes: " + str(len(source["genes"])))
     #print("count of permutations: " + str(len(source["permutations"])))
@@ -631,8 +673,8 @@ def execute_procedure_local(dock=None):
     print(start)
 
     # Remove previous files to avoid version or batch confusion.
-    path_pipe = os.path.join(dock, "pipe")
-    utility.remove_directory(path=path_pipe)
+    path_distribution = os.path.join(dock, "distribution")
+    utility.remove_directory(path=path_distribution)
 
     # Set up partial function for iterative execution.
     # Each iteration uses the same values for "genes_signals", "permutations", and
@@ -658,7 +700,7 @@ def execute_procedure_local(dock=None):
         "ENSG00000198965",
     ]
     #report = pool.map(execute_procedure_gene, check_genes)
-    report = pool.map(execute_procedure_gene, source["genes"][0:8])
+    report = pool.map(execute_procedure_gene, source["genes"][0:16])
     #report = pool.map(execute_procedure_gene, source["genes"])
 
     # Report.
@@ -712,8 +754,8 @@ def execute_procedure_local_sub(gene=None, dock=None):
     )
 
     # Report contents of directory.
-    path_pipe = os.path.join(dock, "pipe")
-    directories = os.listdir(path_pipe)
+    path_distribution = os.path.join(dock, "distribution")
+    directories = os.listdir(path_distribution)
     count = len(directories)
     if (count % 10 == 0):
         print("complete genes: " + str(len(directories)))

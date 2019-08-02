@@ -160,16 +160,6 @@ def select_persons_tissues(
             thresh=count,
             inplace=False,
         )
-        data_row = measurement.filter_rows_columns_by_threshold(
-            data=data_selection,
-            dimension="row",
-            threshold=1.0,
-        )
-        data_row = measurement.filter_rows_columns_by_threshold(
-            data=data_selection,
-            dimension="row",
-            threshold=1.0,
-        )
         if False:
             data_nonzero = (data_selection != 0)
             data_selection = (
@@ -187,10 +177,11 @@ def select_persons_tissues(
             thresh=count,
             inplace=False,
         )
-        data_nonzero = (data_selection != 0)
-        data_selection = (
-            data_selection.loc[data_nonzero.any(axis="columns"), : ]
-        )
+        if False:
+            data_nonzero = (data_selection != 0)
+            data_selection = (
+                data_selection.loc[data_nonzero.any(axis="columns"), : ]
+            )
         pass
     # Return information.
     return data_selection

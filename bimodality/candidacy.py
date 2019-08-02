@@ -674,10 +674,9 @@ def evaluate_gene(
     """
 
     # Determine gene's distributions of aggregate tissue scores across persons.
-    observation = pipe.determine_gene_distributions(
+    observation = distribution.determine_gene_distributions(
         gene=gene,
-        metric=False,
-        correlation=False,
+        modality=False,
         data_gene_samples_signals=data_gene_samples_signals,
     )
 

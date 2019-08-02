@@ -133,8 +133,8 @@ def split_genes_signals(
     data_type = data_long.astype(
         {
             "gene": "str",
-            "person": "category",
-            "tissue_major": "category",
+            "person": "str",
+            "tissue_major": "str",
             "signal": "float32",
         },
         copy=True,
@@ -157,12 +157,12 @@ def split_genes_signals(
     for name, group in groups:
         data = group.copy(deep=True)
         genes_samples_signals[name] = data
-        if name == "ENSG00000186092":
+        if name == "ENSG00000231925":
             print(name)
             print(group)
     # Access data by gene.
     print("Access data for a single gene.")
-    print(genes_samples_signals["ENSG00000186092"])
+    print(genes_samples_signals["ENSG00000231925"])
 
     # Return information.
     return genes_samples_signals
@@ -297,6 +297,7 @@ def execute_procedure(dock=None):
 
     # Summary.
     print(source["data_gene_signal"].iloc[0:10, 0:10])
+    print(source["data_gene_signal"].shape)
 
     # Split genes' signals across tissues and patients by gene.
     genes_samples_signals = split_genes_signals(
@@ -311,7 +312,7 @@ def execute_procedure(dock=None):
 
     # Summarize information for a single gene.
     # Access data for single gene for demonstration.
-    data_gene_samples_signals = genes_samples_signals["ENSG00000186092"]
+    data_gene_samples_signals = genes_samples_signals["ENSG00000231925"]
     persons_tissues = summarize_gene_samples_signals(
         data_gene_samples_signals=data_gene_samples_signals
     )

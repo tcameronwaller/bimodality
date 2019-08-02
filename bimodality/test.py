@@ -27,6 +27,7 @@ import sklearn.decomposition
 # Custom
 
 import organization
+import selection
 import utility
 
 #dir()
@@ -52,19 +53,15 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_tissue = os.path.join(dock, "tissue")
-    path_report = os.path.join(
-        path_tissue, "data_gene_sample_report.txt"
-    )
+    gene = "ENSG00000231925" # TAPBP
+    path_split = os.path.join(dock, "split")
+    path_collection = os.path.join(path_split, "collection")
+    path_gene = os.path.join(path_collection, (gene + ".pickle"))
     # Read information from file.
-    data_gene_sample_report = pandas.read_csv(
-        path_report,
-        sep="\t",
-        header=0,
-    )
+    data_gene_samples_signals = pandas.read_pickle(path_gene)
     # Compile and return information.
     return {
-        "data_gene_sample_report": data_gene_sample_report,
+        "data_gene_samples_signals": data_gene_samples_signals,
     }
 
 
@@ -89,14 +86,44 @@ def execute_procedure(dock=None):
 
     # Read source information from file.
     source = read_source(dock=dock)
-    data = source["data_gene_sample_report"]
-    data.set_index(
-        ["sample", "person", "tissue_major", "tissue_minor"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
+    data = source["data_gene_samples_signals"]
     print(data)
+
+    gene = "ENSG00000231925" # TAPBP
+
+    collection_organization = organization.execute_procedure(
+        data_gene_samples_signals=data
+    )
+    data_gene_persons_tissues_signals = collection_organization["data_gene_persons_tissues_signals"]
+
+    print(data_gene_persons_tissues_signals)
+    print(data_gene_persons_tissues_signals.shape)
+
+    # Filter genes by signal.
+    # Filter to keep only genes with signals beyond threshold in at least one
+    # sample.
+    data_row = selection.filter_rows_columns_by_threshold_proportion(
+        data=data_gene_persons_tissues_signals,
+        dimension="row",
+        threshold=10.0,
+        proportion=0.1
+    )
+    print(data_row)
+    print(data_row.shape)
+
+    # Filter samples by signal.
+    # Filter to keep only samples with signals beyond threshold in at least one
+    # gene.
+    data_column = selection.filter_rows_columns_by_threshold_proportion(
+        data=data_gene_persons_tissues_signals,
+        dimension="column",
+        threshold=10.0,
+        proportion=0.5
+    )
+    print(data_column)
+    print(data_column.shape)
+
+
 
 
 

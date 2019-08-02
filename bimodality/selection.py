@@ -15,6 +15,7 @@ import os
 import math
 import statistics
 import pickle
+import itertools
 
 # Relevant
 
@@ -83,6 +84,9 @@ def read_source(dock=None):
     }
 
 
+# Summary.
+
+
 def summarize_samples_genes(
     data_samples_tissues_persons=None,
     data_gene_count=None,
@@ -144,6 +148,9 @@ def summarize_samples_genes(
     pass
 
 
+# Genes.
+
+
 def select_genes(
     data_gene_annotation=None,
     data_gene_signal=None
@@ -201,6 +208,9 @@ def select_genes(
         "signal genes that encode proteins: " + str(data_gene_signal.shape[0])
     )
     return data_gene_signal
+
+
+# Samples.
 
 
 def select_samples_by_exclusion(
@@ -349,12 +359,12 @@ def select_samples(
     samples_exclusion = select_samples_by_exclusion(
         data_samples_tissues_persons=data_samples_tissues_persons,
     )
-    print(len(samples_exclusion))
+    #print(len(samples_exclusion))
     # Select samples by inclusion.
     samples_inclusion = select_samples_by_inclusion(
         data_samples_tissues_persons=data_samples_tissues_persons,
     )
-    print(len(samples_inclusion))
+    #print(len(samples_inclusion))
     # Select samples that are in both exclusion and inclusion lists.
     samples = utility.filter_common_elements(
         list_one=samples_exclusion,
@@ -407,11 +417,14 @@ def select_samples_genes_by_few_tissues(
     return data_selection
 
 
-def filter_rows_columns_by_threshold_count(
+# Signal.
+
+
+def filter_rows_columns_by_threshold_proportion(
     data=None,
     dimension=None,
     threshold=None,
-    count=None,
+    proportion=None,
 ):
     """
     Filters either rows or columns.
@@ -419,11 +432,15 @@ def filter_rows_columns_by_threshold_count(
     Persistence of a row or column requires at least a specific count of values
     beyond a specific threshold.
 
+    Filter rows by consideration of values across columns in each row.
+    Filter columns by consideration of values across rows in each column.
+
     arguments:
         data (object): Pandas data frame of genes' signals across samples
         dimension (str): dimension to filter, either "row" or "column"
         threshold (float): minimal signal
-        count (int): minimal count
+        proportion (float): minimal proportion of rows or columns that must
+            pass threshold
 
     raises:
 
@@ -434,8 +451,18 @@ def filter_rows_columns_by_threshold_count(
 
     def count_true(slice=None, count=None):
         values = slice.values.tolist()
-        values_true = values[values]
+        values_true = list(itertools.compress(values, values))
         return (len(values_true) >= count)
+
+    # Determine count from proportion.
+    if dimension == "row":
+        # Filter rows by consideration of columns for each row.
+        columns = data.shape[1]
+        count = round(proportion * columns)
+    elif dimension == "column":
+        # Filter columns by consideration of rows for each columns.
+        rows = data.shape[0]
+        count = round(proportion * rows)
 
     # Determine whether values exceed threshold.
     data_threshold = (data >= threshold)
@@ -444,29 +471,34 @@ def filter_rows_columns_by_threshold_count(
         axis = "columns"
     elif dimension == "column":
         axis = "index"
+    # This aggregation operation produces a series.
     data_count = data_threshold.aggregate(
         lambda slice: count_true(slice=slice, count=count),
         axis=axis,
     )
+
     # Select rows and columns with appropriate values.
     if dimension == "row":
-        data_pass = data.loc[data_count.any(axis="columns"), : ]
+        data_pass = data.loc[data_count, : ]
     elif dimension == "column":
-        data_pass = data.loc[:, data_count.any(axis="index")]
+        data_pass = data.loc[:, data_count]
     return data_pass
 
 
 def select_samples_genes_signals(
     threshold=None,
-    count=None,
+    proportion=None,
     data_gene_signal=None
 ):
     """
     Selects samples and genes by signals beyond threshold.
 
+    Data format should have genes across rows and samples across columns.
+
     arguments:
-        threshold (float): minimal signal
-        count (int): minimal count of samples or genes with minimal signals
+        threshold (float): minimal gene's signal for a sample
+        proportion (float): minimal proportion of samples or genes that must
+            pass threshold
         data_gene_signal (object): Pandas data frame of genes' signals across
             samples
 
@@ -476,24 +508,32 @@ def select_samples_genes_signals(
         (object): Pandas data frame of genes' signals across samples
     """
 
-    # Filter genes by signal.
+    utility.print_terminal_partition(level=2)
+    print("shape of original data...")
+    print(data_gene_signal.shape)
+
+    # Filter genes by their signals across samples.
     # Filter to keep only genes with signals beyond threshold in at least one
     # sample.
-    data_row = filter_rows_columns_by_threshold_count(
+    data_row = filter_rows_columns_by_threshold_proportion(
         data=data_gene_signal,
         dimension="row",
         threshold=threshold,
-        count=count
+        proportion=proportion
     )
-    # Filter samples by signal.
+    print("shape of data after signal filter on genes...")
+    print(data_row.shape)
+    # Filter samples by their signals across genes.
     # Filter to keep only samples with signals beyond threshold in at least one
     # gene.
-    data_column = filter_rows_columns_by_threshold_count(
+    data_column = filter_rows_columns_by_threshold_proportion(
         data=data_row,
         dimension="column",
         threshold=threshold,
-        count=count
+        proportion=proportion
     )
+    print("shape of data after signal filter on samples...")
+    print(data_column.shape)
 
     # Return information.
     return data_column
@@ -604,15 +644,14 @@ def execute_procedure(dock=None):
     # Select genes and samples by signals.
     data_gene_signal_selection = select_samples_genes_signals(
         threshold=1.0,
-        count=10,
+        proportion=0.5,
         data_gene_signal=data_gene_signal_sample,
     )
     data_gene_count_selection = select_samples_genes_signals(
         threshold=1.0,
-        count=10,
+        proportion=0.1,
         data_gene_signal=data_gene_count_sample,
     )
-
 
     # Summarize original counts of samples and genes.
     summarize_samples_genes(
