@@ -39,6 +39,11 @@ echo "Now set to call routine and procedures."
 
 #python3 interface.py main --dock $path_dock --access
 #python3 interface.py main --dock $path_dock --assembly
+
+# Combine measurement and selection...
+# keep filters as simple as possible
+# apply the signal threshold just a single time
+
 #python3 interface.py main --dock $path_dock --measurement
 #python3 interface.py main --dock $path_dock --sample
 #python3 interface.py main --dock $path_dock --selection
@@ -47,18 +52,18 @@ echo "Now set to call routine and procedures."
 # Batch Routine
 
 #python3 interface.py main --dock $path_dock --split
-python3 interface.py main --dock $path_dock --candidacy
 
-#python3 interface.py main --dock $path_dock --shuffle --count 1000
+#python3 interface.py main --dock $path_dock --candidacy
 
+#python3 interface.py main --dock $path_dock --permutation --count 1000
+
+#python3 interface.py main --dock $path_dock --distribution --local
+#python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
+#nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --organization
 #python3 interface.py main --dock $path_dock --restriction
-#python3 interface.py main --dock $path_dock --distribution
+#python3 interface.py main --dock $path_dock --aggregation
 
-#python3 interface.py main --dock $path_dock --pipe --local
-
-#python3 interface.py main --dock $path_dock --pipe --remote --gene "ENSG00000186092"
-#nohup python3 interface.py main --dock $path_dock --pipe --local > $path_dock/report.out &
 
 #python3 interface.py main --dock $path_dock --collection
 
@@ -71,7 +76,7 @@ python3 interface.py main --dock $path_dock --candidacy
 #python3 interface.py main --dock $path_dock --analysis
 #python3 interface.py main --dock $path_dock --function
 
-#python3 interface.py main --dock $path_dock --metric
+python3 interface.py main --dock $path_dock --metric
 #python3 interface.py main --dock $path_dock --plot
 
 

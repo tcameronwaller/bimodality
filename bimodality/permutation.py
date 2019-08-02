@@ -26,8 +26,6 @@ import scipy.stats
 
 # Custom
 
-import metric
-import pipe
 import utility
 
 #dir()
@@ -369,14 +367,14 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_shuffle = os.path.join(dock, "shuffle")
-    utility.confirm_path_directory(path_shuffle)
-    path_shuffles = os.path.join(
-        path_shuffle, "shuffles.pickle"
+    path_permutation = os.path.join(dock, "permutation")
+    utility.confirm_path_directory(path_permutation)
+    path_permutations = os.path.join(
+        path_permutation, "permutations.pickle"
     )
     # Write information to file.
-    with open(path_shuffles, "wb") as file_product:
-        pickle.dump(information["shuffles"], file_product)
+    with open(path_permutations, "wb") as file_product:
+        pickle.dump(information["permutations"], file_product)
 
 
 ###############################################################################
@@ -412,7 +410,7 @@ def execute_procedure(dock=None, count=None):
     utility.print_terminal_partition(level=3)
 
     # Create shuffle indices.
-    shuffles = create_shuffle_indices(
+    permutations = create_shuffle_indices(
         count=count,
         dimension_zero=source["tissues"],
         dimension_one=source["persons"],
@@ -420,7 +418,7 @@ def execute_procedure(dock=None, count=None):
 
     # Compile information.
     information = {
-        "shuffles": shuffles
+        "permutations": permutations
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

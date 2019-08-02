@@ -52,17 +52,23 @@ def read_source(dock=None):
 
     # Specify directories and files.
     path_assembly = os.path.join(dock, "assembly")
+    path_gene_annotation = os.path.join(
+        path_assembly, "data_gene_annotation.pickle"
+    )
     path_samples_tissues_persons = os.path.join(
         path_assembly, "data_samples_tissues_persons.pickle"
     )
-    path_measurement = os.path.join(dock, "measurement")
     path_gene_count = os.path.join(
-        path_measurement, "data_gene_count.pickle"
+        path_assembly, "data_gene_count.pickle"
     )
     path_gene_signal = os.path.join(
-        path_measurement, "data_gene_signal.pickle"
+        path_assembly, "data_gene_signal.pickle"
     )
+
     # Read information from file.
+    data_gene_annotation = pandas.read_pickle(
+        path_gene_annotation
+    )
     data_samples_tissues_persons = pandas.read_pickle(
         path_samples_tissues_persons
     )
@@ -70,6 +76,7 @@ def read_source(dock=None):
     data_gene_signal = pandas.read_pickle(path_gene_signal)
     # Compile and return information.
     return {
+        "data_gene_annotation": data_gene_annotation,
         "data_samples_tissues_persons": data_samples_tissues_persons,
         "data_gene_count": data_gene_count,
         "data_gene_signal": data_gene_signal,
@@ -135,6 +142,65 @@ def summarize_samples_genes(
     print(data_adipose)
 
     pass
+
+
+def select_genes(
+    data_gene_annotation=None,
+    data_gene_signal=None
+):
+    """
+    Selects genes that encode proteins.
+
+    arguments:
+        data_gene_annotation (object): Pandas data frame of genes' annotations.
+        data_gene_signal (object): Pandas data frame of genes' signals for all
+            samples, tissues, and patients.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals for all samples, tissues,
+            and patients.
+
+    """
+
+    def check_gene_type(identifier=None):
+        type = data_gene_annotation.at[identifier, "gene_type"]
+        return type == "protein_coding"
+    #data = data.loc[lambda identifier: check_gene_type(identifier)]
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "Selection of genes that encode proteins."
+    )
+    # Describe original count of genes.
+    # Signal matrix has genes on the index dimension.
+
+
+    print("signal genes, original: " + str(data_gene_signal.shape[0]))
+    genes_signal = data_gene_signal.index.to_list()
+    print("signal genes, original: " + str(len(genes_signal)))
+    # Filter genes by their annotations.
+    #print(data_gene_annotation.loc["ENSG00000223972", "gene_type"])
+    genes_protein = data_gene_annotation.index.to_list()
+    print(
+        "count of GENCODE genes of type 'protein_coding': " +
+        str(len(genes_protein))
+    )
+
+    # Filter gene signals.
+    genes_signal_protein = utility.filter_common_elements(
+        list_one=genes_protein, list_two=genes_signal
+    )
+    print(
+        "signal genes that encode proteins: " +
+        str(len(genes_signal_protein))
+    )
+    data_gene_signal = data_gene_signal.loc[genes_signal_protein, :]
+    print(
+        "signal genes that encode proteins: " + str(data_gene_signal.shape[0])
+    )
+    return data_gene_signal
 
 
 def select_samples_by_exclusion(
@@ -258,17 +324,16 @@ def select_samples_by_tissue(
     return samples
 
 
-def select_samples_genes(
-    samples=None,
-    threshold=None,
+def select_samples(
+    data_samples_tissues_persons=None,
     data_gene_signal=None
 ):
     """
     Selects genes' signals for samples of interest.
 
     arguments:
-        samples (list<str>): identifiers of samples
-        threshold (bool): whether to filter genes and samples by threshold
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
         data_gene_signal (object): Pandas data frame of genes' signals across
             samples
 
@@ -278,26 +343,29 @@ def select_samples_genes(
         (object): Pandas data frame of genes' signals across samples
     """
 
+    # Select samples by exclusion.
+    # Exclude samples for extra-corporeal tissues, such as cell lines.
+    # Exclude samples for tissues with fewer than 50 total samples.
+    samples_exclusion = select_samples_by_exclusion(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+    )
+    print(len(samples_exclusion))
+    # Select samples by inclusion.
+    samples_inclusion = select_samples_by_inclusion(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+    )
+    print(len(samples_inclusion))
+    # Select samples that are in both exclusion and inclusion lists.
+    samples = utility.filter_common_elements(
+        list_one=samples_exclusion,
+        list_two=samples_inclusion,
+    )
+    utility.print_terminal_partition(level=2)
+    print("Count of samples to select: " + str(len(samples)))
+
     # Select genes' signals for samples of interest.
     utility.print_terminal_partition(level=1)
     data_selection = data_gene_signal.loc[:, samples]
-
-    if threshold:
-        # Filter genes by signal.
-        # Filter to keep only genes with signals beyond threshold in at least
-        # one sample.
-        data_detection_gene = measurement.filter_genes_by_signal_threshold(
-            data=data_selection,
-            threshold=1,
-        )
-        # Filter samples by signal.
-        # Filter to keep only samples with signals beyond threshold in at least
-        # one gene.
-        data_detection_sample = measurement.filter_samples_by_signal_threshold(
-            data=data_detection_gene,
-            threshold=1,
-        )
-        data_selection = data_detection_sample
 
     # Return information.
     return data_selection
@@ -337,6 +405,98 @@ def select_samples_genes_by_few_tissues(
         inplace=True
     )
     return data_selection
+
+
+def filter_rows_columns_by_threshold_count(
+    data=None,
+    dimension=None,
+    threshold=None,
+    count=None,
+):
+    """
+    Filters either rows or columns.
+
+    Persistence of a row or column requires at least a specific count of values
+    beyond a specific threshold.
+
+    arguments:
+        data (object): Pandas data frame of genes' signals across samples
+        dimension (str): dimension to filter, either "row" or "column"
+        threshold (float): minimal signal
+        count (int): minimal count
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+
+    """
+
+    def count_true(slice=None, count=None):
+        values = slice.values.tolist()
+        values_true = values[values]
+        return (len(values_true) >= count)
+
+    # Determine whether values exceed threshold.
+    data_threshold = (data >= threshold)
+    # Determine whether count of values exceed threshold.
+    if dimension == "row":
+        axis = "columns"
+    elif dimension == "column":
+        axis = "index"
+    data_count = data_threshold.aggregate(
+        lambda slice: count_true(slice=slice, count=count),
+        axis=axis,
+    )
+    # Select rows and columns with appropriate values.
+    if dimension == "row":
+        data_pass = data.loc[data_count.any(axis="columns"), : ]
+    elif dimension == "column":
+        data_pass = data.loc[:, data_count.any(axis="index")]
+    return data_pass
+
+
+def select_samples_genes_signals(
+    threshold=None,
+    count=None,
+    data_gene_signal=None
+):
+    """
+    Selects samples and genes by signals beyond threshold.
+
+    arguments:
+        threshold (float): minimal signal
+        count (int): minimal count of samples or genes with minimal signals
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+    """
+
+    # Filter genes by signal.
+    # Filter to keep only genes with signals beyond threshold in at least one
+    # sample.
+    data_row = filter_rows_columns_by_threshold_count(
+        data=data_gene_signal,
+        dimension="row",
+        threshold=threshold,
+        count=count
+    )
+    # Filter samples by signal.
+    # Filter to keep only samples with signals beyond threshold in at least one
+    # gene.
+    data_column = filter_rows_columns_by_threshold_count(
+        data=data_row,
+        dimension="column",
+        threshold=threshold,
+        count=count
+    )
+
+    # Return information.
+    return data_column
 
 
 ##########
@@ -421,41 +581,38 @@ def execute_procedure(dock=None):
         data_gene_signal=source["data_gene_signal"],
     )
 
-    # Select samples by exclusion.
-    # Exclude samples for extra-corporeal tissues, such as cell lines.
-    # Exclude samples for tissues with fewer than 50 total samples.
-    samples_exclusion = select_samples_by_exclusion(
+    # Select genes that encode proteins.
+    data_gene_signal_gene = select_genes(
+        data_gene_annotation=source["data_gene_annotation"],
+        data_gene_signal=source["data_gene_signal"]
+    )
+    data_gene_count_gene = select_genes(
+        data_gene_annotation=source["data_gene_annotation"],
+        data_gene_signal=source["data_gene_count"]
+    )
+
+    # Select samples by tissues.
+    data_gene_signal_sample = select_samples(
+        data_gene_signal=data_gene_signal_gene,
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
     )
-    print(len(samples_exclusion))
-    # Select samples by inclusion.
-    samples_inclusion = select_samples_by_inclusion(
+    data_gene_count_sample = select_samples(
+        data_gene_signal=data_gene_count_gene,
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
     )
-    print(len(samples_inclusion))
-    # Select samples that are in both exclusion and inclusion lists.
-    samples = utility.filter_common_elements(
-        list_one=samples_exclusion,
-        list_two=samples_inclusion,
-    )
-    utility.print_terminal_partition(level=2)
-    print("Count of samples to select: " + str(len(samples)))
 
-    # Select genes' signals for specific samples.
-    data_gene_count_selection = select_samples_genes(
-        samples=samples,
-        threshold=True,
-        data_gene_signal=source["data_gene_count"],
+    # Select genes and samples by signals.
+    data_gene_signal_selection = select_samples_genes_signals(
+        threshold=1.0,
+        count=10,
+        data_gene_signal=data_gene_signal_sample,
     )
-    print(data_gene_count_selection)
+    data_gene_count_selection = select_samples_genes_signals(
+        threshold=1.0,
+        count=10,
+        data_gene_signal=data_gene_count_sample,
+    )
 
-    # Select genes' signals for specific samples.
-    data_gene_signal_selection = select_samples_genes(
-        samples=samples,
-        threshold=True,
-        data_gene_signal=source["data_gene_signal"],
-    )
-    print(data_gene_signal_selection)
 
     # Summarize original counts of samples and genes.
     summarize_samples_genes(

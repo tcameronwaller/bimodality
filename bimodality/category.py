@@ -32,7 +32,7 @@ from sklearn.linear_model import LinearRegression
 
 # Custom
 
-import pipe
+import distribution
 import metric
 import plot
 import utility

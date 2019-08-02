@@ -30,7 +30,7 @@ import scipy.stats
 
 # Custom
 
-import pipe
+import distribution
 import metric
 import plot
 import utility

@@ -132,65 +132,6 @@ def read_source(dock=None):
     }
 
 
-def select_genes_protein(
-    data_gene_annotation=None,
-    data_gene_signal=None
-):
-    """
-    Selects genes that encode proteins.
-
-    arguments:
-        data_gene_annotation (object): Pandas data frame of genes' annotations.
-        data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples, tissues, and patients.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals for all samples, tissues,
-            and patients.
-
-    """
-
-    def check_gene_type(identifier=None):
-        type = data_gene_annotation.at[identifier, "gene_type"]
-        return type == "protein_coding"
-    #data = data.loc[lambda identifier: check_gene_type(identifier)]
-
-    utility.print_terminal_partition(level=2)
-    print(
-        "Selection of genes that encode proteins."
-    )
-    # Describe original count of genes.
-    # Signal matrix has genes on the index dimension.
-
-
-    print("signal genes, original: " + str(data_gene_signal.shape[0]))
-    genes_signal = data_gene_signal.index.to_list()
-    print("signal genes, original: " + str(len(genes_signal)))
-    # Filter genes by their annotations.
-    #print(data_gene_annotation.loc["ENSG00000223972", "gene_type"])
-    genes_protein = data_gene_annotation.index.to_list()
-    print(
-        "count of GENCODE genes of type 'protein_coding': " +
-        str(len(genes_protein))
-    )
-
-    # Filter gene signals.
-    genes_signal_protein = utility.filter_common_elements(
-        list_one=genes_protein, list_two=genes_signal
-    )
-    print(
-        "signal genes that encode proteins: " +
-        str(len(genes_signal_protein))
-    )
-    data_gene_signal = data_gene_signal.loc[genes_signal_protein, :]
-    print(
-        "signal genes that encode proteins: " + str(data_gene_signal.shape[0])
-    )
-    return data_gene_signal
-
-
 def check_missing_values(data=None):
     """
     Checks data for missing values and prints reports.
@@ -319,6 +260,8 @@ def drop_undetectable_genes(data=None):
     return data_signal
 
 
+
+
 def filter_genes_by_signal_threshold(
     data=None,
     threshold=None,
@@ -387,6 +330,11 @@ def filter_samples_by_signal_threshold(
     print("data dimensions after filter: " + str(data_detection.shape))
     utility.print_terminal_partition(level=3)
     return data_detection
+
+
+
+
+
 
 
 def transform_gene_signal_log(

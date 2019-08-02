@@ -29,8 +29,8 @@ import scipy.stats
 
 # Custom
 
+import distribution
 import organization
-import pipe
 import category
 import utility
 

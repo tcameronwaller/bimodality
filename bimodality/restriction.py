@@ -128,6 +128,8 @@ def select_persons_tissues(
     Select persons by availability of valid values of gene's signal for
     specific tissues.
 
+    Data format should have tissues across columns and persons across rows.
+
     arguments:
         method (str): method for selection of tissues and persons in
             restriction procedure, either "imputation" for selection by
@@ -158,10 +160,21 @@ def select_persons_tissues(
             thresh=count,
             inplace=False,
         )
-        data_nonzero = (data_selection != 0)
-        data_selection = (
-            data_selection.loc[data_nonzero.any(axis="columns"), : ]
+        data_row = measurement.filter_rows_columns_by_threshold(
+            data=data_selection,
+            dimension="row",
+            threshold=1.0,
         )
+        data_row = measurement.filter_rows_columns_by_threshold(
+            data=data_selection,
+            dimension="row",
+            threshold=1.0,
+        )
+        if False:
+            data_nonzero = (data_selection != 0)
+            data_selection = (
+                data_selection.loc[data_nonzero.any(axis="columns"), : ]
+            )
 
         pass
     elif method == "imputation":
