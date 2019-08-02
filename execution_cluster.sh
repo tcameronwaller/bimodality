@@ -1,11 +1,11 @@
 #!/bin/bash
 
-#SBATCH --job-name=gene_distribution
-#SBATCH --output=/cellar/users/tcwaller/Data/dock/out.txt
-#SBATCH --error=/cellar/users/tcwaller/Data/dock/error.txt
+#SBATCH --job-name=dist_one
+#SBATCH --output=/cellar/users/tcwaller/Data/dock/out_one.txt
+#SBATCH --error=/cellar/users/tcwaller/Data/dock/error_one.txt
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=5000
-#SBATCH --array=0-9000%250
+#SBATCH --array=0-6500%200
 
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
@@ -21,8 +21,8 @@ path_dock="$path_project/$subpath_dock"
 readarray -t genes < "$path_dock/split/genes.txt"
 count_genes=${#genes[@]}
 indices=$((count_genes-1))
-echo $indices
-echo $count_genes
+#echo $indices
+#echo $count_genes
 #12824
 
 #echo ${genes[@]}
