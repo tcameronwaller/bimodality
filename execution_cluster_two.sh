@@ -5,7 +5,7 @@
 #SBATCH --error=/cellar/users/tcwaller/Data/dock/error_two.txt
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=5000
-#SBATCH --array=6501-12823%200
+#SBATCH --array=0-6322%200
 
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
@@ -28,7 +28,7 @@ indices=$((count_genes-1))
 #echo ${genes[@]}
 #echo $genes[0]
 
-gene=${genes[$SLURM_ARRAY_TASK_ID]}
+gene=${genes[$SLURM_ARRAY_TASK_ID + 6501]}
 echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
 echo "gene: " $gene
 
