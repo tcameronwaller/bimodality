@@ -496,7 +496,7 @@ def write_product(gene=None, dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_distribution = os.path.join(dock, "distribution_ortugo")
+    path_distribution = os.path.join(dock, "distribution")
     utility.confirm_path_directory(path_distribution)
     path_gene = os.path.join(path_distribution, gene)
     utility.confirm_path_directory(path_gene)

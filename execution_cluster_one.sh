@@ -5,7 +5,7 @@
 #SBATCH --error=/cellar/users/tcwaller/Data/dock/error_one.txt
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=5000
-#SBATCH --array=0-6500%200
+#SBATCH --array=0-9000%250
 
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
