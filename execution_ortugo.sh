@@ -2,8 +2,8 @@
 
 #chmod u+x script.sh
 
+# Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
-
 path_project="/cellar/users/tcwaller"
 subpath_repository="repository/bimodality-master/bimodality"
 path_repository="$path_project/$subpath_repository"
@@ -33,7 +33,5 @@ cd $path_program
 
 echo "Now set to call routine and procedures."
 
-#python $path_program/interface.py main --dock $path_dock --pipe --local
-
-nohup python interface.py main --dock $path_dock --collection > $path_dock/report.out &
+nohup $path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 

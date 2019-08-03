@@ -496,7 +496,7 @@ def write_product(gene=None, dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_distribution = os.path.join(dock, "distribution")
+    path_distribution = os.path.join(dock, "distribution_ortugo")
     utility.confirm_path_directory(path_distribution)
     path_gene = os.path.join(path_distribution, gene)
     utility.confirm_path_directory(path_gene)
@@ -693,14 +693,14 @@ def execute_procedure_local(dock=None):
     # 6 concurrent processes require approximately 50% of 32 Gigabytes memory.
     # 7 concurrent processes require approximately 65% of 32 Gigabytes memory.
     #pool = multiprocessing.Pool(processes=os.cpu_count())
-    pool = multiprocessing.Pool(processes=8)
+    pool = multiprocessing.Pool(processes=100)
 
     # Iterate on genes.
     check_genes=[
         "ENSG00000198965",
     ]
     #report = pool.map(execute_procedure_gene, check_genes)
-    report = pool.map(execute_procedure_gene, source["genes"][0:16])
+    report = pool.map(execute_procedure_gene, source["genes"][0:160])
     #report = pool.map(execute_procedure_gene, source["genes"])
 
     # Report.
