@@ -758,6 +758,285 @@ def evaluate_correlation_by_linearity(
     return score
 
 
+
+# TODO: move evaluate_gene_categories() from candidacy procedure here to the category procedure...
+# TODO: make the category procedure parallelizable like the candidacy procedure...
+
+
+# TODO: move "evaluate_gene_categories()" to the category procedure...
+
+def evaluate_gene_distribution_categories(
+    gene=None,
+    threshold_proportion=None,
+    method=None,
+    data_samples_tissues_persons=None,
+    observation=None,
+):
+    """
+    Evaluates the selection of tissues for calculation of gene's aggregate
+    scores.
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process
+        threshold_proportion (float): minimal proportion of persons for
+            inclusion of a group in analyses
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
+        observation (dict): information about a gene's actual distribution of
+            signals across persons and tissues
+
+    raises:
+
+    returns:
+        (bool): whether the gene's selection of tissues is acceptable
+
+    """
+
+    # Access information.
+    report_organization = observation["organization"]["report_gene"]
+    report_restriction = observation[method]["report_restriction"]
+    report_distribution = observation[method]["report_distribution"]
+    data_gene_persons_tissues = (
+        observation[method]["report_restriction"]["data_gene_persons_tissues"]
+    )
+    data_gene_persons_signals = (
+        observation[method]["report_distribution"]["data_gene_persons_signals"]
+    )
+
+    # Calculate tissue-tissue correlations across persons.
+    # Use the data before imputation to grasp correlations across real values.
+    data_gene_mean_correlations = (
+        calculate_mean_tissue_pairwise_correlations(
+            data_gene_persons_tissues_signals=(
+                report_restriction["data_gene_persons_tissues_signals"]
+            )
+        )
+    )
+
+    # Organize information about gene's scores across persons and tissues.
+    data_persons_signals_groups = organize_persons_signals_groups(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_persons_tissues=data_gene_persons_tissues,
+        data_gene_persons_signals=data_gene_persons_signals,
+        data_gene_mean_correlations=data_gene_mean_correlations,
+    )
+
+    #print(data_persons_signals_groups)
+
+    # Determine minimal count of persons for inclusion of a group in
+    # analyses.
+    count_persons = data_persons_signals_groups.shape[0]
+    threshold_count = threshold_proportion * count_persons
+
+    # Analysis of Variance (ANOVA)
+
+    # Signals versus tissues
+    # Determine whether tissue selection confounds gene's aggregate scores
+    # across persons.
+    tissues = data_gene_persons_tissues.columns.values.tolist()
+    report = evaluate_variance_by_binary_groups(
+        groups=tissues,
+        threshold=threshold_count,
+        data=data_persons_signals_groups,
+    )
+    anova_tissue_p = report["probability"]
+
+    # Signals versus sex
+    # Determine whether tissue selection confounds gene's aggregate scores
+    # across persons.
+    sexes = ["male", "female"]
+    report = evaluate_variance_by_binary_groups(
+        groups=sexes,
+        threshold=threshold_count,
+        data=data_persons_signals_groups,
+    )
+    anova_sex_p = report["probability"]
+
+    # Regression
+
+    # Signals versus sex
+    regression_sex_r = evaluate_correlation_by_linearity(
+        dependence="value",
+        independence=["female"],
+        data=data_persons_signals_groups,
+    )
+
+    # Signals versus age
+    regression_age_r = evaluate_correlation_by_linearity(
+        dependence="value",
+        independence=["age"],
+        data=data_persons_signals_groups,
+    )
+
+    # Signals versus tissues
+    regression_tissue_r = evaluate_correlation_by_linearity(
+        dependence="value",
+        independence=tissues,
+        data=data_persons_signals_groups,
+    )
+
+    # Signals versus mean tissue-tissue correlation
+    regression_correlation_r = evaluate_correlation_by_linearity(
+        dependence="value",
+        independence=["correlation"],
+        data=data_persons_signals_groups,
+    )
+
+    # Compile information.
+    information = {
+        "anova_tissue_p": anova_tissue_p,
+        "anova_sex_p": anova_sex_p,
+        "regression_sex_r": regression_sex_r,
+        "regression_age_r": regression_age_r,
+        "regression_tissue_r": regression_tissue_r,
+        "regression_correlation_r": regression_correlation_r,
+    }
+
+    # Return information.
+    return information
+
+
+def evaluate_gene_categories_method(
+    gene=None,
+    method=None,
+    data_samples_tissues_persons=None,
+    observation=None,
+):
+    """
+    Evaluates a gene's distribution of signals across persons by multiple
+    factors.
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
+        observation (dict): information about a gene's actual distribution of
+            signals across persons and tissues
+
+    raises:
+
+    returns:
+        (dict): information about gene's distribution and categories
+
+    """
+
+    # Access information.
+    report_organization = observation["organization"]["report_gene"]
+    report_restriction = observation[method]["report_restriction"]
+    report_distribution = observation[method]["report_distribution"]
+    data_gene_persons_tissues = (
+        observation[method]["report_restriction"]["data_gene_persons_tissues"]
+    )
+    data_gene_persons_signals = (
+        observation[method]["report_distribution"]["data_gene_persons_signals"]
+    )
+
+    # Evaluate gene's distribution between categories.
+    categories = evaluate_gene_distribution_categories(
+        gene=gene,
+        threshold_proportion=0.05,
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        method=method,
+        observation=observation,
+    )
+
+    # Compile report.
+    # sex anova p-val
+    # tissue anova p-val
+    # tissue regression metric?
+    # age regression metric?
+    # tissue-specific mean, variance, dispersion, etc...
+    report = dict()
+    report["gene"] = gene
+    #report["persons_restriction"] = report_restriction["persons"]
+    report["persons"] = report_distribution["persons"]
+    report["tissues_mean"] = report_restriction["tissues_mean"]
+    report["tissues_median"] = report_restriction["tissues_median"]
+
+    report["anova_sex_p"] = categories["anova_sex_p"]
+    report["anova_tissue_p"] = categories["anova_tissue_p"]
+
+    report["regression_sex_r"] = categories["regression_sex_r"]
+    report["regression_age_r"] = categories["regression_age_r"]
+    report["regression_tissue_r"] = categories["regression_tissue_r"]
+    report["regression_correlation_r"] = categories["regression_correlation_r"]
+
+    # TODO: include metrics from the organization report...
+    # TODO: include maximum variation and dispersion across tissues...
+    # variation_max
+    # dispersion_max
+
+    print(report)
+
+
+    # Compile information.
+    information = {
+        "report": report,
+    }
+
+    # Return information.
+    return information
+
+
+def evalute_gene_categories(
+    gene=None,
+    data_samples_tissues_persons=None,
+    data_gene_samples_signals=None,
+    observation=None,
+):
+    """
+    Evaluates a gene's distribution of signals across persons by multiple
+    factors.
+
+    arguments:
+        gene (str): identifier of a gene
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+        observation (dict): information about a gene's actual distribution of
+            signals across persons and tissues
+
+    raises:
+
+    returns:
+        (dict): information about gene's distribution and categories
+
+    """
+
+    imputation = evaluate_gene_categories_method(
+        gene=gene,
+        method="imputation",
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        observation=observation,
+    )
+
+    availability = evaluate_gene_categories_method(
+        gene=gene,
+        method="availability",
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        observation=observation,
+    )
+
+    # Compile information.
+    information = {
+        "imputation": imputation,
+        "availability": availability,
+    }
+
+    # Return information.
+    return information
+
+
+
 # Write.
 
 
@@ -914,6 +1193,13 @@ def write_product_reports(dock=None, information=None):
 # Procedure
 
 
+# TODO: iterate on a list of genes from the rank procedure in a parallel way
+# TODO: determine the distribution for each gene's signals
+# TODO: evaluate the gene's signal distribution by ANOVA and regression... include attributes of patients
+# - sex, age, race, ancestry, time to harvest, hardiness scale, etc...
+# construct a mixed effects model
+
+
 def execute_procedure(dock=None):
     """
     Function to execute module's main behavior.
@@ -938,6 +1224,21 @@ def execute_procedure(dock=None):
         gene=gene,
         method="availability",
         dock=dock
+    )
+
+    # Determine gene's distributions of aggregate tissue scores across persons.
+    observation = distribution.determine_gene_distributions(
+        gene=gene,
+        modality=False,
+        data_gene_samples_signals=source["data_gene_samples_signals"],
+    )
+
+    # Report.
+    report = evaluate_gene_categories(
+        gene=gene,
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_samples_signals=source["data_gene_samples_signals"],
+        observation=observation,
     )
 
     # Organize persons' signals and properties.

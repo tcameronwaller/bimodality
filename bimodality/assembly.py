@@ -157,6 +157,17 @@ def read_source_sample(dock=None):
         path_access_private, "attribute_person.txt"
     )
 
+    path_private = os.path.join(dock, "gtex-8_private")
+    path_attribute_sample_private = os.path.join(
+        path_private, "sample_attributes.txt"
+    )
+    path_attribute_person_private = os.path.join(
+        path_private, "person_attributes.txt"
+    )
+    path_person_ancestry = os.path.join(
+        path_private, "persons_ancestry.txt"
+    )
+
     path_customization = os.path.join(dock, "customization")
     path_tissues_major = os.path.join(
         path_customization, "translation_tissues_major.tsv"
@@ -180,6 +191,28 @@ def read_source_sample(dock=None):
         sep="\t",
         header=0,
     )
+
+    data_person_attribute_private = pandas.read_csv(
+        path_attribute_person_private,
+        sep="\t",
+        header=9,
+        low_memory=False,
+    )
+    data_person_ancestry = pandas.read_csv(
+        path_person_ancestry,
+        sep="\t",
+        header=0,
+        low_memory=False,
+    )
+
+    if False:
+        data_sample_attribute_private = pandas.read_csv(
+            path_attribute_sample_private,
+            sep="\t",
+            header=9,
+            low_memory=False,
+        )
+
     data_tissues_major = pandas.read_csv(
         path_tissues_major,
         sep="\t",
@@ -190,19 +223,30 @@ def read_source_sample(dock=None):
         sep="\t",
         header=0,
     )
-    data_gene_signal = pandas.read_csv(
-        path_gene_signal,
-        sep="\t",
-        header=2,
-        #nrows=1000,
+
+    # Extract identifiers of samples with measurements for genes.
+    # Read lines for samples with genes' signals.
+    lines = utility.read_file_text_lines(
+        path_file=path_gene_signal,
+        start=2,
+        stop=3,
     )
+    line = lines[0]
+    # Split line's content by delimiter.
+    headers = line.split("\t")
+    headers.remove("Name")
+    headers.remove("Description")
+    samples = headers
     # Compile and return information.
     return {
         "data_person_attribute": data_person_attribute,
         "data_sample_attribute": data_sample_attribute,
+        "data_person_attribute_private": data_person_attribute_private,
+        "data_person_ancestry": data_person_ancestry,
+        #"data_sample_attribute_private": data_sample_attribute_private,
         "data_tissues_major": data_tissues_major,
         "data_tissues_minor": data_tissues_minor,
-        "data_gene_signal": data_gene_signal,
+        "samples": samples,
     }
 
 
@@ -288,9 +332,95 @@ def translate_sex(value=None):
     return sex
 
 
+def translate_race(value=None):
+    """
+    Translates annotations of race.
+
+    arguments:
+        value (int): Annotation of race
+
+    raises:
+
+    returns:
+        (str): Name of race
+
+    """
+
+    if value == 1:
+        race = "asia"
+    elif value == 2:
+        race = "africa"
+    elif value == 3:
+        race = "europe"
+    elif value == 4:
+        race = "america"
+    elif (value == 98 or value == 99):
+        race = "other"
+
+    return race
+
+
+def translate_season(value=None):
+    """
+    Translates annotations of season of death.
+
+    arguments:
+        value (int): Annotation of season
+
+    raises:
+
+    returns:
+        (str): name of season
+
+    """
+
+    if value == "Fall":
+        season = "fall"
+    elif value == "Spring":
+        season = "spring"
+    elif value == "Summer":
+        season = "summer"
+    elif value == "Winter":
+        season = "winter"
+    else:
+        season = "other"
+
+    return season
+
+
+def translate_ancestry(value=None):
+    """
+    Translates annotations of ancestry.
+
+    arguments:
+        value (int): Annotation of ancestry
+
+    raises:
+
+    returns:
+        (str): name of ancestry
+
+    """
+
+    if value == "Caucasian":
+        ancestry = "europe"
+    elif value == "African":
+        ancestry = "africa"
+    elif value == "Asian":
+        ancestry = "asia"
+    elif value == "Mexican":
+        ancestry = "america"
+    elif value == "Indian":
+        ancestry = "india"
+
+    return ancestry
+
+
 def collect_samples_tissues_persons(
     samples=None,
     data_person_attribute=None,
+    data_person_attribute_private=None,
+    data_person_ancestry=None,
     data_sample_attribute=None,
     data_tissues_major=None,
     data_tissues_minor=None,
@@ -314,6 +444,10 @@ def collect_samples_tissues_persons(
         samples (list<str>): identifiers of samples
         data_person_attribute (object): Pandas data frame of attributes for
             all persons
+        data_person_attribute_private (object): Pandas data frame of attributes
+            for all persons
+        data_person_ancestry (object): Pandas data frame of ancestry for all
+            persons
         data_sample_attribute (object): Pandas data frame of attributes for all
             samples
         data_tissues_major (object): Pandas data frame of translations for
@@ -337,6 +471,18 @@ def collect_samples_tissues_persons(
     )
     data_person_attribute.set_index(
         ["SUBJID"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data_person_attribute_private.set_index(
+        ["SUBJID"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data_person_ancestry.set_index(
+        ["IID"],
         append=False,
         drop=True,
         inplace=True
@@ -366,16 +512,56 @@ def collect_samples_tissues_persons(
         tissue_minor = data_tissues_minor.at[minor, "product"]
         # Access person attributes.
         person = extract_gtex_sample_person_identifier(sample=sample)
-        sex_raw = data_person_attribute.at[person, "SEX"]
+        sex_raw = data_person_attribute_private.at[person, "SEX"]
         sex = translate_sex(value=sex_raw)
-        age_range = data_person_attribute.at[person, "AGE"]
+        age = data_person_attribute_private.at[person, "AGE"]
+        race_raw = data_person_attribute_private.at[person, "RACE"]
+        race = translate_race(value=race_raw)
+
+        # TODO: derive ancestry from Meghana's analysis...
+        if person in data_person_ancestry.index.values.tolist():
+            ancestry_raw = data_person_ancestry.at[person, "ethnicity"]
+            ancestry = translate_ancestry(value=ancestry_raw)
+        else:
+            ancestry = "other"
+        # Determine consensus between race and ancestry.
+        if race == ancestry:
+            ancestry_race = ancestry
+        elif race == "other" and ancestry != "other":
+            ancestry_race = ancestry
+        elif ancestry == "other" and race != "other":
+            ancestry_race = race
+        else:
+            print("person: " + person)
+            print(
+                "potential discrepancy... race: " + race +
+                " ancestry: " + ancestry
+            )
+            ancestry_race = ancestry
+        body = data_person_attribute_private.at[person, "BMI"]
+        # TODO: other variables exist for alcohol, smoking, non-prescription drugs, etc...
+        toxicity = data_person_attribute_private.at[person, "MHTXCEXP"]
+        hardiness = data_person_attribute_private.at[person, "DTHHRDY"]
+        season_raw = data_person_attribute_private.at[person, "DTHSEASON"]
+        season = translate_season(value=season_raw)
+        # Duration of time in minutes between death and procedure start.
+        #delay = data_person_attribute_private.at[person, "TRISCHD"]
+        # Duration of time in minutes between death and sample collection.
+        delay = data_person_attribute_private.at[person, "TRDNISCH"]
+
         record = {
             "sample": sample,
             "tissue_major": tissue_major,
             "tissue_minor": tissue_minor,
             "person": person,
             "sex": sex,
-            "age_range": age_range,
+            "age": age,
+            "ancestry": ancestry_race,
+            "body": body,
+            "toxicity": toxicity,
+            "hardiness": hardiness,
+            "season": season,
+            "delay": delay,
         }
         samples_tissues_persons.append(record)
     # Return information.
@@ -403,10 +589,10 @@ def organize_samples_tissues_persons(
     source = read_source_sample(dock=dock)
 
     # Summarize the structures of the raw data.
-    summarize_raw_data_sample(
-        data_person_attribute=source["data_person_attribute"],
-        data_sample_attribute=source["data_sample_attribute"],
-    )
+    #summarize_raw_data_sample(
+    #    data_person_attribute=source["data_person_attribute"],
+    #    data_sample_attribute=source["data_sample_attribute"],
+    #)
 
     # Extract association of samples to persons and tissues.
     utility.print_terminal_partition(level=1)
@@ -429,13 +615,15 @@ def organize_samples_tissues_persons(
     # NumPy array
     #headers = data_gene_signal.columns.values
     # List
-    headers = source["data_gene_signal"].columns.to_list()
+    #headers = source["data_gene_signal"].columns.to_list()
     # Exclude name and description.
-    samples = headers[2:]
+    #samples = headers[2:]
     # Collect information about samples.
     samples_tissues_persons = collect_samples_tissues_persons(
-        samples=samples,
+        samples=source["samples"],
         data_person_attribute=source["data_person_attribute"],
+        data_person_attribute_private=source["data_person_attribute_private"],
+        data_person_ancestry=source["data_person_ancestry"],
         data_sample_attribute=source["data_sample_attribute"],
         data_tissues_major=source["data_tissues_major"],
         data_tissues_minor=source["data_tissues_minor"],
@@ -461,6 +649,7 @@ def organize_samples_tissues_persons(
         copy=False,
         inplace=True
     )
+    print(data_samples_tissues_persons)
     print(data_samples_tissues_persons.iloc[0:10, :])
     print(data_samples_tissues_persons.shape)
 

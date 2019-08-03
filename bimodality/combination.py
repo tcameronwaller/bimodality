@@ -451,6 +451,12 @@ def execute_procedure(dock=None):
 
     print("done with calculation of combination scores...")
 
+
+    ###############################3
+    # TODO: Now write the scores and permutations to file like I did in the collection procedure...
+    # TODO: move the stuff after here to the rank procedure...
+    # TODO: also, don't combine the ranks of genes by "availability" and "imputation" methods...
+
     # Calculate genes' probabilities of bimodality.
     data_genes_probabilities_availability = rank.calculate_probabilities_genes(
         genes_scores_shuffles=(
@@ -472,14 +478,14 @@ def execute_procedure(dock=None):
         data_genes_probabilities=data_genes_probabilities_availability,
         rank="combination",
         method="threshold",
-        threshold=0.002,
+        threshold=0.001,
         count=1000,
     )
     data_ranks_imputation = rank.rank_genes(
         data_genes_probabilities=data_genes_probabilities_imputation,
         rank="combination",
         method="threshold",
-        threshold=0.002,
+        threshold=0.001,
         count=1000,
     )
     print(data_ranks_availability)

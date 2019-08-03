@@ -40,7 +40,7 @@ echo "Now set to call routine and procedures."
 
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access
-#python3 interface.py main --dock $path_dock --assembly
+python3 interface.py main --dock $path_dock --assembly
 #python3 interface.py main --dock $path_dock --selection
 
 # -- nonessential, exploratory procedures
@@ -54,7 +54,7 @@ echo "Now set to call routine and procedures."
 
 #python3 interface.py main --dock $path_dock --candidacy
 
-python3 interface.py main --dock $path_dock --permutation --count 1000
+#python3 interface.py main --dock $path_dock --permutation --count 1000
 
 #python3 interface.py main --dock $path_dock --distribution --local
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
@@ -68,7 +68,17 @@ python3 interface.py main --dock $path_dock --permutation --count 1000
 # Analysis Routine
 
 #python3 interface.py main --dock $path_dock --combination
-#python3 interface.py main --dock $path_dock --regression
+#python3 interface.py main --dock $path_dock --rank
+#python3 interface.py main --dock $path_dock --category
+
+# TODO: integration procedure should bring together gene ranks from bimodality, coefficients and p-values from category, and gene identifiers
+#python3 interface.py main --dock $path_dock --integration
+
+# ---->>>>>> go to the category procedure????? <<<<<<-------------------
+# organize all ANOVA and regression analyses within the category procedure???
+# report the p-vals for all coefficients
+# then determine the % of bimodal genes driven by each covariate (sex, age, race, etc...)
+# https://www.statsmodels.org/stable/generated/statsmodels.regression.linear_model.OLS.html#statsmodels.regression.linear_model.OLS
 
 
 #python3 interface.py main --dock $path_dock --analysis

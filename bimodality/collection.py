@@ -59,18 +59,17 @@ def read_source(dock=None):
     path_genes = os.path.join(
         path_split, "genes.txt"
     )
-    path_pipe = os.path.join(dock, "pipe")
-    #path_pipe = os.path.join(dock, "pipe_2019-07-10_10-shuffles_availability")
+    path_distribution = os.path.join(dock, "distribution")
     # Read information from file.
     genes = utility.read_file_text_list(path_genes)
     genes_scores_shuffles_imputation = read_collect_genes_scores_shuffles(
         genes=genes,
-        path_pipe=path_pipe,
+        path_distribution=path_distribution,
         method="imputation",
     )
     genes_scores_shuffles_availability = read_collect_genes_scores_shuffles(
         genes=genes,
-        path_pipe=path_pipe,
+        path_distribution=path_distribution,
         method="availability",
     )
     # Compile and return information.
@@ -85,7 +84,7 @@ def read_source(dock=None):
 
 def read_collect_genes_scores_shuffles(
     genes=None,
-    path_pipe=None,
+    path_distribution=None,
     method=None,
 ):
     """
@@ -109,7 +108,7 @@ def read_collect_genes_scores_shuffles(
 
     arguments:
         genes (list<str>): identifiers of genes
-        path_pipe (str): path to pipe directory
+        path_distribution (str): path to distribution directory
         method (str): method for selection of tissues and patients, either
             "availability" for selection by minimal count of tissues, or
             "imputation" for selection by same tissues with imputation
@@ -129,7 +128,7 @@ def read_collect_genes_scores_shuffles(
     )
     # Check contents of directory.
     print("Check that directories exist for all genes.")
-    directories = os.listdir(path_pipe)
+    directories = os.listdir(path_distribution)
     match = utility.compare_lists_by_mutual_inclusion(
         list_one=genes, list_two=directories
     )

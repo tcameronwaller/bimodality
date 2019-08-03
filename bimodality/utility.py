@@ -327,6 +327,41 @@ def read_file_text_list(path_file=None):
     return information
 
 
+def read_file_text_lines(
+    path_file=None,
+    start=None,
+    stop=None,
+):
+    """
+    Reads a range of lines from a text file.
+
+
+    arguments:
+        path_file (str): path to directory and file
+        start (int): index of line to start reading
+        stop (int): index of line to stop reading
+
+    returns:
+        (list<str>): information from file
+
+    raises:
+
+    """
+
+    # Read information from file
+    #with open(path_file_source, "r") as file_source:
+    #    content = file_source.read()
+    lines = list()
+    with open(path_file, "r") as file_source:
+        line = file_source.readline()
+        count = 0
+        while line:
+            if (start <= count and count < stop):
+                lines.append(line.strip())
+            line = file_source.readline()
+            count += 1
+    # Return information.
+    return lines
 
 
 def write_file_text_table(
