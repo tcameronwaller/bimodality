@@ -700,8 +700,8 @@ def execute_procedure_local(dock=None):
         "ENSG00000198965",
     ]
     #report = pool.map(execute_procedure_gene, check_genes)
-    report = pool.map(execute_procedure_gene, source["genes"][0:160])
-    #report = pool.map(execute_procedure_gene, source["genes"])
+    #report = pool.map(execute_procedure_gene, source["genes"][0:32])
+    report = pool.map(execute_procedure_gene, source["genes"])
 
     # Report.
     #print("Process complete for the following genes...")
