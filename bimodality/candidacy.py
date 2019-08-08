@@ -88,7 +88,7 @@ def read_source(
     Reads and organizes source information from file
 
     arguments:
-        gene (str): identifier of single gene for which to execute the process.
+        gene (str): identifier of a single gene
         dock (str): path to root or dock directory for source and product
             directories and files
 

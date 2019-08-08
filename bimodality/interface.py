@@ -497,7 +497,7 @@ def evaluate_main_parameters(arguments):
         # Report status.
         print("... executing category procedure ...")
         # Execute procedure.
-        category.execute_procedure(dock=arguments.dock)
+        category.execute_procedure_local(dock=arguments.dock)
 
     if arguments.analysis:
         # Report status.

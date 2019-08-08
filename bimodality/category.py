@@ -22,6 +22,11 @@ import pickle
 import copy
 import random
 import itertools
+import functools
+import multiprocessing
+import datetime
+import time
+
 
 # Relevant
 
@@ -45,7 +50,7 @@ import utility
 # Functionality
 
 
-def read_source(
+def read_source_initial(
     source_genes=None,
     dock=None
 ):
@@ -76,6 +81,31 @@ def read_source(
         with open(path_genes, "rb") as file_source:
             genes = pickle.load(file_source)
 
+    # Compile and return information.
+    return {
+        "genes": genes,
+    }
+
+
+def read_source(
+    gene=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of a single gene
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
     # Specify directories and files.
     path_assembly = os.path.join(dock, "assembly")
     path_samples_tissues_persons = os.path.join(
@@ -86,9 +116,8 @@ def read_source(
     )
 
     path_split = os.path.join(dock, "split")
-    path_signal = os.path.join(
-        path_split, "genes_samples_signals.pickle"
-    )
+    path_collection = os.path.join(path_split, "collection")
+    path_signal = os.path.join(path_collection, (gene + ".pickle"))
     # Read information from file.
     data_samples_tissues_persons = pandas.read_pickle(
         path_samples_tissues_persons
@@ -97,15 +126,13 @@ def read_source(
         path_gene_annotation
     )
 
-    with open(path_signal, "rb") as file_source:
-        genes_samples_signals = pickle.load(file_source)
+    data_gene_samples_signals = pandas.read_pickle(path_signal)
 
     # Compile and return information.
     return {
-        "genes": genes,
         "data_samples_tissues_persons": data_samples_tissues_persons,
         "data_gene_annotation": data_gene_annotation,
-        "genes_samples_signals": genes_samples_signals,
+        "data_gene_samples_signals": data_gene_samples_signals,
     }
 
 
@@ -260,6 +287,17 @@ def translate_groups_binary(
             return 1
         else:
             return 0
+    def translate_season(season):
+        if season == "winter":
+            return 0
+        elif season == "spring":
+            return 1
+        elif season == "summer":
+            return 2
+        elif season == "fall":
+            return 3
+        else:
+            return float("nan")
 
     # Copy data.
     data = data_persons_signals_groups.copy(deep=True)
@@ -270,6 +308,10 @@ def translate_groups_binary(
     )
     data["male"] = (
         data["sex"].apply(translate_sex_male)
+    )
+    # Translate season.
+    data["season"] = (
+        data["season"].apply(translate_season)
     )
     # Translate tissues.
     for tissue in tissues:
@@ -284,7 +326,6 @@ def translate_groups_binary(
 
     # Return information
     return data
-
 
 
 ##########
@@ -874,6 +915,8 @@ def evaluate_gene_distribution_covariance(
         "regression_body": regression["body"],
         "regression_ancestry": regression["ancestry"],
         "regression_tissue": regression["tissue"],
+        "regression_hardiness": regression["hardiness"],
+        "regression_season": regression["season"],
         "regression_delay": regression["delay"],
     }
 
@@ -1036,6 +1079,22 @@ def evaluate_gene_distribution_regression(
         data=data_persons_signals_groups,
     )
 
+    # Hardiness
+    hardiness = evaluate_correlation_by_linearity(
+        dependence=dependence,
+        independence=["hardiness"],
+        threshold=threshold_count,
+        data=data_persons_signals_groups,
+    )
+
+    # Season
+    season = evaluate_correlation_by_linearity(
+        dependence=dependence,
+        independence=["season"],
+        threshold=threshold_count,
+        data=data_persons_signals_groups,
+    )
+
     # Delay
     delay = evaluate_correlation_by_linearity(
         dependence=dependence,
@@ -1052,6 +1111,8 @@ def evaluate_gene_distribution_regression(
         "body": body,
         "ancestry": ancestry,
         "tissue": tissue,
+        "hardiness": hardiness,
+        "season": season,
         "delay": delay,
     }
     # Return information.
@@ -1146,14 +1207,22 @@ def evaluate_gene_categories_method(
         tissues_mean=tissues_mean,
         tissues_median=tissues_median,
     )
+
+
+    # Compile information.
+    information = {
+        "report": report,
+        "data_persons_signals_groups": data_persons_signals_groups,
+    }
+
     # Return information.
-    return report
+    return information
 
 
 def evaluate_gene_categories(
     gene=None,
     data_samples_tissues_persons=None,
-    genes_samples_signals=None,
+    data_gene_samples_signals=None,
     data_gene_annotation=None,
 ):
     """
@@ -1164,8 +1233,8 @@ def evaluate_gene_categories(
         gene (str): identifier of a gene
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples
-        genes_samples_signals (dict<object>): collection of Pandas data frames
-            of genes' signals across samples
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
         data_gene_annotation (object): Pandas data frame of genes' annotations
 
     raises:
@@ -1175,9 +1244,6 @@ def evaluate_gene_categories(
 
     """
 
-    # Access information.
-    data_gene_samples_signals = genes_samples_signals[gene]
-
     # Determine gene's distributions of aggregate tissue scores across persons.
     observation = distribution.determine_gene_distributions(
         gene=gene,
@@ -1185,15 +1251,13 @@ def evaluate_gene_categories(
         data_gene_samples_signals=data_gene_samples_signals,
     )
 
-    if False:
-        imputation = evaluate_gene_categories_method(
-            gene=gene,
-            method="imputation",
-            data_samples_tissues_persons=data_samples_tissues_persons,
-            observation=observation,
-            data_gene_annotation=data_gene_annotation,
-        )
-    imputation = dict()
+    imputation = evaluate_gene_categories_method(
+        gene=gene,
+        method="imputation",
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        observation=observation,
+        data_gene_annotation=data_gene_annotation,
+    )
 
     availability = evaluate_gene_categories_method(
         gene=gene,
@@ -1286,14 +1350,47 @@ def evaluate_genes_categories(
 # Write.
 
 
-def write_product(dock=None, information=None):
+def initialize_directories(
+    dock=None,
+):
+    """
+    Initializes directories.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Create directories.
+    path_category = os.path.join(dock, "category")
+    path_collection = os.path.join(path_category, "collection")
+
+    utility.remove_directory(path=path_category)
+
+    utility.confirm_path_directory(path_category)
+    utility.confirm_path_directory(path_collection)
+
+    pass
+
+
+def write_product(
+    gene=None,
+    dock=None,
+    information=None
+):
     """
     Writes product information to file.
 
     arguments:
+        gene (str): identifier of a single gene
         dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
+            directories and files
+        information (object): information to write to file
 
     raises:
 
@@ -1302,137 +1399,105 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_analysis = os.path.join(dock, "analysis")
-    utility.confirm_path_directory(path_analysis)
-    path_probabilities = os.path.join(
-        path_analysis, "data_genes_probabilities.pickle"
-    )
-    path_summary = os.path.join(
-        path_analysis, "data_summary_genes.pickle"
-    )
-    path_summary_text = os.path.join(
-        path_analysis, "data_summary_genes.txt"
-    )
-    path_summary_text_alternative = os.path.join(
-        path_analysis, "data_summary_genes_alternative.txt"
-    )
-    path_data_rank = os.path.join(
-        path_analysis, "data_rank_genes.txt"
-    )
-    path_rank_ensembl = os.path.join(
-        path_analysis, "genes_ranks_ensembl.txt"
-    )
-    path_rank_hugo = os.path.join(
-        path_analysis, "genes_ranks_hugo.txt"
-    )
-    path_genes_ensembl = os.path.join(
-        path_analysis, "genes_ensembl.txt"
-    )
-    path_genes_hugo = os.path.join(
-        path_analysis, "genes_hugo.txt"
-    )
-    path_genes_report = os.path.join(
-        path_analysis, "genes_report.txt"
-    )
-    path_reports = os.path.join(
-        path_analysis, "reports.pickle"
-    )
+    path_category = os.path.join(dock, "category")
+    path_collection = os.path.join(path_category, "collection")
+    path_gene = os.path.join(path_collection, gene)
+    utility.confirm_path_directory(path_gene)
+
+    path_imputation = os.path.join(path_gene, "report_imputation.pickle")
+    path_availability = os.path.join(path_gene, "report_availability.pickle")
+
     # Write information to file.
-    information["data_genes_probabilities"].to_pickle(path_summary)
-    information["data_summary_genes"].to_pickle(path_summary)
-    information["data_summary_genes"].to_csv(
-        path_or_buf=path_summary_text,
-        sep="\t",
-        header=True,
-        index=True,
-    )
-    information["data_summary_genes"].reset_index(
-        level="identifier", inplace=True
-    )
-    summary_genes = utility.convert_dataframe_to_records(
-        data=information["data_summary_genes"]
-    )
-    utility.write_file_text_table(
-        information=summary_genes,
-        path_file=path_summary_text_alternative,
-        names=summary_genes[0].keys(),
-        delimiter="\t"
-    )
-    information["data_rank_genes"].to_csv(
-        path_or_buf=path_data_rank,
-        sep="\t",
-        header=True,
-        index=True,
-    )
-    information["data_rank_genes_ensembl"].to_csv(
-        path_or_buf=path_rank_ensembl,
-        sep="\t",
-        header=False,
-        index=False,
-    )
-    information["data_rank_genes_hugo"].to_csv(
-        path_or_buf=path_rank_hugo,
-        sep="\t",
-        header=False,
-        index=False,
-    )
-    utility.write_file_text_list(
-        information=information["genes_ensembl"],
-        path_file=path_genes_ensembl
-    )
-    utility.write_file_text_list(
-        information=information["genes_hugo"],
-        path_file=path_genes_hugo
-    )
-    utility.write_file_text_list(
-        information=information["genes_report"],
-        path_file=path_genes_report
-    )
-    with open(path_reports, "wb") as file_product:
-        pickle.dump(information["reports"], file_product)
+    with open(path_imputation, "wb") as file_product:
+        pickle.dump(information["report_imputation"], file_product)
+    with open(path_availability, "wb") as file_product:
+        pickle.dump(information["report_availability"], file_product)
 
     pass
 
 
-def write_product_reports(dock=None, information=None):
+def read_collect_genes_reports(
+    genes=None,
+    method=None,
+    dock=None,
+):
     """
-    Writes product information to file.
+    Collects information about genes.
 
     arguments:
+        genes (list<str>): identifiers of genes
+        method (str): method for selection of tissues and patients, either
+            "availability" for selection by minimal count of tissues, or
+            "imputation" for selection by same tissues with imputation
         dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
+            directories and files
 
     raises:
 
     returns:
+        (dict<dict<dict>>): information about genes
 
     """
 
     # Specify directories and files.
-    path_analysis = os.path.join(dock, "analysis")
-    utility.confirm_path_directory(path_analysis)
-    path_reports = os.path.join(path_analysis, "reports")
-    # Remove previous files since they change from run to run.
-    utility.remove_directory(path=path_reports)
-    utility.confirm_path_directory(path_reports)
-    # Iterate on reports.
-    for gene in information["genes_report"]:
-        # Access information.
-        name = information["reports"][gene]["name"]
-        # Specify directories and files.
-        path_report = os.path.join(
-            path_reports, (name + "_reports.pickle")
-        )
-        # Write information to file.
+    path_category = os.path.join(dock, "category")
+    path_collection = os.path.join(path_category, "collection")
 
-        pass
+    # Report process.
+    utility.print_terminal_partition(level=1)
+    print(
+        "Reading and compiling information about genes' distributions."
+    )
+    # Check contents of directory.
+    print("Check that directories exist for all genes.")
+    directories = os.listdir(path_collection)
+    match = utility.compare_lists_by_mutual_inclusion(
+        list_one=genes, list_two=directories
+    )
+    print("Genes and directories match: " + str(match))
+
+    # Collect information about genes.
+    records = list()
+    # Iterate on directories for genes.
+    for gene in directories:
+        # Report progress.
+        #print(gene)
+        # Specify directories and files.
+        path_gene = os.path.join(path_collection, gene)
+        path_report = os.path.join(
+            path_gene, ("report_" + method + ".pickle")
+        )
+        # Read information from file.
+        with open(path_report, "rb") as file_source:
+            record = pickle.load(file_source)
+        # Create entry for gene.
+        records.append(record)
+
+    # Organize data.
+    data = utility.convert_records_to_dataframe(
+        records=records
+    )
+    data.set_index(
+        ["gene"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
+    # Specify directories and files.
+    path_data = os.path.join(path_category, ("data_" + method + ".tsv"))
+
+    # Write information to file.
+    data.to_csv(
+        path_or_buf=path_data,
+        sep="\t",
+        header=True,
+        index=False,
+    )
 
     pass
 
 
-
-# TODO: write_product_reports()
 
 
 ###############################################################################
@@ -1447,8 +1512,52 @@ def write_product_reports(dock=None, information=None):
 
 
 def execute_procedure(
+    gene=None,
+    data_samples_tissues_persons=None,
+    data_gene_samples_signals=None,
+    data_gene_annotation=None,
     dock=None,
 ):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        gene (str): identifier of a single gene
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Evaluate genes' categories and distributions.
+    # Report.
+    collection = evaluate_gene_categories(
+        gene=gene,
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_samples_signals=data_gene_samples_signals,
+        data_gene_annotation=data_gene_annotation,
+    )
+
+    # Compile information.
+    information = {
+        "report_imputation": collection["imputation"]["report"],
+        "report_availability": collection["availability"]["report"],
+    }
+    #Write product information to file.
+    write_product(gene=gene, dock=dock, information=information)
+
+    pass
+
+
+def execute_procedure_local(dock=None):
     """
     Function to execute module's main behavior.
 
@@ -1462,92 +1571,109 @@ def execute_procedure(
 
     """
 
+    # Initialize directories.
+    initialize_directories(dock=dock)
+
     # Read source information from file.
-    source = read_source(
+    source = read_source_initial(
         source_genes="split",
         dock=dock
     )
     print("count of genes: " + str(len(source["genes"])))
 
-    # Specify genes of interest.
-    genes = [
+    # Report date and time.
+    start = datetime.datetime.now()
+    print(start)
+
+    # Set up partial function for iterative execution.
+    # Each iteration uses the same values for "genes_signals", "shuffles", and
+    # "dock" variables.
+    execute_procedure_gene = functools.partial(
+        execute_procedure_local_sub,
+        dock=dock,
+    )
+
+    # Initialize multiprocessing pool.
+    #pool = multiprocessing.Pool(processes=os.cpu_count())
+    pool = multiprocessing.Pool(processes=8)
+
+    # Iterate on genes.
+    genes_check = [
         "ENSG00000231925", # TAPBP ... tapasin binding protein
         "ENSG00000147050", # KDM6A ... X-linked analog to UTY
         "ENSG00000183878", # UTY ... Y-linked analog to KDM6A
     ]
+    #report = pool.map(execute_procedure_gene, genes_check)
+    #report = pool.map(execute_procedure_gene, source["genes"][0:100])
+    report = pool.map(execute_procedure_gene, source["genes"])
 
-    # Evaluate genes' categories and distributions.
+    # Pause procedure.
+    time.sleep(5.0)
+
     # Report.
-    report = evaluate_genes_categories(
-        genes=source["genes"][0:10],
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        genes_samples_signals=source["genes_samples_signals"],
-        data_gene_annotation=source["data_gene_annotation"],
+    #print("Process complete for the following genes...")
+    #print(str(len(report)))
+
+    # Collect genes.
+    read_collect_genes_reports(
+        genes=source["genes"],
+        method="imputation",
+        dock=dock,
+    )
+    read_collect_genes_reports(
+        genes=source["genes"],
+        method="availability",
+        dock=dock,
     )
 
-    print(report["imputation"])
-    print(report["availability"])
+    # Report date and time.
+    end = datetime.datetime.now()
+    print(end)
+    print("duration: " + str(end - start))
+
+    pass
 
 
-    if False:
+def execute_procedure_local_sub(
+    gene=None,
+    dock=None
+):
+    """
+    Function to execute module's main behavior.
 
-        # Organize persons' signals and properties.
+    arguments:
+        gene (str): identifier of a single gene
+        dock (str): path to root or dock directory for source and product
+            directories and files
 
-        if True:
-            data_independence = data_persons_tissues_signals.drop(
-                labels=["value", "age", "sex"],
-                axis="columns",
-                inplace=False
-            )
-            pass
-        if False:
-            data_independence = data_persons_tissues_signals.loc[
-                :, "age"
-            ]
-            pass
-        #print(data_independence.values.reshape(-1, 1))
-        data_dependence = data_persons_tissues_signals.loc[
-            :, "value"
-        ]
-        #print(data_dependence.values.reshape(-1, 1))
+    raises:
 
-        # Regression...
-        regression = LinearRegression(
-            fit_intercept=True,
-            normalize=False,
-            copy_X=True,
-            n_jobs=None
-        ).fit(
-            data_independence.values,#.reshape(-1, 1),
-            data_dependence.values.reshape(-1, 1),
-            sample_weight=None
-        )
-        score = regression.score(
-            data_independence.values,#.reshape(-1, 1),
-            data_dependence.values.reshape(-1, 1),
-            sample_weight=None
-        )
-        print(score)
+    returns:
 
+    """
 
+    # Read source information from file.
+    source = read_source(
+        gene=gene,
+        dock=dock
+    )
 
+    # Execute procedure.
+    execute_procedure(
+        gene=gene,
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_samples_signals=source["data_gene_samples_signals"],
+        data_gene_annotation=source["data_gene_annotation"],
+        dock=dock,
+    )
 
-        if False:
-
-            # Compile information.
-            information = {
-                "data_genes_probabilities": data_genes_probabilities,
-                "data_summary_genes": data_summary_genes,
-                "data_rank_genes": ranks["data_rank_genes"],
-                "data_rank_genes_ensembl": ranks["data_rank_genes_ensembl"],
-                "data_rank_genes_hugo": ranks["data_rank_genes_hugo"],
-                "genes_ensembl": ranks["genes_ensembl"],
-                "genes_hugo": ranks["genes_hugo"],
-                "genes_report": genes_report,
-                "reports": reports,
-            }
-            #Write product information to file.
-            write_product(dock=dock, information=information)
+    # Report contents of directory.
+    path_category = os.path.join(dock, "category")
+    path_collection = os.path.join(path_category, "collection")
+    files = os.listdir(path_collection)
+    count = len(files)
+    if (count % 10 == 0):
+        print("complete genes: " + str(len(files)))
 
     pass
 
