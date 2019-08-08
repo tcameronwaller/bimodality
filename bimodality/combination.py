@@ -6,7 +6,7 @@
 ###############################################################################
 # Notes
 
-# If the count of bootstrap shuffles is too small, then it is likely not to
+# If the count of bootstrap permutations is too small, then it is likely not to
 # have any values equal to or greater than the real value, in which case the
 # probability is zero.
 
@@ -62,25 +62,25 @@ def read_source(dock=None):
     )
     path_collection = os.path.join(dock, "collection")
     path_scores_availability = os.path.join(
-        path_collection, "genes_scores_shuffles_availability.pickle"
+        path_collection, "genes_scores_permutations_availability.pickle"
     )
     path_scores_imputation = os.path.join(
-        path_collection, "genes_scores_shuffles_imputation.pickle"
+        path_collection, "genes_scores_permutations_imputation.pickle"
     )
     # Read information from file.
     genes = utility.read_file_text_list(path_genes)
     with open(path_scores_availability, "rb") as file_source:
-        genes_scores_shuffles_availability = pickle.load(file_source)
+        genes_scores_permutations_availability = pickle.load(file_source)
     with open(path_scores_imputation, "rb") as file_source:
-        genes_scores_shuffles_imputation = pickle.load(file_source)
+        genes_scores_permutations_imputation = pickle.load(file_source)
     # Compile and return information.
     return {
         "genes": genes,
-        "genes_scores_shuffles_availability": (
-            genes_scores_shuffles_availability
+        "scores_permutations_availability": (
+            genes_scores_permutations_availability
         ),
-        "genes_scores_shuffles_imputation": (
-            genes_scores_shuffles_imputation
+        "scores_permutations_imputation": (
+            genes_scores_permutations_imputation
         ),
     }
 
@@ -93,7 +93,7 @@ def filter_genes_scores_variance(
     threshold=None
 ):
     """
-    Filter genes by variance across shuffles of their scores.
+    Filter genes by variance across permutations of their scores.
 
     arguments:
         genes_scores_distributions (dict<dict<dict>>): information about genes'
@@ -156,21 +156,21 @@ def filter_genes_scores_variance(
 
 
 def calculate_combination_scores(
-    genes_scores_shuffles=None
+    genes_scores_permutations=None
 ):
     """
     Calculates a score from combination of the dip statistic and the bimodality
     coefficient.
 
     Data structure.
-    - genes_scores_shuffles (dict)
+    - genes_scores_permutations (dict)
     -- gene (dict)
     --- scores (dict)
     ---- combination (float)
     ---- coefficient (float)
     ---- dip (float)
     ---- mixture (float)
-    --- shuffles (dict)
+    --- permutations (dict)
     ---- combination (list)
     ----- value (float)
     ---- coefficient (list)
@@ -181,12 +181,12 @@ def calculate_combination_scores(
     ----- value (float)
 
     arguments:
-        genes_scores_shuffles (dict<dict<dict>>): information about genes
+        genes_scores_permutations (dict<dict<dict>>): information about genes
 
     raises:
 
     returns:
-        (dict<dict<dict>>): information about genes' scores and shuffles
+        (dict<dict<dict>>): information about genes' scores and permutations
 
     """
 
@@ -197,16 +197,16 @@ def calculate_combination_scores(
     # Collect information about genes.
     #information = copy.deepcopy(genes_scores_distributions)
     # Extract identifiers of genes with scores.
-    genes = list(genes_scores_shuffles.keys())
+    genes = list(genes_scores_permutations.keys())
     # Iterate on genes.
     for gene in genes:
         # Report progress.
         #print(gene)
         # Access information about gene's scores and distributions.
-        scores_shuffles = genes_scores_shuffles[gene]
+        scores_permutations = genes_scores_permutations[gene]
         # Convert gene's scores and distributions to standard, z-score, space.
-        standard = calculate_standard_scores_shuffles(
-            scores_shuffles=scores_shuffles
+        standard = calculate_standard_scores_permutations(
+            scores_permutations=scores_permutations
         )
         # Calculate combination scores.
         combination = statistics.mean([
@@ -215,20 +215,20 @@ def calculate_combination_scores(
             standard["scores"]["mixture"],
         ])
         combinations = list()
-        for index in range(len(standard["shuffles"]["coefficient"])):
-            coefficient = standard["shuffles"]["coefficient"][index]
-            dip = standard["shuffles"]["dip"][index]
-            mixture = standard["shuffles"]["mixture"][index]
+        for index in range(len(standard["permutations"]["coefficient"])):
+            coefficient = standard["permutations"]["coefficient"][index]
+            dip = standard["permutations"]["dip"][index]
+            mixture = standard["permutations"]["mixture"][index]
             value = statistics.mean([coefficient, dip, mixture])
             combinations.append(value)
             pass
         # Compile information.
-        genes_scores_shuffles[gene]["scores"]["combination"] = combination
-        genes_scores_shuffles[gene]["shuffles"]["combination"] = (
+        genes_scores_permutations[gene]["scores"]["combination"] = combination
+        genes_scores_permutations[gene]["permutations"]["combination"] = (
             combinations
         )
     # Return information.
-    return genes_scores_shuffles
+    return genes_scores_permutations
 
 
 def calculate_standard_score(
@@ -290,8 +290,8 @@ def calculate_standard_scores(
     return values_standard
 
 
-def calculate_standard_scores_shuffles(
-    scores_shuffles=None
+def calculate_standard_scores_permutations(
+    scores_permutations=None
 ):
     """
     Calculates a gene's scores and distributions in standard, z-score, space.
@@ -308,25 +308,25 @@ def calculate_standard_scores_shuffles(
     ---- value (float)
 
     arguments:
-        scores_shuffles (dict<dict>): information about a gene's scores
-            and shuffles
+        scores_permutations (dict<dict>): information about a gene's scores
+            and permutations
 
     raises:
 
     returns:
-        (dict<dict>): information about a gene's scores and shuffles
+        (dict<dict>): information about a gene's scores and permutations
 
     """
 
     # Access information about gene's scores and distributions.
-    coefficient = scores_shuffles["scores"]["coefficient"]
-    dip = scores_shuffles["scores"]["dip"]
-    mixture = scores_shuffles["scores"]["mixture"]
+    coefficient = scores_permutations["scores"]["coefficient"]
+    dip = scores_permutations["scores"]["dip"]
+    mixture = scores_permutations["scores"]["mixture"]
     coefficients = (
-        scores_shuffles["shuffles"]["coefficient"]
+        scores_permutations["permutations"]["coefficient"]
     )
-    dips = scores_shuffles["shuffles"]["dip"]
-    mixtures = scores_shuffles["shuffles"]["mixture"]
+    dips = scores_permutations["permutations"]["dip"]
+    mixtures = scores_permutations["permutations"]["mixture"]
     # Convert gene's scores and distributions to standard, z-score, space.
     mean_coefficient = statistics.mean(coefficients)
     deviation_coefficient = statistics.stdev(coefficients)
@@ -371,10 +371,10 @@ def calculate_standard_scores_shuffles(
     information["scores"]["coefficient"] = coefficient_standard
     information["scores"]["dip"] = dip_standard
     information["scores"]["mixture"] = mixture_standard
-    information["shuffles"] = dict()
-    information["shuffles"]["coefficient"] = coefficients_standard
-    information["shuffles"]["dip"] = dips_standard
-    information["shuffles"]["mixture"] = mixtures_standard
+    information["permutations"] = dict()
+    information["permutations"]["coefficient"] = coefficients_standard
+    information["permutations"]["dip"] = dips_standard
+    information["permutations"]["mixture"] = mixtures_standard
     # Return information.
     return information
 
@@ -400,15 +400,24 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_combination = os.path.join(dock, "combination")
     utility.confirm_path_directory(path_combination)
-    path_genes = os.path.join(
-        path_combination, "genes.txt"
+    path_scores_permutations_imputation = os.path.join(
+        path_combination, "genes_scores_permutations_imputation.pickle"
+    )
+    path_scores_permutations_availability = os.path.join(
+        path_combination, "genes_scores_permutations_availability.pickle"
     )
     # Write information to file.
-    # List of genes needs to be easy to read in Bash.
-    utility.write_file_text_list(
-        information=information["genes"], path_file=path_genes
-    )
+    with open(path_scores_permutations_imputation, "wb") as file_product:
+        pickle.dump(
+            information["genes_scores_permutations_imputation"], file_product
+        )
+    with open(path_scores_permutations_availability, "wb") as file_product:
+        pickle.dump(
+            information["genes_scores_permutations_availability"], file_product
+        )
+
     pass
+
 
 
 ###############################################################################
@@ -442,69 +451,23 @@ def execute_procedure(dock=None):
     # standard space.
     # Also calculate shuffle distributions of these scores in order to
     # calculate probabilities.
-    genes_scores_shuffles_availability = calculate_combination_scores(
-        genes_scores_shuffles=source["genes_scores_shuffles_availability"]
+    genes_scores_permutations_availability = calculate_combination_scores(
+        genes_scores_permutations=source["scores_permutations_availability"]
     )
-    genes_scores_shuffles_imputation = calculate_combination_scores(
-        genes_scores_shuffles=source["genes_scores_shuffles_imputation"]
+    genes_scores_permutations_imputation = calculate_combination_scores(
+        genes_scores_permutations=source["scores_permutations_imputation"]
     )
 
     print("done with calculation of combination scores...")
 
-
-    ###############################3
-    # TODO: Now write the scores and permutations to file like I did in the collection procedure...
-    # TODO: move the stuff after here to the rank procedure...
-    # TODO: also, don't combine the ranks of genes by "availability" and "imputation" methods...
-
-    # Calculate genes' probabilities of bimodality.
-    data_genes_probabilities_availability = rank.calculate_probabilities_genes(
-        genes_scores_shuffles=(
-            #source["genes_scores_shuffles_availability"]
-            genes_scores_shuffles_availability
-        ),
-    )
-    data_genes_probabilities_imputation = rank.calculate_probabilities_genes(
-        genes_scores_shuffles=(
-            #source["genes_scores_shuffles_imputation"]
-            genes_scores_shuffles_imputation
-        ),
-    )
-    print(data_genes_probabilities_availability)
-    print(data_genes_probabilities_imputation)
-
-    # Rank genes by probabilities.
-    data_ranks_availability = rank.rank_genes(
-        data_genes_probabilities=data_genes_probabilities_availability,
-        rank="combination",
-        method="threshold",
-        threshold=0.001,
-        count=1000,
-    )
-    data_ranks_imputation = rank.rank_genes(
-        data_genes_probabilities=data_genes_probabilities_imputation,
-        rank="combination",
-        method="threshold",
-        threshold=0.001,
-        count=1000,
-    )
-    print(data_ranks_availability)
-    print(data_ranks_imputation)
-
-    # Extract identifiers of genes.
-    genes_availability = data_ranks_availability.index.to_list()
-    genes_imputation = data_ranks_imputation.index.to_list()
-
-    # Combine consensus genes.
-    genes_combination = utility.filter_unique_union_elements(
-        list_one=genes_availability,
-        list_two=genes_imputation,
-    )
-    print("Count of consensus genes: " + str(len(genes_combination)))
-
     # Compile information.
     information = {
-        "genes": genes_combination,
+        "genes_scores_permutations_imputation": (
+            genes_scores_permutations_imputation
+        ),
+        "genes_scores_permutations_availability": (
+            genes_scores_permutations_availability
+        ),
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

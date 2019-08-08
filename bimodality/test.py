@@ -23,6 +23,7 @@ import pandas
 import sklearn
 import sklearn.datasets
 import sklearn.decomposition
+import statsmodels.api
 
 # Custom
 
@@ -85,43 +86,22 @@ def execute_procedure(dock=None):
     """
 
     # Read source information from file.
-    source = read_source(dock=dock)
-    data = source["data_gene_samples_signals"]
-    print(data)
+    #source = read_source(dock=dock)
 
-    gene = "ENSG00000231925" # TAPBP
+    nsample = 100
+    x = numpy.linspace(0, 10, 100)
+    print(x)
+    X = numpy.column_stack((x, x**2))
+    print(X)
+    beta = numpy.array([1, 0.1, 10])
+    e = numpy.random.normal(size=nsample)
+    X = statsmodels.api.add_constant(X)
+    y = numpy.dot(X, beta) + e
 
-    collection_organization = organization.execute_procedure(
-        data_gene_samples_signals=data
-    )
-    data_gene_persons_tissues_signals = collection_organization["data_gene_persons_tissues_signals"]
+    print(X)
+    print(y)
 
-    print(data_gene_persons_tissues_signals)
-    print(data_gene_persons_tissues_signals.shape)
 
-    # Filter genes by signal.
-    # Filter to keep only genes with signals beyond threshold in at least one
-    # sample.
-    data_row = selection.filter_rows_columns_by_threshold_proportion(
-        data=data_gene_persons_tissues_signals,
-        dimension="row",
-        threshold=10.0,
-        proportion=0.1
-    )
-    print(data_row)
-    print(data_row.shape)
-
-    # Filter samples by signal.
-    # Filter to keep only samples with signals beyond threshold in at least one
-    # gene.
-    data_column = selection.filter_rows_columns_by_threshold_proportion(
-        data=data_gene_persons_tissues_signals,
-        dimension="column",
-        threshold=10.0,
-        proportion=0.5
-    )
-    print(data_column)
-    print(data_column.shape)
 
 
 

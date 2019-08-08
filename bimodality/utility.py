@@ -665,6 +665,31 @@ def filter_unique_union_elements(list_one=None, list_two=None):
     return unique
 
 
+def filter_unique_exclusion_elements(
+    list_exclusion=None,
+    list_total=None
+):
+    """
+    Filters unique elements by exclusion.
+
+    arguments:
+        list_exclusion (list): list of elements
+        list_total (list): list of elements
+
+    returns:
+        (list): elements from total list not in exclusion list
+
+    raises:
+
+    """
+
+    elements_novel = []
+    for element in list_total:
+        if element not in list_exclusion:
+            elements_novel.append(element)
+    elements_unique = collect_unique_elements(elements_original=elements_novel)
+    return elements_unique
+
 
 def collect_records_targets_by_categories(
     target=None,

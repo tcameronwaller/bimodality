@@ -141,13 +141,13 @@ def read_collect_genes_scores_shuffles(
         # Report progress.
         #print(gene)
         # Specify directories and files.
-        path_gene = os.path.join(path_pipe, gene)
+        path_gene = os.path.join(path_distribution, gene)
         path_method = os.path.join(path_gene, method)
         path_scores = os.path.join(
             path_method, "scores.pickle"
         )
         path_shuffles = os.path.join(
-            path_method, "shuffles.pickle"
+            path_method, "permutations.pickle"
         )
         # Read information from file.
         with open(path_scores, "rb") as file_source:
@@ -158,7 +158,7 @@ def read_collect_genes_scores_shuffles(
         genes_scores_shuffles[gene] = dict()
         # Compile information.
         genes_scores_shuffles[gene]["scores"] = scores
-        genes_scores_shuffles[gene]["shuffles"] = shuffles
+        genes_scores_shuffles[gene]["permutations"] = shuffles
 
     # Return information.
     return genes_scores_shuffles
@@ -304,19 +304,19 @@ def write_product(dock=None, information=None):
     path_collection = os.path.join(dock, "collection")
     utility.confirm_path_directory(path_collection)
     path_scores_shuffles_imputation = os.path.join(
-        path_collection, "genes_scores_shuffles_imputation.pickle"
+        path_collection, "genes_scores_permutations_imputation.pickle"
     )
     path_scores_shuffles_availability = os.path.join(
-        path_collection, "genes_scores_shuffles_availability.pickle"
+        path_collection, "genes_scores_permutations_availability.pickle"
     )
     # Write information to file.
     with open(path_scores_shuffles_imputation, "wb") as file_product:
         pickle.dump(
-            information["genes_scores_shuffles_imputation"], file_product
+            information["genes_scores_permutations_imputation"], file_product
         )
     with open(path_scores_shuffles_availability, "wb") as file_product:
         pickle.dump(
-            information["genes_scores_shuffles_availability"], file_product
+            information["genes_scores_permutations_availability"], file_product
         )
 
     pass
@@ -357,10 +357,10 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
-        "genes_scores_shuffles_imputation": (
+        "genes_scores_permutations_imputation": (
             source["genes_scores_shuffles_imputation"]
         ),
-        "genes_scores_shuffles_availability": (
+        "genes_scores_permutations_availability": (
             source["genes_scores_shuffles_availability"]
         ),
     }

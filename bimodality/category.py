@@ -28,7 +28,8 @@ import itertools
 import numpy
 import pandas
 import scipy.stats
-from sklearn.linear_model import LinearRegression
+#from sklearn.linear_model import LinearRegression
+import statsmodels.api
 
 # Custom
 
@@ -45,18 +46,14 @@ import utility
 
 
 def read_source(
-    gene=None,
-    method=None,
+    source_genes=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        gene (str): identifier of a gene
-        method (str): method for selection of tissues and patients, either
-            "availability" for selection by minimal count of tissues, or
-            "imputation" for selection by same tissues with imputation
+        source_genes (str): name of directory from which to obtain genes list
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -68,41 +65,47 @@ def read_source(
     """
 
     # Specify directories and files.
+    # Read information from file.
+    if source_genes == "split":
+        path_source = os.path.join(dock, "split")
+        path_genes = os.path.join(path_source, "genes.txt")
+        genes = utility.read_file_text_list(path_genes)
+    elif source_genes == "rank":
+        path_source = os.path.join(dock, "rank")
+        path_genes = os.path.join(path_source, "genes_consensus.pickle")
+        with open(path_genes, "rb") as file_source:
+            genes = pickle.load(file_source)
+
+    # Specify directories and files.
     path_assembly = os.path.join(dock, "assembly")
     path_samples_tissues_persons = os.path.join(
         path_assembly, "data_samples_tissues_persons.pickle"
     )
-    path_pipe = os.path.join(dock, "pipe")
-    path_gene = os.path.join(path_pipe, gene)
-    path_method = os.path.join(path_gene, method)
-
-    path_report_restriction = os.path.join(
-        path_method, "report_restriction.pickle"
-    )
-    path_report_distribution = os.path.join(
-        path_method, "report_distribution.pickle"
+    path_gene_annotation = os.path.join(
+        path_assembly, "data_gene_annotation.pickle"
     )
 
+    path_split = os.path.join(dock, "split")
+    path_signal = os.path.join(
+        path_split, "genes_samples_signals.pickle"
+    )
     # Read information from file.
     data_samples_tissues_persons = pandas.read_pickle(
         path_samples_tissues_persons
     )
-    with open(path_report_restriction, "rb") as file_source:
-        report_restriction = pickle.load(file_source)
-    with open(path_report_distribution, "rb") as file_source:
-        report_distribution = pickle.load(file_source)
-
-    # Access information.
-    data_persons_tissues = report_restriction["data_persons_tissues"]
-    data_gene_persons_signals = (
-        report_distribution["data_gene_persons_signals"]
+    data_gene_annotation = pandas.read_pickle(
+        path_gene_annotation
     )
+
+    with open(path_signal, "rb") as file_source:
+        genes_samples_signals = pickle.load(file_source)
 
     # Compile and return information.
     return {
+        "genes": genes,
         "data_samples_tissues_persons": data_samples_tissues_persons,
-        "data_persons_tissues": data_persons_tissues,
-        "data_gene_persons_signals": data_gene_persons_signals,
+        "data_gene_annotation": data_gene_annotation,
+        "genes_samples_signals": genes_samples_signals,
     }
 
 
@@ -128,31 +131,6 @@ def organize_persons_attributes(
         (object): Pandas data frame of persons and tissues for all samples
 
     """
-
-    # Define functions
-    def translate_sex_female(sex):
-        if sex == "female":
-            return 1
-        elif sex == "male":
-            return 0
-    def translate_sex_male(sex):
-        if sex == "male":
-            return 1
-        elif sex == "female":
-            return 0
-    def translate_age(age):
-        ages_text = [
-            "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80-89",
-            "90-99", "100-109",
-        ]
-        ages_number = [
-            25, 35, 45, 55, 65, 75, 85, 95, 105
-        ]
-        # Match indices.
-        if age in ages_text:
-            return ages_number[ages_text.index(age)]
-        else:
-            return float("nan")
 
     # Copy data.
     data_persons = data_samples_tissues_persons.copy(deep=True)
@@ -182,59 +160,8 @@ def organize_persons_attributes(
         inplace=True
     )
 
-    # Organize persons' sex and age.
-    data_persons["female"] = (
-        data_persons["sex"].apply(translate_sex_female)
-    )
-    data_persons["male"] = (
-        data_persons["sex"].apply(translate_sex_male)
-    )
-    data_persons["age"] = (
-        data_persons["age_range"].apply(translate_age)
-    )
-    data_persons.drop(
-        labels=["sex", "age_range"],
-        axis="columns",
-        inplace=True
-    )
     # Return data.
     return data_persons
-
-
-def organize_persons_tissues(
-    data_gene_persons_tissues=None,
-):
-    """
-    Organizes persons' tissues.
-
-    arguments:
-        data_gene_persons_tissues (object): Pandas data frame of a gene's
-            selection of tissues across persons
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of a gene's selection of tissues across
-            persons
-
-    """
-
-    # Define functions
-    def translate_tissue(tissue):
-        if tissue:
-            return 1
-        else:
-            return 0
-
-    # Copy data.
-    data_persons_tissues = data_gene_persons_tissues.copy(deep=True)
-
-    # Organize persons' tissues.
-    data_persons_tissues = (
-        data_persons_tissues.applymap(translate_tissue)
-    )
-    # Return data.
-    return data_persons_tissues
 
 
 def organize_persons_signals_groups(
@@ -272,9 +199,6 @@ def organize_persons_signals_groups(
         persons=persons,
         data_samples_tissues_persons=data_samples_tissues_persons,
     )
-    data_gene_persons_tissues_binary = organize_persons_tissues(
-        data_gene_persons_tissues=data_gene_persons_tissues
-    )
 
     # Organize information about persons' tissues.
 
@@ -290,13 +214,77 @@ def organize_persons_signals_groups(
         on="person"
     )
     data_tissues = data_attributes.join(
-        data_gene_persons_tissues_binary,
+        data_gene_persons_tissues,
         how="left",
         on="person"
     )
 
     # Return information
     return data_tissues
+
+
+def translate_groups_binary(
+    tissues=None,
+    data_persons_signals_groups=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        tissues (list<str>): identifiers of tissues
+        data_persons_signals_groups (object): Pandas data frame of a gene's
+            aggregate pan-tissue signals across persons with persons's
+            attributes and groups
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's aggregate pan-tissue signals
+            across persons with persons's attributes and groups
+
+    """
+
+    # Define functions
+    def translate_sex_female(sex):
+        if sex == "female":
+            return 1
+        elif sex == "male":
+            return 0
+    def translate_sex_male(sex):
+        if sex == "male":
+            return 1
+        elif sex == "female":
+            return 0
+    def translate_tissue(tissue):
+        if tissue:
+            return 1
+        else:
+            return 0
+
+    # Copy data.
+    data = data_persons_signals_groups.copy(deep=True)
+
+    # Translate sex.
+    data["female"] = (
+        data["sex"].apply(translate_sex_female)
+    )
+    data["male"] = (
+        data["sex"].apply(translate_sex_male)
+    )
+    # Translate tissues.
+    for tissue in tissues:
+        data[tissue] = data[tissue].apply(translate_tissue)
+
+    # Remove unnecessary columns.
+    data.drop(
+        labels=["sex"],
+        axis="columns",
+        inplace=True
+    )
+
+    # Return information
+    return data
+
 
 
 ##########
@@ -712,120 +700,214 @@ def evaluate_variance_by_binary_groups(
 def evaluate_correlation_by_linearity(
     dependence=None,
     independence=None,
+    threshold=None,
     data=None
 ):
     """
     Evaluates the correlation between a dependent and independent variable by
     linear regression.
 
+    Description of formats for StatsModels...
+
+    Format of dependent variable is a vector of scalar values.
+    [1.3, 1.5, 1.2, 1.0, 1.7, 1.5, 1.9, 1.1, 1.3, 1.4]
+
+    Format of independent variable is a matrix, a vector of observations with
+    each observation a vector of scalar values.
+    StatsModels requires an intercept.
+    [
+        [1.3, 5.2, 1.0],
+        [1.5, 5.1, 1.0],
+        [1.2, 5.5, 1.0],
+        ...
+    ]
+
+    Description of formats for SKLearn...
+
+    Format of dependent variable is an array of observations, and each
+    observation is an array of features.
+    [
+        [1.3],
+        [1.5],
+        [1.2],
+        ...
+    ]
+
     arguments:
         dependence (str): name of dependent variable
         independence (list<str>): name of independent variable
+        threshold (float): minimal count of valid observations to perform
+            regression
         data (object): Pandas data frame of values across binary groups
 
     raises:
 
     returns:
-        (dict<float>): values of results from the analysis of variance
+        (float): probability value from coefficients of the regression
 
     """
 
-    # Access values of dependent and independent variables.
-    values_dependence = data[dependence].values.reshape(-1, 1)
-    if len(independence) > 1:
-        data_independence = data.loc[ :, independence]
-        values_independence = data_independence.values
-        pass
+    if False:
+        # Define regression.
+        regression = LinearRegression(
+            fit_intercept=True,
+            normalize=False,
+            copy_X=True,
+            n_jobs=None
+        ).fit(
+            values_independence,
+            values_dependence,
+            sample_weight=None
+        )
+        score = regression.score(
+            values_independence,
+            values_dependence,
+            sample_weight=None
+        )
+
+    # Organize data.
+    # Preserve observation association (bindings) between values of dependent
+    # and independent variables.
+    # Remove observations with any missing values.
+    columns = copy.deepcopy(independence)
+    columns.append(dependence)
+    data = data.loc[ :, columns]
+    data.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+    # Determine whether data have sufficient observations for analysis.
+    if data.shape[0] > threshold:
+        # Access values of dependent and independent variables.
+        values_dependence = data[dependence].values
+        values_independence = data.loc[ :, independence].values
+        #values_independence = statsmodels.api.add_constant(values_independence)
+        # Define model.
+        model = statsmodels.api.OLS(values_dependence, values_independence)
+        report = model.fit()
+        #print(report.summary())
+        #print(dir(report))
+        probabilities = report.pvalues
+        if len(independence) > 1:
+            probability = scipy.stats.combine_pvalues(
+                probabilities,
+                method="stouffer",
+                weights=None,
+            )[1]
+        else:
+            probability = probabilities[0]
     else:
-        values_independence = data[independence[0]].values.reshape(-1, 1)
-
-    # Define regression.
-    regression = LinearRegression(
-        fit_intercept=True,
-        normalize=False,
-        copy_X=True,
-        n_jobs=None
-    ).fit(
-        values_independence,
-        values_dependence,
-        sample_weight=None
-    )
-    score = regression.score(
-        values_independence,
-        values_dependence,
-        sample_weight=None
-    )
-    return score
+        probability = float("nan")
+    return probability
 
 
+##########
+# Organization and evaluation
 
-# TODO: move evaluate_gene_categories() from candidacy procedure here to the category procedure...
-# TODO: make the category procedure parallelizable like the candidacy procedure...
 
-
-# TODO: move "evaluate_gene_categories()" to the category procedure...
-
-def evaluate_gene_distribution_categories(
+# This function calls ANOVA and regression procedures.
+# TODO: include pairwise Pearson correlation p-values too? <- maybe same as regression p-values
+def evaluate_gene_distribution_covariance(
     gene=None,
-    threshold_proportion=None,
-    method=None,
-    data_samples_tissues_persons=None,
-    observation=None,
+    sexes=None,
+    tissues=None,
+    data_persons_signals_groups=None,
 ):
     """
-    Evaluates the selection of tissues for calculation of gene's aggregate
-    scores.
+    Evaluates a gene's distribution of signals across persons by multiple
+    factors.
 
     arguments:
         gene (str): identifier of single gene for which to execute the process
-        threshold_proportion (float): minimal proportion of persons for
-            inclusion of a group in analyses
-        method (str): method for selection of tissues and persons in
-            restriction procedure, either "imputation" for selection by
-            specific tissues with imputation or "availability" for selection by
-            minimal count of tissues
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples.
-        observation (dict): information about a gene's actual distribution of
-            signals across persons and tissues
+        sexes (list<str>): identifiers of sexes
+        tissues (list<str>): identifiers of tissues
+        data_persons_signals_groups (object): Pandas data frame of a gene's
+            aggregate pan-tissue signals across persons with persons's
+            attributes and groups
 
     raises:
 
     returns:
-        (bool): whether the gene's selection of tissues is acceptable
+        (dict): information about gene's distribution and categories
 
     """
 
-    # Access information.
-    report_organization = observation["organization"]["report_gene"]
-    report_restriction = observation[method]["report_restriction"]
-    report_distribution = observation[method]["report_distribution"]
-    data_gene_persons_tissues = (
-        observation[method]["report_restriction"]["data_gene_persons_tissues"]
-    )
-    data_gene_persons_signals = (
-        observation[method]["report_distribution"]["data_gene_persons_signals"]
+    # Evaluate covariance by categories.
+    # Function return probability values from ANOVA by sex and tissue
+    # categories.
+    category = evaluate_gene_distribution_category(
+        gene=gene,
+        sexes=sexes,
+        tissues=tissues,
+        threshold_proportion=0.25,
+        data_persons_signals_groups=data_persons_signals_groups,
     )
 
-    # Calculate tissue-tissue correlations across persons.
-    # Use the data before imputation to grasp correlations across real values.
-    data_gene_mean_correlations = (
-        calculate_mean_tissue_pairwise_correlations(
-            data_gene_persons_tissues_signals=(
-                report_restriction["data_gene_persons_tissues_signals"]
-            )
+    # Evaluate covariance by correlation.
+
+    # Evaluate covariance by regression.
+    regression = evaluate_gene_distribution_regression(
+        gene=gene,
+        dependence="value",
+        tissues=tissues,
+        threshold_proportion=0.25,
+        data_persons_signals_groups=data_persons_signals_groups,
+    )
+
+    if False:
+        regression = evaluate_gene_distribution_regression(
+            gene=gene,
+            dependence="correlation",
+            tissues=tissues,
+            threshold_proportion=0.25,
+            data_persons_signals_groups=data_persons_signals_groups,
         )
-    )
 
-    # Organize information about gene's scores across persons and tissues.
-    data_persons_signals_groups = organize_persons_signals_groups(
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        data_gene_persons_tissues=data_gene_persons_tissues,
-        data_gene_persons_signals=data_gene_persons_signals,
-        data_gene_mean_correlations=data_gene_mean_correlations,
-    )
+    # Compile information.
+    information = {
+        "category_tissue": category["tissue"],
+        "category_sex": category["sex"],
+        "regression_cross": regression["cross"],
+        "regression_sex": regression["sex"],
+        "regression_age": regression["age"],
+        "regression_body": regression["body"],
+        "regression_ancestry": regression["ancestry"],
+        "regression_tissue": regression["tissue"],
+        "regression_delay": regression["delay"],
+    }
 
-    #print(data_persons_signals_groups)
+    # Return information.
+    return information
+
+
+def evaluate_gene_distribution_category(
+    gene=None,
+    sexes=None,
+    tissues=None,
+    threshold_proportion=None,
+    data_persons_signals_groups=None,
+):
+    """
+    Evaluates a gene's distribution of signals across persons by multiple
+    factors.
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process
+        sexes (list<str>): identifiers of sexes
+        tissues (list<str>): identifiers of tissues
+        threshold_proportion (float): minimal proportion of persons for
+            inclusion of a group in analyses
+        data_persons_signals_groups (object): Pandas data frame of a gene's
+            aggregate pan-tissue signals across persons with persons's
+            attributes and groups
+
+    raises:
+
+    returns:
+        (dict): information about gene's distribution and categories
+
+    """
 
     # Determine minimal count of persons for inclusion of a group in
     # analyses.
@@ -837,74 +919,154 @@ def evaluate_gene_distribution_categories(
     # Signals versus tissues
     # Determine whether tissue selection confounds gene's aggregate scores
     # across persons.
-    tissues = data_gene_persons_tissues.columns.values.tolist()
     report = evaluate_variance_by_binary_groups(
         groups=tissues,
         threshold=threshold_count,
         data=data_persons_signals_groups,
     )
-    anova_tissue_p = report["probability"]
+    tissue = report["probability"]
 
     # Signals versus sex
     # Determine whether tissue selection confounds gene's aggregate scores
     # across persons.
-    sexes = ["male", "female"]
     report = evaluate_variance_by_binary_groups(
         groups=sexes,
         threshold=threshold_count,
         data=data_persons_signals_groups,
     )
-    anova_sex_p = report["probability"]
+    sex = report["probability"]
+
+    # Compile information.
+    information = {
+        "tissue": tissue,
+        "sex": sex,
+    }
+    # Return information.
+    return information
+
+
+def evaluate_gene_distribution_regression(
+    gene=None,
+    dependence=None,
+    tissues=None,
+    threshold_proportion=None,
+    data_persons_signals_groups=None,
+):
+    """
+    Evaluates a gene's distribution of signals across persons by multiple
+    factors.
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process
+        dependence (str): identifier of dependent variable
+        tissues (list<str>): identifiers of tissues
+        threshold_proportion (float): minimal proportion of persons for
+            inclusion of a group in analyses
+        data_persons_signals_groups (object): Pandas data frame of a gene's
+            aggregate pan-tissue signals across persons with persons's
+            attributes and groups
+
+    raises:
+
+    returns:
+        (dict): information about gene's distribution and categories
+
+    """
+
+    # Determine minimal count of persons for inclusion of a group in
+    # analyses.
+    count_persons = data_persons_signals_groups.shape[0]
+    threshold_count = threshold_proportion * count_persons
 
     # Regression
 
-    # Signals versus sex
-    regression_sex_r = evaluate_correlation_by_linearity(
-        dependence="value",
-        independence=["female"],
-        data=data_persons_signals_groups,
-    )
-
-    # Signals versus age
-    regression_age_r = evaluate_correlation_by_linearity(
-        dependence="value",
-        independence=["age"],
-        data=data_persons_signals_groups,
-    )
-
-    # Signals versus tissues
-    regression_tissue_r = evaluate_correlation_by_linearity(
-        dependence="value",
-        independence=tissues,
-        data=data_persons_signals_groups,
-    )
-
     # Signals versus mean tissue-tissue correlation
-    regression_correlation_r = evaluate_correlation_by_linearity(
-        dependence="value",
-        independence=["correlation"],
+    if dependence == "value":
+        cross = evaluate_correlation_by_linearity(
+            dependence=dependence,
+            independence=["correlation"],
+            threshold=threshold_count,
+            data=data_persons_signals_groups,
+        )
+    elif dependence == "correlation":
+        cross = evaluate_correlation_by_linearity(
+            dependence=dependence,
+            independence=["value"],
+            threshold=threshold_count,
+            data=data_persons_signals_groups,
+        )
+
+    # Sex
+    sex = evaluate_correlation_by_linearity(
+        dependence=dependence,
+        independence=["female"],
+        threshold=threshold_count,
+        data=data_persons_signals_groups,
+    )
+
+    # Age
+    age = evaluate_correlation_by_linearity(
+        dependence=dependence,
+        independence=["age"],
+        threshold=threshold_count,
+        data=data_persons_signals_groups,
+    )
+
+    # Body mass index
+    body = evaluate_correlation_by_linearity(
+        dependence=dependence,
+        independence=["body"],
+        threshold=threshold_count,
+        data=data_persons_signals_groups,
+    )
+
+    # Ancestry # TODO: I think I'll need to combine the p-values?
+    ancestry = evaluate_correlation_by_linearity(
+        dependence=dependence,
+        independence=["ancestry_1", "ancestry_2", "ancestry_3"],
+        threshold=threshold_count,
+        data=data_persons_signals_groups,
+    )
+
+    # Tissue
+    tissue = evaluate_correlation_by_linearity(
+        dependence=dependence,
+        independence=tissues,
+        threshold=threshold_count,
+        data=data_persons_signals_groups,
+    )
+
+    # Delay
+    delay = evaluate_correlation_by_linearity(
+        dependence=dependence,
+        independence=["delay"],
+        threshold=threshold_count,
         data=data_persons_signals_groups,
     )
 
     # Compile information.
     information = {
-        "anova_tissue_p": anova_tissue_p,
-        "anova_sex_p": anova_sex_p,
-        "regression_sex_r": regression_sex_r,
-        "regression_age_r": regression_age_r,
-        "regression_tissue_r": regression_tissue_r,
-        "regression_correlation_r": regression_correlation_r,
+        "cross": cross,
+        "sex": sex,
+        "age": age,
+        "body": body,
+        "ancestry": ancestry,
+        "tissue": tissue,
+        "delay": delay,
     }
-
     # Return information.
     return information
 
 
+# This function organizes each gene's signals across persons and groups.
+# TODO: include information from reports from organization (max variation) and restriction procedures...
+# TODO: consider including some of those values in regression...
 def evaluate_gene_categories_method(
     gene=None,
     method=None,
     data_samples_tissues_persons=None,
     observation=None,
+    data_gene_annotation=None,
 ):
     """
     Evaluates a gene's distribution of signals across persons by multiple
@@ -920,6 +1082,7 @@ def evaluate_gene_categories_method(
             and tissues for all samples.
         observation (dict): information about a gene's actual distribution of
             signals across persons and tissues
+        data_gene_annotation (object): Pandas data frame of genes' annotations
 
     raises:
 
@@ -931,66 +1094,67 @@ def evaluate_gene_categories_method(
     # Access information.
     report_organization = observation["organization"]["report_gene"]
     report_restriction = observation[method]["report_restriction"]
-    report_distribution = observation[method]["report_distribution"]
-    data_gene_persons_tissues = (
-        observation[method]["report_restriction"]["data_gene_persons_tissues"]
-    )
-    data_gene_persons_signals = (
-        observation[method]["report_distribution"]["data_gene_persons_signals"]
-    )
+    report_aggregation = observation[method]["report_aggregation"]
+    data_gene_persons_tissues = report_restriction["data_gene_persons_tissues"]
+    data_gene_persons_signals = report_aggregation["data_gene_persons_signals"]
+    persons = report_aggregation["persons"]
+    tissues_mean = report_restriction["tissues_mean"]
+    tissues_median = report_restriction["tissues_median"]
 
-    # Evaluate gene's distribution between categories.
-    categories = evaluate_gene_distribution_categories(
-        gene=gene,
-        threshold_proportion=0.05,
+    name = data_gene_annotation.loc[gene, "gene_name"]
+
+    # Determine derivative information about gene's signals across persons.
+    # Calculate tissue-tissue correlations across persons.
+    # Use the data before imputation to grasp correlations across real values.
+    data_gene_mean_correlations = (
+        calculate_mean_tissue_pairwise_correlations(
+            data_gene_persons_tissues_signals=(
+                report_restriction["data_gene_persons_tissues_signals"]
+            )
+        )
+    )
+    # TODO:
+    # Calculate principal components on binary values for tissue selection
+
+    # Organize information about gene's signals across persons and groups.
+    data_persons_signals_groups = organize_persons_signals_groups(
         data_samples_tissues_persons=data_samples_tissues_persons,
-        method=method,
-        observation=observation,
+        data_gene_persons_tissues=data_gene_persons_tissues,
+        data_gene_persons_signals=data_gene_persons_signals,
+        data_gene_mean_correlations=data_gene_mean_correlations,
     )
 
-    # Compile report.
-    # sex anova p-val
-    # tissue anova p-val
-    # tissue regression metric?
-    # age regression metric?
-    # tissue-specific mean, variance, dispersion, etc...
-    report = dict()
-    report["gene"] = gene
-    #report["persons_restriction"] = report_restriction["persons"]
-    report["persons"] = report_distribution["persons"]
-    report["tissues_mean"] = report_restriction["tissues_mean"]
-    report["tissues_median"] = report_restriction["tissues_median"]
+    # Translate categorical variables for analysis.
+    tissues = data_gene_persons_tissues.columns.values.tolist()
+    data_persons_signals_groups_binary = translate_groups_binary(
+        tissues=tissues,
+        data_persons_signals_groups=data_persons_signals_groups,
+    )
 
-    report["anova_sex_p"] = categories["anova_sex_p"]
-    report["anova_tissue_p"] = categories["anova_tissue_p"]
-
-    report["regression_sex_r"] = categories["regression_sex_r"]
-    report["regression_age_r"] = categories["regression_age_r"]
-    report["regression_tissue_r"] = categories["regression_tissue_r"]
-    report["regression_correlation_r"] = categories["regression_correlation_r"]
-
-    # TODO: include metrics from the organization report...
-    # TODO: include maximum variation and dispersion across tissues...
-    # variation_max
-    # dispersion_max
-
-    print(report)
-
-
-    # Compile information.
-    information = {
-        "report": report,
-    }
-
+    # Evaluate gene's distribution by covariates.
+    report = evaluate_gene_distribution_covariance(
+        gene=gene,
+        sexes=["male", "female"],
+        tissues=tissues,
+        data_persons_signals_groups=data_persons_signals_groups_binary,
+    )
+    # Include more information.
+    report.update(
+        gene=gene,
+        name=name,
+        persons=persons,
+        tissues_mean=tissues_mean,
+        tissues_median=tissues_median,
+    )
     # Return information.
-    return information
+    return report
 
 
-def evalute_gene_categories(
+def evaluate_gene_categories(
     gene=None,
     data_samples_tissues_persons=None,
-    data_gene_samples_signals=None,
-    observation=None,
+    genes_samples_signals=None,
+    data_gene_annotation=None,
 ):
     """
     Evaluates a gene's distribution of signals across persons by multiple
@@ -999,11 +1163,10 @@ def evalute_gene_categories(
     arguments:
         gene (str): identifier of a gene
         data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples.
-        data_gene_samples_signals (object): Pandas data frame of a gene's
-            signals across samples
-        observation (dict): information about a gene's actual distribution of
-            signals across persons and tissues
+            and tissues for all samples
+        genes_samples_signals (dict<object>): collection of Pandas data frames
+            of genes' signals across samples
+        data_gene_annotation (object): Pandas data frame of genes' annotations
 
     raises:
 
@@ -1012,18 +1175,32 @@ def evalute_gene_categories(
 
     """
 
-    imputation = evaluate_gene_categories_method(
+    # Access information.
+    data_gene_samples_signals = genes_samples_signals[gene]
+
+    # Determine gene's distributions of aggregate tissue scores across persons.
+    observation = distribution.determine_gene_distributions(
         gene=gene,
-        method="imputation",
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        observation=observation,
+        modality=False,
+        data_gene_samples_signals=data_gene_samples_signals,
     )
+
+    if False:
+        imputation = evaluate_gene_categories_method(
+            gene=gene,
+            method="imputation",
+            data_samples_tissues_persons=data_samples_tissues_persons,
+            observation=observation,
+            data_gene_annotation=data_gene_annotation,
+        )
+    imputation = dict()
 
     availability = evaluate_gene_categories_method(
         gene=gene,
         method="availability",
         data_samples_tissues_persons=data_samples_tissues_persons,
         observation=observation,
+        data_gene_annotation=data_gene_annotation,
     )
 
     # Compile information.
@@ -1035,6 +1212,75 @@ def evalute_gene_categories(
     # Return information.
     return information
 
+
+def evaluate_genes_categories(
+    genes=None,
+    data_samples_tissues_persons=None,
+    genes_samples_signals=None,
+    data_gene_annotation=None,
+):
+    """
+    Evaluates a gene's distribution of signals across persons by multiple
+    factors.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+        genes_samples_signals (dict<object>): collection of Pandas data frames
+            of genes' signals across samples
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+    raises:
+
+    returns:
+        (dict): information about gene's distribution and categories
+
+    """
+
+    # Initiate collections.
+    records_availability = list()
+    records_imputation = list()
+    # Iterate on genes.
+    for gene in genes:
+        collection = evaluate_gene_categories(
+            gene=gene,
+            data_samples_tissues_persons=data_samples_tissues_persons,
+            genes_samples_signals=genes_samples_signals,
+            data_gene_annotation=data_gene_annotation,
+        )
+        records_availability.append(collection["availability"])
+        records_imputation.append(collection["imputation"])
+    # Organize data.
+    data_availability = utility.convert_records_to_dataframe(
+        records=records_availability
+    )
+    data_availability.set_index(
+        ["gene"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
+    data_imputation = utility.convert_records_to_dataframe(
+        records=records_imputation
+    )
+    if False:
+        data_imputation.set_index(
+            ["gene"],
+            append=False,
+            drop=True,
+            inplace=True
+        )
+
+    # Compile information.
+    information = {
+        "imputation": data_imputation,
+        "availability": data_availability,
+    }
+
+    # Return information.
+    return information
 
 
 # Write.
@@ -1200,7 +1446,9 @@ def write_product_reports(dock=None, information=None):
 # construct a mixed effects model
 
 
-def execute_procedure(dock=None):
+def execute_procedure(
+    dock=None,
+):
     """
     Function to execute module's main behavior.
 
@@ -1214,90 +1462,92 @@ def execute_procedure(dock=None):
 
     """
 
-    # Specify genes of interest.
-    gene = "ENSG00000231925" # TAPBP
-    #gene = "ENSG00000183878" # UTY ... Y-linked analog to KDM6A
-    #gene = "ENSG00000147050" # KDM6A ... X-linked analog to UTY
-
     # Read source information from file.
     source = read_source(
-        gene=gene,
-        method="availability",
+        source_genes="split",
         dock=dock
     )
+    print("count of genes: " + str(len(source["genes"])))
 
-    # Determine gene's distributions of aggregate tissue scores across persons.
-    observation = distribution.determine_gene_distributions(
-        gene=gene,
-        modality=False,
-        data_gene_samples_signals=source["data_gene_samples_signals"],
-    )
-
-    # Report.
-    report = evaluate_gene_categories(
-        gene=gene,
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_samples_signals=source["data_gene_samples_signals"],
-        observation=observation,
-    )
-
-    # Organize persons' signals and properties.
-
-    if True:
-        data_independence = data_persons_tissues_signals.drop(
-            labels=["value", "age", "sex"],
-            axis="columns",
-            inplace=False
-        )
-        pass
-    if False:
-        data_independence = data_persons_tissues_signals.loc[
-            :, "age"
-        ]
-        pass
-    #print(data_independence.values.reshape(-1, 1))
-    data_dependence = data_persons_tissues_signals.loc[
-        :, "value"
+    # Specify genes of interest.
+    genes = [
+        "ENSG00000231925", # TAPBP ... tapasin binding protein
+        "ENSG00000147050", # KDM6A ... X-linked analog to UTY
+        "ENSG00000183878", # UTY ... Y-linked analog to KDM6A
     ]
-    #print(data_dependence.values.reshape(-1, 1))
 
-    # Regression...
-    regression = LinearRegression(
-        fit_intercept=True,
-        normalize=False,
-        copy_X=True,
-        n_jobs=None
-    ).fit(
-        data_independence.values,#.reshape(-1, 1),
-        data_dependence.values.reshape(-1, 1),
-        sample_weight=None
+    # Evaluate genes' categories and distributions.
+    # Report.
+    report = evaluate_genes_categories(
+        genes=source["genes"][0:10],
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        genes_samples_signals=source["genes_samples_signals"],
+        data_gene_annotation=source["data_gene_annotation"],
     )
-    score = regression.score(
-        data_independence.values,#.reshape(-1, 1),
-        data_dependence.values.reshape(-1, 1),
-        sample_weight=None
-    )
-    print(score)
 
-
+    print(report["imputation"])
+    print(report["availability"])
 
 
     if False:
 
-        # Compile information.
-        information = {
-            "data_genes_probabilities": data_genes_probabilities,
-            "data_summary_genes": data_summary_genes,
-            "data_rank_genes": ranks["data_rank_genes"],
-            "data_rank_genes_ensembl": ranks["data_rank_genes_ensembl"],
-            "data_rank_genes_hugo": ranks["data_rank_genes_hugo"],
-            "genes_ensembl": ranks["genes_ensembl"],
-            "genes_hugo": ranks["genes_hugo"],
-            "genes_report": genes_report,
-            "reports": reports,
-        }
-        #Write product information to file.
-        write_product(dock=dock, information=information)
+        # Organize persons' signals and properties.
+
+        if True:
+            data_independence = data_persons_tissues_signals.drop(
+                labels=["value", "age", "sex"],
+                axis="columns",
+                inplace=False
+            )
+            pass
+        if False:
+            data_independence = data_persons_tissues_signals.loc[
+                :, "age"
+            ]
+            pass
+        #print(data_independence.values.reshape(-1, 1))
+        data_dependence = data_persons_tissues_signals.loc[
+            :, "value"
+        ]
+        #print(data_dependence.values.reshape(-1, 1))
+
+        # Regression...
+        regression = LinearRegression(
+            fit_intercept=True,
+            normalize=False,
+            copy_X=True,
+            n_jobs=None
+        ).fit(
+            data_independence.values,#.reshape(-1, 1),
+            data_dependence.values.reshape(-1, 1),
+            sample_weight=None
+        )
+        score = regression.score(
+            data_independence.values,#.reshape(-1, 1),
+            data_dependence.values.reshape(-1, 1),
+            sample_weight=None
+        )
+        print(score)
+
+
+
+
+        if False:
+
+            # Compile information.
+            information = {
+                "data_genes_probabilities": data_genes_probabilities,
+                "data_summary_genes": data_summary_genes,
+                "data_rank_genes": ranks["data_rank_genes"],
+                "data_rank_genes_ensembl": ranks["data_rank_genes_ensembl"],
+                "data_rank_genes_hugo": ranks["data_rank_genes_hugo"],
+                "genes_ensembl": ranks["genes_ensembl"],
+                "genes_hugo": ranks["genes_hugo"],
+                "genes_report": genes_report,
+                "reports": reports,
+            }
+            #Write product information to file.
+            write_product(dock=dock, information=information)
 
     pass
 

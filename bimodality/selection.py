@@ -138,6 +138,13 @@ def summarize_samples_genes(
     print("Count of major tissues: " + str(len(groups)))
     for name, group in groups:
         print(name)
+
+    groups = data_factor.groupby(level=["tissue_minor"])
+    print("Count of minor tissues: " + str(len(groups)))
+
+    groups = data_factor.groupby(level=["person"])
+    print("Count of persons: " + str(len(groups)))
+
     data_factor.reset_index(
         level=["tissue_major"],
         inplace=True

@@ -40,7 +40,7 @@ echo "Now set to call routine and procedures."
 
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access
-python3 interface.py main --dock $path_dock --assembly
+#python3 interface.py main --dock $path_dock --assembly
 #python3 interface.py main --dock $path_dock --selection
 
 # -- nonessential, exploratory procedures
@@ -69,9 +69,11 @@ python3 interface.py main --dock $path_dock --assembly
 
 #python3 interface.py main --dock $path_dock --combination
 #python3 interface.py main --dock $path_dock --rank
-#python3 interface.py main --dock $path_dock --category
+
+python3 interface.py main --dock $path_dock --category
 
 # TODO: integration procedure should bring together gene ranks from bimodality, coefficients and p-values from category, and gene identifiers
+
 #python3 interface.py main --dock $path_dock --integration
 
 # ---->>>>>> go to the category procedure????? <<<<<<-------------------

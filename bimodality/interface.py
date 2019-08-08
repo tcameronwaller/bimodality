@@ -26,7 +26,6 @@ import tissue
 import split
 
 import candidacy
-import category
 
 import distribution
 import organization
@@ -34,16 +33,16 @@ import restriction
 import aggregation
 import permutation
 import collection
+
 import combination
+import rank
+import category
 
 #import integration
 
-if False:
-    import analysis
-    import function
 import metric
-#import plot
-#import test
+import plot
+import test
 import utility
 
 #dir()
@@ -291,6 +290,14 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
+        "-rank", "--rank", dest="rank",
+        action="store_true",
+        help=(
+            "Ranks of genes by bimodality in signal distribution."
+        )
+    )
+
+    parser_main.add_argument(
         "-category", "--category", dest="category",
         action="store_true",
         help=(
@@ -481,6 +488,11 @@ def evaluate_main_parameters(arguments):
         print("... executing combination procedure ...")
         # Execute procedure.
         combination.execute_procedure(dock=arguments.dock)
+    if arguments.rank:
+        # Report status.
+        print("... executing rank procedure ...")
+        # Execute procedure.
+        rank.execute_procedure(dock=arguments.dock)
     if arguments.category:
         # Report status.
         print("... executing category procedure ...")

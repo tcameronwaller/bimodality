@@ -152,11 +152,6 @@ def read_source_sample(dock=None):
     path_attribute_sample = os.path.join(path_access, "attribute_sample.txt")
     path_attribute_person = os.path.join(path_access, "attribute_person.txt")
 
-    path_access_private = os.path.join(dock, "access_private")
-    path_attribute_person_private = os.path.join(
-        path_access_private, "attribute_person.txt"
-    )
-
     path_private = os.path.join(dock, "gtex-8_private")
     path_attribute_sample_private = os.path.join(
         path_private, "sample_attributes.txt"
@@ -166,6 +161,9 @@ def read_source_sample(dock=None):
     )
     path_person_ancestry = os.path.join(
         path_private, "persons_ancestry.txt"
+    )
+    path_ancestry_component = os.path.join(
+        path_private, "ancestry_components.mds"
     )
 
     path_customization = os.path.join(dock, "customization")
@@ -201,6 +199,12 @@ def read_source_sample(dock=None):
     data_person_ancestry = pandas.read_csv(
         path_person_ancestry,
         sep="\t",
+        header=0,
+        low_memory=False,
+    )
+    data_ancestry_component = pandas.read_csv(
+        path_ancestry_component,
+        sep="\s+",
         header=0,
         low_memory=False,
     )
@@ -243,6 +247,7 @@ def read_source_sample(dock=None):
         "data_sample_attribute": data_sample_attribute,
         "data_person_attribute_private": data_person_attribute_private,
         "data_person_ancestry": data_person_ancestry,
+        "data_ancestry_component": data_ancestry_component,
         #"data_sample_attribute_private": data_sample_attribute_private,
         "data_tissues_major": data_tissues_major,
         "data_tissues_minor": data_tissues_minor,
@@ -421,6 +426,7 @@ def collect_samples_tissues_persons(
     data_person_attribute=None,
     data_person_attribute_private=None,
     data_person_ancestry=None,
+    data_ancestry_component=None,
     data_sample_attribute=None,
     data_tissues_major=None,
     data_tissues_minor=None,
@@ -448,6 +454,8 @@ def collect_samples_tissues_persons(
             for all persons
         data_person_ancestry (object): Pandas data frame of ancestry for all
             persons
+        data_ancestry_component (object): Pandas data frame of principal
+            components from ancestry analysis for all persons
         data_sample_attribute (object): Pandas data frame of attributes for all
             samples
         data_tissues_major (object): Pandas data frame of translations for
@@ -482,6 +490,13 @@ def collect_samples_tissues_persons(
         inplace=True
     )
     data_person_ancestry.set_index(
+        ["IID"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
+    data_ancestry_component.set_index(
         ["IID"],
         append=False,
         drop=True,
@@ -538,6 +553,17 @@ def collect_samples_tissues_persons(
                 " ancestry: " + ancestry
             )
             ancestry_race = ancestry
+        # Include principal components from ancestry analysis.
+        if person in data_ancestry_component.index.values.tolist():
+            ancestry_1 = data_ancestry_component.at[person, "C1"]
+            ancestry_2 = data_ancestry_component.at[person, "C2"]
+            ancestry_3 = data_ancestry_component.at[person, "C3"]
+        else:
+            ancestry_1 = float("nan")
+            ancestry_2 = float("nan")
+            ancestry_3 = float("nan")
+
+        # ...
         body = data_person_attribute_private.at[person, "BMI"]
         # TODO: other variables exist for alcohol, smoking, non-prescription drugs, etc...
         toxicity = data_person_attribute_private.at[person, "MHTXCEXP"]
@@ -557,6 +583,9 @@ def collect_samples_tissues_persons(
             "sex": sex,
             "age": age,
             "ancestry": ancestry_race,
+            "ancestry_1": ancestry_1,
+            "ancestry_2": ancestry_2,
+            "ancestry_3": ancestry_3,
             "body": body,
             "toxicity": toxicity,
             "hardiness": hardiness,
@@ -624,6 +653,7 @@ def organize_samples_tissues_persons(
         data_person_attribute=source["data_person_attribute"],
         data_person_attribute_private=source["data_person_attribute_private"],
         data_person_ancestry=source["data_person_ancestry"],
+        data_ancestry_component=source["data_ancestry_component"],
         data_sample_attribute=source["data_sample_attribute"],
         data_tissues_major=source["data_tissues_major"],
         data_tissues_minor=source["data_tissues_minor"],

@@ -605,7 +605,7 @@ def write_figure(path=None, figure=None):
 
 # Analysis
 
-def read_source_analysis(dock=None):
+def read_source_distribution(dock=None):
     """
     Reads and organizes source information from file
 
@@ -621,25 +621,145 @@ def read_source_analysis(dock=None):
     """
 
     # Specify directories and files.
-    path_analysis = os.path.join(dock, "analysis")
-    #path_genes_report = os.path.join(
-    #    path_analysis, "genes_report.txt"
-    #)
-    path_reports = os.path.join(
-        path_analysis, "reports.pickle"
+    path_combination = os.path.join(dock, "combination")
+    path_scores_imputation = os.path.join(
+        path_combination, "genes_scores_permutations_imputation.pickle"
+    )
+    path_scores_availability = os.path.join(
+        path_combination, "genes_scores_permutations_availability.pickle"
     )
     # Read information from file.
-    #genes = utility.read_file_text_list(path_genes_report)
-    with open(path_reports, "rb") as file_source:
-        reports = pickle.load(file_source)
+    with open(path_scores_availability, "rb") as file_source:
+        genes_scores_permutations_availability = pickle.load(file_source)
+    with open(path_scores_imputation, "rb") as file_source:
+        genes_scores_permutations_imputation = pickle.load(file_source)
     # Compile and return information.
     return {
-    #    "genes": genes,
-        "reports": reports,
+        "scores_permutations_availability": (
+            genes_scores_permutations_availability
+        ),
+        "scores_permutations_imputation": (
+            genes_scores_permutations_imputation
+        ),
     }
 
 
-def plot_charts_analysis(
+def read_source_distribution_gene(
+    gene=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_distribution = os.path.join(dock, "distribution")
+    path_gene = os.path.join(path_distribution, gene)
+    path_availability = os.path.join(path_gene, "availability")
+    path_report_aggregation = os.path.join(
+        path_availability, "report_aggregation.pickle"
+    )
+
+    # Read information from file.
+
+    with open(path_report_aggregation, "rb") as file_source:
+        report_aggregation = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "report_aggregation": report_aggregation,
+    }
+
+
+def plot_charts_distribution_gene(
+    gene=None,
+    data_gene_persons_signals=None,
+    genes_scores_permutations=None,
+    fonts=None,
+    colors=None,
+    path=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        gene (str): identifier of a single gene
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate signals across persons
+        genes_scores_permutations (dict<dict<dict>>): information about genes
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+        path (str): path to directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Distribution of gene's signals across persons.
+    values = data_gene_persons_signals["value"].tolist()
+    # Create figure.
+    figure = plot_distribution_histogram(
+        series=values,
+        name="",
+        bin_method="count",
+        bin_count=50,
+        label_bins="Bins",
+        label_counts="Counts",
+        fonts=fonts,
+        colors=colors,
+        line=False,
+        position=0,
+        text="",
+    )
+    # Specify directories and files.
+    file = ("real.svg")
+    path_file = os.path.join(path, file)
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    types = ["coefficient", "dip", "mixture", "combination"]
+    #types = ["combination"]
+    for type in types:
+        # Create figure.
+        figure = plot_distribution_histogram(
+            series=genes_scores_permutations[gene]["permutations"][type],
+            name="",
+            bin_method="count",
+            bin_count=50,
+            label_bins="Bins",
+            label_counts="Counts",
+            fonts=fonts,
+            colors=colors,
+            line=True,
+            position=genes_scores_permutations[gene]["scores"][type],
+            text="",
+        )
+        # Specify directories and files.
+        file = ("score_permutations_" + type + ".svg")
+        path_file = os.path.join(path, file)
+        # Write figure.
+        write_figure(
+            path=path_file,
+            figure=figure
+        )
+
+
+def plot_charts_distribution(
     dock=None
 ):
     """
@@ -662,97 +782,55 @@ def plot_charts_analysis(
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     utility.confirm_path_directory(path_plot)
-    path_analysis = os.path.join(path_plot, "analysis")
+    path_distribution = os.path.join(path_plot, "distribution")
     # Remove previous files since they change from run to run.
-    utility.remove_directory(path=path_analysis)
-    utility.confirm_path_directory(path_analysis)
-
+    utility.remove_directory(path=path_distribution)
+    utility.confirm_path_directory(path_distribution)
     # Read source information from file.
-    source = read_source_analysis(dock=dock)
-    #source["genes"]
-    #source["reports"]
+    source = read_source_distribution(dock=dock)
 
-    # Extract genes' identifiers.
-    genes = list(source["reports"].keys())
+    # Specify genes of interest.
+    genes = [
+        #"ENSG00000231925", # TAPBP
+        #"ENSG00000183878", # UTY ... Y-linked analog to KDM6A
+        "ENSG00000147050", # KDM6A ... X-linked analog to UTY <- bimodal
+        #"ENSG00000173110", # HSPA5
+        #"ENSG00000177954", # RPS27
+        #"ENSG00000103723", # AP3B2
+        #"ENSG00000108691", # CCL2
+        #"ENSG00000080371", # RAB21
+        "ENSG00000090376", # IRAK3 ... noticeably bimodal
+        "ENSG00000049130", # KITLG ... KIT ligand, development
+    ]
+
     # Iterate on genes.
     for gene in genes:
+
+        # Read source information from file.
+        source_gene = read_source_distribution_gene(
+            gene=gene,
+            dock=dock
+        )
         # Access information.
-        name = source["reports"][gene]["name"]
-        # Specify directories and files.
-        path_report = os.path.join(
-            path_plot, name
+        data_gene_persons_signals = (
+            source_gene["report_aggregation"]["data_gene_persons_signals"]
         )
-        utility.confirm_path_directory(path_report)
 
-        # Create figures.
-        figure_real = plot_distribution_histogram(
-            series=source["reports"][gene]["abundances_real"],
-            name="",
-            bin_method="count",
-            bin_count=50,
-            label_bins="Bins",
-            label_counts="Counts",
+        # Create charts for the gene.
+        path_gene = os.path.join(path_distribution, gene)
+        utility.confirm_path_directory(path_gene)
+        plot_charts_distribution_gene(
+            gene=gene,
+            data_gene_persons_signals=data_gene_persons_signals,
+            genes_scores_permutations=(
+                source["scores_permutations_availability"]
+            ),
             fonts=fonts,
             colors=colors,
-            line=False,
-            position=0,
-            text="",
-        )
-        # Specify directories and files.
-        file = ("abundance_distribution_real.svg")
-        path_file = os.path.join(path_report, file)
-        # Write figure.
-        write_figure(
-            path=path_file,
-            figure=figure_real
+            path=path_gene
         )
 
-        figure_shuffle = plot_distribution_histogram(
-            series=source["reports"][gene]["abundances_shuffle"],
-            name="",
-            bin_method="count",
-            bin_count=50,
-            label_bins="Bins",
-            label_counts="Counts",
-            fonts=fonts,
-            colors=colors,
-            line=False,
-            position=0,
-            text="",
-        )
-        # Specify directories and files.
-        file = ("abundance_distribution_shuffle.svg")
-        path_file = os.path.join(path_report, file)
-        # Write figure.
-        write_figure(
-            path=path_file,
-            figure=figure_shuffle
-        )
-
-        for type in ["coefficient", "dip", "mixture", "combination"]:
-            print(source["reports"][gene]["scores_distributions"][type]["score"])
-            # Create figure.
-            figure_score = plot_distribution_histogram(
-                series=source["reports"][gene]["scores_distributions"][type]["distribution"],
-                name="",
-                bin_method="count",
-                bin_count=50,
-                label_bins="Bins",
-                label_counts="Counts",
-                fonts=fonts,
-                colors=colors,
-                line=True,
-                position=source["reports"][gene]["scores_distributions"][type]["score"],
-                text="",
-            )
-            # Specify directories and files.
-            file = ("score_distribution_" + type + ".svg")
-            path_file = os.path.join(path_report, file)
-            # Write figure.
-            write_figure(
-                path=path_file,
-                figure=figure_score
-            )
+        pass
 
     pass
 
@@ -1595,8 +1673,9 @@ def execute_procedure(dock=None):
 
     #plot_charts_analysis(dock=dock)
     #plot_charts_sample(dock=dock)
-    plot_charts_tissue(dock=dock)
+    #plot_charts_tissue(dock=dock)
     #plot_charts_restriction(dock=dock)
+    plot_charts_distribution(dock=dock)
 
     pass
 
