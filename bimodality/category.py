@@ -738,7 +738,7 @@ def evaluate_variance_by_binary_groups(
 # Regression
 
 
-def evaluate_correlation_by_linearity(
+def evaluate_correlation_by_linearity_separate(
     dependence=None,
     independence=None,
     threshold=None,
@@ -747,6 +747,9 @@ def evaluate_correlation_by_linearity(
     """
     Evaluates the correlation between a dependent and independent variable by
     linear regression.
+
+    Returns a single probability value. Combines p-values for multiple
+    independent variables.
 
     Description of formats for StatsModels...
 
@@ -843,6 +846,111 @@ def evaluate_correlation_by_linearity(
     return probability
 
 
+# TODO:
+# introduce a constant for the intercept
+def evaluate_correlation_by_linearity_together(
+    dependence=None,
+    independence=None,
+    threshold=None,
+    intercept=None,
+    data=None
+):
+    """
+    Evaluates the correlation between a dependent and independent variable by
+    linear regression.
+
+    Returns a list of probability values for all independent variables.
+
+    Description of formats for StatsModels...
+
+    Format of dependent variable is a vector of scalar values.
+    [1.3, 1.5, 1.2, 1.0, 1.7, 1.5, 1.9, 1.1, 1.3, 1.4]
+
+    Format of independent variable is a matrix, a vector of observations with
+    each observation a vector of scalar values.
+    StatsModels requires an intercept.
+    [
+        [1.3, 5.2, 1.0],
+        [1.5, 5.1, 1.0],
+        [1.2, 5.5, 1.0],
+        ...
+    ]
+
+    Description of formats for SKLearn...
+
+    Format of dependent variable is an array of observations, and each
+    observation is an array of features.
+    [
+        [1.3],
+        [1.5],
+        [1.2],
+        ...
+    ]
+
+    arguments:
+        dependence (str): name of dependent variable
+        independence (list<str>): name of independent variable
+        threshold (float): minimal count of valid observations to perform
+            regression
+        intercept (bool): whether to introduce a constant for intercept
+        data (object): Pandas data frame of values across binary groups
+
+    raises:
+
+    returns:
+        (float): probability value from coefficients of the regression
+
+    """
+
+    if False:
+        # Define regression.
+        regression = LinearRegression(
+            fit_intercept=True,
+            normalize=False,
+            copy_X=True,
+            n_jobs=None
+        ).fit(
+            values_independence,
+            values_dependence,
+            sample_weight=None
+        )
+        score = regression.score(
+            values_independence,
+            values_dependence,
+            sample_weight=None
+        )
+
+    # Organize data.
+    # Preserve observation association (bindings) between values of dependent
+    # and independent variables.
+    # Remove observations with any missing values.
+    columns = copy.deepcopy(independence)
+    columns.append(dependence)
+    data = data.loc[ :, columns]
+    data.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+    # Determine whether data have sufficient observations for analysis.
+    if data.shape[0] > threshold:
+        # Access values of dependent and independent variables.
+        values_dependence = data[dependence].values
+        values_independence = data.loc[ :, independence].values
+        #values_independence = statsmodels.api.add_constant(values_independence)
+        # Define model.
+        model = statsmodels.api.OLS(values_dependence, values_independence)
+        report = model.fit()
+        #print(report.summary())
+        #print(dir(report))
+        probabilities = report.pvalues
+    else:
+        probabilities = list(itertools.repeat(float("nan"), len(independence)))
+    return probabilities
+
+
+
+
 ##########
 # Organization and evaluation
 
@@ -888,11 +996,12 @@ def evaluate_gene_distribution_covariance(
     # Evaluate covariance by correlation.
 
     # Evaluate covariance by regression.
-    regression = evaluate_gene_distribution_regression(
+    regression = evaluate_gene_distribution_regression_together(
         gene=gene,
         dependence="value",
         tissues=tissues,
         threshold_proportion=0.25,
+        combination="minimum",
         data_persons_signals_groups=data_persons_signals_groups,
     )
 
@@ -909,15 +1018,15 @@ def evaluate_gene_distribution_covariance(
     information = {
         "category_tissue": category["tissue"],
         "category_sex": category["sex"],
-        "regression_cross": regression["cross"],
+        "regression_ancestry": regression["ancestry"],
         "regression_sex": regression["sex"],
         "regression_age": regression["age"],
         "regression_body": regression["body"],
-        "regression_ancestry": regression["ancestry"],
-        "regression_tissue": regression["tissue"],
-        "regression_hardiness": regression["hardiness"],
         "regression_season": regression["season"],
+        "regression_hardiness": regression["hardiness"],
         "regression_delay": regression["delay"],
+        "regression_correlation": regression["correlation"],
+        "regression_tissue": regression["tissue"],
     }
 
     # Return information.
@@ -988,7 +1097,106 @@ def evaluate_gene_distribution_category(
     return information
 
 
-def evaluate_gene_distribution_regression(
+def evaluate_gene_distribution_regression_together(
+    gene=None,
+    dependence=None,
+    tissues=None,
+    threshold_proportion=None,
+    combination=None,
+    data_persons_signals_groups=None,
+):
+    """
+    Evaluates a gene's distribution of signals across persons by multiple
+    factors.
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process
+        dependence (str): identifier of dependent variable
+        tissues (list<str>): identifiers of tissues
+        threshold_proportion (float): minimal proportion of persons for
+            inclusion of a group in analyses
+        combination (str): method by which to combine probabilities of multiple
+            covariates, either "combination" or "minimum"
+        data_persons_signals_groups (object): Pandas data frame of a gene's
+            aggregate pan-tissue signals across persons with persons's
+            attributes and groups
+
+    raises:
+
+    returns:
+        (dict): information about gene's distribution and categories
+
+    """
+
+    # Determine minimal count of persons for inclusion of a group in
+    # analyses.
+    count_persons = data_persons_signals_groups.shape[0]
+    threshold_count = threshold_proportion * count_persons
+
+    # Regression
+
+    # Signals versus mean tissue-tissue correlation
+    if dependence == "value":
+        probabilities = evaluate_correlation_by_linearity_together(
+            dependence=dependence,
+            independence=[
+                "ancestry_1", "ancestry_2", "ancestry_3", # x1, x2, x3,
+                "female", # x4
+                "age", # x5
+                "body", # x6
+                "season", # x7
+                "hardiness", # x8
+                "delay", # x9
+                "correlation", # x10
+                *tissues, # x11 ...
+            ],
+            threshold=threshold_count,
+            intercept=True,
+            data=data_persons_signals_groups,
+        )
+    elif dependence == "correlation":
+        probabilities = evaluate_correlation_by_linearity(
+            dependence=dependence,
+            independence=["value"],
+            threshold=threshold_count,
+            data=data_persons_signals_groups,
+        )
+
+    # Determine combination probabilities.
+    if combination == "combination":
+        # Combine probabilities by Stouffer's method.
+        ancestry = scipy.stats.combine_pvalues(
+            probabilities[0:3],
+            method="stouffer",
+            weights=None,
+        )[1]
+        tissue = scipy.stats.combine_pvalues(
+            probabilities[10:],
+            method="stouffer",
+            weights=None,
+        )[1]
+    elif combination == "minimum":
+        # Take the minimal probability.
+        ancestry = min(probabilities[0:3])
+        tissue = min(probabilities[10:])
+
+    # Compile information.
+    information = {
+        "ancestry": ancestry,
+        "sex": probabilities[3],
+        "age": probabilities[4],
+        "body": probabilities[5],
+        "season": probabilities[6],
+        "hardiness": probabilities[7],
+        "delay": probabilities[8],
+        "correlation": probabilities[9],
+        "tissue": tissue,
+    }
+    # Return information.
+    return information
+
+
+def evaluate_gene_distribution_regression_separate(
     gene=None,
     dependence=None,
     tissues=None,
@@ -1175,7 +1383,11 @@ def evaluate_gene_categories_method(
         )
     )
     # TODO:
-    # Calculate principal components on binary values for tissue selection
+    # Calculate principal components on binary values for tissue selection.
+    # Observations are across persons.
+    # Features are across tissues available for each person.
+    # Values could be signals for each tissue, or they could be binary
+    # variables to indicate availability for each person.
 
     # Organize information about gene's signals across persons and groups.
     data_persons_signals_groups = organize_persons_signals_groups(
@@ -1192,6 +1404,8 @@ def evaluate_gene_categories_method(
         data_persons_signals_groups=data_persons_signals_groups,
     )
 
+    #print(data_persons_signals_groups_binary)
+
     # Evaluate gene's distribution by covariates.
     report = evaluate_gene_distribution_covariance(
         gene=gene,
@@ -1207,7 +1421,6 @@ def evaluate_gene_categories_method(
         tissues_mean=tissues_mean,
         tissues_median=tissues_median,
     )
-
 
     # Compile information.
     information = {
@@ -1277,6 +1490,7 @@ def evaluate_gene_categories(
     return information
 
 
+# This function drives iteration across genes. It is now obsolete.
 def evaluate_genes_categories(
     genes=None,
     data_samples_tissues_persons=None,
@@ -1484,6 +1698,8 @@ def read_collect_genes_reports(
         inplace=True
     )
 
+    # Report genes with distributions dependent on each covariate.
+
     # Specify directories and files.
     path_data = os.path.join(path_category, ("data_" + method + ".tsv"))
 
@@ -1604,8 +1820,8 @@ def execute_procedure_local(dock=None):
         "ENSG00000183878", # UTY ... Y-linked analog to KDM6A
     ]
     #report = pool.map(execute_procedure_gene, genes_check)
-    #report = pool.map(execute_procedure_gene, source["genes"][0:100])
-    report = pool.map(execute_procedure_gene, source["genes"])
+    report = pool.map(execute_procedure_gene, source["genes"][0:100])
+    #report = pool.map(execute_procedure_gene, source["genes"])
 
     # Pause procedure.
     time.sleep(5.0)

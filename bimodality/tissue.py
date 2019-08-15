@@ -270,6 +270,17 @@ def calculate_principal_components(
     """
     Calculates the principal components.
 
+    Format of data should have features across rows and observations across
+    columns.
+
+    This function transposes the data to have observations across rows and
+    features across columns.
+
+    This function then transforms the data frame to a matrix.
+
+    This matrix has observations across dimension zero and features across
+    dimension one.
+
     arguments:
         data (object): Pandas data frame of signals with features across rows
             and observations across columns
@@ -286,8 +297,12 @@ def calculate_principal_components(
     # Organize features (genes) across columns and instances (samples) across
     # rows.
     data = data.transpose(copy=True)
+    print("data after transpose")
+    print(data)
     # Organize data as an array of arrays.
     matrix = data.to_numpy()
+    print("data matrix")
+    print(matrix)
     # Execute principle component analysis.
     pca = sklearn.decomposition.PCA(n_components=components)
     #report = pca.fit_transform(matrix)
