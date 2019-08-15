@@ -937,18 +937,28 @@ def evaluate_correlation_by_linearity_together(
         # Access values of dependent and independent variables.
         values_dependence = data[dependence].values
         values_independence = data.loc[ :, independence].values
+
+        # https://stackoverflow.com/questions/38836465/how-to-get-the-regression-intercept-using-statsmodels-api
+
+        values_independence_intercept = statsmodels.api.add_constant(
+            values_independence,
+            prepend=False,
+        )
+
         #values_independence = statsmodels.api.add_constant(values_independence)
         # Define model.
-        model = statsmodels.api.OLS(values_dependence, values_independence)
+        model = statsmodels.api.OLS(
+            values_dependence, values_independence_intercept
+        )
         report = model.fit()
         #print(report.summary())
         #print(dir(report))
         probabilities = report.pvalues
     else:
-        probabilities = list(itertools.repeat(float("nan"), len(independence)))
+        probabilities = list(
+            itertools.repeat(float("nan"), len(values_independence_intercept))
+        )
     return probabilities
-
-
 
 
 ##########
@@ -1171,14 +1181,14 @@ def evaluate_gene_distribution_regression_together(
             weights=None,
         )[1]
         tissue = scipy.stats.combine_pvalues(
-            probabilities[10:],
+            probabilities[10:-1],
             method="stouffer",
             weights=None,
         )[1]
     elif combination == "minimum":
         # Take the minimal probability.
         ancestry = min(probabilities[0:3])
-        tissue = min(probabilities[10:])
+        tissue = min(probabilities[10:-1])
 
     # Compile information.
     information = {
@@ -1816,12 +1826,12 @@ def execute_procedure_local(dock=None):
     # Iterate on genes.
     genes_check = [
         "ENSG00000231925", # TAPBP ... tapasin binding protein
-        "ENSG00000147050", # KDM6A ... X-linked analog to UTY
-        "ENSG00000183878", # UTY ... Y-linked analog to KDM6A
+        #"ENSG00000147050", # KDM6A ... X-linked analog to UTY
+        #"ENSG00000183878", # UTY ... Y-linked analog to KDM6A
     ]
     #report = pool.map(execute_procedure_gene, genes_check)
-    report = pool.map(execute_procedure_gene, source["genes"][0:100])
-    #report = pool.map(execute_procedure_gene, source["genes"])
+    #report = pool.map(execute_procedure_gene, source["genes"][0:100])
+    report = pool.map(execute_procedure_gene, source["genes"])
 
     # Pause procedure.
     time.sleep(5.0)
