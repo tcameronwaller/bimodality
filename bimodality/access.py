@@ -40,6 +40,9 @@ import utility
 # Functionality
 
 
+# TODO: update to version 8 of GTEx
+
+
 def define_source():
     """
     Defines and translates names of files for source data
@@ -57,73 +60,74 @@ def define_source():
     return {
         "description_sample": {
             "path": (
-                "https://storage.googleapis.com/gtex_analysis_v7/annotations/"
+                "https://storage.googleapis.com/gtex_analysis_v8/annotations/"
             ),
-            "name": ("GTEx_Analysis_v7_Annotations_SampleAttributesDD.xlsx"),
+            "name": ("GTEx_Analysis_v8_Annotations_SampleAttributesDD.xlsx"),
             "suffix": "xlsx",
             "compression": False,
         },
         "description_person": {
             "path": (
-                "https://storage.googleapis.com/gtex_analysis_v7/annotations/"
+                "https://storage.googleapis.com/gtex_analysis_v8/annotations/"
             ),
-            "name": ("GTEx_Analysis_v7_Annotations_SubjectPhenotypesDD.xlsx"),
+            "name": ("GTEx_Analysis_v8_Annotations_SubjectPhenotypesDD.xlsx"),
             "suffix": "xlsx",
             "compression": False,
         },
         "attribute_sample": {
             "path": (
-                "https://storage.googleapis.com/gtex_analysis_v7/annotations/"
+                "https://storage.googleapis.com/gtex_analysis_v8/annotations/"
             ),
-            "name": ("GTEx_v7_Annotations_SampleAttributesDS.txt"),
+            "name": ("GTEx_Analysis_v8_Annotations_SampleAttributesDS.txt"),
             "suffix": "txt",
             "compression": False,
         },
         "attribute_person": {
             "path": (
-                "https://storage.googleapis.com/gtex_analysis_v7/annotations/"
+                "https://storage.googleapis.com/gtex_analysis_v8/annotations/"
             ),
-            "name": ("GTEx_v7_Annotations_SubjectPhenotypesDS.txt"),
+            "name": ("GTEx_Analysis_v8_Annotations_SubjectPhenotypesDS.txt"),
             "suffix": "txt",
             "compression": False,
         },
         "count_gene": {
             "path": (
-                "https://storage.googleapis.com/gtex_analysis_v7/rna_seq_data/"
+                "https://storage.googleapis.com/gtex_analysis_v8/rna_seq_data/"
             ),
             "name": (
-                "GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_reads.gct.gz"
+                "GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_reads.gct.gz"
             ),
             "suffix": "gct.gz",
             "compression": True,
         },
         "signal_gene": {
             "path": (
-                "https://storage.googleapis.com/gtex_analysis_v7/rna_seq_data/"
+                "https://storage.googleapis.com/gtex_analysis_v8/rna_seq_data/"
             ),
             "name": (
-                "GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_tpm.gct.gz"
+                "GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_tpm.gct.gz"
             ),
             "suffix": "gct.gz",
             "compression": True,
         },
         "annotation_gene_gtex": {
             "path": (
-                "https://storage.googleapis.com/gtex_analysis_v7/reference/"
+                "https://storage.googleapis.com/gtex_analysis_v8/reference/"
             ),
             "name": (
-                "gencode.v19.genes.v7.patched_contigs.gtf"
+                "gencode.v26.GRCh38.genes.gtf"
             ),
             "suffix": "gtf",
             "compression": False,
         },
+        # Update on 3 September 2019
         "annotation_gene_gencode": {
             "path": (
                 "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/" +
-                "release_29/"
+                "release_31/"
             ),
             "name": (
-                "gencode.v29.annotation.gtf.gz"
+                "gencode.v31.annotation.gtf.gz"
             ),
             "suffix": "gtf.gz",
             "compression": True,

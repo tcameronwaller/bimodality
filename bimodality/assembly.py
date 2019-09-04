@@ -365,6 +365,31 @@ def translate_race(value=None):
     return race
 
 
+def translate_hardiness(value=None):
+    """
+    Translates annotations of hardiness.
+
+    arguments:
+        value (int): Annotation of hardiness
+
+    raises:
+
+    returns:
+        (str): Name of hardiness
+
+    """
+
+    # The original encoding represents ventilator cases as 0.
+    # If persons were on a ventilator, then this treatment implies that they
+    # had a long, slow death.
+    # Recode the ventilator cases as 5, the most exteme value.
+
+    if value == 0:
+        return 5
+    else:
+        return value
+
+
 def translate_season(value=None):
     """
     Translates annotations of season of death.
@@ -565,9 +590,13 @@ def collect_samples_tissues_persons(
 
         # ...
         body = data_person_attribute_private.at[person, "BMI"]
+
         # TODO: other variables exist for alcohol, smoking, non-prescription drugs, etc...
         toxicity = data_person_attribute_private.at[person, "MHTXCEXP"]
-        hardiness = data_person_attribute_private.at[person, "DTHHRDY"]
+
+        hardiness_raw = data_person_attribute_private.at[person, "DTHHRDY"]
+        hardiness = translate_hardiness(value=hardiness_raw)
+
         season_raw = data_person_attribute_private.at[person, "DTHSEASON"]
         season = translate_season(value=season_raw)
         # Duration of time in minutes between death and procedure start.

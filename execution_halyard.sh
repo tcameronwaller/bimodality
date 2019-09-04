@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# cp -r /media/tcameronwaller/primary/data/local/work/project/2019_bimodality/dock_template /home/tcameronwaller/dock_template
+# mv /home/tcameronwaller/dock_template /home/tcameronwaller/dock
+
+
 #chmod u+x script.sh
 
 # Execution
@@ -40,7 +44,7 @@ echo "Now set to call routine and procedures."
 
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access
-#python3 interface.py main --dock $path_dock --assembly
+python3 interface.py main --dock $path_dock --assembly
 #python3 interface.py main --dock $path_dock --selection
 
 # -- nonessential, exploratory procedures
@@ -70,7 +74,7 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --combination
 #python3 interface.py main --dock $path_dock --rank
 
-python3 interface.py main --dock $path_dock --category
+#python3 interface.py main --dock $path_dock --category
 
 # TODO: integration procedure should bring together gene ranks from bimodality, coefficients and p-values from category, and gene identifiers
 
