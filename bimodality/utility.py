@@ -63,10 +63,8 @@ def convert_string_low_alpha_num(characters):
     return characters_novel
 
 
-def confirm_path_directory(path=None):
+def create_directory(path=None):
     """
-    Confirms that a path to a directory exists.
-
     Creates a directory if it does not already exist.
 
     arguments:

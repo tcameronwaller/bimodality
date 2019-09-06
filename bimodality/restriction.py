@@ -575,7 +575,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_restriction = os.path.join(dock, "restriction")
-    utility.confirm_path_directory(path_restriction)
+    utility.create_directory(path_restriction)
     path_gene_report = os.path.join(
         path_restriction, "gene_report.pickle"
     )

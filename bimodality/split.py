@@ -224,7 +224,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_split = os.path.join(dock, "split")
-    utility.confirm_path_directory(path_split)
+    utility.create_directory(path_split)
     path_genes = os.path.join(
         path_split, "genes.txt"
     )
@@ -260,7 +260,7 @@ def write_product(dock=None, information=None):
     # Write separate files for genes.
     # Specify directories and files.
     path_collection = os.path.join(path_split, "collection")
-    utility.confirm_path_directory(path_collection)
+    utility.create_directory(path_collection)
     # Iterate on genes.
     for gene in information["genes"]:
         # Specify directories and files.

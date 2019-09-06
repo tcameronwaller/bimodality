@@ -401,7 +401,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_organization = os.path.join(dock, "organization")
-    utility.confirm_path_directory(path_organization)
+    utility.create_directory(path_organization)
     path_gene_signal = os.path.join(
         path_organization, "data_gene_persons_tissues_signals.pickle"
     )

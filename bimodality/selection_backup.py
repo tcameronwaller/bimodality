@@ -612,7 +612,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_selection = os.path.join(dock, "selection")
-    utility.confirm_path_directory(path_selection)
+    utility.create_directory(path_selection)
     path_tissues = os.path.join(path_selection, "tissues.pickle")
     path_patients = os.path.join(path_selection, "patients.pickle")
     path_tissues_samples = os.path.join(

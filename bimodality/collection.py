@@ -302,7 +302,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_collection = os.path.join(dock, "collection")
-    utility.confirm_path_directory(path_collection)
+    utility.create_directory(path_collection)
     path_scores_shuffles_imputation = os.path.join(
         path_collection, "genes_scores_permutations_imputation.pickle"
     )

@@ -721,7 +721,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_analysis = os.path.join(dock, "analysis")
-    utility.confirm_path_directory(path_analysis)
+    utility.create_directory(path_analysis)
     path_probabilities = os.path.join(
         path_analysis, "data_genes_probabilities.pickle"
     )
@@ -829,11 +829,11 @@ def write_product_reports(dock=None, information=None):
 
     # Specify directories and files.
     path_analysis = os.path.join(dock, "analysis")
-    utility.confirm_path_directory(path_analysis)
+    utility.create_directory(path_analysis)
     path_reports = os.path.join(path_analysis, "reports")
     # Remove previous files since they change from run to run.
     utility.remove_directory(path=path_reports)
-    utility.confirm_path_directory(path_reports)
+    utility.create_directory(path_reports)
     # Iterate on reports.
     for gene in information["genes_report"]:
         # Access information.

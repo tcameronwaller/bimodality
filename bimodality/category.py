@@ -1596,8 +1596,8 @@ def initialize_directories(
 
     utility.remove_directory(path=path_category)
 
-    utility.confirm_path_directory(path_category)
-    utility.confirm_path_directory(path_collection)
+    utility.create_directory(path_category)
+    utility.create_directory(path_collection)
 
     pass
 
@@ -1626,7 +1626,7 @@ def write_product(
     path_category = os.path.join(dock, "category")
     path_collection = os.path.join(path_category, "collection")
     path_gene = os.path.join(path_collection, gene)
-    utility.confirm_path_directory(path_gene)
+    utility.create_directory(path_gene)
 
     path_imputation = os.path.join(path_gene, "report_imputation.pickle")
     path_availability = os.path.join(path_gene, "report_availability.pickle")

@@ -497,13 +497,13 @@ def write_product(gene=None, dock=None, information=None):
 
     # Specify directories and files.
     path_distribution = os.path.join(dock, "distribution")
-    utility.confirm_path_directory(path_distribution)
+    utility.create_directory(path_distribution)
     path_gene = os.path.join(path_distribution, gene)
-    utility.confirm_path_directory(path_gene)
+    utility.create_directory(path_gene)
     path_imputation = os.path.join(path_gene, "imputation")
-    utility.confirm_path_directory(path_imputation)
+    utility.create_directory(path_imputation)
     path_availability = os.path.join(path_gene, "availability")
-    utility.confirm_path_directory(path_availability)
+    utility.create_directory(path_availability)
 
     path_report_organization = os.path.join(
         path_gene, "report_organization.pickle"

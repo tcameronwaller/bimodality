@@ -889,7 +889,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_tissue = os.path.join(dock, "tissue")
-    utility.confirm_path_directory(path_tissue)
+    utility.create_directory(path_tissue)
     path_gene_factor = os.path.join(
         path_tissue, "data_gene_signal_factor.pickle"
     )
@@ -960,11 +960,11 @@ def write_product_sets(dock=None, information=None):
 
     # Specify directories and files.
     path_tissue = os.path.join(dock, "tissue")
-    utility.confirm_path_directory(path_tissue)
+    utility.create_directory(path_tissue)
     path_sets = os.path.join(path_tissue, "sets")
     # Remove previous files since they change from run to run.
     utility.remove_directory(path=path_sets)
-    utility.confirm_path_directory(path_sets)
+    utility.create_directory(path_sets)
     # Iterate on sets.
     for set in information["sets"]:
         # Access information.

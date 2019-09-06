@@ -567,7 +567,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_selection = os.path.join(dock, "selection")
-    utility.confirm_path_directory(path_selection)
+    utility.create_directory(path_selection)
     path_gene_count = os.path.join(
         path_selection, "data_gene_count.pickle"
     )

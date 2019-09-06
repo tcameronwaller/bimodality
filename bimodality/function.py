@@ -93,7 +93,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_analysis = os.path.join(dock, "analysis")
-    utility.confirm_path_directory(path_analysis)
+    utility.create_directory(path_analysis)
     path_probabilities = os.path.join(
         path_analysis, "genes_probabilities.pickle"
     )

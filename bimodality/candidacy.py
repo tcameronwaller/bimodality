@@ -706,21 +706,21 @@ def create_directories(
     path_availability_signal = os.path.join(path_availability, "signal")
     path_availability_tissue = os.path.join(path_availability, "tissue")
 
-    utility.confirm_path_directory(path_candidacy)
-    utility.confirm_path_directory(path_count)
-    utility.confirm_path_directory(path_all)
+    utility.create_directory(path_candidacy)
+    utility.create_directory(path_count)
+    utility.create_directory(path_all)
 
-    utility.confirm_path_directory(path_imputation)
-    utility.confirm_path_directory(path_imputation_all)
-    utility.confirm_path_directory(path_imputation_population)
-    utility.confirm_path_directory(path_imputation_signal)
-    utility.confirm_path_directory(path_imputation_tissue)
+    utility.create_directory(path_imputation)
+    utility.create_directory(path_imputation_all)
+    utility.create_directory(path_imputation_population)
+    utility.create_directory(path_imputation_signal)
+    utility.create_directory(path_imputation_tissue)
 
-    utility.confirm_path_directory(path_availability)
-    utility.confirm_path_directory(path_availability_all)
-    utility.confirm_path_directory(path_availability_population)
-    utility.confirm_path_directory(path_availability_signal)
-    utility.confirm_path_directory(path_availability_tissue)
+    utility.create_directory(path_availability)
+    utility.create_directory(path_availability_all)
+    utility.create_directory(path_availability_population)
+    utility.create_directory(path_availability_signal)
+    utility.create_directory(path_availability_tissue)
 
     pass
 
@@ -750,16 +750,16 @@ def write_product(
 
     # Specify directories and files.
     path_candidacy = os.path.join(dock, "candidacy")
-    #utility.confirm_path_directory(path_candidacy)
+    #utility.create_directory(path_candidacy)
     path_method = os.path.join(path_candidacy, method)
-    #utility.confirm_path_directory(path_method)
+    #utility.create_directory(path_method)
 
     if (method == "count") or (method == "all"):
         path_gene = os.path.join(path_method, (gene))
         pass
     else:
         path_type = os.path.join(path_method, type)
-        #utility.confirm_path_directory(path_type)
+        #utility.create_directory(path_type)
         path_gene = os.path.join(path_type, (gene))
         pass
 

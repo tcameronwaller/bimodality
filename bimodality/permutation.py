@@ -368,7 +368,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_permutation = os.path.join(dock, "permutation")
-    utility.confirm_path_directory(path_permutation)
+    utility.create_directory(path_permutation)
     path_permutations = os.path.join(
         path_permutation, "permutations.pickle"
     )

@@ -132,6 +132,35 @@ def read_source(dock=None):
 # and tissues.
 
 
+def read_gene_signal_samples(path=None):
+    """
+    Reads and extracts sample identifiers from genes' signals.
+
+    arguments:
+        path (str): path to file of genes' signals across samples
+
+    raises:
+
+    returns:
+        (list<str>): list of sample identifiers
+
+    """
+
+    # Read lines for samples with genes' signals.
+    lines = utility.read_file_text_lines(
+        path_file=path,
+        start=2,
+        stop=3,
+    )
+    line = lines[0]
+    # Split line's content by delimiter.
+    headers = line.split("\t")
+    headers.remove("Name")
+    headers.remove("Description")
+    samples = headers
+    return samples
+
+
 def read_source_sample(dock=None):
     """
     Reads and organizes source information from file.
@@ -177,6 +206,7 @@ def read_source_sample(dock=None):
     # TODO: include translation for person attributes
 
     path_gene_signal = os.path.join(path_access, "signal_gene.gct")
+
     # Read information from file.
     #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
     data_person_attribute = pandas.read_csv(
@@ -229,18 +259,8 @@ def read_source_sample(dock=None):
     )
 
     # Extract identifiers of samples with measurements for genes.
-    # Read lines for samples with genes' signals.
-    lines = utility.read_file_text_lines(
-        path_file=path_gene_signal,
-        start=2,
-        stop=3,
-    )
-    line = lines[0]
-    # Split line's content by delimiter.
-    headers = line.split("\t")
-    headers.remove("Name")
-    headers.remove("Description")
-    samples = headers
+    samples = read_gene_signal_samples(path=path_gene_signal)
+
     # Compile and return information.
     return {
         "data_person_attribute": data_person_attribute,
@@ -712,8 +732,13 @@ def organize_samples_tissues_persons(
     print(data_samples_tissues_persons.iloc[0:10, :])
     print(data_samples_tissues_persons.shape)
 
-    # Return information.
-    return data_samples_tissues_persons
+    # Compile information.
+    information = {
+        "data_samples_tissues_persons": data_samples_tissues_persons,
+    }
+
+    #Write product information to file.
+    write_product_sample(dock=dock, information=information)
 
 
 ##########
@@ -775,7 +800,7 @@ def summarize_raw_data_gene_annotation(
 
     # Summarize table of genes' annotations.
     utility.print_terminal_partition(level=2)
-    print("Summary of table of genes' annotations from GENCODE version 29.")
+    print("Summary of table of genes' annotations from GENCODE version 31.")
     print(data_gene_annotation)
     print(data_gene_annotation.iloc[0:10, 0:10])
 
@@ -928,8 +953,17 @@ def organize_genes_annotations(
     for gene in genes_redundant:
         print(data_gene_annotation.loc[gene])
         print(data_gene_annotation.loc[gene, "gene_name"])
-    # Return information.
-    return data_gene_annotation
+
+    # Compile information.
+    information = {
+        "data_gene_annotation": data_gene_annotation,
+    }
+
+    # Collect garbage to clear memory.
+    gc.collect()
+
+    #Write product information to file.
+    write_product_gene_annotation(dock=dock, information=information)
 
 
 ##########
@@ -1088,6 +1122,13 @@ def convert_data_types(data=None, type=None):
         # data.select_dtypes(include=["float"])
         data_type = data.apply(pandas.to_numeric, downcast="float")
 
+    # Determine minimal and maximal values.
+    maximum = data.values.max()
+    minimum = data.values.min()
+    utility.print_terminal_partition(level=3)
+    print("Maximum: " + str(maximum))
+    print("Minimum: " + str(minimum))
+
     # Optimize data types.
     # Store genes' signals as numeric values of type float in 32 bits.
     data_type = data.astype(type)
@@ -1129,23 +1170,53 @@ def organize_genes_counts(
     print("Organization of genes' counts.")
 
     # Organize data with names and indices.
-    data_gene_count = organize_data_axes_indices(
+    data_gene_count_raw = organize_data_axes_indices(
         data=source["data_gene_count"]
     )
 
     # Optimize data types.
     data_gene_count = convert_data_types(
-        data=data_gene_count,
+        data=data_gene_count_raw,
         type="int32"
     )
 
-    # Return information.
-    return data_gene_count
+    # Compile information.
+    information = {
+        "data_gene_count": data_gene_count,
+    }
+
+    # Collect garbage to clear memory.
+    gc.collect()
+
+    #Write product information to file.
+    write_product_gene_count(dock=dock, information=information)
 
 
 
 ##########
 # Organization of genes' signals.
+
+
+def compile_variables_types(
+    variables=None,
+    type=None,
+):
+    """
+    Compiles types of variables.
+
+    arguments:
+        variables (list<str>): identifiers of variables
+        type (str): variable type
+
+    raises:
+
+    returns:
+        (dict<str>): variable types
+
+    """
+
+    types = dict.fromkeys(variables, type)
+    return types
 
 
 def read_source_gene_signal(dock=None):
@@ -1166,12 +1237,28 @@ def read_source_gene_signal(dock=None):
     # Specify directories and files.
     path_access = os.path.join(dock, "access")
     path_gene_signal = os.path.join(path_access, "signal_gene.gct")
+
     # Read information from file.
     #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
+
+    # Extract identifiers of samples with measurements for genes.
+    samples = read_gene_signal_samples(path=path_gene_signal)
+    # Designate variable types to conserve memory.
+    types = compile_variables_types(
+        variables=samples,
+        type="float64",
+    )
+    types_new = {
+        "Name": "str",
+        "Description": "str",
+    }
+    types.update(types_new)
+
     data_gene_signal = pandas.read_csv(
         path_gene_signal,
         sep="\t",
         header=2,
+        dtype=types,
         #nrows=1000,
     )
     # Compile and return information.
@@ -1247,18 +1334,26 @@ def organize_genes_signals(
     print("Organization of genes' signals.")
 
     # Organize data with names and indices.
-    data_gene_signal = organize_data_axes_indices(
+    data_gene_signal_raw = organize_data_axes_indices(
         data=source["data_gene_signal"]
     )
 
     # Optimize data types.
     data_gene_signal = convert_data_types(
-        data=data_gene_signal,
+        data=data_gene_signal_raw,
         type="float32"
     )
 
-    # Return information.
-    return data_gene_signal
+    # Compile information.
+    information = {
+        "data_gene_signal": data_gene_signal
+    }
+
+    # Collect garbage to clear memory.
+    gc.collect()
+
+    #Write product information to file.
+    write_product_gene_signal(dock=dock, information=information)
 
 
 ##########
@@ -1395,7 +1490,7 @@ def associate_samples_persons_tissues(
 # Product.
 
 
-def write_product(dock=None, information=None):
+def write_product_sample(dock=None, information=None):
     """
     Writes product information to file.
 
@@ -1412,21 +1507,12 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_assembly = os.path.join(dock, "assembly")
-    utility.confirm_path_directory(path_assembly)
+    utility.create_directory(path_assembly)
     path_samples_tissues_persons = os.path.join(
         path_assembly, "data_samples_tissues_persons.pickle"
     )
     path_samples_tissues_persons_text = os.path.join(
         path_assembly, "data_samples_tissues_persons.txt"
-    )
-    path_gene_annotation = os.path.join(
-        path_assembly, "data_gene_annotation.pickle"
-    )
-    path_gene_count = os.path.join(
-        path_assembly, "data_gene_count.pickle"
-    )
-    path_gene_signal = os.path.join(
-        path_assembly, "data_gene_signal.pickle"
     )
 
     # Write information to file.
@@ -1440,14 +1526,92 @@ def write_product(dock=None, information=None):
         header=True,
         index=False,
     )
+    pass
+
+
+def write_product_gene_annotation(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_assembly = os.path.join(dock, "assembly")
+    utility.create_directory(path_assembly)
+    path_gene_annotation = os.path.join(
+        path_assembly, "data_gene_annotation.pickle"
+    )
+
+    # Write information to file.
     pandas.to_pickle(
         information["data_gene_annotation"],
         path_gene_annotation
     )
+    pass
+
+
+def write_product_gene_count(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_assembly = os.path.join(dock, "assembly")
+    utility.create_directory(path_assembly)
+    path_gene_count = os.path.join(
+        path_assembly, "data_gene_count.pickle"
+    )
+
+    # Write information to file.
     pandas.to_pickle(
         information["data_gene_count"],
         path_gene_count
     )
+    pass
+
+
+def write_product_gene_signal(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_assembly = os.path.join(dock, "assembly")
+    utility.create_directory(path_assembly)
+    path_gene_signal = os.path.join(
+        path_assembly, "data_gene_signal.pickle"
+    )
+
+    # Write information to file.
     pandas.to_pickle(
         information["data_gene_signal"],
         path_gene_signal
@@ -1491,9 +1655,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize associations of samples to persons and tissues.
-    data_samples_tissues_persons = organize_samples_tissues_persons(
-        dock=dock,
-    )
+    #organize_samples_tissues_persons(dock=dock)
 
     # Collect garbage to clear memory.
     gc.collect()
@@ -1503,9 +1665,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize genes' annotations.
-    data_gene_annotation = organize_genes_annotations(
-        dock=dock,
-    )
+    #organize_genes_annotations(dock=dock)
 
     # Collect garbage to clear memory.
     gc.collect()
@@ -1515,9 +1675,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize genes' counts.
-    data_gene_count = organize_genes_counts(
-        dock=dock,
-    )
+    #organize_genes_counts(dock=dock)
 
     # Collect garbage to clear memory.
     gc.collect()
@@ -1527,9 +1685,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize genes' signals.
-    data_gene_signal = organize_genes_signals(
-        dock=dock,
-    )
+    organize_genes_signals(dock=dock)
 
     # Collect garbage to clear memory.
     gc.collect()
@@ -1537,17 +1693,6 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
     ##################################################
-
-    # Compile information.
-    information = {
-        "data_samples_tissues_persons": data_samples_tissues_persons,
-        "data_gene_annotation": data_gene_annotation,
-        "data_gene_count": data_gene_count,
-        "data_gene_signal": data_gene_signal
-    }
-
-    #Write product information to file.
-    write_product(dock=dock, information=information)
 
     pass
 

@@ -721,7 +721,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_rank = os.path.join(dock, "rank")
-    utility.confirm_path_directory(path_rank)
+    utility.create_directory(path_rank)
     path_rank_availability = os.path.join(
         path_rank, "data_gene_rank_availability.pickle"
     )

@@ -399,7 +399,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_combination = os.path.join(dock, "combination")
-    utility.confirm_path_directory(path_combination)
+    utility.create_directory(path_combination)
     path_scores_permutations_imputation = os.path.join(
         path_combination, "genes_scores_permutations_imputation.pickle"
     )

@@ -349,7 +349,7 @@ def report_metrics(
     # Specify directories and files.
     path_metric = os.path.join(dock, "metric")
     path_figure = os.path.join(path_metric, "figure")
-    utility.confirm_path_directory(path_figure)
+    utility.create_directory(path_figure)
     file = (name + "_distribution.svg")
     path_file = os.path.join(path_figure, file)
     # Write figure.
@@ -378,7 +378,7 @@ def write_product(dock=None, information=None):
 
     # Specify directories and files.
     path_organization = os.path.join(dock, "organization")
-    utility.confirm_path_directory(path_organization)
+    utility.create_directory(path_organization)
     path_imputation = os.path.join(
         path_organization, "data_gene_signal_imputation.pickle"
     )
@@ -420,7 +420,7 @@ def execute_procedure(dock=None):
     # Remove previous files.
     # Specify directories and files.
     path_metric = os.path.join(dock, "metric")
-    utility.confirm_path_directory(path_metric)
+    utility.create_directory(path_metric)
     path_figure = os.path.join(path_metric, "figure")
     utility.remove_directory(path=path_figure)
 

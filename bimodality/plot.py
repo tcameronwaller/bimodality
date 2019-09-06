@@ -781,11 +781,11 @@ def plot_charts_distribution(
     colors = define_color_properties()
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
-    utility.confirm_path_directory(path_plot)
+    utility.create_directory(path_plot)
     path_distribution = os.path.join(path_plot, "distribution")
     # Remove previous files since they change from run to run.
     utility.remove_directory(path=path_distribution)
-    utility.confirm_path_directory(path_distribution)
+    utility.create_directory(path_distribution)
     # Read source information from file.
     source = read_source_distribution(dock=dock)
 
@@ -818,7 +818,7 @@ def plot_charts_distribution(
 
         # Create charts for the gene.
         path_gene = os.path.join(path_distribution, gene)
-        utility.confirm_path_directory(path_gene)
+        utility.create_directory(path_gene)
         plot_charts_distribution_gene(
             gene=gene,
             data_gene_persons_signals=data_gene_persons_signals,
@@ -1307,7 +1307,7 @@ def plot_charts_sample(
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     path_sample = os.path.join(path_plot, "sample")
-    utility.confirm_path_directory(path_sample)
+    utility.create_directory(path_sample)
     # Read source information from file.
     source = read_source_sample(dock=dock)
     #source["data_samples"]
@@ -1545,14 +1545,14 @@ def plot_charts_tissue(
     path_plot = os.path.join(dock, "plot")
     path_tissue = os.path.join(path_plot, "tissue")
     utility.remove_directory(path=path_tissue)
-    utility.confirm_path_directory(path_tissue)
+    utility.create_directory(path_tissue)
     # Read source information from file.
     source = read_source_tissue(dock=dock)
 
     # All tissues.
     # Create charts for combinations of principal components.
     path_study = os.path.join(path_tissue, "all")
-    utility.confirm_path_directory(path_study)
+    utility.create_directory(path_study)
     plot_chart_tissue_component(
         data_component=source["data_component_all"],
         data_variance=source["data_variance_all"],
@@ -1565,7 +1565,7 @@ def plot_charts_tissue(
     # Few tissues.
     # Create charts for combinations of principal components.
     path_study = os.path.join(path_tissue, "few")
-    utility.confirm_path_directory(path_study)
+    utility.create_directory(path_study)
     plot_chart_tissue_component(
         data_component=source["data_component_few"],
         data_variance=source["data_variance_few"],
@@ -1633,7 +1633,7 @@ def plot_charts_restriction(
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     path_restriction = os.path.join(path_plot, "restriction")
-    utility.confirm_path_directory(path_restriction)
+    utility.create_directory(path_restriction)
     # Read source information from file.
     source = read_source_restriction(dock=dock)
     # Principal components.
