@@ -4,9 +4,10 @@
 
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
+path_bin="/cellar/users/tcwaller/anaconda3/bin"
 path_user_cellar="/cellar/users/tcwaller"
 path_user_nrnb="/nrnb/users/tcwaller"
-subpath_dock="gtex_genotype/dock"
+subpath_dock="dock"
 subpath_persons="Data/dock/selection/persons.txt"
 subpath_genotype="gtex_genotype/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz"
 path_dock="$path_user_nrnb/$subpath_dock"
@@ -25,10 +26,11 @@ echo "--------------------------------------------------"
 # Echo each command to console.
 set -x
 
+rm -r $path_dock
 mkdir $path_dock
 
 # Only convert data format.
-/cellar/users/tcwaller/anaconda3/bin/plink2 --vcf $path_genotype --out $path_dock/fileset
+#$path_bin/plink2 --vcf $path_genotype --out $path_dock/gtex-8_genotype
 
 # Apply filters and convert data format.
-#/cellar/users/tcwaller/anaconda3/bin/plink2 --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen $path_dock/fileset
+$path_bin/plink2 --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/gtex-8_genotype
