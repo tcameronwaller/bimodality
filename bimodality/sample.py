@@ -56,7 +56,7 @@ def read_source(dock=None):
         path_assembly, "data_gene_annotation.pickle"
     )
     path_gene_signal = os.path.join(
-        path_assembly, "data_gene_signal.pickle"
+        path_assembly, "data_gene_signal.pickle.gz"
     )
     # Read information from file.
     data_samples_tissues_persons = pandas.read_pickle(
@@ -65,7 +65,11 @@ def read_source(dock=None):
     data_gene_annotation = pandas.read_pickle(
         path_gene_annotation
     )
-    data_gene_signal = pandas.read_pickle(path_gene_signal)
+    data_gene_signal = pandas.read_pickle(
+        path=path_gene_signal,
+        compression="gzip",
+    )
+
     # Compile and return information.
     return {
         "data_samples_tissues_persons": data_samples_tissues_persons,

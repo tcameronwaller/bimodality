@@ -574,6 +574,7 @@ def collect_samples_tissues_persons(
         person = extract_gtex_sample_person_identifier(sample=sample)
         sex_raw = data_person_attribute_private.at[person, "SEX"]
         sex = translate_sex(value=sex_raw)
+        age_decade = data_person_attribute.at[person, "AGE"]
         age = data_person_attribute_private.at[person, "AGE"]
         race_raw = data_person_attribute_private.at[person, "RACE"]
         race = translate_race(value=race_raw)
@@ -630,6 +631,7 @@ def collect_samples_tissues_persons(
             "tissue_minor": tissue_minor,
             "person": person,
             "sex": sex,
+            "age_decade": age_decade,
             "age": age,
             "ancestry": ancestry_race,
             "ancestry_1": ancestry_1,
@@ -1123,15 +1125,26 @@ def convert_data_types(data=None, type=None):
         data_type = data.apply(pandas.to_numeric, downcast="float")
 
     # Determine minimal and maximal values.
+    utility.print_terminal_partition(level=3)
+    print("Before down cast type.")
     maximum = data.values.max()
     minimum = data.values.min()
-    utility.print_terminal_partition(level=3)
     print("Maximum: " + str(maximum))
     print("Minimum: " + str(minimum))
+    utility.print_terminal_partition(level=3)
 
     # Optimize data types.
     # Store genes' signals as numeric values of type float in 32 bits.
     data_type = data.astype(type)
+
+    # Determine minimal and maximal values.
+    utility.print_terminal_partition(level=3)
+    print("After down cast type.")
+    maximum = data_type.values.max()
+    minimum = data_type.values.min()
+    print("Maximum: " + str(maximum))
+    print("Minimum: " + str(minimum))
+    utility.print_terminal_partition(level=3)
 
     # Summarize data type and size.
     print("Print technical information about data.")
@@ -1178,6 +1191,12 @@ def organize_genes_counts(
     data_gene_count = convert_data_types(
         data=data_gene_count_raw,
         type="int32"
+    )
+
+    # Remove indices for compatibility with feather file format.
+    data_gene_count.reset_index(
+        level=None,
+        inplace=True
     )
 
     # Compile information.
@@ -1258,7 +1277,7 @@ def read_source_gene_signal(dock=None):
         path_gene_signal,
         sep="\t",
         header=2,
-        dtype=types,
+        #dtype=types,
         #nrows=1000,
     )
     # Compile and return information.
@@ -1342,6 +1361,12 @@ def organize_genes_signals(
     data_gene_signal = convert_data_types(
         data=data_gene_signal_raw,
         type="float32"
+    )
+
+    # Remove indices for compatibility with feather file format.
+    data_gene_signal.reset_index(
+        level=None,
+        inplace=True
     )
 
     # Compile information.
@@ -1578,13 +1603,12 @@ def write_product_gene_count(dock=None, information=None):
     path_assembly = os.path.join(dock, "assembly")
     utility.create_directory(path_assembly)
     path_gene_count = os.path.join(
-        path_assembly, "data_gene_count.pickle"
+        path_assembly, "data_gene_count.feather"
     )
 
     # Write information to file.
-    pandas.to_pickle(
-        information["data_gene_count"],
-        path_gene_count
+    information["data_gene_count"].to_feather(
+        fname=path_gene_count,
     )
     pass
 
@@ -1604,18 +1628,25 @@ def write_product_gene_signal(dock=None, information=None):
 
     """
 
+    # Collect garbage to clear memory.
+    gc.collect()
+
     # Specify directories and files.
     path_assembly = os.path.join(dock, "assembly")
     utility.create_directory(path_assembly)
     path_gene_signal = os.path.join(
-        path_assembly, "data_gene_signal.pickle"
+        path_assembly, "data_gene_signal.feather"
     )
 
     # Write information to file.
-    pandas.to_pickle(
-        information["data_gene_signal"],
-        path_gene_signal
+    information["data_gene_signal"].to_feather(
+        fname=path_gene_signal,
     )
+    #pandas.to_pickle(
+    #    information["data_gene_signal"],
+    #    path=path_gene_signal,
+    #    compression="gzip",
+    #)
     pass
 
 
@@ -1637,6 +1668,10 @@ def execute_procedure(dock=None):
 
     """
 
+    # Remove previous files to avoid version or batch confusion.
+    path_assembly = os.path.join(dock, "assembly")
+    utility.remove_directory(path=path_assembly)
+
     # Memory conservation
     # Data for genes' signals is extensive.
     # Conserve memory.
@@ -1655,7 +1690,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize associations of samples to persons and tissues.
-    #organize_samples_tissues_persons(dock=dock)
+    organize_samples_tissues_persons(dock=dock)
 
     # Collect garbage to clear memory.
     gc.collect()
@@ -1665,7 +1700,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize genes' annotations.
-    #organize_genes_annotations(dock=dock)
+    organize_genes_annotations(dock=dock)
 
     # Collect garbage to clear memory.
     gc.collect()
@@ -1675,7 +1710,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize genes' counts.
-    #organize_genes_counts(dock=dock)
+    organize_genes_counts(dock=dock)
 
     # Collect garbage to clear memory.
     gc.collect()

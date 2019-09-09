@@ -44,8 +44,8 @@ echo "Now set to call routine and procedures."
 
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access
-python3 interface.py main --dock $path_dock --assembly
-#python3 interface.py main --dock $path_dock --selection
+#python3 interface.py main --dock $path_dock --assembly
+python3 interface.py main --dock $path_dock --selection
 
 # -- nonessential, exploratory procedures
 #python3 interface.py main --dock $path_dock --measurement

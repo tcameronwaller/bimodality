@@ -60,10 +60,10 @@ def read_source(dock=None):
         path_assembly, "data_samples_tissues_persons.pickle"
     )
     path_gene_count = os.path.join(
-        path_assembly, "data_gene_count.pickle"
+        path_assembly, "data_gene_count.feather"
     )
     path_gene_signal = os.path.join(
-        path_assembly, "data_gene_signal.pickle"
+        path_assembly, "data_gene_signal.feather"
     )
 
     # Read information from file.
@@ -73,8 +73,12 @@ def read_source(dock=None):
     data_samples_tissues_persons = pandas.read_pickle(
         path_samples_tissues_persons
     )
-    data_gene_count = pandas.read_pickle(path_gene_count)
-    data_gene_signal = pandas.read_pickle(path_gene_signal)
+    data_gene_count = pandas.read_feather(
+        path=path_gene_count
+    )
+    data_gene_signal = pandas.read_feather(
+        path=path_gene_signal,
+    )
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
@@ -82,6 +86,49 @@ def read_source(dock=None):
         "data_gene_count": data_gene_count,
         "data_gene_signal": data_gene_signal,
     }
+
+
+def organize_data_axes_indices(data=None):
+    """
+    Organizes data with names and indices.
+
+    arguments:
+        data (object): Pandas data frame of genes' signals for all samples.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals for all samples.
+
+    """
+
+    # The Pandas function to rename axis copies data deeply by default and
+    # requires a lot of memory.
+    utility.print_terminal_partition(level=2)
+
+    # Organize data.
+
+    print(data.iloc[0:10, 0:10])
+    print("Organize data with names and indices.")
+    data.set_index(
+        "gene",
+        drop=True,
+        inplace=True,
+    )
+    data.rename_axis(
+        index="gene",
+        axis="index",
+        copy=False,
+        inplace=True,
+    )
+    data.rename_axis(
+        columns="sample",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    print(data.iloc[0:10, 0:10])
+    return data
 
 
 # Summary.
@@ -134,16 +181,38 @@ def summarize_samples_genes(
         data_samples_tissues_persons=data_samples_tissues_persons,
         data_gene_sample=data_transposition,
     )
-    groups = data_factor.groupby(level=["tissue_major"])
-    print("Count of major tissues: " + str(len(groups)))
-    for name, group in groups:
-        print(name)
+
+    groups = data_factor.groupby(level=["person"])
+    print("Count of persons: " + str(len(groups)))
 
     groups = data_factor.groupby(level=["tissue_minor"])
     print("Count of minor tissues: " + str(len(groups)))
 
-    groups = data_factor.groupby(level=["person"])
-    print("Count of persons: " + str(len(groups)))
+    groups = data_factor.groupby(level=["tissue_major"])
+    print("Count of major tissues: " + str(len(groups)))
+
+    print("Count of persons with samples for each major tissue.")
+    records = []
+    for name, group in groups:
+        data = group.reset_index(
+            level=None,
+            inplace=False
+        )
+        data.drop_duplicates(
+            subset=["person", "tissue_major"],
+            keep="first",
+            inplace=True,
+        )
+        # Compile information.
+        record = dict()
+        record["tissue_major"] = name
+        record["persons"] = data.shape[0]
+        records.append(record)
+
+    data_summary = utility.convert_records_to_dataframe(
+        records=records
+    )
+    print(data_summary)
 
     data_factor.reset_index(
         level=["tissue_major"],
@@ -178,24 +247,21 @@ def select_genes(
 
     """
 
-    def check_gene_type(identifier=None):
-        type = data_gene_annotation.at[identifier, "gene_type"]
-        return type == "protein_coding"
-    #data = data.loc[lambda identifier: check_gene_type(identifier)]
+    # Due to previous filter in assembly procedure, annotation genes are only
+    # protein-coding.
 
+    # Select protein-coding genes from signal data.
+    # Signal matrix has genes on the index dimension.
     utility.print_terminal_partition(level=2)
     print(
-        "Selection of genes that encode proteins."
+        "Selection of signal genes that encode proteins."
     )
     # Describe original count of genes.
-    # Signal matrix has genes on the index dimension.
-
-
-    print("signal genes, original: " + str(data_gene_signal.shape[0]))
+    print("signal total genes: " + str(data_gene_signal.shape[0]))
     genes_signal = data_gene_signal.index.to_list()
-    print("signal genes, original: " + str(len(genes_signal)))
-    # Filter genes by their annotations.
-    #print(data_gene_annotation.loc["ENSG00000223972", "gene_type"])
+    print("signal total genes: " + str(len(genes_signal)))
+
+    # Extract identifiers of protein-coding genes.
     genes_protein = data_gene_annotation.index.to_list()
     print(
         "count of GENCODE genes of type 'protein_coding': " +
@@ -203,18 +269,37 @@ def select_genes(
     )
 
     # Filter gene signals.
-    genes_signal_protein = utility.filter_common_elements(
-        list_one=genes_protein, list_two=genes_signal
+    # Remove indices.
+    data_gene_signal.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_gene_signal_protein = data_gene_signal.loc[
+        data_gene_signal["gene"].isin(genes_protein), :
+    ]
+
+    genes = data_gene_signal_protein.index.to_list()
+    print(
+        "signal genes that encode proteins: " +
+        str(data_gene_signal_protein.shape[0])
     )
     print(
         "signal genes that encode proteins: " +
-        str(len(genes_signal_protein))
+        str(len(genes))
     )
-    data_gene_signal = data_gene_signal.loc[genes_signal_protein, :]
     print(
-        "signal genes that encode proteins: " + str(data_gene_signal.shape[0])
+        "unique signal genes that encode proteins: " +
+        str(len(utility.collect_unique_elements(elements_original=genes)))
     )
-    return data_gene_signal
+
+    utility.print_terminal_partition(level=2)
+
+    # Organize data.
+    data_gene_signal_protein = organize_data_axes_indices(
+        data=data_gene_signal_protein
+    )
+
+    return data_gene_signal_protein
 
 
 # Samples.
@@ -247,12 +332,12 @@ def select_samples_by_exclusion(
     data_samples_corp = data_samples_tissues_persons.loc[
         ~data_samples_tissues_persons["tissue_minor"].isin(tissues_extracorp),
     ]
-    # These tissues have fewer than 50 total samples.
+    # These tissues have fewer than 100 total samples.
     tissues_coverage = []
-    tissues_coverage.append("kidney")
     tissues_coverage.append("bladder")
     tissues_coverage.append("cervix")
     tissues_coverage.append("fallopius")
+    tissues_coverage.append("kidney")
     data_samples_coverage = data_samples_corp.loc[
         ~data_samples_corp["tissue_major"].isin(tissues_coverage),
     ]
@@ -282,26 +367,32 @@ def select_samples_by_inclusion(
     # Define tissues for inclusion.
     # These tissues are not sex-specific.
     tissues_sex = [
-        "adipose", # 552
-        "adrenal", # 190
-        "artery", # 551
-        "blood", # 407
-        "brain", # 254
-        "colon", # 371
-        "esophagus", # 513
-        "heart", # 399
-        "liver", # 175
-        "lung", # 427
-        "muscle", # 564
-        "nerve", # 414
-        "pancreas", # 248
-        "pituitary", # 183
-        "skin", # 583
-        "intestine", # 137
-        #"salivary", # 97
-        "spleen", # 162
-        "stomach", # 262
-        "thyroid", # 446
+        "adipose", # 797
+        "adrenal", # 258
+        "artery", # 786
+        "blood", # 767
+        "brain", # 382
+        #"breast", # 459
+        "colon", # 555
+        "esophagus", # 710
+        "heart", # 561
+        "intestine", # 187
+        "liver", # 226
+        "lung", # 578
+        "muscle", # 803
+        "nerve", # 619
+        #"ovary", # 180
+        "pancreas", # 328
+        "pituitary", # 283
+        #"prostate", # 245
+        "salivary", # 162
+        "skin", # 912
+        "spleen", # 241
+        "stomach", # 359
+        #"testis", # 361
+        "thyroid", # 653
+        #"uterus", # 142
+        #"vagina", # 156
     ]
 
     samples = select_samples_by_tissue(
@@ -333,7 +424,7 @@ def select_samples_by_tissue(
 
     # Select samples by major tissues.
     data_samples = data_samples_tissues_persons.loc[
-        data_samples_tissues_persons["tissue_major"].isin(tissues),
+        data_samples_tissues_persons["tissue_major"].isin(tissues), :
     ]
     # Extract identifiers of samples.
     samples = data_samples.index.to_list()
@@ -546,6 +637,77 @@ def select_samples_genes_signals(
     return data_column
 
 
+# Persons, tissues, samples.
+
+
+def extract_gene_signal_persons_tissues_samples(
+    data_samples_tissues_persons=None,
+    data_gene_signal=None
+):
+    """
+    Extracts persons, tissues, and samples from selection of genes' signals.
+
+    arguments:
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+        (dict<list<str>>): collection of persons, tissues, and samples
+    """
+
+    utility.print_terminal_partition(level=2)
+    print("extract samples, persons, and tissues")
+
+    # Transpose data structure.
+    # Organize genes across columns and samples across rows.
+    data_transposition = data_gene_signal.transpose(copy=True)
+    # Associate samples to persons and tissues.
+    data_gene_signal_factor = assembly.associate_samples_persons_tissues(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_sample=data_transposition,
+    )
+    print(data_gene_signal_factor)
+    # Remove indices.
+    data_gene_signal_factor.reset_index(
+        level=None,
+        inplace=True
+    )
+
+    # Extract selection samples.
+    samples = utility.collect_unique_elements(
+        elements_original=data_gene_signal_factor["sample"].to_list()
+    )
+    # Extract selection persons.
+    persons = utility.collect_unique_elements(
+        elements_original=data_gene_signal_factor["person"].to_list()
+    )
+    # Extract selection tissues.
+    tissues_major = utility.collect_unique_elements(
+        elements_original=data_gene_signal_factor["tissue_major"].to_list()
+    )
+
+    # Summary.
+    utility.print_terminal_partition(level=2)
+    print("count of unique samples: " + str(len(samples)))
+    print("count of unique persons: " + str(len(persons)))
+    print("count of unique tissues_major: " + str(len(tissues_major)))
+
+
+    # Compile information.
+    information = {
+        "samples": samples,
+        "persons": persons,
+        "tissues_major": tissues_major,
+    }
+
+    # Return information.
+    return information
+
+
 ##########
 # Product.
 
@@ -580,6 +742,17 @@ def write_product(dock=None, information=None):
     path_gene_signal_factor = os.path.join(
         path_selection, "data_gene_signal_factor.pickle"
     )
+
+    path_samples = os.path.join(
+        path_selection, "samples.txt"
+    )
+    path_persons = os.path.join(
+        path_selection, "persons.txt"
+    )
+    path_tissues = os.path.join(
+        path_selection, "tissues.txt"
+    )
+
     # Write information to file.
     pandas.to_pickle(
         information["data_gene_count"],
@@ -597,6 +770,17 @@ def write_product(dock=None, information=None):
         information["data_gene_signal_factor"],
         path_gene_signal_factor
     )
+
+    utility.write_file_text_list(
+        information=information["samples"], path_file=path_samples
+    )
+    utility.write_file_text_list(
+        information=information["persons"], path_file=path_persons
+    )
+    utility.write_file_text_list(
+        information=information["tissues_major"], path_file=path_tissues
+    )
+
     pass
 
 
@@ -618,24 +802,36 @@ def execute_procedure(dock=None):
 
     """
 
+    # Remove previous files to avoid version or batch confusion.
+    path_selection = os.path.join(dock, "selection")
+    utility.remove_directory(path=path_selection)
+
     # Read source information from file.
     source = read_source(dock=dock)
+
+    # Organize data.
+    data_gene_count = organize_data_axes_indices(
+        data=source["data_gene_count"]
+    )
+    data_gene_signal = organize_data_axes_indices(
+        data=source["data_gene_signal"]
+    )
 
     # Summarize original counts of samples and genes.
     summarize_samples_genes(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_count=source["data_gene_count"],
-        data_gene_signal=source["data_gene_signal"],
+        data_gene_count=data_gene_count,
+        data_gene_signal=data_gene_signal,
     )
 
     # Select genes that encode proteins.
     data_gene_signal_gene = select_genes(
         data_gene_annotation=source["data_gene_annotation"],
-        data_gene_signal=source["data_gene_signal"]
+        data_gene_signal=data_gene_signal,
     )
     data_gene_count_gene = select_genes(
         data_gene_annotation=source["data_gene_annotation"],
-        data_gene_signal=source["data_gene_count"]
+        data_gene_signal=data_gene_count,
     )
 
     # Select samples by tissues.
@@ -687,12 +883,21 @@ def execute_procedure(dock=None):
     )
     print(data_gene_signal_factor)
 
+    # Extract gene signal persons, tissues, samples.
+    collection = extract_gene_signal_persons_tissues_samples(
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_signal=data_gene_signal_selection,
+    )
+
     # Compile information.
     information = {
         "data_gene_count": data_gene_count_selection,
         "data_gene_count_factor": data_gene_count_factor,
         "data_gene_signal": data_gene_signal_selection,
         "data_gene_signal_factor": data_gene_signal_factor,
+        "samples": collection["samples"],
+        "persons": collection["persons"],
+        "tissues_major": collection["tissues_major"],
     }
     #Write product information to file.
     write_product(dock=dock, information=information)
