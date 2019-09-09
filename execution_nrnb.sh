@@ -27,4 +27,4 @@ set -x
 
 mkdir $path_dock
 
-plink2 --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/fileset
+/cellar/users/tcwaller/anaconda3/bin/plink2 --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/fileset
