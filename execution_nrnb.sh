@@ -27,4 +27,8 @@ set -x
 
 mkdir $path_dock
 
-/cellar/users/tcwaller/anaconda3/bin/plink2 --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/fileset
+# Only convert data format.
+/cellar/users/tcwaller/anaconda3/bin/plink2 --vcf $path_genotype --out $path_dock/fileset
+
+# Apply filters and convert data format.
+#/cellar/users/tcwaller/anaconda3/bin/plink2 --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen $path_dock/fileset
