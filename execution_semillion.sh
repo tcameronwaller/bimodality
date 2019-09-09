@@ -34,9 +34,3 @@ cd $path_program
 echo "Now set to call routine and procedures."
 
 #nohup $path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
-
-
-plink2 --vcf <filename> --keep <filename>
-
-
-
