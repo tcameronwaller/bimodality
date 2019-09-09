@@ -244,7 +244,9 @@ def write_product(dock=None, information=None):
 
     # List of genes needs to be easy to read in Bash.
     utility.write_file_text_list(
-        information=information["genes"], path_file=path_genes
+        elements=information["genes"],
+        delimiter="\n",
+        path_file=path_genes
     )
     with open(path_persons, "wb") as file_product:
         pickle.dump(information["persons"], file_product)

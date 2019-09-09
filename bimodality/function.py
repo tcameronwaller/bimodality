@@ -141,7 +141,9 @@ def write_product(dock=None, information=None):
         index=False,
     )
     utility.write_file_text_list(
-        information=information["genes"], path_file=path_genes
+        elements=information["genes"],
+        delimiter="\n",
+        path_file=path_genes
     )
     pass
 

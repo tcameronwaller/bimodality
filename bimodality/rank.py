@@ -759,11 +759,13 @@ def write_product(dock=None, information=None):
         pickle.dump(information["genes_consensus"], file_product)
 
     utility.write_file_text_list(
-        information=information["genes_consensus"],
+        elements=information["genes_consensus"],
+        delimiter="\n",
         path_file=path_genes_consensus_text
     )
     utility.write_file_text_list(
-        information=information["genes_null"],
+        elements=information["genes_null"],
+        delimiter="\n",
         path_file=path_genes_null_text
     )
 

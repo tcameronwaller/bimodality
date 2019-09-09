@@ -765,7 +765,9 @@ def write_product(
 
     # Write information to file.
     utility.write_file_text_list(
-        information=["null"], path_file=path_gene
+        elements=["null"],
+        delimiter="\n",
+        path_file=path_gene
     )
 
     pass
@@ -877,13 +879,18 @@ def read_collect_write_genes(
 
     # Write information to file.
     utility.write_file_text_list(
-        information=genes_all, path_file=path_genes_all
+        elements=genes_all,
+        delimiter="\n",
+        path_file=path_genes_all
     )
     utility.write_file_text_list(
-        information=genes_imputation_all, path_file=path_genes_imputation_all
+        elements=genes_imputation_all,
+        delimiter="\n",
+        path_file=path_genes_imputation_all
     )
     utility.write_file_text_list(
-        information=genes_availability_all,
+        elements=genes_availability_all,
+        delimiter="\n",
         path_file=path_genes_availability_all,
     )
 

@@ -795,15 +795,18 @@ def write_product(dock=None, information=None):
         index=False,
     )
     utility.write_file_text_list(
-        information=information["genes_ensembl"],
+        elements=information["genes_ensembl"],
+        delimiter="\n",
         path_file=path_genes_ensembl
     )
     utility.write_file_text_list(
-        information=information["genes_hugo"],
+        elements=information["genes_hugo"],
+        delimiter="\n",
         path_file=path_genes_hugo
     )
     utility.write_file_text_list(
-        information=information["genes_report"],
+        elements=information["genes_report"],
+        delimiter="\n",
         path_file=path_genes_report
     )
     with open(path_reports, "wb") as file_product:

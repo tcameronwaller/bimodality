@@ -136,7 +136,6 @@ def organize_data_axes_indices(data=None):
 
 def summarize_samples_genes(
     data_samples_tissues_persons=None,
-    data_gene_count=None,
     data_gene_signal=None
 ):
     """
@@ -145,10 +144,8 @@ def summarize_samples_genes(
     arguments:
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples
-        data_gene_count (object): Pandas data frame of genes' counts across
-            samples
-        data_gene_signal (object): Pandas data frame of genes' signals across
-            samples
+        data_gene_signal (object): Pandas data frame of genes' counts or
+            signals across samples
 
     raises:
 
@@ -158,16 +155,11 @@ def summarize_samples_genes(
 
     # Copy data.
     data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
-    data_gene_count = data_gene_count.copy(deep=True)
     data_gene_signal = data_gene_signal.copy(deep=True)
 
     utility.print_terminal_partition(level=1)
     print("Summary of selection of samples and genes.")
     # Counts of samples and genes.
-    print("Genes' counts...")
-    print("Count of samples: " + str(data_gene_count.shape[1]))
-    print("Count of genes: " + str(data_gene_count.shape[0]))
-
     print("Genes' signals...")
     print("Count of samples: " + str(data_gene_signal.shape[1]))
     print("Count of genes: " + str(data_gene_signal.shape[0]))
@@ -772,13 +764,19 @@ def write_product(dock=None, information=None):
     )
 
     utility.write_file_text_list(
-        information=information["samples"], path_file=path_samples
+        elements=information["samples"],
+        delimiter="\t",
+        path_file=path_samples
     )
     utility.write_file_text_list(
-        information=information["persons"], path_file=path_persons
+        elements=information["persons"],
+        delimiter="\t",
+        path_file=path_persons
     )
     utility.write_file_text_list(
-        information=information["tissues_major"], path_file=path_tissues
+        elements=information["tissues_major"],
+        delimiter="\t",
+        path_file=path_tissues
     )
 
     pass
@@ -820,8 +818,11 @@ def execute_procedure(dock=None):
     # Summarize original counts of samples and genes.
     summarize_samples_genes(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_count=data_gene_count,
         data_gene_signal=data_gene_signal,
+    )
+    summarize_samples_genes(
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_signal=data_gene_count,
     )
 
     # Select genes that encode proteins.
@@ -859,7 +860,10 @@ def execute_procedure(dock=None):
     # Summarize original counts of samples and genes.
     summarize_samples_genes(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_count=data_gene_count_selection,
+        data_gene_signal=data_gene_count_selection,
+    )
+    summarize_samples_genes(
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_signal=data_gene_signal_selection,
     )
 

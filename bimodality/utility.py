@@ -391,12 +391,19 @@ def write_file_text_table(
         writer.writerows(information)
 
 
-def write_file_text_list(information=None, path_file=None):
+def write_file_text_list(
+    elements=None,
+    delimiter=None,
+    path_file=None
+):
     """
     Writes to file in text format information from an array of strings.
 
+    Delimiters include "\n", "\t", ",", " ".
+
     arguments:
-        information (list<str>): information
+        elements (list<str>): character elements
+        delimiter (str): delimiter between elements in list
         path_file (str): path to directory and file
 
     returns:
@@ -407,7 +414,7 @@ def write_file_text_list(information=None, path_file=None):
 
     # Write information to file
     with open(path_file, "w") as file_product:
-        string = "\n".join(information)
+        string = delimiter.join(elements)
         file_product.write(string)
     pass
 
