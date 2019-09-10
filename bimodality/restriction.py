@@ -659,9 +659,8 @@ def execute_procedure(
             restriction procedure, either "imputation" for selection by
             specific tissues with imputation or "availability" for selection by
             minimal count of tissues
-        count (int): either minimal count of tissues for selection by
-            "availability" or maximal count of imputation for selection by
-            "imputation"
+        count (int): minimal count of tissues with signal coverage for
+            selection by "availability" or "imputation" methods
         tissues (list<str>): specific tissues to select by "imputation" method
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues

@@ -171,8 +171,8 @@ def evaluate_gene_signal(
     return deviation > threshold
 
 
+# This function is currently excluded from evaluation of candidacy.
 # TODO: this function will eventually need to accommodate additional attributes of persons...
-
 def evaluate_gene_tissue(
     threshold_proportion=None,
     threshold_probability=None,
@@ -773,6 +773,7 @@ def write_product(
     pass
 
 
+# TODO: make the gene reports and compiled reports more useful?
 def read_collect_write_genes(
     dock=None,
 ):
@@ -898,6 +899,7 @@ def read_collect_write_genes(
 
 
 # TODO: need a new function to compile
+# TODO: I think this function is obsolete...
 
 def report_gene_tissue_persons(
     gene=None,
@@ -941,11 +943,10 @@ def report_gene_tissue_persons(
     )
     utility.print_terminal_partition(level=2)
     print("Persons by imputation and availability methods...")
-    print(imputation["data_gene_persons_signals"].size)
-    print(availability["data_gene_persons_signals"].size)
+    print(imputation["data_gene_persons_signals"].shape[0])
+    print(availability["data_gene_persons_signals"].shape[0])
 
     pass
-
 
 
 ###############################################################################

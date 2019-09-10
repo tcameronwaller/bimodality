@@ -54,7 +54,7 @@ python3 interface.py main --dock $path_dock --selection
 
 # - Batch Routine
 
-#python3 interface.py main --dock $path_dock --split
+python3 interface.py main --dock $path_dock --split
 
 #python3 interface.py main --dock $path_dock --candidacy
 

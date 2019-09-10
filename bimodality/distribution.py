@@ -236,6 +236,9 @@ def determine_gene_distributions(
     return information
 
 
+# This function includes important parameters.
+# Tissues for selection in restriction procedure.
+# Count of tissues to require coverage in restriction procedure.
 def determine_gene_distribution(
     gene=None,
     modality=None,
