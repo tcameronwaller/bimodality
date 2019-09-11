@@ -299,12 +299,19 @@ def read_file_text_table(path_file=None, names=None, delimiter=None):
     return information
 
 
-def read_file_text_list(path_file=None):
+def read_file_text_list(
+    delimiter=None,
+    strip=None,
+    path_file=None
+):
     """
     Reads and organizes source information from file.
 
+    Delimiters include "\n", "\t", ",", " ".
 
     arguments:
+        delimiter (str): delimiter between elements in list
+        strip (str): string to remove
         path_file (str): path to directory and file
 
     returns:
@@ -319,8 +326,11 @@ def read_file_text_list(path_file=None):
     #    content = file_source.read()
     with open(path_file, "r") as file_source:
         content = file_source.read()
+    # Remove stray delimiters.
+    content.replace(strip, "")
+    content.rstrip()
     # Split content by line delimiters.
-    information = content.split("\n")
+    information = content.split(delimiter)
     # Return information
     return information
 

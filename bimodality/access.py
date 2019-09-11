@@ -312,11 +312,11 @@ def execute_procedure(dock=None):
     """
 
     # Define path.
-
     directories = ["access"]
     #path_local = os.path.join(os.sep, *directories)
     path_local = os.path.join(dock, *directories)
     utility.create_directory(path_local)
+
     # Define reference.
     reference = define_source()
     # Download files.

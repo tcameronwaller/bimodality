@@ -5,6 +5,7 @@
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
 path_bin="/cellar/users/tcwaller/anaconda3/bin"
+path_plink="/cellar/users/mpagadal/Programs"
 path_user_cellar="/cellar/users/tcwaller"
 path_user_nrnb="/nrnb/users/tcwaller"
 subpath_dock="dock"
@@ -33,4 +34,4 @@ mkdir $path_dock
 #$path_bin/plink2 --vcf $path_genotype --out $path_dock/gtex-8_genotype
 
 # Apply filters and convert data format.
-$path_bin/plink2 --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/gtex-8_genotype
+$path_plink/plink2 --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/gtex-8_genotype

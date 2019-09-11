@@ -44,6 +44,7 @@ import metric
 import plot
 import test
 import utility
+import expecto
 
 #dir()
 #importlib.reload()
@@ -325,6 +326,12 @@ def define_main_subparser(subparsers=None):
         "-test", "--test", dest="test", action="store_true",
         help="Temporary code to test functionality."
     )
+
+    parser_main.add_argument(
+        "-expecto", "--expecto", dest="expecto", action="store_true",
+        help="Access, read, and convert Expecto data."
+    )
+
     # Define behavior.
     parser_main.set_defaults(func=evaluate_main_parameters)
     # Return parser.
@@ -524,6 +531,12 @@ def evaluate_main_parameters(arguments):
         print("... executing test procedure ...")
         # Execute procedure.
         test.execute_procedure(dock=arguments.dock)
+    if arguments.expecto:
+        # Report status.
+        print("... executing expecto procedure ...")
+        # Execute procedure.
+        expecto.execute_procedure(dock=arguments.dock)
+
 
 
 
