@@ -31,8 +31,9 @@ echo "--------------------------------------------------"
 # Echo each command to console.
 set -x
 
-rm -r $path_dock
-mkdir $path_dock
+#rm -r $path_dock
+#mkdir $path_dock
+rm -r $path_relation
 mkdir $path_relation
 
 # Only convert data format.
