@@ -11,7 +11,7 @@ path_gcta="$path_user_cellar/gcta_1.92.3beta3/gcta64"
 path_plink="$path_user_cellar/plink2"
 path_dock="$path_user_nrnb/dock"
 
-path_persons="$path_user_cellar/Data/heritability/persons.txt"
+path_persons="$path_user_cellar/Data/heritability/families.tsv"
 path_genotype_vcf="$path_user_nrnb/gtex_genotype/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz"
 path_genotype_ped="$path_dock/gtex-8_genotype"
 path_distribution="$path_user_cellar/Data/heritability/families_persons_signals.txt"
