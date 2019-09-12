@@ -44,6 +44,7 @@ mkdir $path_relation
 # However, only use PLINK to convert and filter in GCTA.
 $path_plink --vcf $path_genotype_vcf --make-pgen --out $path_genotype_ped
 $path_plink --vcf $path_genotype_vcf --make-just-fam --out $path_genotype_ped
+$path_plink --vcf $path_genotype_vcf --make-just-bim --out $path_genotype_ped
 
 # Calculate genetic relationship matrix (GRM).
 # For cis heritability, GRM must be specific to each gene's chromosome.
