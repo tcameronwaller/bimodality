@@ -31,8 +31,8 @@ echo "--------------------------------------------------"
 # Echo each command to console.
 set -x
 
-#rm -r $path_dock
-#mkdir $path_dock
+rm -r $path_dock
+mkdir $path_dock
 rm -r $path_relation
 mkdir $path_relation
 
@@ -44,9 +44,7 @@ mkdir $path_relation
 #$path_plink --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/gtex-8_genotype
 # However, only use PLINK to convert and filter in GCTA.
 # GCTA requires PLINK 1 format files, .bed, .bim, and .fam.
-#$path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped
-#$path_plink --vcf $path_genotype_vcf --make-just-fam --out $path_genotype_ped
-#$path_plink --vcf $path_genotype_vcf --make-just-bim --out $path_genotype_ped
+$path_plink --vcf $path_genotype_vcf --keep $path_persons --make-bed --out $path_genotype_ped
 
 # Calculate genetic relationship matrix (GRM).
 # For cis heritability, GRM must be specific to each gene's chromosome.
