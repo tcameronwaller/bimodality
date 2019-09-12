@@ -42,10 +42,10 @@ mkdir $path_relation
 # Possible to use PLINK to filter by person and minimal allelic frequency.
 #$path_plink --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/gtex-8_genotype
 # However, only use PLINK to convert and filter in GCTA.
-$path_plink --vcf $path_genotype_vcf --make-pgen --out $path_genotype_ped
-$path_plink --vcf $path_genotype_vcf --make-just-fam --out $path_genotype_ped
-$path_plink --vcf $path_genotype_vcf --make-just-bim --out $path_genotype_ped
+# GCTA requires PLINK 1 format files, .bed, .bim, and .fam.
 $path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped
+#$path_plink --vcf $path_genotype_vcf --make-just-fam --out $path_genotype_ped
+#$path_plink --vcf $path_genotype_vcf --make-just-bim --out $path_genotype_ped
 
 # Calculate genetic relationship matrix (GRM).
 # For cis heritability, GRM must be specific to each gene's chromosome.
