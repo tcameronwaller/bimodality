@@ -850,7 +850,7 @@ def write_product(dock=None, information=None):
     )
     utility.write_file_text_list(
         elements=information["persons"],
-        delimiter="\n",
+        delimiter="\t",
         path_file=path_persons
     )
     utility.write_file_text_list(
