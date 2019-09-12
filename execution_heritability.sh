@@ -43,7 +43,7 @@ mkdir $path_relation
 #$path_plink --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/gtex-8_genotype
 # However, only use PLINK to convert and filter in GCTA.
 # GCTA requires PLINK 1 format files, .bed, .bim, and .fam.
-$path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped
+#$path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped
 #$path_plink --vcf $path_genotype_vcf --make-just-fam --out $path_genotype_ped
 #$path_plink --vcf $path_genotype_vcf --make-just-bim --out $path_genotype_ped
 
@@ -52,7 +52,14 @@ $path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped
 # Filter by persons and minimal allelic frequence (MAF).
 # GCTA's format requirement for list of persons is text with tab delimiters.
 #$path_gcta --bfile $path_dock/gtex-8_genotype --autosome --maf 0.01 --make-grm --out $path_dock/gtex-8_grm_autosomes --threads 10
-$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 6 --maf 0.01 --make-grm --out $path_relation/chromosome_6
+#$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 6 --maf 0.01 --make-grm --out $path_relation/chromosome_6 --threads 10
+
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 6 --make-grm --out $path_relation/chromosome_6 --threads 10
+
+
+
+
+
 
 # Analysis
 $path_gcta --reml --grm $path_relation/chromosome_6 --pheno $path_distribution --out $path_result

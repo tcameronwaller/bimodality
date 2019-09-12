@@ -850,17 +850,17 @@ def write_product(dock=None, information=None):
     )
     utility.write_file_text_list(
         elements=information["persons"],
-        delimiter="\t",
+        delimiter="\n",
         path_file=path_persons
     )
     utility.write_file_text_list(
         elements=information["tissues_major"],
-        delimiter="\t",
+        delimiter="\n",
         path_file=path_tissues
     )
     utility.write_file_text_list(
         elements=information["samples"],
-        delimiter="\t",
+        delimiter="\n",
         path_file=path_samples
     )
 

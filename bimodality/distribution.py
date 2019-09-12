@@ -691,6 +691,30 @@ def execute_procedure(
 
     """
 
+    # Organization
+
+
+
+    # Restriction
+    # Support either availability or imputation methods.
+    # (I wish I could do this without removing data for persons who don't qualify... just assign missing values?)
+
+
+    # Aggregation
+    # TODO: apply the candidacy quality checks (population, signal, tissue)
+
+
+    # Modality
+
+
+    # TODO: prepare a table with all original persons with missing values if they were'nt used in final distribution
+
+
+    # Compilation
+
+
+    ##################Old Stuff...###########################################3
+
     # Prepare and describe distribution of real gene's signals.
 
     # Determine gene's distributions of aggregate tissue signals across

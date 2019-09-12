@@ -306,7 +306,6 @@ def determine_gene_persons_signals(
     return information
 
 
-
 ##########
 # Report.
 
@@ -341,8 +340,6 @@ def prepare_report_gene(
     }
     # Return information.
     return information
-
-
 
 
 ###############################################################################

@@ -307,7 +307,6 @@ def prepare_report_gene(
 ##################################################
 # Scrap
 
-
 def calculate_gene_signal_mean_by_persons_tissues_old(
     persons_tissues_samples=None,
     data_gene_signal=None
@@ -388,7 +387,6 @@ def calculate_gene_signal_mean_by_persons_tissues_old(
     #)
     return data_summary
 
-
 def calculate_gene_signal_median_by_tissues_old(
     tissues=None,
     persons=None,
@@ -467,7 +465,6 @@ def calculate_gene_signal_median_by_tissues_old(
         records=summary
     )
     return data_summary
-
 
 def collect_gene_signal_by_persons_tissues_old(
     tissues=None,
@@ -590,8 +587,6 @@ def write_product(dock=None, information=None):
     )
 
     pass
-
-
 
 
 ###############################################################################
