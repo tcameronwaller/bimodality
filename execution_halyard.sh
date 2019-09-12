@@ -55,8 +55,7 @@ echo "Now set to call routine and procedures."
 # - Batch Routine
 
 #python3 interface.py main --dock $path_dock --split
-
-#python3 interface.py main --dock $path_dock --candidacy
+python3 interface.py main --dock $path_dock --candidacy
 
 #python3 interface.py main --dock $path_dock --permutation --count 1000
 
@@ -96,7 +95,7 @@ echo "Now set to call routine and procedures."
 
 #python3 interface.py main --dock $path_dock --test
 
-python3 interface.py main --dock $path_dock --expecto
+#python3 interface.py main --dock $path_dock --expecto
 
 
 #Rscript expression.R $path_dock

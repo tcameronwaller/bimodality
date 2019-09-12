@@ -1537,7 +1537,7 @@ def write_product_sample(dock=None, information=None):
         path_assembly, "data_samples_tissues_persons.pickle"
     )
     path_samples_tissues_persons_text = os.path.join(
-        path_assembly, "data_samples_tissues_persons.txt"
+        path_assembly, "data_samples_tissues_persons.tsv"
     )
 
     # Write information to file.

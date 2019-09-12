@@ -351,6 +351,97 @@ def determine_gene_distribution(
     return information
 
 
+# Use this function as a reference to extract information for a gene's
+# distribution.
+def extract_gene_distribution_information(
+    method=None,
+    observation=None,
+):
+    """
+    Extracts information about a gene's distribution of pan-tissue signals
+    across persons.
+
+    arguments:
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
+        observation (dict): information about a gene's actual distribution of
+            signals across persons and tissues
+
+    raises:
+
+    returns:
+
+    """
+
+    # Access information.
+    report_organization = observation["organization"]["report_gene"]
+    report_restriction = observation[method]["report_restriction"]
+    report_aggregation = observation[method]["report_aggregation"]
+
+
+
+    # Gene's signals across original, complete set of persons and tissues.
+    data_gene_persons_tissues_signals_complete = (
+        observation["organization"]["data_gene_persons_tissues_signals"]
+    )
+    # Mean of gene's signals across major tissue categories.
+    data_gene_tissue_mean = report_organization["data_gene_tissue_mean"]
+    # Variance of gene's signals across major tissue categories.
+    data_gene_tissue_variance = (
+        report_organization["data_gene_tissue_variance"]
+    )
+    # Standard deviation of gene's signals across major tissue categories.
+    data_gene_tissue_deviation = (
+        report_organization["data_gene_tissue_deviation"]
+    )
+    # Coefficient of variation of gene's signals across major tissue
+    # categories.
+    data_gene_tissue_variation = (
+        report_organization["data_gene_tissue_variation"]
+    )
+    # Dispersion in gene's signals across major tissue categories.
+    data_gene_tissue_dispersion = (
+        report_organization["data_gene_tissue_dispersion"]
+    )
+
+
+
+    # Gene's signals across tissues and persons, before any imputation.
+    data_gene_persons_tissues_signals = (
+        report_restriction["data_gene_persons_tissues_signals"]
+    )
+    # Boolean availability of valid gene's signals across tissues and persons.
+    data_gene_persons_tissues = (
+        report_restriction["data_gene_persons_tissues"]
+    )
+    # Count of tissues for which gene has valid signals across persons.
+    data_gene_persons_tissues_count = (
+        report_restriction["data_gene_persons_tissues_count"]
+    )
+    # Count of persons for which gene has valid signals across adequate
+    # tissues.
+    restriction_persons = report_restriction["persons"]
+    # Mean count of tissues per person.
+    restriction_tissues_mean = report_restriction["tissues_mean"]
+    # Median count of tissues per person.
+    restriction_tissues_median = report_restriction["tissues_median"]
+
+
+
+    # Gene's pan-tissue aggregate signals across persons.
+    data_gene_persons_signals = (
+        report_aggregation["data_gene_persons_signals"]
+    )
+    # Count of persons for which gene has valid signals across adequate
+    # tissues.
+    aggregation_persons = report_aggregation["persons"]
+
+    pass
+
+
+
 ##########
 # Shuffle
 
@@ -602,7 +693,8 @@ def execute_procedure(
 
     # Prepare and describe distribution of real gene's signals.
 
-    # Determine gene's distributions of aggregate tissue scores across persons.
+    # Determine gene's distributions of aggregate tissue signals across
+    # persons.
     observation = determine_gene_distributions(
         gene=gene,
         modality=True,

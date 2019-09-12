@@ -455,20 +455,28 @@ def select_samples(
         data_samples_tissues_persons=data_samples_tissues_persons,
     )
     #print(len(samples_inclusion))
-    # Select samples that are in both exclusion and inclusion lists.
-    samples = utility.filter_common_elements(
-        list_one=samples_exclusion,
-        list_two=samples_inclusion,
-    )
-    utility.print_terminal_partition(level=2)
-    print("Count of samples to select: " + str(len(samples)))
 
-    # Select genes' signals for samples of interest.
-    utility.print_terminal_partition(level=1)
-    data_selection = data_gene_signal.loc[:, samples]
+    # Select samples that are in both exclusion and inclusion lists.
+    if False:
+        samples = utility.filter_common_elements(
+            list_one=samples_exclusion,
+            list_two=samples_inclusion,
+        )
+        utility.print_terminal_partition(level=2)
+        print("Count of samples to select: " + str(len(samples)))
+        # Select genes' signals for samples of interest.
+        utility.print_terminal_partition(level=1)
+        data_selection = data_gene_signal.loc[:, samples]
+
+    data_exclusion = data_gene_signal.loc[
+        :, ~data_gene_signal.columns.isin(samples_exclusion)
+    ]
+    data_inclusion = data_gene_signal.loc[
+        :, data_gene_signal.columns.isin(samples_inclusion)
+    ]
 
     # Return information.
-    return data_selection
+    return data_inclusion
 
 
 def select_samples_genes_by_few_tissues(
@@ -629,15 +637,69 @@ def select_samples_genes_signals(
     return data_column
 
 
-# Persons, tissues, samples.
+# Families, persons, tissues, samples.
 
 
-def extract_gene_signal_persons_tissues_samples(
+def organize_families_persons(
+    persons=None,
+):
+    """
+    Organizes records of families and persons.
+
+    As the data from GTEx do not include families, generate distinct families
+    for each person for use in GCTA.
+
+    arguments:
+        persons (list<str>): identifiers of persons
+
+    raises:
+
+    returns:
+        (dict): collection of families and persons
+    """
+
+    # Sort persons.
+    persons_sort = sorted(persons)
+    # Create unique families.
+    families = []
+    family = 1
+    for person in persons_sort:
+        record = dict()
+        record["family"] = family
+        record["person"] = person
+        families.append(record)
+        family += 1
+
+    # Organize data.
+    data_families = utility.convert_records_to_dataframe(records=families)
+    data_families.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
+    # Compile information.
+    information = {
+        "families": families,
+        "data_families": data_families,
+        "persons": persons_sort,
+    }
+
+    # Return information.
+    return information
+
+
+def extract_gene_signal_families_persons_tissues_samples(
     data_samples_tissues_persons=None,
     data_gene_signal=None
 ):
     """
-    Extracts persons, tissues, and samples from selection of genes' signals.
+    Extracts families, persons, tissues, and samples from selection of genes'
+    signals.
+
+    As the data from GTEx do not include families, generate distinct families
+    for each person for use in GCTA.
 
     arguments:
         data_samples_tissues_persons (object): Pandas data frame of persons
@@ -682,18 +744,24 @@ def extract_gene_signal_persons_tissues_samples(
         elements_original=data_gene_signal_factor["tissue_major"].to_list()
     )
 
+    # Organize families and persons.
+    families_persons = organize_families_persons(
+        persons=persons
+    )
+
     # Summary.
     utility.print_terminal_partition(level=2)
     print("count of unique samples: " + str(len(samples)))
     print("count of unique persons: " + str(len(persons)))
     print("count of unique tissues_major: " + str(len(tissues_major)))
 
-
     # Compile information.
     information = {
-        "samples": samples,
-        "persons": persons,
+        "families": families_persons["families"],
+        "data_families": families_persons["data_families"],
+        "persons": families_persons["persons"],
         "tissues_major": tissues_major,
+        "samples": samples,
     }
 
     # Return information.
@@ -735,14 +803,20 @@ def write_product(dock=None, information=None):
         path_selection, "data_gene_signal_factor.pickle"
     )
 
-    path_samples = os.path.join(
-        path_selection, "samples.txt"
+    path_families = os.path.join(
+        path_selection, "families.tsv"
+    )
+    path_data_families = os.path.join(
+        path_selection, "data_families.pickle"
     )
     path_persons = os.path.join(
         path_selection, "persons.txt"
     )
     path_tissues = os.path.join(
         path_selection, "tissues.txt"
+    )
+    path_samples = os.path.join(
+        path_selection, "samples.txt"
     )
 
     # Write information to file.
@@ -763,20 +837,31 @@ def write_product(dock=None, information=None):
         path_gene_signal_factor
     )
 
-    utility.write_file_text_list(
-        elements=information["samples"],
+    utility.write_file_text_table(
+        information=information["families"],
+        path_file=path_families,
+        names=information["families"][0].keys(),
         delimiter="\t",
-        path_file=path_samples
+        header=False,
+    )
+    pandas.to_pickle(
+        information["data_families"],
+        path_data_families
     )
     utility.write_file_text_list(
         elements=information["persons"],
-        delimiter="\t",
+        delimiter="\n",
         path_file=path_persons
     )
     utility.write_file_text_list(
         elements=information["tissues_major"],
         delimiter="\t",
         path_file=path_tissues
+    )
+    utility.write_file_text_list(
+        elements=information["samples"],
+        delimiter="\t",
+        path_file=path_samples
     )
 
     pass
@@ -877,6 +962,7 @@ def execute_procedure(dock=None):
     )
     print(data_gene_count_factor)
 
+
     # Transpose data structure.
     # Organize genes across columns and samples across rows.
     data_transposition = data_gene_signal_selection.transpose(copy=True)
@@ -887,8 +973,8 @@ def execute_procedure(dock=None):
     )
     print(data_gene_signal_factor)
 
-    # Extract gene signal persons, tissues, samples.
-    collection = extract_gene_signal_persons_tissues_samples(
+    # Extract gene signal families, persons, tissues, samples.
+    collection = extract_gene_signal_families_persons_tissues_samples(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_signal=data_gene_signal_selection,
     )
@@ -899,9 +985,11 @@ def execute_procedure(dock=None):
         "data_gene_count_factor": data_gene_count_factor,
         "data_gene_signal": data_gene_signal_selection,
         "data_gene_signal_factor": data_gene_signal_factor,
-        "samples": collection["samples"],
+        "families": collection["families"],
+        "data_families": collection["data_families"],
         "persons": collection["persons"],
         "tissues_major": collection["tissues_major"],
+        "samples": collection["samples"],
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

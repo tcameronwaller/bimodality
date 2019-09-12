@@ -784,7 +784,8 @@ def write_product(dock=None, information=None):
         information=summary_genes,
         path_file=path_summary_text_alternative,
         names=summary_genes[0].keys(),
-        delimiter="\t"
+        delimiter="\t",
+        header=True,
     )
     information["data_rank_genes"].to_csv(
         path_or_buf=path_data_rank,

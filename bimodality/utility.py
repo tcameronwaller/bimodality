@@ -301,7 +301,6 @@ def read_file_text_table(path_file=None, names=None, delimiter=None):
 
 def read_file_text_list(
     delimiter=None,
-    strip=None,
     path_file=None
 ):
     """
@@ -311,7 +310,6 @@ def read_file_text_list(
 
     arguments:
         delimiter (str): delimiter between elements in list
-        strip (str): string to remove
         path_file (str): path to directory and file
 
     returns:
@@ -326,9 +324,6 @@ def read_file_text_list(
     #    content = file_source.read()
     with open(path_file, "r") as file_source:
         content = file_source.read()
-    # Remove stray delimiters.
-    content.replace(strip, "")
-    content.rstrip()
     # Split content by line delimiters.
     information = content.split(delimiter)
     # Return information
@@ -373,7 +368,11 @@ def read_file_text_lines(
 
 
 def write_file_text_table(
-    information=None, path_file=None, names=None, delimiter=None
+    information=None,
+    path_file=None,
+    names=None,
+    delimiter=None,
+    header=None,
 ):
     """
     Writes to file in text format information from a list of dictionaries.
@@ -383,6 +382,7 @@ def write_file_text_table(
         path_file (str): path to directory and file
         names (list<str>): names for values in each row of table
         delimiter (str): delimiter between values in the table
+        header (bool): whether to write column headers in file
 
     returns:
 
@@ -397,7 +397,8 @@ def write_file_text_table(
         writer = csv.DictWriter(
             file_product, fieldnames=names, delimiter=delimiter
         )
-        writer.writeheader()
+        if header:
+            writer.writeheader()
         writer.writerows(information)
 
 
