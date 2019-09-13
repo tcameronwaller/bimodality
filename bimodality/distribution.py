@@ -28,10 +28,6 @@ import scipy.stats
 
 # Custom
 
-import permutation
-import organization
-import restriction
-import aggregation
 import metric
 import candidacy
 import category
@@ -117,6 +113,813 @@ def read_source(
         "data_gene_samples_signals": data_gene_samples_signals,
         "permutations": permutations,
     }
+
+
+##########
+# Organization
+
+
+# Aggregation of genes' signals by person and major tissue category
+def aggregate_gene_signal_tissue(
+    data_gene_samples_signals=None
+):
+    """
+    Aggregates gene's signals within groups by person and major tissue
+    category.
+    Aggregates gene's signals across any minor tissue categories or redundant
+    samples.
+
+    arguments:
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across persons and
+            tissues
+
+    """
+
+    # Split data by person and major tissue category.
+    if False:
+        data_gene_samples_signals.reset_index(
+            level=["sample", "tissue_minor"],
+            inplace=True
+        )
+        data_gene_samples_signals.drop(
+            labels=["sample", "tissue_minor"],
+            axis="columns",
+            inplace=True
+        )
+    groups = data_gene_samples_signals.groupby(
+        level=["person", "tissue_major"]
+    )
+    # Aggregate genes' signals within groups by mean.
+    data_gene_signal_tissue = groups.aggregate(statistics.mean)
+    # Return information.
+    return data_gene_signal_tissue
+
+
+# Organization of gene's signals across matrices of persons by tissues.
+def organize_gene_signal_persons_tissues(
+    data_gene_signal_tissue=None
+):
+    """
+    Organizes gene's signals across matrices of persons by tissues.
+
+    arguments:
+        data_gene_signal_tissue (object): Pandas data frame of a gene's signals
+            across persons and tissues
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across persons and
+            tissues
+
+    """
+
+    series = pandas.Series(
+        data_gene_signal_tissue["signal"],
+        index=data_gene_signal_tissue.index
+    )
+    data_gene_persons_tissues_signals = series.unstack(
+        level="tissue_major"
+    )
+
+    # Pandas sets the new columns as categorical type.
+    # This categorical type is restrictive.
+    # Organize data.
+
+    data_gene_persons_tissues_signals.columns = (
+        data_gene_persons_tissues_signals.columns.astype(str)
+    )
+    data_gene_persons_tissues_signals.rename_axis(
+        columns="",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    if False:
+        data_gene_persons_tissues_signals.reset_index(
+            level="person",
+            drop=False,
+            inplace=True
+        )
+        data_gene_persons_tissues_signals.set_index(
+            ["person"],
+            append=False,
+            drop=True,
+            inplace=True
+        )
+
+    # Return information.
+    return data_gene_persons_tissues_signals
+
+
+def calculate_gene_tissue_mean(
+    data_gene_samples_signals=None
+):
+    """
+    Calculates the mean of a gene's signals across samples within major
+    tissue categories.
+
+    arguments:
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+
+    """
+
+    # Calculate mean of a gene's signals across samples for each major
+    # tissue category.
+    # Split data by major tissue category.
+    groups = data_gene_samples_signals.groupby(
+        level=["tissue_major"]
+    )
+    # Aggregate genes' signals within groups by mean.
+    data_mean = groups.aggregate(
+        lambda x: x.mean()
+    )
+    return data_mean
+
+
+def calculate_gene_tissue_variance(
+    data_gene_samples_signals=None
+):
+    """
+    Calculates the variance of a gene's signals across samples within major
+    tissue categories.
+
+    arguments:
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+
+    """
+
+    # Calculate variance of a gene's signals across samples for each major
+    # tissue category.
+    # Split data by major tissue category.
+    groups = data_gene_samples_signals.groupby(
+        level=["tissue_major"]
+    )
+    # Aggregate genes' signals within groups by mean.
+    data_variance = groups.aggregate(
+        lambda x: x.var()
+    )
+    return data_variance
+
+
+def calculate_gene_tissue_deviation(
+    data_gene_samples_signals=None
+):
+    """
+    Calculates the standard deviation of a gene's signals across samples within
+    major tissue categories.
+
+    arguments:
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+
+    """
+
+    # Calculate standard deviation of a gene's signals across samples for each
+    # major tissue category.
+    # Split data by major tissue category.
+    groups = data_gene_samples_signals.groupby(
+        level=["tissue_major"]
+    )
+    # Aggregate genes' signals within groups by mean.
+    data_deviation = groups.aggregate(
+        lambda x: x.std()
+    )
+    return data_deviation
+
+
+def calculate_gene_tissue_variation(
+    data_gene_samples_signals=None
+):
+    """
+    Calculates the coefficient of variation of a gene's signals across samples
+    within major tissue categories.
+
+    arguments:
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+
+    """
+
+    # Calculate coefficient of variation of a gene's signals across samples for
+    # each major tissue category.
+    # Split data by major tissue category.
+    groups = data_gene_samples_signals.groupby(
+        level=["tissue_major"]
+    )
+    # Aggregate genes' signals within groups by relative variance.
+    # Some genes' signals in some groups have means of zero.
+    data_variation = groups.aggregate(
+        lambda x: (x.std() / x.mean()) if (x.mean() != 0) else (numpy.nan)
+    )
+    return data_variation
+
+
+def calculate_gene_tissue_dispersion(
+    data_gene_samples_signals=None
+):
+    """
+    Calculates the dispersion of a gene's signals across samples within major
+    tissue categories.
+
+    arguments:
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+
+    """
+
+    # Calculate dispersion of a gene's signals across samples for each major
+    # tissue category.
+    # Split data by major tissue category.
+    groups = data_gene_samples_signals.groupby(
+        level=["tissue_major"]
+    )
+    # Aggregate genes' signals within groups by relative variance.
+    # Some genes' signals in some groups have means of zero.
+    data_dispersion = groups.aggregate(
+        lambda x: (x.var() / x.mean()) if (x.mean() != 0) else (numpy.nan)
+    )
+    return data_dispersion
+
+
+def evaluate_organization(
+    data_gene_samples_signals=None,
+):
+    """
+    Prepare report for gene.
+
+    arguments:
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+
+    raises:
+
+    returns:
+        (dict): report for gene
+
+    """
+
+    # Calculate mean of gene's signals across major tissue categories.
+    data_gene_tissue_mean = calculate_gene_tissue_mean(
+        data_gene_samples_signals=data_gene_samples_signals
+    )
+    # Calculate variance of gene's signals across major tissue categories.
+    data_gene_tissue_variance = calculate_gene_tissue_variance(
+        data_gene_samples_signals=data_gene_samples_signals
+    )
+    # Calculate standard deviation of gene's signals across major tissue
+    # categories.
+    data_gene_tissue_deviation = calculate_gene_tissue_deviation(
+        data_gene_samples_signals=data_gene_samples_signals
+    )
+    # Calculate coefficient of variation of gene's signals across major tissue
+    # categories.
+    data_gene_tissue_variation = calculate_gene_tissue_variation(
+        data_gene_samples_signals=data_gene_samples_signals
+    )
+    # Calculate dispersion in gene's signals across major tissue categories.
+    data_gene_tissue_dispersion = calculate_gene_tissue_dispersion(
+        data_gene_samples_signals=data_gene_samples_signals
+    )
+
+    # Compile information.
+    information = {
+        "data_gene_tissue_mean": data_gene_tissue_mean,
+        "data_gene_tissue_variance": data_gene_tissue_variance,
+        "data_gene_tissue_deviation": data_gene_tissue_deviation,
+        "data_gene_tissue_variation": data_gene_tissue_variation,
+        "data_gene_tissue_dispersion": data_gene_tissue_dispersion,
+    }
+    # Return information.
+    return information
+
+
+def organize_data(
+    data_gene_samples_signals=None,
+):
+    """
+    Organizes gene's signals across samples, persons, and tissues.
+
+    arguments:
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+
+    raises:
+
+    returns:
+        (dict): information from organization
+
+    """
+
+    # Aggregate gene's signals within groups by person and major tissue
+    # category.
+    # Aggregate across any minor tissue categories or redundant samples.
+    data_gene_signal_tissue = aggregate_gene_signal_tissue(
+        data_gene_samples_signals=data_gene_samples_signals
+    )
+    #print(data_gene_signal_tissue)
+    # Organize gene's signals across matrices of persons by tissues.
+    data_gene_persons_tissues_signals = organize_gene_signal_persons_tissues(
+        data_gene_signal_tissue=data_gene_signal_tissue
+    )
+    #print(data_gene_persons_tissues_signals)
+    # Describe dispersion of gene's signals across major tissue categories.
+    pack = evaluate_organization(
+        data_gene_samples_signals=data_gene_samples_signals,
+    )
+    # Compile information.
+    information = {
+        "data_gene_signal_tissue": data_gene_signal_tissue,
+        "data_gene_persons_tissues_signals": data_gene_persons_tissues_signals,
+        "data_gene_tissue_mean": pack["data_gene_tissue_mean"],
+        "data_gene_tissue_variance": pack["data_gene_tissue_variance"],
+        "data_gene_tissue_deviation": pack["data_gene_tissue_deviation"],
+        "data_gene_tissue_variation": pack["data_gene_tissue_variation"],
+        "data_gene_tissue_dispersion": pack["data_gene_tissue_dispersion"],
+    }
+    # Return information.
+    return information
+
+
+##########
+# Restriction
+
+
+def remove_null_persons_tissues(
+    data_gene_persons_tissues_signals=None
+):
+    """
+    Removes persons and tissues with only missing values.
+
+    arguments:
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across persons and
+            tissues
+
+    """
+
+    # Copy data.
+    data_copy = data_gene_persons_tissues_signals.copy(deep=True)
+
+    if False:
+        utility.print_terminal_partition(level=2)
+        print(
+            "Remove persons and tissues with only missing values."
+        )
+
+        print(
+            "shape of original data frame: " +
+            str(data_gene_persons_tissues_signals.shape)
+        )
+    data_copy.dropna(
+        axis="index",
+        how="all",
+        inplace=True,
+    )
+    data_copy.dropna(
+        axis="columns",
+        how="all",
+        inplace=True,
+    )
+    if False:
+        print(
+            "shape of data frame: " +
+            str(data_copy.shape)
+        )
+    return data_copy
+
+
+def select_persons_tissues(
+    method=None,
+    count=None,
+    tissues=None,
+    data_gene_persons_tissues_signals=None,
+):
+    """
+    Select persons by availability of valid values of gene's signal for
+    specific tissues.
+
+    Data format should have tissues across columns and persons across rows.
+
+    arguments:
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
+        count (int): either minimal count of tissues for selection by
+            "availability" or maximal count of imputation for selection by
+            "imputation"
+        tissues (list<str>): specific tissues to select by "imputation" method
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across persons and
+            tissues
+
+    """
+
+    # Copy data.
+    data_original = data_gene_persons_tissues_signals.copy(deep=True)
+
+    if method == "availability":
+        data_selection = data_original.dropna(
+            axis="index",
+            how="all",
+            thresh=count,
+            inplace=False,
+        )
+        if False:
+            data_nonzero = (data_selection != 0)
+            data_selection = (
+                data_selection.loc[data_nonzero.any(axis="columns"), : ]
+            )
+
+        pass
+    elif method == "imputation":
+        # Select tissues of interest.
+        data_tissues = data_original.loc[ :, tissues]
+        # Select patients with coverage of tissues.
+        data_selection = data_tissues.dropna(
+            axis="index",
+            how="all",
+            thresh=count,
+            inplace=False,
+        )
+        if False:
+            data_nonzero = (data_selection != 0)
+            data_selection = (
+                data_selection.loc[data_nonzero.any(axis="columns"), : ]
+            )
+        pass
+    # Return information.
+    return data_selection
+
+
+def impute_gene_persons_tissues(
+    data_selection=None,
+    data_gene_persons_tissues_signals=None,
+):
+    """
+    Select persons by availability of valid values of gene's signal for
+    specific tissues.
+
+    arguments:
+        data_selection (object): Pandas data frame of a gene's signals across
+            selection persons and tissues
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across persons and
+            tissues
+
+    """
+
+    # Copy data.
+    data_copy = data_selection.copy(deep=True)
+
+    # Calculate values for imputation.
+    # Calculate values for imputation from all available samples.
+    imputations = data_gene_persons_tissues_signals.aggregate(
+        lambda x: x.median()
+    )
+    #imputations = series_imputation.to_dict()
+
+    # Insert imputations to selections of persons and tissues.
+    if False:
+        data_copy.apply(
+            lambda x: x.fillna(
+                imputations[x.name],
+                inplace=True,
+            ),
+            axis="index",
+        )
+    data_imputation = data_copy.fillna(
+        value=imputations,
+        #axis="columns",
+        inplace=False,
+    )
+
+    # Return information.
+    return data_imputation
+
+
+def evaluate_restriction(
+    data_gene_persons_tissues_signals=None,
+):
+    """
+    Prepare report for gene.
+
+    arguments:
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (dict): report for gene
+
+    """
+
+    # Prepare gene report.
+    # Describe mean count of tissues across persons.
+    # Describe counts of tissues across persons.
+    # Describe specific tissues for which persons have valid signals for
+    # gene without imputation.
+
+    # Describe specific tissues for which each person has valid signals for
+    # gene without imputation.
+    data_persons_tissues = data_gene_persons_tissues_signals.applymap(
+        lambda x: (True) if (pandas.notna(x)) else (False)
+    )
+
+    # Describe counts of tissues for which each person has valid signals for
+    # gene without imputation.
+    data_persons_tissues_count = data_gene_persons_tissues_signals.aggregate(
+        lambda x: x.dropna().size,
+        axis="columns",
+    )
+
+    # Calculate count of persons.
+    persons = data_persons_tissues.shape[0]
+
+    # Calculate mean count of tissues per person.
+    mean = data_persons_tissues_count.mean()
+
+    # Calculate median count of tissues per person.
+    median = data_persons_tissues_count.median()
+
+    # Compile information.
+    information = {
+        "data_gene_persons_tissues": data_persons_tissues,
+        "data_gene_persons_tissues_count": data_persons_tissues_count,
+        "persons": persons,
+        "tissues_mean": mean,
+        "tissues_median": median,
+    }
+    # Return information.
+    return information
+
+
+def restrict_data(
+    method=None,
+    count=None,
+    tissues=None,
+    data_gene_persons_tissues_signals=None,
+):
+    """
+    Restricts gene's signals across samples, persons, and tissues.
+
+    arguments:
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
+        count (int): minimal count of tissues with signal coverage for
+            selection by "availability" or "imputation" methods
+        tissues (list<str>): specific tissues to select by "imputation" method
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (dict): information from organization
+
+    """
+
+    # Filter to select persons and tissues with valid values of gene's signals.
+    data_filter = remove_null_persons_tissues(
+        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals
+    )
+
+    # Select persons and tissues for subsequent aggregation and analysis.
+    # There are multiple methods for this selection.
+    if method == "availability":
+        # Select tissues and patients.
+        data_selection = select_persons_tissues(
+            method=method,
+            count=count,
+            tissues=tissues,
+            data_gene_persons_tissues_signals=data_filter,
+        )
+        # Prepare gene report.
+        # Describe mean count of tissues across persons.
+        # Describe counts of tissues across persons.
+        # Describe specific tissues for which persons have valid signals for
+        # gene without imputation.
+        pack = evaluate_restriction(
+            data_gene_persons_tissues_signals=data_selection,
+        )
+
+        pass
+    elif method == "imputation":
+        # Select tissues and patients.
+        data_temporary = select_persons_tissues(
+            method=method,
+            count=count,
+            tissues=tissues,
+            data_gene_persons_tissues_signals=data_filter,
+        )
+        # Impute missing values.
+        data_selection = impute_gene_persons_tissues(
+            data_selection=data_temporary,
+            data_gene_persons_tissues_signals=data_filter,
+        )
+
+        # Prepare gene report.
+        # Describe mean count of tissues across persons.
+        # Describe counts of tissues across persons.
+        # Describe specific tissues for which persons have valid signals for
+        # gene without imputation.
+        # Importantly, the gene's report is on the basis of the data before
+        # imputation.
+        pack = evaluate_restriction(
+            data_gene_persons_tissues_signals=data_temporary,
+        )
+
+        pass
+
+    # Compile information.
+    information = {
+        "data_gene_persons_tissues_signals_restriction": data_selection,
+        "data_gene_persons_tissues": pack["data_persons_tissues"],
+        "data_gene_persons_tissues_count": pack["data_persons_tissues_count"],
+        "persons_restriction": pack["persons"],
+        "tissues_mean": pack["tissues_mean"],
+        "tissues_median": pack["tissues_median"],
+    }
+    # Return information.
+    return information
+
+
+##########
+# Aggregation
+
+
+
+def evaluate_aggregation(
+    data_gene_persons_signals=None,
+):
+    """
+    Prepare report for gene.
+
+    arguments:
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate, pan-tissue signals across persons
+
+    raises:
+
+    returns:
+        (dict): report for gene
+
+    """
+
+    # Prepare gene report.
+    # Describe gene's aggregate signals across persons.
+
+    # Calculate count of persons.
+    persons = data_gene_persons_signals.shape[0]
+
+    # Compile information.
+    information = {
+        "persons": persons,
+        "data_gene_persons_signals": data_gene_persons_signals,
+    }
+    # Return information.
+    return information
+
+
+def aggregate_data(
+    method=None,
+    count=None,
+    tissues=None,
+    data_gene_persons_tissues_signals=None,
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (dict): report about gene, Pandas data frame of gene's signals across
+            persons and tissues
+
+    """
+
+    # Filter to select persons and tissues with valid values of gene's signals.
+    data_filter = remove_null_persons_tissues(
+        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals
+    )
+
+    # Select persons and tissues for subsequent aggregation and analysis.
+    # There are multiple methods for this selection.
+    if method == "availability":
+        # Select tissues and patients.
+        data_selection = select_persons_tissues(
+            method=method,
+            count=count,
+            tissues=tissues,
+            data_gene_persons_tissues_signals=data_filter,
+        )
+        # Prepare gene report.
+        # Describe mean count of tissues across persons.
+        # Describe counts of tissues across persons.
+        # Describe specific tissues for which persons have valid signals for
+        # gene without imputation.
+        pack = evaluate_restriction(
+            data_gene_persons_tissues_signals=data_selection,
+        )
+
+        pass
+    elif method == "imputation":
+        # Select tissues and patients.
+        data_temporary = select_persons_tissues(
+            method=method,
+            count=count,
+            tissues=tissues,
+            data_gene_persons_tissues_signals=data_filter,
+        )
+        # Impute missing values.
+        data_selection = impute_gene_persons_tissues(
+            data_selection=data_temporary,
+            data_gene_persons_tissues_signals=data_filter,
+        )
+
+        # Prepare gene report.
+        # Describe mean count of tissues across persons.
+        # Describe counts of tissues across persons.
+        # Describe specific tissues for which persons have valid signals for
+        # gene without imputation.
+        # Importantly, the gene's report is on the basis of the data before
+        # imputation.
+        pack = evaluate_restriction(
+            data_gene_persons_tissues_signals=data_temporary,
+        )
+
+        pass
+
+    # Compile information.
+    information = {
+        "data_gene_persons_tissues_signals_restriction": data_selection,
+        "data_gene_persons_tissues": pack["data_persons_tissues"],
+        "data_gene_persons_tissues_count": pack["data_persons_tissues_count"],
+        "persons_restriction": pack["persons"],
+        "tissues_mean": pack["tissues_mean"],
+        "tissues_median": pack["tissues_median"],
+    }
+    # Return information.
+    return information
+
+
+
 
 
 ##########
@@ -441,134 +1244,6 @@ def extract_gene_distribution_information(
     pass
 
 
-
-##########
-# Shuffle
-
-
-def shuffle_gene_distributions(
-    gene=None,
-    modality=None,
-    permutations=None,
-    data_gene_persons_tissues_signals=None,
-):
-    """
-    Prepares and describes the distribution of a gene's signals across persons.
-
-    arguments:
-        gene (str): identifier of gene
-        modality (bool): whether to calculate metrics for the modality of
-            gene's distribution
-        permutations (list<list<list<int>>>): matrices of permutation indices
-        data_gene_persons_tissues_signals (object): Pandas data frame of a
-            gene's signals across persons and tissues
-
-    raises:
-
-    returns:
-        (dict): information about the distribution of a gene's signals across
-            persons
-
-    """
-
-
-    # Determine distributions of gene's signals by multiple methods.
-    imputation = shuffle_gene_distribution(
-        gene=gene,
-        modality=modality,
-        method="imputation",
-        permutations=permutations,
-        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
-    )
-    availability = shuffle_gene_distribution(
-        gene=gene,
-        modality=modality,
-        method="availability",
-        permutations=permutations,
-        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
-    )
-
-    # Compile information.
-    information = {
-        "imputation": imputation,
-        "availability": availability,
-    }
-
-    # Return information.
-    return information
-
-
-def shuffle_gene_distribution(
-    gene=None,
-    modality=None,
-    method=None,
-    permutations=None,
-    data_gene_persons_tissues_signals=None,
-):
-    """
-    Prepares and describes the distribution of a gene's signals across persons.
-
-    arguments:
-        gene (str): identifier of gene
-        modality (bool): whether to calculate metrics for the modality of
-            gene's distribution
-        method (str): method for selection of tissues and persons in
-            restriction procedure, either "imputation" for selection by
-            specific tissues with imputation or "availability" for selection by
-            minimal count of tissues
-        permutations (list<list<list<int>>>): matrices of permutation indices
-        data_gene_persons_tissues_signals (object): Pandas data frame of a
-            gene's signals across persons and tissues
-
-    raises:
-
-    returns:
-        (dict): information about the distribution of a gene's signals across
-            persons
-
-    """
-
-    # Initialize collections of metrics.
-    coefficients = list()
-    dips = list()
-    mixtures = list()
-    # Iterate on permutations.
-    for shuffle_matrix in permutations:
-        # Shuffle gene's signals.
-        data_shuffle = permutation.shuffle_gene_signals(
-            data_gene_signals=data_gene_persons_tissues_signals,
-            shuffle=shuffle_matrix
-        )
-        # Determine distributions of gene's signals
-        collection = determine_gene_distribution(
-            gene=gene,
-            modality=modality,
-            method=method,
-            data_gene_persons_tissues_signals=data_shuffle,
-        )
-
-        # Collect metrics.
-        coefficients.append(
-            collection["scores"]["coefficient"]
-        )
-        dips.append(
-            collection["scores"]["dip"]
-        )
-        mixtures.append(
-            collection["scores"]["mixture"]
-        )
-        pass
-    # Compile information.
-    information = {
-        "coefficient": coefficients,
-        "dip": dips,
-        "mixture": mixtures,
-    }
-
-    # Return information.
-    return information
-
-
 ##########
 # Product
 
@@ -691,14 +1366,41 @@ def execute_procedure(
 
     """
 
+    ##########
     # Organization
+    organization = organize_data(
+        data_gene_samples_signals=data_gene_samples_signals
+    )
 
-
-
+    ##########
     # Restriction
-    # Support either availability or imputation methods.
-    # (I wish I could do this without removing data for persons who don't qualify... just assign missing values?)
-
+    tissues = [
+        "adipose", # 552
+        #"adrenal", # 190
+        "artery", # 551
+        "blood", # 407
+        "brain", # 254
+        "colon", # 371
+        "esophagus", # 513
+        "heart", # 399
+        #"liver", # 175
+        "lung", # 427
+        "muscle", # 564
+        "nerve", # 414
+        "pancreas", # 248
+        #"pituitary", # 183
+        "skin", # 583
+        #"intestine", # 137
+        #"spleen", # 162
+        "stomach", # 262
+        "thyroid", # 446
+    ]
+    restriction = restrict_data(
+        method="availability", # "availability" or "imputation"
+        count=10,
+        tissues=tissues,
+        data_gene_samples_signals=data_gene_samples_signals
+    )
 
     # Aggregation
     # TODO: apply the candidacy quality checks (population, signal, tissue)
@@ -723,16 +1425,6 @@ def execute_procedure(
         gene=gene,
         modality=True,
         data_gene_samples_signals=data_gene_samples_signals,
-    )
-
-    # Shuffle gene's distributions.
-    shuffle = shuffle_gene_distributions(
-        gene=gene,
-        modality=True,
-        permutations=permutations,
-        data_gene_persons_tissues_signals=(
-            observation["organization"]["data_gene_persons_tissues_signals"]
-        ),
     )
 
     # Compile information.

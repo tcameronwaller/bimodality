@@ -306,41 +306,6 @@ def determine_gene_persons_signals(
     return information
 
 
-##########
-# Report.
-
-
-def prepare_report_gene(
-    data_gene_persons_signals=None,
-):
-    """
-    Prepare report for gene.
-
-    arguments:
-        data_gene_persons_signals (object): Pandas data frame of a gene's
-            aggregate, pan-tissue signals across persons
-
-    raises:
-
-    returns:
-        (dict): report for gene
-
-    """
-
-    # Prepare gene report.
-    # Describe gene's aggregate signals across persons.
-
-    # Calculate count of persons.
-    persons = data_gene_persons_signals.shape[0]
-
-    # Compile information.
-    information = {
-        "persons": persons,
-        "data_gene_persons_signals": data_gene_persons_signals,
-    }
-    # Return information.
-    return information
-
 
 ###############################################################################
 # Procedure

@@ -26,6 +26,7 @@ import scipy.stats
 
 # Custom
 
+import distribution
 import utility
 
 #dir()
@@ -34,6 +35,8 @@ import utility
 ###############################################################################
 # Functionality
 
+
+######TODO: Call this part "shuffle" procedure#######################################
 
 def read_source(dock=None):
     """
@@ -205,6 +208,33 @@ def create_shuffle_indices(
     return matrices
 
 
+def write_product(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_permutation = os.path.join(dock, "permutation")
+    utility.create_directory(path_permutation)
+    path_permutations = os.path.join(
+        path_permutation, "permutations.pickle"
+    )
+    # Write information to file.
+    with open(path_permutations, "wb") as file_product:
+        pickle.dump(information["permutations"], file_product)
+
+
+
 # convert dataframe to matrix using dataframe.values
 # shuffle the matrix by indices using a map function as in... https://stackoverflow.com/questions/26194389/how-to-rearrange-array-based-upon-index-array
 # assign the shuffled matrix back to the same persons indices and tissues columns in a new pandas dataframe using the Pandas dataframe constructor
@@ -213,6 +243,9 @@ def create_shuffle_indices(
     #lambda index, sort: sort[index], index_matrix, matrix_to_sort
 #)))
 
+
+###############################TODO: Call this part "permutation"###############################
+###########################TODO: put this in a new module... with parallel structure like distribution############################
 
 
 def shuffle_gene_signals_iterative(
@@ -351,11 +384,238 @@ def shuffle_gene_signals(
     return data_sort
 
 
-def write_product(dock=None, information=None):
+##########
+# Shuffle
+
+
+def shuffle_gene_distributions(
+    gene=None,
+    modality=None,
+    permutations=None,
+    data_gene_persons_tissues_signals=None,
+):
+    """
+    Prepares and describes the distribution of a gene's signals across persons.
+
+    arguments:
+        gene (str): identifier of gene
+        modality (bool): whether to calculate metrics for the modality of
+            gene's distribution
+        permutations (list<list<list<int>>>): matrices of permutation indices
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (dict): information about the distribution of a gene's signals across
+            persons
+
+    """
+
+
+    # Determine distributions of gene's signals by multiple methods.
+    imputation = shuffle_gene_distribution(
+        gene=gene,
+        modality=modality,
+        method="imputation",
+        permutations=permutations,
+        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
+    )
+    availability = shuffle_gene_distribution(
+        gene=gene,
+        modality=modality,
+        method="availability",
+        permutations=permutations,
+        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
+    )
+
+    # Compile information.
+    information = {
+        "imputation": imputation,
+        "availability": availability,
+    }
+
+    # Return information.
+    return information
+
+
+def shuffle_gene_distribution(
+    gene=None,
+    modality=None,
+    method=None,
+    permutations=None,
+    data_gene_persons_tissues_signals=None,
+):
+    """
+    Prepares and describes the distribution of a gene's signals across persons.
+
+    arguments:
+        gene (str): identifier of gene
+        modality (bool): whether to calculate metrics for the modality of
+            gene's distribution
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
+        permutations (list<list<list<int>>>): matrices of permutation indices
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (dict): information about the distribution of a gene's signals across
+            persons
+
+    """
+
+    # Initialize collections of metrics.
+    coefficients = list()
+    dips = list()
+    mixtures = list()
+    # Iterate on permutations.
+    for shuffle_matrix in permutations:
+        # Shuffle gene's signals.
+        data_shuffle = permutation.shuffle_gene_signals(
+            data_gene_signals=data_gene_persons_tissues_signals,
+            shuffle=shuffle_matrix
+        )
+        # Determine distributions of gene's signals
+        collection = determine_gene_distribution(
+            gene=gene,
+            modality=modality,
+            method=method,
+            data_gene_persons_tissues_signals=data_shuffle,
+        )
+
+        # Collect metrics.
+        coefficients.append(
+            collection["scores"]["coefficient"]
+        )
+        dips.append(
+            collection["scores"]["dip"]
+        )
+        mixtures.append(
+            collection["scores"]["mixture"]
+        )
+        pass
+    # Compile information.
+    information = {
+        "coefficient": coefficients,
+        "dip": dips,
+        "mixture": mixtures,
+    }
+
+    # Return information.
+    return information
+
+
+def execute_procedure_old_distribution(
+    gene=None,
+    permutations=None,
+    data_gene_samples_signals=None,
+    dock=None
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        gene (str): identifier of gene
+        permutations (list<list<list<int>>>): matrices of permutation indices
+        data_gene_samples_signals (object): Pandas data frame of a gene's
+            signals across samples
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Organization
+
+
+
+    # Restriction
+    # Support either availability or imputation methods.
+    # (I wish I could do this without removing data for persons who don't qualify... just assign missing values?)
+
+
+    # Aggregation
+    # TODO: apply the candidacy quality checks (population, signal, tissue)
+
+
+    # Modality
+
+
+    # TODO: prepare a table with all original persons with missing values if they were'nt used in final distribution
+
+
+    # Compilation
+
+
+    ##################Old Stuff...###########################################3
+
+    # Prepare and describe distribution of real gene's signals.
+
+    # Determine gene's distributions of aggregate tissue signals across
+    # persons.
+    observation = determine_gene_distributions(
+        gene=gene,
+        modality=True,
+        data_gene_samples_signals=data_gene_samples_signals,
+    )
+
+    # Shuffle gene's distributions.
+    shuffle = shuffle_gene_distributions(
+        gene=gene,
+        modality=True,
+        permutations=permutations,
+        data_gene_persons_tissues_signals=(
+            observation["organization"]["data_gene_persons_tissues_signals"]
+        ),
+    )
+
+    # Compile information.
+    information_imputation = {
+        "report_restriction": (
+            observation["imputation"]["report_restriction"]
+        ),
+        "report_aggregation": (
+            observation["imputation"]["report_aggregation"]
+        ),
+        "scores": observation["imputation"]["scores"],
+        "permutations": shuffle["imputation"],
+    }
+    information_availability = {
+        "report_restriction": (
+            observation["availability"]["report_restriction"]
+        ),
+        "report_aggregation": (
+            observation["availability"]["report_aggregation"]
+        ),
+        "scores": observation["availability"]["scores"],
+        "permutations": shuffle["availability"],
+    }
+    information = {
+        "report_organization": observation["organization"]["report_gene"],
+        "imputation": information_imputation,
+        "availability": information_availability,
+    }
+    #Write product information to file.
+    write_product(gene=gene, dock=dock, information=information)
+
+    pass
+
+
+def write_product_old_distribution(gene=None, dock=None, information=None):
     """
     Writes product information to file.
 
     arguments:
+        gene (str): identifier of single gene for which to execute the process.
         dock (str): path to root or dock directory for source and product
             directories and files.
         information (object): information to write to file.
@@ -367,14 +627,80 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_permutation = os.path.join(dock, "permutation")
-    utility.create_directory(path_permutation)
-    path_permutations = os.path.join(
-        path_permutation, "permutations.pickle"
+    path_distribution = os.path.join(dock, "distribution")
+    utility.create_directory(path_distribution)
+    path_gene = os.path.join(path_distribution, gene)
+    utility.create_directory(path_gene)
+    path_imputation = os.path.join(path_gene, "imputation")
+    utility.create_directory(path_imputation)
+    path_availability = os.path.join(path_gene, "availability")
+    utility.create_directory(path_availability)
+
+    path_report_organization = os.path.join(
+        path_gene, "report_organization.pickle"
     )
+    # Imputation method
+    path_imputation_report_restriction = os.path.join(
+        path_imputation, "report_restriction.pickle"
+    )
+    path_imputation_report_aggregation = os.path.join(
+        path_imputation, "report_aggregation.pickle"
+    )
+    path_imputation_scores = os.path.join(
+        path_imputation, "scores.pickle"
+    )
+    path_imputation_permutations = os.path.join(
+        path_imputation, "permutations.pickle"
+    )
+    # Availability method
+    path_availability_report_restriction = os.path.join(
+        path_availability, "report_restriction.pickle"
+    )
+    path_availability_report_aggregation = os.path.join(
+        path_availability, "report_aggregation.pickle"
+    )
+    path_availability_scores = os.path.join(
+        path_availability, "scores.pickle"
+    )
+    path_availability_permutations = os.path.join(
+        path_availability, "permutations.pickle"
+    )
+
     # Write information to file.
-    with open(path_permutations, "wb") as file_product:
-        pickle.dump(information["permutations"], file_product)
+    with open(path_report_organization, "wb") as file_product:
+        pickle.dump(information["report_organization"], file_product)
+
+    # Imputation method
+    with open(path_imputation_report_restriction, "wb") as file_product:
+        pickle.dump(information["imputation"]["report_restriction"], file_product)
+    with open(path_imputation_report_aggregation, "wb") as file_product:
+        pickle.dump(
+            information["imputation"]["report_aggregation"], file_product
+        )
+    with open(path_imputation_scores, "wb") as file_product:
+        pickle.dump(information["imputation"]["scores"], file_product)
+    with open(path_imputation_permutations, "wb") as file_product:
+        pickle.dump(information["imputation"]["permutations"], file_product)
+
+    # Imputation method
+    with open(path_availability_report_restriction, "wb") as file_product:
+        pickle.dump(
+            information["availability"]["report_restriction"], file_product
+        )
+    with open(path_availability_report_aggregation, "wb") as file_product:
+        pickle.dump(
+            information["availability"]["report_aggregation"], file_product
+        )
+    with open(path_availability_scores, "wb") as file_product:
+        pickle.dump(information["availability"]["scores"], file_product)
+    with open(path_availability_permutations, "wb") as file_product:
+        pickle.dump(information["availability"]["permutations"], file_product)
+
+    pass
+
+
+
+
 
 
 ###############################################################################

@@ -44,7 +44,7 @@ mkdir $path_relation
 #$path_plink --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/gtex-8_genotype
 # However, only use PLINK to convert and filter in GCTA.
 # GCTA requires PLINK 1 format files, .bed, .bim, and .fam.
-$path_plink --vcf $path_genotype_vcf --keep $path_persons --make-bed --out $path_genotype_ped
+$path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped
 
 # Calculate genetic relationship matrix (GRM).
 # For cis heritability, GRM must be specific to each gene's chromosome.
@@ -53,7 +53,7 @@ $path_plink --vcf $path_genotype_vcf --keep $path_persons --make-bed --out $path
 #$path_gcta --bfile $path_dock/gtex-8_genotype --autosome --maf 0.01 --make-grm --out $path_dock/gtex-8_grm_autosomes --threads 10
 #$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 6 --maf 0.01 --make-grm --out $path_relation/chromosome_6 --threads 10
 
-$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 6 --make-grm --out $path_relation/chromosome_6 --threads 10
+$path_gcta --bfile $path_genotype_ped --chr 6 --make-grm --out $path_relation/chromosome_6 --threads 10
 
 
 
