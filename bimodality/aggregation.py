@@ -459,44 +459,6 @@ def execute_procedure(
 
     """
 
-    # If data come from the "availability" method of the restriction procedure,
-    # they might include missing values.
-
-    # Normalize and standardize gene's signals.
-    # Transform gene's signals to base-two logarithmic space.
-    # Transform gene's signals to standard, z-score space.
-    data_normal_standard = normalize_standardize_gene_signal(
-        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
-    )
-
-    # Aggregate gene's signals across tissues from each person.
-    # The method for aggregation across tissues is to calculate the mean.
-    # This aggregation value is a mean of standard z-scores.
-    # Hence the aggregation value is very near zero.
-    data_gene_persons_signals = aggregate_gene_persons_signals(
-        data_gene_persons_tissues_signals=data_normal_standard,
-    )
-
-    # Determine values of gene's tissue-aggregate signals across persons.
-    # This procedure includes basic filters.
-    collection = determine_gene_persons_signals(
-        data_gene_persons_signals=data_gene_persons_signals
-    )
-
-    # Prepare gene report.
-    # Describe gene's aggregate signals across persons.
-    report_gene = prepare_report_gene(
-        data_gene_persons_signals=collection["data"],
-    )
-
-    # Compile information.
-    information = {
-        "data": collection["data"],
-        "values": collection["values"],
-        "report_gene": report_gene,
-    }
-    # Return information.
-    return information
 
 
 if (__name__ == "__main__"):

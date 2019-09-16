@@ -639,8 +639,8 @@ def select_samples_genes_signals(
 
 # Families, persons, tissues, samples.
 
-
-def organize_families_persons(
+# TODO: I think this function is now obsolete...
+def organize_families_persons_old(
     persons=None,
 ):
     """
@@ -735,18 +735,27 @@ def extract_gene_signal_families_persons_tissues_samples(
     samples = utility.collect_unique_elements(
         elements_original=data_gene_signal_factor["sample"].to_list()
     )
-    # Extract selection persons.
-    persons = utility.collect_unique_elements(
-        elements_original=data_gene_signal_factor["person"].to_list()
-    )
     # Extract selection tissues.
     tissues_major = utility.collect_unique_elements(
         elements_original=data_gene_signal_factor["tissue_major"].to_list()
     )
+    # Extract selection persons.
+    persons = utility.collect_unique_elements(
+        elements_original=data_gene_signal_factor["person"].to_list()
+    )
 
     # Organize families and persons.
-    families_persons = organize_families_persons(
-        persons=persons
+    data_gene_signal_factor["family"] = data_gene_signal_factor["person"]
+    data_families_persons = (
+        data_gene_signal_factor.loc[ :, ["family", "person"]]
+    )
+    data_families_persons.drop_duplicates(
+        subset=None,
+        keep="first",
+        inplace=True,
+    )
+    families_persons = utility.convert_dataframe_to_records(
+        data=data_families_persons
     )
 
     # Summary.
@@ -757,9 +766,9 @@ def extract_gene_signal_families_persons_tissues_samples(
 
     # Compile information.
     information = {
-        "families": families_persons["families"],
-        "data_families": families_persons["data_families"],
-        "persons": families_persons["persons"],
+        "families": families_persons,
+        "data_families": data_families_persons,
+        "persons": persons,
         "tissues_major": tissues_major,
         "samples": samples,
     }

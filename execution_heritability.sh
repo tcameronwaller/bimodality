@@ -14,7 +14,7 @@ path_dock="$path_user_nrnb/dock"
 path_persons="$path_user_cellar/Data/heritability/families.tsv"
 path_genotype_vcf="$path_user_nrnb/gtex_genotype/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz"
 path_genotype_ped="$path_dock/gtex-8_genotype"
-path_distribution="$path_user_cellar/Data/heritability/families_persons_signals.txt"
+path_distribution="$path_user_cellar/Data/heritability/families_persons_signals.tsv"
 path_relation="$path_dock/relation"
 path_result="$path_dock/result"
 
@@ -62,4 +62,3 @@ $path_gcta --bfile $path_genotype_ped --chr 6 --make-grm --out $path_relation/ch
 
 # Analysis
 $path_gcta --reml --grm $path_relation/chromosome_6 --pheno $path_distribution --out $path_result
-

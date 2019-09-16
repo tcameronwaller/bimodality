@@ -74,6 +74,38 @@ def read_source(dock=None):
     }
 
 
+def associate_factors(
+    data_samples_tissues_persons=None,
+    data_gene_signal=None
+):
+    """
+    Splits genes' signals across samples by gene.
+
+    arguments:
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples.
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+        (dict<object>): collection of Pandas data frames of genes' signals
+            across samples
+
+    """
+
+    # Transpose data structure.
+    # Organize genes across columns and samples across rows.
+    data_transposition = data_gene_signal.transpose(copy=True)
+    # Associate samples to persons and tissues.
+    data_factor = assembly.associate_samples_persons_tissues(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_sample=data_transposition,
+    )
+    return data_factor
+
+
 def split_genes_signals(
     data_samples_tissues_persons=None,
     data_gene_signal=None
@@ -106,13 +138,9 @@ def split_genes_signals(
     print(
         "Association of samples to factors."
     )
-    # Transpose data structure.
-    # Organize genes across columns and samples across rows.
-    data_transposition = data_gene_signal.transpose(copy=True)
-    # Associate samples to persons and tissues.
-    data_factor = assembly.associate_samples_persons_tissues(
+    data_factor = associate_factors(
         data_samples_tissues_persons=data_samples_tissues_persons,
-        data_gene_sample=data_transposition,
+        data_gene_signal=data_gene_signal,
     )
     print(data_factor)
     # Stack by gene.

@@ -727,7 +727,7 @@ def restrict_data(
     raises:
 
     returns:
-        (dict): information from organization
+        (dict): information from restriction
 
     """
 
@@ -800,7 +800,6 @@ def restrict_data(
 # Aggregation
 
 
-
 def evaluate_aggregation(
     data_gene_persons_signals=None,
 ):
@@ -834,13 +833,10 @@ def evaluate_aggregation(
 
 
 def aggregate_data(
-    method=None,
-    count=None,
-    tissues=None,
     data_gene_persons_tissues_signals=None,
 ):
     """
-    Function to execute module's main behavior.
+    Aggregates genes' signals within tissues across persons.
 
     arguments:
         data_gene_persons_tissues_signals (object): Pandas data frame of a
@@ -849,77 +845,48 @@ def aggregate_data(
     raises:
 
     returns:
-        (dict): report about gene, Pandas data frame of gene's signals across
-            persons and tissues
+        (dict): information from aggregation
 
     """
 
-    # Filter to select persons and tissues with valid values of gene's signals.
-    data_filter = remove_null_persons_tissues(
-        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals
+    # If data come from the "availability" method of the restriction procedure,
+    # they might include missing values.
+
+    # Normalize and standardize gene's signals.
+    # Transform gene's signals to base-two logarithmic space.
+    # Transform gene's signals to standard, z-score space.
+    data_normal_standard = normalize_standardize_gene_signal(
+        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
     )
 
-    # Select persons and tissues for subsequent aggregation and analysis.
-    # There are multiple methods for this selection.
-    if method == "availability":
-        # Select tissues and patients.
-        data_selection = select_persons_tissues(
-            method=method,
-            count=count,
-            tissues=tissues,
-            data_gene_persons_tissues_signals=data_filter,
-        )
-        # Prepare gene report.
-        # Describe mean count of tissues across persons.
-        # Describe counts of tissues across persons.
-        # Describe specific tissues for which persons have valid signals for
-        # gene without imputation.
-        pack = evaluate_restriction(
-            data_gene_persons_tissues_signals=data_selection,
-        )
+    # Aggregate gene's signals across tissues from each person.
+    # The method for aggregation across tissues is to calculate the mean.
+    # This aggregation value is a mean of standard z-scores.
+    # Hence the aggregation value is very near zero.
+    data_gene_persons_signals = aggregate_gene_persons_signals(
+        data_gene_persons_tissues_signals=data_normal_standard,
+    )
 
-        pass
-    elif method == "imputation":
-        # Select tissues and patients.
-        data_temporary = select_persons_tissues(
-            method=method,
-            count=count,
-            tissues=tissues,
-            data_gene_persons_tissues_signals=data_filter,
-        )
-        # Impute missing values.
-        data_selection = impute_gene_persons_tissues(
-            data_selection=data_temporary,
-            data_gene_persons_tissues_signals=data_filter,
-        )
+    # Determine values of gene's tissue-aggregate signals across persons.
+    # This procedure includes basic filters.
+    collection = determine_gene_persons_signals(
+        data_gene_persons_signals=data_gene_persons_signals
+    )
 
-        # Prepare gene report.
-        # Describe mean count of tissues across persons.
-        # Describe counts of tissues across persons.
-        # Describe specific tissues for which persons have valid signals for
-        # gene without imputation.
-        # Importantly, the gene's report is on the basis of the data before
-        # imputation.
-        pack = evaluate_restriction(
-            data_gene_persons_tissues_signals=data_temporary,
-        )
-
-        pass
+    # Prepare gene report.
+    # Describe gene's aggregate signals across persons.
+    pack = evaluate_aggregation(
+        data_gene_persons_signals=collection["data"],
+    )
 
     # Compile information.
     information = {
-        "data_gene_persons_tissues_signals_restriction": data_selection,
-        "data_gene_persons_tissues": pack["data_persons_tissues"],
-        "data_gene_persons_tissues_count": pack["data_persons_tissues_count"],
-        "persons_restriction": pack["persons"],
-        "tissues_mean": pack["tissues_mean"],
-        "tissues_median": pack["tissues_median"],
+        "data": collection["data"],
+        "values": collection["values"],
+        "report_gene": report_gene,
     }
     # Return information.
     return information
-
-
-
 
 
 ##########
@@ -1368,7 +1335,7 @@ def execute_procedure(
 
     ##########
     # Organization
-    organization = organize_data(
+    bin_organization = organize_data(
         data_gene_samples_signals=data_gene_samples_signals
     )
 
@@ -1395,7 +1362,7 @@ def execute_procedure(
         "stomach", # 262
         "thyroid", # 446
     ]
-    restriction = restrict_data(
+    bin_restriction = restrict_data(
         method="availability", # "availability" or "imputation"
         count=10,
         tissues=tissues,
@@ -1403,7 +1370,14 @@ def execute_procedure(
     )
 
     # Aggregation
-    # TODO: apply the candidacy quality checks (population, signal, tissue)
+    # Use the final "data_gene_persons_tissues_signals" from restriction
+    # procedure after imputation.
+    bin_aggregation = aggregate_data(
+        data_gene_persons_tissues_signals=(
+            bin_restriction["data_gene_persons_tissues_signals_restriction"]
+        ),
+    )
+
 
 
     # Modality
