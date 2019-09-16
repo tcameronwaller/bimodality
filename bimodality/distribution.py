@@ -696,7 +696,7 @@ def evaluate_restriction(
     information = {
         "data_gene_persons_tissues": data_persons_tissues,
         "data_gene_persons_tissues_count": data_persons_tissues_count,
-        "persons": persons,
+        "persons_count": persons,
         "tissues_mean": mean,
         "tissues_median": median,
     }
@@ -788,7 +788,7 @@ def restrict_data(
         "data_gene_persons_tissues_signals_restriction": data_selection,
         "data_gene_persons_tissues": pack["data_persons_tissues"],
         "data_gene_persons_tissues_count": pack["data_persons_tissues_count"],
-        "persons_restriction": pack["persons"],
+        "persons_count_restriction": pack["persons_count"],
         "tissues_mean": pack["tissues_mean"],
         "tissues_median": pack["tissues_median"],
     }
@@ -798,6 +798,224 @@ def restrict_data(
 
 ##########
 # Aggregation
+
+
+def calculate_standard_score_gene_signal_by_tissue(
+    data_gene_persons_tissues_signals=None
+):
+    """
+    Calculates the standard (z-score) of genes' signals across each tissue.
+
+    The standard scores are relative to tissue.
+    The values of mean and standard deviation are across all samples (patients)
+    for each tissue.
+
+    arguments:
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across persons and
+            tissues
+
+    """
+
+    # Calculate standard score.
+    # This method inserts missing values if the standard deviation is zero.
+    data_gene_standard = data_gene_persons_tissues_signals.apply(
+        lambda x: (
+            ((x - x.mean()) / x.std())
+        ),
+        axis="index",
+    )
+    return data_gene_standard
+
+
+def standardize_gene_signal(
+    data_gene_persons_tissues_signals=None
+):
+    """
+    Transforms values of genes' signals to standard or z-score space.
+
+    Data has persons across rows and tissues across columns.
+
+             tissue_1 tissue_2 tissue_3 tissue_4 tissue_5
+    person_1 ...      ...      ...      ...      ...
+    person_2 ...      ...      ...      ...      ...
+    person_3 ...      ...      ...      ...      ...
+    person_4 ...      ...      ...      ...      ...
+    person_5 ...      ...      ...      ...      ...
+
+    arguments:
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across persons and
+            tissues
+
+    """
+
+    # Transform signals to standard score space.
+    data_gene_signal_standard = calculate_standard_score_gene_signal_by_tissue(
+        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals
+    )
+    if False:
+        # Compare summary statistics before and after transformation.
+        utility.print_terminal_partition(level=3)
+        print("Summary statistics for gene signals before standardization.")
+        print(data_gene_persons_tissues_signals.iloc[0:10, 0:10])
+        data_mean = data_gene_persons_tissues_signals.aggregate(
+            lambda x: x.mean(),
+            axis="index"
+        )
+        print("Mean")
+        print(data_mean.iloc[0:10])
+        data_deviation = data_gene_persons_tissues_signals.aggregate(
+            lambda x: x.std(),
+            axis="index"
+        )
+        print("Standard deviation")
+        print(data_deviation.iloc[0:10])
+        utility.print_terminal_partition(level=3)
+        print("Summary statistics for gene signals after standardization.")
+        print(data_gene_signal_standard.iloc[0:10, 0:10])
+        data_mean = data_gene_signal_standard.aggregate(
+            lambda x: x.mean(),
+            axis="index"
+        )
+        print("Mean")
+        print(data_mean.iloc[0:10])
+        data_deviation = data_gene_signal_standard.aggregate(
+            lambda x: x.std(),
+            axis="index"
+        )
+        print("Standard deviation")
+        print(data_deviation.iloc[0:10])
+    # Return information.
+    return data_gene_signal_standard
+
+
+# Transformation of gene's signals to logarithmic space.
+def normalize_standardize_gene_signal(
+    data_gene_persons_tissues_signals=None
+):
+    """
+    Normalizes and standardizes genes' signals across persons and tissues.
+
+    Data has persons across rows and tissues across columns.
+
+             tissue_1 tissue_2 tissue_3 tissue_4 tissue_5
+    person_1 ...      ...      ...      ...      ...
+    person_2 ...      ...      ...      ...      ...
+    person_3 ...      ...      ...      ...      ...
+    person_4 ...      ...      ...      ...      ...
+    person_5 ...      ...      ...      ...      ...
+
+    arguments:
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across persons and
+            tissues
+
+    """
+
+    if False:
+        utility.print_terminal_partition(level=2)
+        print(
+            "Notice that transformation to logarithmic and standard space " +
+            "propagates missing values."
+        )
+
+    # Transform genes' signals to logarithmic space.
+    # Transform values of genes' signals to base-2 logarithmic space.
+    data_normal = measurement.transform_gene_signal_log(
+        data_gene_signal=data_gene_persons_tissues_signals,
+        pseudo_count=1.0,
+    )
+    # Transform genes' signals to standard or z-score space.
+    # Calculate standard score for each gene.
+    # Standard score is undefined if the series has inadequate variance.
+    # Consider filtering before calculation.
+    # Alternatively, filter afterwards.
+    data_normal_standard = standardize_gene_signal(
+        data_gene_persons_tissues_signals=data_normal
+    )
+    return data_normal_standard
+
+
+# Aggregation of gene's signals across tissues for each person.
+def aggregate_gene_persons_signals(
+    data_gene_persons_tissues_signals=None
+):
+    """
+    Aggregates a gene's signals across persons.
+
+    arguments:
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's aggregate signals across
+            persons
+
+    """
+
+    # Aggregate gene's signals across tissues for each person.
+    # Exclude missing values from calculation of the mean.
+    series_aggregate = data_gene_persons_tissues_signals.aggregate(
+        lambda x: x.mean(),
+        axis="columns",
+    )
+    data_aggregate = series_aggregate.to_frame(name="value")
+    # Return information.
+    return data_aggregate
+
+
+def determine_gene_persons_signals(
+    data_gene_persons_signals=None
+):
+    """
+    Determines a gene's values of tissue-aggregate scores across persons.
+
+    arguments:
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate signals across persons
+
+    raises:
+
+    returns:
+        (dict): gene's tissue-aggregate scores across persons
+
+    """
+
+    # Extract values of distribution.
+    # Remove missing values.
+    data = data_gene_persons_signals.copy(deep=True)
+    data.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+    values = data["value"].to_list()
+
+    # Compile information.
+    information = {
+        "data_gene_persons_signals": data,
+        "values": values,
+    }
+    # Return information.
+    return information
 
 
 def evaluate_aggregation(
@@ -825,7 +1043,7 @@ def evaluate_aggregation(
 
     # Compile information.
     information = {
-        "persons": persons,
+        "persons_count": persons,
         "data_gene_persons_signals": data_gene_persons_signals,
     }
     # Return information.
@@ -876,20 +1094,188 @@ def aggregate_data(
     # Prepare gene report.
     # Describe gene's aggregate signals across persons.
     pack = evaluate_aggregation(
-        data_gene_persons_signals=collection["data"],
+        data_gene_persons_signals=collection["data_gene_persons_signals"],
     )
 
     # Compile information.
     information = {
-        "data": collection["data"],
+        "data_gene_persons_signals": collection["data_gene_persons_signals"],
         "values": collection["values"],
-        "report_gene": report_gene,
+        "persons_count_aggregation": pack["persons_count"],
     }
     # Return information.
     return information
 
 
 ##########
+# Modality
+
+
+
+def evaluate_gene_population(
+    threshold=None,
+    data_gene_persons_signals=None
+):
+    """
+    Evaluates the a gene's representation across persons.
+
+    arguments:
+        threshold (int): minimal count of persons
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate, pan-tissue signals across persons
+
+    raises:
+
+    returns:
+        (bool): whether the gene has representation across an adequate
+            population of persons
+
+    """
+
+    count_persons = data_gene_persons_signals.shape[0]
+    return (count_persons > threshold)
+
+
+def evaluate_gene_signal(
+    threshold=None,
+    data_gene_persons_signals=None
+):
+    """
+    Evaluates the gene's aggregate tissue signals across persons.
+
+    arguments:
+        threshold (float): minimal standard deviation
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate, pan-tissue signals across persons
+
+    raises:
+
+    returns:
+        (bool): whether the gene's signals are adequate for analysis
+
+    """
+
+    # Calculate standard deviation of values.
+    deviation = numpy.std(data_gene_persons_signals["value"].values, axis=0)
+    return deviation > threshold
+
+
+# This function is currently excluded from evaluation of candidacy.
+# TODO: this function will eventually need to accommodate additional attributes of persons...
+# 1. variation in gene's signal across tissue categories could indicate problems in aggregation of minor tissues
+# 2. impose a constraint on the mean count of tissues across persons
+# 3.
+def evaluate_gene_tissue(
+    threshold_proportion=None,
+    threshold_probability=None,
+    data_samples_tissues_persons=None,
+    data_gene_persons_tissues=None,
+    data_gene_persons_signals=None,
+):
+    """
+    Evaluates the selection of tissues for calculation of gene's aggregate
+    scores.
+
+    arguments:
+        threshold_proportion (float): minimal proportion of persons for
+            inclusion of a tissue's group in analysis
+        threshold_probability (float): minimal probability for candidacy
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+        data_gene_persons_tissues (object): Pandas data frame of a gene's
+            selection of tissues across persons
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate, pan-tissue signals across persons
+
+    raises:
+
+    returns:
+        (bool): whether the gene's selection of tissues is acceptable
+
+    """
+
+    # Organize information about gene's scores across persons and tissues.
+    data_persons_tissues_signals = category.organize_gene_persons_signals(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_persons_tissues=data_gene_persons_tissues,
+        data_gene_persons_signals=data_gene_persons_signals,
+    )
+
+    # Determine minimal count of persons for inclusion of a tissue's group.
+    count_persons = data_gene_persons_signals.shape[0]
+    threshold_count = threshold_proportion * count_persons
+
+
+# TODO: rename and repurpose this function for calculating modality metrics
+def describe_distribution_modality(
+    modality=None,
+    data_gene_persons_signals=None,
+):
+    """
+    Prepares and describes the distributions of a gene's signals across
+    persons.
+
+    arguments:
+        modality (bool): whether to calculate metrics for the modality of
+            gene's distribution
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate, pan-tissue signals across persons
+
+    raises:
+
+    returns:
+        (dict): information about the distribution of a gene's signals across
+            persons
+
+    """
+
+    # TODO: move the distribution checks from Candidacy to Distribution (ie here)
+
+    # Determine distribution modality metrics.
+    # Determine whether to calculate metrics for gene's distribution.
+    if modality:
+        population = candidacy.evaluate_gene_population(
+            threshold=100,
+            data_gene_persons_signals=collection_aggregation["data"],
+        )
+        signal = candidacy.evaluate_gene_signal(
+            threshold=0.0,
+            data_gene_persons_signals=collection_aggregation["data"],
+        )
+        if signal and population:
+            # Calculate metrics.
+            # Calculate metrics of bimodality.
+            scores = calculate_bimodality_metrics(
+                values=collection_aggregation["values"]
+            )
+            pass
+        else:
+            # Generate missing values.
+            scores = generate_null_metrics()
+            pass
+    else:
+        # Generate missing values.
+        scores = generate_null_metrics()
+        pass
+
+    # Compile information.
+    information = {
+        "report_restriction": collection_restriction["report_gene"],
+        "values": collection_aggregation["values"],
+        "scores": scores,
+        "report_aggregation": collection_aggregation["report_gene"],
+    }
+
+    # Return information.
+    return information
+
+
+
+
+
+
+
+########## More or less scrap beyond here...
 # Distribution
 
 
@@ -1000,121 +1386,6 @@ def determine_gene_distributions(
         "organization": collection_organization,
         "imputation": imputation,
         "availability": availability,
-    }
-
-    # Return information.
-    return information
-
-
-# This function includes important parameters.
-# Tissues for selection in restriction procedure.
-# Count of tissues to require coverage in restriction procedure.
-def determine_gene_distribution(
-    gene=None,
-    modality=None,
-    method=None,
-    data_gene_persons_tissues_signals=None,
-):
-    """
-    Prepares and describes the distributions of a gene's signals across
-    persons.
-
-    arguments:
-        gene (str): identifier of gene
-        modality (bool): whether to calculate metrics for the modality of
-            gene's distribution
-        method (str): method for selection of tissues and persons in
-            restriction procedure, either "imputation" for selection by
-            specific tissues with imputation or "availability" for selection by
-            minimal count of tissues
-        data_gene_persons_tissues_signals (object): Pandas data frame of a
-            gene's signals across persons and tissues
-
-    raises:
-
-    returns:
-        (dict): information about the distribution of a gene's signals across
-            persons
-
-    """
-
-    # Specify tissues for the imputation method of the restriction procedure.
-    # This selection includes all non-sexual tissues with coverage of samples
-    # from at least 200 persons.
-    tissues = [
-        "adipose", # 552
-        #"adrenal", # 190
-        "artery", # 551
-        "blood", # 407
-        "brain", # 254
-        "colon", # 371
-        "esophagus", # 513
-        "heart", # 399
-        #"liver", # 175
-        "lung", # 427
-        "muscle", # 564
-        "nerve", # 414
-        "pancreas", # 248
-        #"pituitary", # 183
-        "skin", # 583
-        #"intestine", # 137
-        #"spleen", # 162
-        "stomach", # 262
-        "thyroid", # 446
-    ]
-
-    # Restriction
-    collection_restriction = restriction.execute_procedure(
-        method=method,
-        count=10,
-        tissues=tissues,
-        data_gene_persons_tissues_signals=(
-            data_gene_persons_tissues_signals
-        ),
-    )
-
-    # Aggregation
-    # Use the final "data_gene_persons_tissues_signals" from restriction
-    # procedure after imputation.
-    collection_aggregation = aggregation.execute_procedure(
-        data_gene_persons_tissues_signals=(
-            collection_restriction["data_gene_persons_tissues_signals"]
-        ),
-    )
-
-    # Determine distribution modality metrics.
-    # Determine whether to calculate metrics for gene's distribution.
-    if modality:
-        population = candidacy.evaluate_gene_population(
-            threshold=100,
-            data_gene_persons_signals=collection_aggregation["data"],
-        )
-        signal = candidacy.evaluate_gene_signal(
-            threshold=0.0,
-            data_gene_persons_signals=collection_aggregation["data"],
-        )
-        if signal and population:
-            # Calculate metrics.
-            # Calculate metrics of bimodality.
-            scores = calculate_bimodality_metrics(
-                values=collection_aggregation["values"]
-            )
-            pass
-        else:
-            # Generate missing values.
-            scores = generate_null_metrics()
-            pass
-    else:
-        # Generate missing values.
-        scores = generate_null_metrics()
-        pass
-
-    # Compile information.
-    information = {
-        "report_restriction": collection_restriction["report_gene"],
-        "values": collection_aggregation["values"],
-        "scores": scores,
-        "report_aggregation": collection_aggregation["report_gene"],
     }
 
     # Return information.
@@ -1341,6 +1612,9 @@ def execute_procedure(
 
     ##########
     # Restriction
+    # Specify tissues for the imputation method of the restriction procedure.
+    # This selection includes all non-sexual tissues with coverage of samples
+    # from at least 200 persons.
     tissues = [
         "adipose", # 552
         #"adrenal", # 190
@@ -1366,7 +1640,9 @@ def execute_procedure(
         method="availability", # "availability" or "imputation"
         count=10,
         tissues=tissues,
-        data_gene_samples_signals=data_gene_samples_signals
+        data_gene_persons_tissues_signals=(
+            bin_organization["data_gene_persons_tissues_signals"]
+        ),
     )
 
     # Aggregation
@@ -1378,9 +1654,8 @@ def execute_procedure(
         ),
     )
 
-
-
     # Modality
+    bin_modality = destribe_distribution_modality()
 
 
     # TODO: prepare a table with all original persons with missing values if they were'nt used in final distribution
