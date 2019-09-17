@@ -1208,6 +1208,7 @@ def evaluate_gene_tissue(
     threshold_count = threshold_proportion * count_persons
 
 
+# TODO: improve the candidacy checks on distributions...
 def describe_distribution_modality(
     modality=None,
     values=None,
