@@ -55,7 +55,31 @@ $path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped
 #$path_gcta --bfile $path_dock/gtex-8_genotype --autosome --maf 0.01 --make-grm --out $path_dock/gtex-8_grm_autosomes --threads 10
 #$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 6 --maf 0.01 --make-grm --out $path_relation/chromosome_6 --threads 10
 
-$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 6 --maf 0.01 --make-grm --out $path_relation/chromosome_6 --threads 10
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 1 --maf 0.01 --make-grm --out $path_relation/chromosome_1 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 2 --maf 0.01 --make-grm --out $path_relation/chromosome_2 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 3 --maf 0.01 --make-grm --out $path_relation/chromosome_3 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 4 --maf 0.01 --make-grm --out $path_relation/chromosome_4 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 5 --maf 0.01 --make-grm --out $path_relation/chromosome_5 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 6 --maf 0.01 --make-grm --out $path_relation/chromosome_6 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 7 --maf 0.01 --make-grm --out $path_relation/chromosome_7 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 8 --maf 0.01 --make-grm --out $path_relation/chromosome_8 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 9 --maf 0.01 --make-grm --out $path_relation/chromosome_9 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 10 --maf 0.01 --make-grm --out $path_relation/chromosome_10 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 11 --maf 0.01 --make-grm --out $path_relation/chromosome_11 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 12 --maf 0.01 --make-grm --out $path_relation/chromosome_12 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 13 --maf 0.01 --make-grm --out $path_relation/chromosome_13 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 14 --maf 0.01 --make-grm --out $path_relation/chromosome_14 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 15 --maf 0.01 --make-grm --out $path_relation/chromosome_15 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 16 --maf 0.01 --make-grm --out $path_relation/chromosome_16 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 17 --maf 0.01 --make-grm --out $path_relation/chromosome_17 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 18 --maf 0.01 --make-grm --out $path_relation/chromosome_18 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 19 --maf 0.01 --make-grm --out $path_relation/chromosome_19 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 20 --maf 0.01 --make-grm --out $path_relation/chromosome_20 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 21 --maf 0.01 --make-grm --out $path_relation/chromosome_21 --threads 20
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --chr 22 --maf 0.01 --make-grm --out $path_relation/chromosome_22 --threads 20
+
+$path_gcta --bfile $path_genotype_ped --keep $path_persons --autosome --maf 0.01 --make-grm --out $path_relation/autosome --threads 20
+
 
 # Analysis
-$path_gcta --grm $path_relation/chromosome_6 --pheno $path_distribution --reml --out $path_result
+#$path_gcta --grm $path_relation/chromosome_6 --pheno $path_distribution --reml --out $path_result
