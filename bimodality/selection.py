@@ -745,7 +745,8 @@ def extract_gene_signal_families_persons_tissues_samples(
     )
 
     # Organize families and persons.
-    data_gene_signal_factor["family"] = data_gene_signal_factor["person"]
+    #data_gene_signal_factor["family"] = data_gene_signal_factor["person"]
+    data_gene_signal_factor["family"] = 0
     data_families_persons = (
         data_gene_signal_factor.loc[ :, ["family", "person"]]
     )

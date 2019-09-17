@@ -40,7 +40,7 @@ import utility
 # Functionality
 
 
-def read_source_local_initial(
+def read_source_initial(
     source_genes=None,
     dock=None
 ):
@@ -62,15 +62,16 @@ def read_source_local_initial(
     # Specify directories and files.
     if source_genes == "split":
         path_source = os.path.join(dock, "split")
-    elif source_genes == "candidacy":
-        path_source = os.path.join(dock, "candidacy")
     elif source_genes == "combination":
         path_source = os.path.join(dock, "combination")
     path_genes = os.path.join(
         path_source, "genes.txt"
     )
     # Read information from file.
-    genes = utility.read_file_text_list(path_genes)
+    genes = utility.read_file_text_list(
+        delimiter="\n",
+        path_file=path_genes,
+    )
     # Compile and return information.
     return {
         "genes": genes,
@@ -97,21 +98,19 @@ def read_source(
     """
 
     # Specify directories and files.
-    path_permutation = os.path.join(dock, "permutation")
-    path_permutations = os.path.join(
-        path_permutation, "permutations.pickle"
-    )
     path_split = os.path.join(dock, "split")
     path_collection = os.path.join(path_split, "collection")
     path_gene = os.path.join(path_collection, (gene + ".pickle"))
+    path_selection = os.path.join(dock, "selection")
+    path_families = os.path.join(path_selection, "data_families.pickle")
+
     # Read information from file.
-    with open(path_permutations, "rb") as file_source:
-        permutations = pickle.load(file_source)
     data_gene_samples_signals = pandas.read_pickle(path_gene)
+    data_families = pandas.read_pickle(path_families)
     # Compile and return information.
     return {
         "data_gene_samples_signals": data_gene_samples_signals,
-        "permutations": permutations,
+        "data_families": data_families,
     }
 
 
@@ -1111,16 +1110,17 @@ def aggregate_data(
 # Modality
 
 
-
 def evaluate_gene_population(
     threshold=None,
+    count=None,
     data_gene_persons_signals=None
 ):
     """
     Evaluates the a gene's representation across persons.
 
     arguments:
-        threshold (int): minimal count of persons
+        threshold (float): minimal signal value
+        count (int): minimal count of persons with signal beyond threshold
         data_gene_persons_signals (object): Pandas data frame of a gene's
             aggregate, pan-tissue signals across persons
 
@@ -1131,6 +1131,8 @@ def evaluate_gene_population(
             population of persons
 
     """
+
+    print("here we are in the evaluate_gene_population function!!!")
 
     count_persons = data_gene_persons_signals.shape[0]
     return (count_persons > threshold)
@@ -1206,39 +1208,35 @@ def evaluate_gene_tissue(
     threshold_count = threshold_proportion * count_persons
 
 
-# TODO: rename and repurpose this function for calculating modality metrics
 def describe_distribution_modality(
     modality=None,
-    data_gene_persons_signals=None,
+    values=None,
 ):
     """
-    Prepares and describes the distributions of a gene's signals across
-    persons.
+    Applies multiple metrics to describe the distribution of a gene's signals
+    across persons.
 
     arguments:
         modality (bool): whether to calculate metrics for the modality of
             gene's distribution
-        data_gene_persons_signals (object): Pandas data frame of a gene's
-            aggregate, pan-tissue signals across persons
+        values (list<float>): values of a gene's signals across persons
 
     raises:
 
     returns:
-        (dict): information about the distribution of a gene's signals across
-            persons
+        (dict): scores of modality metrics
 
     """
-
-    # TODO: move the distribution checks from Candidacy to Distribution (ie here)
 
     # Determine distribution modality metrics.
     # Determine whether to calculate metrics for gene's distribution.
     if modality:
-        population = candidacy.evaluate_gene_population(
-            threshold=100,
+        population = evaluate_gene_population(
+            threshold=0.0,
+            count=100,
             data_gene_persons_signals=collection_aggregation["data"],
         )
-        signal = candidacy.evaluate_gene_signal(
+        signal = evaluate_gene_signal(
             threshold=0.0,
             data_gene_persons_signals=collection_aggregation["data"],
         )
@@ -1246,7 +1244,7 @@ def describe_distribution_modality(
             # Calculate metrics.
             # Calculate metrics of bimodality.
             scores = calculate_bimodality_metrics(
-                values=collection_aggregation["values"]
+                values=values
             )
             pass
         else:
@@ -1260,10 +1258,7 @@ def describe_distribution_modality(
 
     # Compile information.
     information = {
-        "report_restriction": collection_restriction["report_gene"],
-        "values": collection_aggregation["values"],
         "scores": scores,
-        "report_aggregation": collection_aggregation["report_gene"],
     }
 
     # Return information.
@@ -1271,10 +1266,7 @@ def describe_distribution_modality(
 
 
 
-
-
-
-
+##########################################################*******************
 ########## More or less scrap beyond here...
 # Distribution
 
@@ -1580,10 +1572,14 @@ def write_product(gene=None, dock=None, information=None):
 
 # Change procedure to run and collect both by "availability" and "imputation" methods...
 
+# TODO: export gene's aggregate pan-tissue signals across persons
+# TODO: export gene's chromosome and coordinates
+# TODO: heritability analysis will only consider genes on autosomes (non-sex chromosomes)
+
+# TODO: this function should not accept permutations...
 
 def execute_procedure(
     gene=None,
-    permutations=None,
     data_gene_samples_signals=None,
     dock=None
 ):
@@ -1592,9 +1588,10 @@ def execute_procedure(
 
     arguments:
         gene (str): identifier of gene
-        permutations (list<list<list<int>>>): matrices of permutation indices
         data_gene_samples_signals (object): Pandas data frame of a gene's
             signals across samples
+        data_families (object): Pandas data frame of person's identifiers and
+            families' identifiers
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -1646,6 +1643,8 @@ def execute_procedure(
     )
 
     # Aggregation
+    # Determine gene's distributions of aggregate tissue signals across
+    # persons.
     # Use the final "data_gene_persons_tissues_signals" from restriction
     # procedure after imputation.
     bin_aggregation = aggregate_data(
@@ -1655,55 +1654,20 @@ def execute_procedure(
     )
 
     # Modality
-    bin_modality = destribe_distribution_modality()
-
+    bin_modality = destribe_distribution_modality(
+        modality=True,
+        values=bin_aggregation["values"],
+    )
 
     # TODO: prepare a table with all original persons with missing values if they were'nt used in final distribution
 
 
     # Compilation
 
-
-    ##################Old Stuff...###########################################3
-
-    # Prepare and describe distribution of real gene's signals.
-
-    # Determine gene's distributions of aggregate tissue signals across
-    # persons.
-    observation = determine_gene_distributions(
-        gene=gene,
-        modality=True,
-        data_gene_samples_signals=data_gene_samples_signals,
-    )
+    print("at the end of the procedure's master function...")
 
     # Compile information.
-    information_imputation = {
-        "report_restriction": (
-            observation["imputation"]["report_restriction"]
-        ),
-        "report_aggregation": (
-            observation["imputation"]["report_aggregation"]
-        ),
-        "scores": observation["imputation"]["scores"],
-        "permutations": shuffle["imputation"],
-    }
-    information_availability = {
-        "report_restriction": (
-            observation["availability"]["report_restriction"]
-        ),
-        "report_aggregation": (
-            observation["availability"]["report_aggregation"]
-        ),
-        "scores": observation["availability"]["scores"],
-        "permutations": shuffle["availability"],
-    }
-    information = {
-        "report_organization": observation["organization"]["report_gene"],
-        "imputation": information_imputation,
-        "availability": information_availability,
-    }
     #Write product information to file.
-    write_product(gene=gene, dock=dock, information=information)
 
     pass
 
@@ -1722,55 +1686,61 @@ def execute_procedure_local(dock=None):
 
     """
 
-    # Read source information from file.
-    source = read_source_local_initial(source_genes="split", dock=dock)
-
-    print("count of genes: " + str(len(source["genes"])))
-    #print("count of permutations: " + str(len(source["permutations"])))
+    utility.print_terminal_partition(level=1)
+    print("... Distribution procedure ...")
 
     # Report date and time.
+    utility.print_terminal_partition(level=3)
     start = datetime.datetime.now()
     print(start)
+    utility.print_terminal_partition(level=3)
 
     # Remove previous files to avoid version or batch confusion.
     path_distribution = os.path.join(dock, "distribution")
     utility.remove_directory(path=path_distribution)
 
+    # Read source information from file.
+    source = read_source_initial(
+        source_genes="split",
+        dock=dock
+    )
+    print("count of genes: " + str(len(source["genes"])))
+
     # Set up partial function for iterative execution.
-    # Each iteration uses the same values for "genes_signals", "permutations", and
-    # "dock" variables.
+    # Each iteration uses a different sequential value of the "gene" variable
+    # with the same value of the "dock" variable.
     execute_procedure_gene = functools.partial(
         execute_procedure_local_sub,
         dock=dock
     )
 
     # Initialize multiprocessing pool.
-    # Iterative shuffle procedure.
-    # 4 concurrent processes require approximately 60% of 32 Gigabytes memory.
-    # 5 concurrent processes require approximately 75% of 32 Gigabytes memory.
-    # 6 concurrent processes require approximately 90% of 32 Gigabytes memory.
-    # Index shuffle procedure.
-    # 6 concurrent processes require approximately 50% of 32 Gigabytes memory.
-    # 7 concurrent processes require approximately 65% of 32 Gigabytes memory.
     #pool = multiprocessing.Pool(processes=os.cpu_count())
-    pool = multiprocessing.Pool(processes=100)
+    pool = multiprocessing.Pool(processes=8)
 
     # Iterate on genes.
     check_genes=[
-        "ENSG00000198965",
+        "ENSG00000231925", # TAPBP
     ]
     #report = pool.map(execute_procedure_gene, check_genes)
     #report = pool.map(execute_procedure_gene, source["genes"][0:32])
     report = pool.map(execute_procedure_gene, source["genes"])
 
+    # Pause procedure.
+    time.sleep(5.0)
+
     # Report.
     #print("Process complete for the following genes...")
     #print(str(len(report)))
 
+    # TODO: execute a collection procedure to assemble genes and a report...
+
     # Report date and time.
+    utility.print_terminal_partition(level=3)
     end = datetime.datetime.now()
     print(end)
     print("duration: " + str(end - start))
+    utility.print_terminal_partition(level=3)
 
     pass
 
@@ -1790,30 +1760,21 @@ def execute_procedure_local_sub(gene=None, dock=None):
 
     """
 
-    # Enable automatic garbage collection to clear memory.
-    #gc.enable()
-
-    # Report gene.
-    #print("gene: " + gene)
-
     # Read source information from file.
     source = read_source(
         gene=gene,
         dock=dock
     )
 
-    # Collect garbage to clear memory.
-    #gc.collect()
-
     # Execute procedure.
     execute_procedure(
         gene=gene,
-        permutations=source["permutations"],
         data_gene_samples_signals=source["data_gene_samples_signals"],
+        data_families=source["data_families"],
         dock=dock
     )
 
-    # Report contents of directory.
+    # Report progress.
     path_distribution = os.path.join(dock, "distribution")
     directories = os.listdir(path_distribution)
     count = len(directories)

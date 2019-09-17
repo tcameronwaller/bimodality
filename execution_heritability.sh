@@ -31,8 +31,9 @@ echo "--------------------------------------------------"
 # Echo each command to console.
 set -x
 
-rm -r $path_dock
-mkdir $path_dock
+rm -r $path_genotype_ped
+mkdir $path_genotype_ped
+
 rm -r $path_relation
 mkdir $path_relation
 
@@ -46,7 +47,7 @@ mkdir $path_relation
 # GCTA requires PLINK 1 format files, .bed, .bim, and .fam.
 #$path_plink --vcf $path_genotype_vcf --no-fid --make-bed --out $path_genotype_ped
 # I think that the "no-fid" flag does not change anything when importing a VCF.
-$path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped
+$path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped/genotype --threads 20
 
 # Calculate genetic relationship matrix (GRM).
 # For cis heritability, GRM must be specific to each gene's chromosome.

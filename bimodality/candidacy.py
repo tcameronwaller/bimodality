@@ -45,86 +45,6 @@ import utility
 # Source
 
 
-def read_source_initial(
-    source_genes=None,
-    dock=None
-):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        source_genes (str): name of directory from which to obtain genes list
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    if source_genes == "split":
-        path_source = os.path.join(dock, "split")
-    elif source_genes == "combination":
-        path_source = os.path.join(dock, "combination")
-    path_genes = os.path.join(
-        path_source, "genes.txt"
-    )
-    # Read information from file.
-    genes = utility.read_file_text_list(
-        delimiter="\n",
-        path_file=path_genes,
-    )
-    # Compile and return information.
-    return {
-        "genes": genes,
-    }
-
-
-def read_source(
-    gene=None,
-    dock=None
-):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        gene (str): identifier of a single gene
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
-    path_samples_tissues_persons = os.path.join(
-        path_assembly, "data_samples_tissues_persons.pickle"
-    )
-    path_split = os.path.join(dock, "split")
-    path_collection = os.path.join(path_split, "collection")
-    path_gene = os.path.join(path_collection, (gene + ".pickle"))
-    path_selection = os.path.join(dock, "selection")
-    path_families = os.path.join(path_selection, "data_families.pickle")
-    # Read information from file.
-    data_samples_tissues_persons = pandas.read_pickle(
-        path_samples_tissues_persons
-    )
-    data_gene_samples_signals = pandas.read_pickle(path_gene)
-    data_families = pandas.read_pickle(path_families)
-    # Compile and return information.
-    return {
-        "data_samples_tissues_persons": data_samples_tissues_persons,
-        "data_gene_samples_signals": data_gene_samples_signals,
-        "data_families": data_families,
-    }
-
 
 ##########
 # Export
@@ -962,72 +882,8 @@ def execute_procedure_local(dock=None):
 
     """
 
-    # Remove previous files to avoid version or batch confusion.
-    path_candidacy = os.path.join(dock, "candidacy")
-    utility.remove_directory(path=path_candidacy)
-
-    # Create directories.
-    #create_directories(dock=dock)
-
-    # Read source information from file.
-    source = read_source_initial(
-        source_genes="split",
-        dock=dock
-    )
-    print("count of genes: " + str(len(source["genes"])))
-
-    # Report date and time.
-    start = datetime.datetime.now()
-    print(start)
-
-    if True:
-        execute_procedure_local_sub(
-            gene="ENSG00000231925", # TAPBP
-            dock=dock,
-        )
-
-    if False:
-        # Set up partial function for iterative execution.
-        # Each iteration uses the same values for "genes_signals", "shuffles", and
-        # "dock" variables.
-        execute_procedure_gene = functools.partial(
-            execute_procedure_local_sub,
-            dock=dock
-        )
-
-        # Initialize multiprocessing pool.
-        #pool = multiprocessing.Pool(processes=os.cpu_count())
-        pool = multiprocessing.Pool(processes=8)
-
-        # Iterate on genes.
-        check_genes=[
-            "ENSG00000231925", # TAPBP
-        ]
-        report = pool.map(execute_procedure_gene, check_genes)
-        #report = pool.map(execute_procedure_gene, source["genes"][0:8])
-        #report = pool.map(execute_procedure_gene, source["genes"])
-
-    # Pause procedure.
-    time.sleep(5.0)
-
-    # Report.
-    #print("Process complete for the following genes...")
-    #print(str(len(report)))
-
-    if False:
-        report_gene_tissue_persons(
-            gene="ENSG00000231925", # TAPBP
-            count=10,
-            dock=dock,
-        )
-
     # Collect genes.
     #read_collect_write_genes(dock=dock)
-
-    # Report date and time.
-    end = datetime.datetime.now()
-    print(end)
-    print("duration: " + str(end - start))
 
     pass
 
@@ -1047,15 +903,6 @@ def execute_procedure_local_sub(gene=None, dock=None):
 
     """
 
-    # Report gene.
-    #print("gene: " + gene)
-
-    # Read source information from file.
-    source = read_source(
-        gene=gene,
-        dock=dock
-    )
-
     # Execute procedure.
     execute_procedure(
         gene=gene,
@@ -1064,15 +911,6 @@ def execute_procedure_local_sub(gene=None, dock=None):
         data_families=source["data_families"],
         dock=dock
     )
-
-    # Report contents of directory.
-    if False:
-        path_candidacy = os.path.join(dock, "candidacy")
-        path_count = os.path.join(path_candidacy, "count")
-        files = os.listdir(path_count)
-        count = len(files)
-        if (count % 10 == 0):
-            print("complete genes: " + str(len(files)))
 
     pass
 

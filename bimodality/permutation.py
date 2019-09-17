@@ -248,6 +248,44 @@ def write_product(dock=None, information=None):
 ###########################TODO: put this in a new module... with parallel structure like distribution############################
 
 
+def read_source(
+    gene=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_permutation = os.path.join(dock, "permutation")
+    path_permutations = os.path.join(
+        path_permutation, "permutations.pickle"
+    )
+    path_split = os.path.join(dock, "split")
+    path_collection = os.path.join(path_split, "collection")
+    path_gene = os.path.join(path_collection, (gene + ".pickle"))
+    # Read information from file.
+    with open(path_permutations, "rb") as file_source:
+        permutations = pickle.load(file_source)
+    data_gene_samples_signals = pandas.read_pickle(path_gene)
+    # Compile and return information.
+    return {
+        "data_gene_samples_signals": data_gene_samples_signals,
+        "permutations": permutations,
+    }
+
+
 def shuffle_gene_signals_iterative(
     data_gene_signals=None,
     shuffle=None
