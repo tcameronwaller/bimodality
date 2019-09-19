@@ -227,9 +227,9 @@ def select_genes(
     Selects genes that encode proteins.
 
     arguments:
-        data_gene_annotation (object): Pandas data frame of genes' annotations.
+        data_gene_annotation (object): Pandas data frame of genes' annotations
         data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples, tissues, and patients.
+            samples, tissues, and patients
 
     raises:
 
@@ -639,56 +639,6 @@ def select_samples_genes_signals(
 
 # Families, persons, tissues, samples.
 
-# TODO: I think this function is now obsolete...
-def organize_families_persons_old(
-    persons=None,
-):
-    """
-    Organizes records of families and persons.
-
-    As the data from GTEx do not include families, generate distinct families
-    for each person for use in GCTA.
-
-    arguments:
-        persons (list<str>): identifiers of persons
-
-    raises:
-
-    returns:
-        (dict): collection of families and persons
-    """
-
-    # Sort persons.
-    persons_sort = sorted(persons)
-    # Create unique families.
-    families = []
-    family = 1
-    for person in persons_sort:
-        record = dict()
-        record["family"] = family
-        record["person"] = person
-        families.append(record)
-        family += 1
-
-    # Organize data.
-    data_families = utility.convert_records_to_dataframe(records=families)
-    data_families.set_index(
-        ["person"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-
-    # Compile information.
-    information = {
-        "families": families,
-        "data_families": data_families,
-        "persons": persons_sort,
-    }
-
-    # Return information.
-    return information
-
 
 def extract_gene_signal_families_persons_tissues_samples(
     data_samples_tissues_persons=None,
@@ -750,14 +700,31 @@ def extract_gene_signal_families_persons_tissues_samples(
     data_families_persons = (
         data_gene_signal_factor.loc[ :, ["family", "person"]]
     )
+    data_families_persons.rename_axis(
+        "",
+        axis="columns",
+        inplace=True,
+    )
     data_families_persons.drop_duplicates(
         subset=None,
         keep="first",
         inplace=True,
     )
+    data_families_persons.reindex()
+    data_families_persons.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
     families_persons = utility.convert_dataframe_to_records(
         data=data_families_persons
     )
+
+    utility.print_terminal_partition(level=1)
+    print("data families persons...")
+    print(data_families_persons)
 
     # Summary.
     utility.print_terminal_partition(level=2)
@@ -1001,7 +968,7 @@ def execute_procedure(dock=None):
         "tissues_major": collection["tissues_major"],
         "samples": collection["samples"],
     }
-    #Write product information to file.
+    # Write product information to file.
     write_product(dock=dock, information=information)
 
     pass

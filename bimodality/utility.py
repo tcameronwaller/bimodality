@@ -846,6 +846,33 @@ def filter_entries_identifiers(
     return entries_novel
 
 
+def calculate_standard_score(
+    value=None,
+    mean=None,
+    deviation=None,
+):
+    """
+    Calculates the standard score, z-score, of a value.
+
+    arguments:
+        value (float): value to transform to standard score space
+        mean (float): mean of distribution from which value comes
+        deviation (float): standard deviation of distribution from which value
+            comes
+
+    raises:
+
+    returns:
+        (float): value in standard score space
+
+    """
+
+    if deviation != 0:
+        return ((value - mean) / deviation)
+    else:
+        return float("nan")
+
+
 # Pandas
 
 def convert_records_to_dataframe(records=None):

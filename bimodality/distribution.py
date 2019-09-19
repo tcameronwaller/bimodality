@@ -19,6 +19,7 @@ import functools
 import multiprocessing
 import datetime
 import gc
+import time
 
 # Relevant
 
@@ -28,8 +29,8 @@ import scipy.stats
 
 # Custom
 
+import measurement
 import metric
-import candidacy
 import category
 import utility
 
@@ -60,6 +61,12 @@ def read_source_initial(
     """
 
     # Specify directories and files.
+    path_assembly = os.path.join(dock, "assembly")
+    path_gene_annotation = os.path.join(
+        path_assembly, "data_gene_annotation.pickle"
+    )
+    path_selection = os.path.join(dock, "selection")
+    path_families = os.path.join(path_selection, "data_families.pickle")
     if source_genes == "split":
         path_source = os.path.join(dock, "split")
     elif source_genes == "combination":
@@ -68,12 +75,16 @@ def read_source_initial(
         path_source, "genes.txt"
     )
     # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+    data_families = pandas.read_pickle(path_families)
     genes = utility.read_file_text_list(
         delimiter="\n",
         path_file=path_genes,
     )
     # Compile and return information.
     return {
+        "data_gene_annotation": data_gene_annotation,
+        "data_families": data_families,
         "genes": genes,
     }
 
@@ -101,16 +112,11 @@ def read_source(
     path_split = os.path.join(dock, "split")
     path_collection = os.path.join(path_split, "collection")
     path_gene = os.path.join(path_collection, (gene + ".pickle"))
-    path_selection = os.path.join(dock, "selection")
-    path_families = os.path.join(path_selection, "data_families.pickle")
-
     # Read information from file.
     data_gene_samples_signals = pandas.read_pickle(path_gene)
-    data_families = pandas.read_pickle(path_families)
     # Compile and return information.
     return {
         "data_gene_samples_signals": data_gene_samples_signals,
-        "data_families": data_families,
     }
 
 
@@ -785,11 +791,13 @@ def restrict_data(
     # Compile information.
     information = {
         "data_gene_persons_tissues_signals_restriction": data_selection,
-        "data_gene_persons_tissues": pack["data_persons_tissues"],
-        "data_gene_persons_tissues_count": pack["data_persons_tissues_count"],
+        "data_gene_persons_tissues": pack["data_gene_persons_tissues"],
+        "data_gene_persons_tissues_count": (
+            pack["data_gene_persons_tissues_count"]
+        ),
         "persons_count_restriction": pack["persons_count"],
-        "tissues_mean": pack["tissues_mean"],
-        "tissues_median": pack["tissues_median"],
+        "tissues_count_mean": pack["tissues_mean"],
+        "tissues_count_median": pack["tissues_median"],
     }
     # Return information.
     return information
@@ -1042,7 +1050,7 @@ def evaluate_aggregation(
 
     # Compile information.
     information = {
-        "persons_count": persons,
+        "persons_count_aggregation": persons,
         "data_gene_persons_signals": data_gene_persons_signals,
     }
     # Return information.
@@ -1100,7 +1108,7 @@ def aggregate_data(
     information = {
         "data_gene_persons_signals": collection["data_gene_persons_signals"],
         "values": collection["values"],
-        "persons_count_aggregation": pack["persons_count"],
+        "persons_count_aggregation": pack["persons_count_aggregation"],
     }
     # Return information.
     return information
@@ -1132,10 +1140,15 @@ def evaluate_gene_population(
 
     """
 
-    print("here we are in the evaluate_gene_population function!!!")
-
-    count_persons = data_gene_persons_signals.shape[0]
-    return (count_persons > threshold)
+    # Copy data.
+    data = data_gene_persons_signals.copy(
+        deep=True
+    )
+    # Determine whether values exceed threshold.
+    data_threshold = (data != threshold)
+    data_pass = data.loc[data_threshold["value"], :]
+    count_persons = data_pass.shape[0]
+    return (count_persons >= count)
 
 
 def evaluate_gene_signal(
@@ -1208,70 +1221,6 @@ def evaluate_gene_tissue(
     threshold_count = threshold_proportion * count_persons
 
 
-# TODO: improve the candidacy checks on distributions...
-def describe_distribution_modality(
-    modality=None,
-    values=None,
-):
-    """
-    Applies multiple metrics to describe the distribution of a gene's signals
-    across persons.
-
-    arguments:
-        modality (bool): whether to calculate metrics for the modality of
-            gene's distribution
-        values (list<float>): values of a gene's signals across persons
-
-    raises:
-
-    returns:
-        (dict): scores of modality metrics
-
-    """
-
-    # Determine distribution modality metrics.
-    # Determine whether to calculate metrics for gene's distribution.
-    if modality:
-        population = evaluate_gene_population(
-            threshold=0.0,
-            count=100,
-            data_gene_persons_signals=collection_aggregation["data"],
-        )
-        signal = evaluate_gene_signal(
-            threshold=0.0,
-            data_gene_persons_signals=collection_aggregation["data"],
-        )
-        if signal and population:
-            # Calculate metrics.
-            # Calculate metrics of bimodality.
-            scores = calculate_bimodality_metrics(
-                values=values
-            )
-            pass
-        else:
-            # Generate missing values.
-            scores = generate_null_metrics()
-            pass
-    else:
-        # Generate missing values.
-        scores = generate_null_metrics()
-        pass
-
-    # Compile information.
-    information = {
-        "scores": scores,
-    }
-
-    # Return information.
-    return information
-
-
-
-##########################################################*******************
-########## More or less scrap beyond here...
-# Distribution
-
-
 def calculate_bimodality_metrics(
     values=None
 ):
@@ -1326,6 +1275,251 @@ def generate_null_metrics():
     # Return information.
     return information
 
+
+# TODO: improve the candidacy checks on distributions...
+def describe_distribution_modality(
+    modality=None,
+    values=None,
+    data_gene_persons_signals=None,
+):
+    """
+    Applies multiple metrics to describe the distribution of a gene's signals
+    across persons.
+
+    arguments:
+        modality (bool): whether to calculate metrics for the modality of
+            gene's distribution
+        values (list<float>): values of a gene's signals across persons
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate, pan-tissue signals across persons
+
+    raises:
+
+    returns:
+        (dict): scores of modality metrics
+
+    """
+
+    # Determine distribution modality metrics.
+    # Determine whether to calculate metrics for gene's distribution.
+    if modality:
+        population = evaluate_gene_population(
+            threshold=0.0,
+            count=100,
+            data_gene_persons_signals=data_gene_persons_signals,
+        )
+        signal = evaluate_gene_signal(
+            threshold=0.0,
+            data_gene_persons_signals=data_gene_persons_signals,
+        )
+        if signal and population:
+            # Calculate metrics.
+            # Calculate metrics of bimodality.
+            scores = calculate_bimodality_metrics(
+                values=values
+            )
+            pass
+        else:
+            # Generate missing values.
+            scores = generate_null_metrics()
+            pass
+    else:
+        # Generate missing values.
+        scores = generate_null_metrics()
+        pass
+
+    # Compile information.
+    information = {
+        "scores": scores,
+    }
+
+    # Return information.
+    return information
+
+
+##########
+# Extraction
+
+
+def extract_gene_persons_signals(
+    data_gene_persons_signals=None,
+    data_families=None,
+):
+    """
+    Extracts information about a gene's distribution of pan-tissue signals
+    across persons.
+
+    This information is useful for heritability analysis in GCTA.
+
+    arguments:
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate, pan-tissue signals across persons
+        data_families (object): Pandas data frame of families and persons
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's aggregate, pan-tissue signals
+            across families and persons
+
+    """
+
+    # Treat the complete table of families and persons as master.
+    # Introduce missing values for persons without valid signals.
+    # Join
+    data_gene_families_persons_signals = data_families.join(
+        data_gene_persons_signals,
+        how="left",
+        on="person"
+    )
+    data_gene_families_persons_signals.reset_index(
+        level=None,
+        inplace=True
+    )
+    return data_gene_families_persons_signals
+
+
+##########
+# Report
+
+
+def calculate_combination_scores(
+    data_report=None,
+):
+    """
+    Converts genes' modality metrics to standard, z-score space and then
+    calculates combination metrics.
+
+    arguments:
+        data_report (object): Pandas data frame of information about genes'
+            distributions
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of information about genes' distributions
+
+    """
+
+    # Copy data.
+    data = data_report.copy(deep=True)
+    # Calculate mean and standard deviation of each modality metric across
+    # genes.
+    coefficients = data["coefficient"].to_list()
+    dips = data["dip"].to_list()
+    mixtures = data["mixture"].to_list()
+    mean_coefficient = statistics.mean(coefficients)
+    deviation_coefficient = statistics.stdev(coefficients)
+    mean_dip = statistics.mean(dips)
+    deviation_dip = statistics.stdev(dips)
+    mean_mixture = statistics.mean(mixtures)
+    deviation_mixture = statistics.stdev(mixtures)
+    # Convert gene's modality metrics to standard, z-score, space across genes.
+    data["coefficient_z"] = data.apply(
+        lambda row: utility.calculate_standard_score(
+            value=row["coefficient"],
+            mean=mean_coefficient,
+            deviation=deviation_coefficient,
+        ),
+        axis="columns",
+    )
+    data["dip_z"] = data.apply(
+        lambda row: utility.calculate_standard_score(
+            value=row["dip"],
+            mean=mean_dip,
+            deviation=deviation_dip,
+        ),
+        axis="columns",
+    )
+    data["mixture_z"] = data.apply(
+        lambda row: utility.calculate_standard_score(
+            value=row["mixture"],
+            mean=mean_mixture,
+            deviation=deviation_mixture,
+        ),
+        axis="columns",
+    )
+    # Calculate combination score as mean of other modality metrics.
+    data["combination"] = data.apply(
+        lambda row: statistics.mean(
+            [
+                row["coefficient_z"],
+                row["dip_z"],
+                row["mixture_z"],
+            ]
+        ),
+        axis="columns",
+    )
+    # Return information.
+    return data
+
+
+def prepare_gene_report(
+    gene=None,
+    persons_restriction=None,
+    persons_aggregation=None,
+    tissues=None,
+    tissues_mean=None,
+    tissues_median=None,
+    coefficient=None,
+    dip=None,
+    mixture=None,
+    data_gene_annotation=None,
+):
+    """
+    Prepares a report about the gene's distribution of aggregate pan-tissue
+    signals across persons.
+
+    arguments:
+        gene (str): identifier of gene
+        persons_restriction (int): count of persons after restriction
+        persons_aggregation (int): count of persons after aggregation
+        tissues (int): count of tissues
+        tissues_mean (float): mean count of tissues across persons
+        tissues_median (float): median count of tissues across persons
+        coefficient (float): bimodality coefficient
+        dip (float): Hardigan's dip statistic
+        mixture (float): log likelihood ratio from Gaussian mixture models for
+            one or two modes
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+    raises:
+
+    returns:
+        (dict): information about gene's signals
+
+    """
+
+    # Name
+    name = data_gene_annotation.loc[gene, "gene_name"]
+    # Chromosome
+    chromosome = data_gene_annotation.loc[gene, "seqname"]
+    # Coordinates
+    start = data_gene_annotation.loc[gene, "start"]
+    end = data_gene_annotation.loc[gene, "end"]
+    # Compile information.
+    information = {
+        "gene": gene,
+        "name": name,
+        "chromosome": chromosome,
+        "start": start,
+        "end": end,
+        "persons_restriction": persons_restriction,
+        "persons_aggregation": persons_aggregation,
+        "tissues": tissues,
+        "tissues_mean": tissues_mean,
+        "tissues_median": tissues_median,
+        "coefficient": coefficient,
+        "dip": dip,
+        "mixture": mixture,
+    }
+    # Return information.
+    return information
+
+
+##########################################################*******************
+########## More or less scrap beyond here...
+# Distribution
 
 def determine_gene_distributions(
     gene=None,
@@ -1414,8 +1608,6 @@ def extract_gene_distribution_information(
     report_restriction = observation[method]["report_restriction"]
     report_aggregation = observation[method]["report_aggregation"]
 
-
-
     # Gene's signals across original, complete set of persons and tissues.
     data_gene_persons_tissues_signals_complete = (
         observation["organization"]["data_gene_persons_tissues_signals"]
@@ -1479,7 +1671,7 @@ def extract_gene_distribution_information(
 # Product
 
 
-def write_product(gene=None, dock=None, information=None):
+def write_product_gene(gene=None, dock=None, information=None):
     """
     Writes product information to file.
 
@@ -1495,83 +1687,226 @@ def write_product(gene=None, dock=None, information=None):
 
     """
 
+    ##########
     # Specify directories and files.
     path_distribution = os.path.join(dock, "distribution")
     utility.create_directory(path_distribution)
     path_gene = os.path.join(path_distribution, gene)
     utility.create_directory(path_gene)
-    path_imputation = os.path.join(path_gene, "imputation")
-    utility.create_directory(path_imputation)
-    path_availability = os.path.join(path_gene, "availability")
-    utility.create_directory(path_availability)
+    # General
+    path_tissues = os.path.join(
+        path_gene, "tissues.txt"
+    )
+    path_report = os.path.join(
+        path_gene, "report.pickle"
+    )
+    # Organization
+    path_data_gene_signal_tissue = os.path.join(
+        path_gene, "data_gene_signal_tissue.pickle"
+    )
+    path_data_gene_persons_tissues_signals = os.path.join(
+        path_gene, "data_gene_persons_tissues_signals.pickle"
+    )
+    path_data_gene_tissue_mean = os.path.join(
+        path_gene, "data_gene_tissue_mean.pickle"
+    )
+    path_data_gene_tissue_variance = os.path.join(
+        path_gene, "data_gene_tissue_variance.pickle"
+    )
+    path_data_gene_tissue_deviation = os.path.join(
+        path_gene, "data_gene_tissue_deviation.pickle"
+    )
+    path_data_gene_tissue_variation = os.path.join(
+        path_gene, "data_gene_tissue_variation.pickle"
+    )
+    path_data_gene_tissue_dispersion = os.path.join(
+        path_gene, "data_gene_tissue_dispersion.pickle"
+    )
+    # Restriction
+    path_data_gene_persons_tissues_signals_restriction = os.path.join(
+        path_gene, "data_gene_persons_tissues_signals_restriction.pickle"
+    )
+    path_data_gene_persons_tissues = os.path.join(
+        path_gene, "data_gene_persons_tissues.pickle"
+    )
+    path_data_gene_persons_tissues_count = os.path.join(
+        path_gene, "data_gene_persons_tissues_count.pickle"
+    )
+    # Aggregation
+    path_data_gene_persons_signals = os.path.join(
+        path_gene, "data_gene_persons_signals.pickle"
+    )
+    path_data_gene_families_persons_signals = os.path.join(
+        path_gene, "data_gene_families_persons_signals.pickle"
+    )
+    path_data_gene_families_persons_signals_text = os.path.join(
+        path_gene, "data_gene_families_persons_signals.tsv"
+    )
+    # Modality
+    path_scores = os.path.join(
+        path_gene, "scores.pickle"
+    )
 
-    path_report_organization = os.path.join(
-        path_gene, "report_organization.pickle"
-    )
-    # Imputation method
-    path_imputation_report_restriction = os.path.join(
-        path_imputation, "report_restriction.pickle"
-    )
-    path_imputation_report_aggregation = os.path.join(
-        path_imputation, "report_aggregation.pickle"
-    )
-    path_imputation_scores = os.path.join(
-        path_imputation, "scores.pickle"
-    )
-    path_imputation_permutations = os.path.join(
-        path_imputation, "permutations.pickle"
-    )
-    # Availability method
-    path_availability_report_restriction = os.path.join(
-        path_availability, "report_restriction.pickle"
-    )
-    path_availability_report_aggregation = os.path.join(
-        path_availability, "report_aggregation.pickle"
-    )
-    path_availability_scores = os.path.join(
-        path_availability, "scores.pickle"
-    )
-    path_availability_permutations = os.path.join(
-        path_availability, "permutations.pickle"
-    )
-
+    ##########
     # Write information to file.
-    with open(path_report_organization, "wb") as file_product:
-        pickle.dump(information["report_organization"], file_product)
+    # General
+    utility.write_file_text_list(
+        elements=information["tissues"],
+        delimiter="\n",
+        path_file=path_tissues
+    )
+    with open(path_report, "wb") as file_product:
+        pickle.dump(information["report"], file_product)
+    # Organization
+    pandas.to_pickle(
+        information["data_gene_signal_tissue"],
+        path_data_gene_signal_tissue
+    )
+    pandas.to_pickle(
+        information["data_gene_persons_tissues_signals"],
+        path_data_gene_persons_tissues_signals
+    )
+    pandas.to_pickle(
+        information["data_gene_tissue_mean"],
+        path_data_gene_tissue_mean
+    )
+    pandas.to_pickle(
+        information["data_gene_tissue_variance"],
+        path_data_gene_tissue_variance
+    )
+    pandas.to_pickle(
+        information["data_gene_tissue_deviation"],
+        path_data_gene_tissue_deviation
+    )
+    pandas.to_pickle(
+        information["data_gene_tissue_variation"],
+        path_data_gene_tissue_variation
+    )
+    pandas.to_pickle(
+        information["data_gene_tissue_dispersion"],
+        path_data_gene_tissue_dispersion
+    )
+    # Restriction
+    pandas.to_pickle(
+        information["data_gene_persons_tissues_signals_restriction"],
+        path_data_gene_persons_tissues_signals_restriction
+    )
+    pandas.to_pickle(
+        information["data_gene_persons_tissues"],
+        path_data_gene_persons_tissues
+    )
+    pandas.to_pickle(
+        information["data_gene_persons_tissues_count"],
+        path_data_gene_persons_tissues_count
+    )
+    # Aggregation
+    pandas.to_pickle(
+        information["data_gene_persons_signals"],
+        path_data_gene_persons_signals
+    )
+    pandas.to_pickle(
+        information["data_gene_families_persons_signals"],
+        path_data_gene_families_persons_signals
+    )
+    information["data_gene_families_persons_signals"].to_csv(
+        path_or_buf=path_data_gene_families_persons_signals_text,
+        columns=["family", "person", "value"],
+        sep="\t",
+        na_rep="NA",
+        header=False,
+        index=False,
+    )
+    # Modality
+    with open(path_scores, "wb") as file_product:
+        pickle.dump(information["scores"], file_product)
 
-    # Imputation method
-    with open(path_imputation_report_restriction, "wb") as file_product:
-        pickle.dump(information["imputation"]["report_restriction"], file_product)
-    with open(path_imputation_report_aggregation, "wb") as file_product:
-        pickle.dump(
-            information["imputation"]["report_aggregation"], file_product
-        )
-    with open(path_imputation_scores, "wb") as file_product:
-        pickle.dump(information["imputation"]["scores"], file_product)
-    with open(path_imputation_permutations, "wb") as file_product:
-        pickle.dump(information["imputation"]["permutations"], file_product)
+    pass
 
-    # Imputation method
-    with open(path_availability_report_restriction, "wb") as file_product:
-        pickle.dump(
-            information["availability"]["report_restriction"], file_product
+
+def read_collect_write_gene_report(
+    genes=None,
+    dock=None,
+):
+    """
+    Collects information about genes.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Check contents of directory.
+    utility.print_terminal_partition(level=2)
+    print("Check that directories exist for all genes.")
+    path_distribution = os.path.join(dock, "distribution")
+    directories = os.listdir(path_distribution)
+    match = utility.compare_lists_by_mutual_inclusion(
+        list_one=genes, list_two=directories
+    )
+    print("Genes and directories match: " + str(match))
+    utility.print_terminal_partition(level=2)
+
+    # Collect information about genes.
+    records = list()
+    # Iterate on directories for genes.
+    for gene in directories:
+        # Specify directories and files.
+        path_gene = os.path.join(path_distribution, gene)
+        path_report = os.path.join(
+            path_gene, "report.pickle"
         )
-    with open(path_availability_report_aggregation, "wb") as file_product:
-        pickle.dump(
-            information["availability"]["report_aggregation"], file_product
-        )
-    with open(path_availability_scores, "wb") as file_product:
-        pickle.dump(information["availability"]["scores"], file_product)
-    with open(path_availability_permutations, "wb") as file_product:
-        pickle.dump(information["availability"]["permutations"], file_product)
+        # Read information from file.
+        with open(path_report, "rb") as file_source:
+            record = pickle.load(file_source)
+        # Create entry for gene.
+        records.append(record)
+    # Organize data.
+    data = utility.convert_records_to_dataframe(
+        records=records,
+    )
+    # Convert modality metrics to standard, z-score space.
+    # Calculate combination modality metrics.
+    data_report = calculate_combination_scores(
+        data_report=data,
+    )
+    data_report.sort_values(
+        by=["combination"],
+        axis="index",
+        ascending=False,
+        inplace=True,
+    )
+    utility.print_terminal_partition(level=2)
+    print(data_report)
+    utility.print_terminal_partition(level=2)
+    # Specify directories and files.
+    path_data_report = os.path.join(
+        path_distribution, "data_gene_report.pickle"
+    )
+    path_data_report_text = os.path.join(
+        path_distribution, "data_gene_report.tsv"
+    )
+    # Write information to file.
+    data_report.to_pickle(
+        path=path_data_report
+    )
+    data_report.to_csv(
+        path_or_buf=path_data_report_text,
+        sep="\t",
+        header=True,
+        index=False,
+    )
 
     pass
 
 
 ###############################################################################
 # Procedure
-
-# Change procedure to run and collect both by "availability" and "imputation" methods...
 
 # TODO: export gene's aggregate pan-tissue signals across persons
 # TODO: export gene's chromosome and coordinates
@@ -1582,6 +1917,8 @@ def write_product(gene=None, dock=None, information=None):
 def execute_procedure(
     gene=None,
     data_gene_samples_signals=None,
+    data_families=None,
+    data_gene_annotation=None,
     dock=None
 ):
     """
@@ -1593,6 +1930,7 @@ def execute_procedure(
             signals across samples
         data_families (object): Pandas data frame of person's identifiers and
             families' identifiers
+        data_gene_annotation (object): Pandas data frame of genes' annotations
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -1610,33 +1948,61 @@ def execute_procedure(
 
     ##########
     # Restriction
-    # Specify tissues for the imputation method of the restriction procedure.
+    # Define tissues for inclusion.
     # This selection includes all non-sexual tissues with coverage of samples
-    # from at least 200 persons.
+    # from at least 100 persons.
     tissues = [
-        "adipose", # 552
-        #"adrenal", # 190
-        "artery", # 551
-        "blood", # 407
-        "brain", # 254
-        "colon", # 371
-        "esophagus", # 513
-        "heart", # 399
-        #"liver", # 175
-        "lung", # 427
-        "muscle", # 564
-        "nerve", # 414
-        "pancreas", # 248
-        #"pituitary", # 183
-        "skin", # 583
-        #"intestine", # 137
-        #"spleen", # 162
-        "stomach", # 262
-        "thyroid", # 446
+        "adipose", # 797
+        "adrenal", # 258
+        "artery", # 786
+        "blood", # 767
+        "brain", # 382
+        #"breast", # 459
+        "colon", # 555
+        "esophagus", # 710
+        "heart", # 561
+        "intestine", # 187
+        "liver", # 226
+        "lung", # 578
+        "muscle", # 803
+        "nerve", # 619
+        #"ovary", # 180
+        "pancreas", # 328
+        "pituitary", # 283
+        #"prostate", # 245
+        "salivary", # 162
+        "skin", # 912
+        "spleen", # 241
+        "stomach", # 359
+        #"testis", # 361
+        "thyroid", # 653
+        #"uterus", # 142
+        #"vagina", # 156
     ]
+    # 18 September 2019
+    # count   persons
+    # 1       948
+    # 2       943
+    # 3       930
+    # 4       922
+    # 5       911
+    # 6       885
+    # 7       857
+    # 8       796
+    # 9       737
+    # 10      645
+    # 11      540
+    # 12      419
+    # 13      297
+    # 14      180
+    # 15      92
+    # 16      34
+    # 17      8
+    # 18      3
+    # 19      0
     bin_restriction = restrict_data(
         method="availability", # "availability" or "imputation"
-        count=10,
+        count=11,
         tissues=tissues,
         data_gene_persons_tissues_signals=(
             bin_organization["data_gene_persons_tissues_signals"]
@@ -1655,20 +2021,49 @@ def execute_procedure(
     )
 
     # Modality
-    bin_modality = destribe_distribution_modality(
+    bin_modality = describe_distribution_modality(
         modality=True,
         values=bin_aggregation["values"],
+        data_gene_persons_signals=bin_aggregation["data_gene_persons_signals"],
     )
 
-    # TODO: prepare a table with all original persons with missing values if they were'nt used in final distribution
+    # Extraction
+    data_gene_families_persons_signals = extract_gene_persons_signals(
+        data_gene_persons_signals=bin_aggregation["data_gene_persons_signals"],
+        data_families=data_families,
+    )
 
-
-    # Compilation
-
-    print("at the end of the procedure's master function...")
+    # Report
+    report = prepare_gene_report(
+        gene=gene,
+        persons_restriction=bin_restriction["persons_count_restriction"],
+        persons_aggregation=bin_aggregation["persons_count_aggregation"],
+        tissues=len(tissues),
+        tissues_mean=bin_restriction["tissues_count_mean"],
+        tissues_median=bin_restriction["tissues_count_median"],
+        coefficient=bin_modality["scores"]["coefficient"],
+        dip=bin_modality["scores"]["dip"],
+        mixture=bin_modality["scores"]["mixture"],
+        data_gene_annotation=data_gene_annotation,
+    )
 
     # Compile information.
-    #Write product information to file.
+    information = bin_organization.copy()
+    information.update(bin_restriction)
+    information.update(bin_aggregation)
+    information.update(bin_modality)
+    information["gene"] = gene
+    information["tissues"] = tissues
+    information["data_gene_families_persons_signals"] = (
+        data_gene_families_persons_signals
+    )
+    information["report"] = report
+    # Write product information to file.
+    write_product_gene(
+        gene=gene,
+        dock=dock,
+        information=information
+    )
 
     pass
 
@@ -1707,30 +2102,42 @@ def execute_procedure_local(dock=None):
     )
     print("count of genes: " + str(len(source["genes"])))
 
-    # Set up partial function for iterative execution.
-    # Each iteration uses a different sequential value of the "gene" variable
-    # with the same value of the "dock" variable.
-    execute_procedure_gene = functools.partial(
-        execute_procedure_local_sub,
-        dock=dock
-    )
-
-    # Initialize multiprocessing pool.
-    #pool = multiprocessing.Pool(processes=os.cpu_count())
-    pool = multiprocessing.Pool(processes=8)
-
-    # Iterate on genes.
-    check_genes=[
-        "ENSG00000231925", # TAPBP
-    ]
-    #report = pool.map(execute_procedure_gene, check_genes)
-    #report = pool.map(execute_procedure_gene, source["genes"][0:32])
-    report = pool.map(execute_procedure_gene, source["genes"])
+    if False:
+        report = execute_procedure_local_sub(
+            gene="ENSG00000231925", # TAPBP
+            data_families=source["data_families"],
+            data_gene_annotation=source["data_gene_annotation"],
+            dock=dock,
+        )
+    if True:
+        # Set up partial function for iterative execution.
+        # Each iteration uses a different sequential value of the "gene" variable
+        # with the same value of the "dock" variable.
+        execute_procedure_gene = functools.partial(
+            execute_procedure_local_sub,
+            data_families=source["data_families"],
+            data_gene_annotation=source["data_gene_annotation"],
+            dock=dock,
+        )
+        # Initialize multiprocessing pool.
+        #pool = multiprocessing.Pool(processes=os.cpu_count())
+        pool = multiprocessing.Pool(processes=8)
+        # Iterate on genes.
+        check_genes=[
+            "ENSG00000231925", # TAPBP
+        ]
+        #report = pool.map(execute_procedure_gene, check_genes)
+        #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
+        report = pool.map(execute_procedure_gene, source["genes"])
 
     # Pause procedure.
-    time.sleep(5.0)
+    time.sleep(10.0)
 
     # Report.
+    read_collect_write_gene_report(
+        genes=source["genes"],
+        dock=dock,
+    )
     #print("Process complete for the following genes...")
     #print(str(len(report)))
 
@@ -1746,14 +2153,22 @@ def execute_procedure_local(dock=None):
     pass
 
 
-def execute_procedure_local_sub(gene=None, dock=None):
+def execute_procedure_local_sub(
+    gene=None,
+    data_families=None,
+    data_gene_annotation=None,
+    dock=None
+):
     """
     Function to execute module's main behavior.
 
     arguments:
+        gene (str): identifier of single gene for which to execute the process
+        data_families (object): Pandas data frame of person's identifiers and
+            families' identifiers
+        data_gene_annotation (object): Pandas data frame of genes' annotations
         dock (str): path to root or dock directory for source and product
             directories and files
-        gene (str): identifier of single gene for which to execute the process.
 
     raises:
 
@@ -1771,7 +2186,8 @@ def execute_procedure_local_sub(gene=None, dock=None):
     execute_procedure(
         gene=gene,
         data_gene_samples_signals=source["data_gene_samples_signals"],
-        data_families=source["data_families"],
+        data_families=data_families,
+        data_gene_annotation=data_gene_annotation,
         dock=dock
     )
 

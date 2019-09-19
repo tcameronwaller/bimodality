@@ -85,76 +85,6 @@ def read_source(dock=None):
     }
 
 
-# Combination scores by mean
-# This method is old and less accurate than combination of p-values by Stouffer
-
-def filter_genes_scores_variance(
-    genes_scores_distributions=None,
-    threshold=None
-):
-    """
-    Filter genes by variance across permutations of their scores.
-
-    arguments:
-        genes_scores_distributions (dict<dict<dict>>): information about genes'
-            scores and distributions
-        threshold (float): value by which to filter variance
-
-    raises:
-
-    returns:
-        (dict<dict<dict>>): information about genes' scores and distributions
-
-    """
-
-    # Presumably these genes have inadequate real measurements.
-    del genes_scores_distributions["ENSG00000183795"]
-    del genes_scores_distributions["ENSG00000196866"]
-    del genes_scores_distributions["ENSG00000249811"]
-    del genes_scores_distributions["ENSG00000250913"]
-    del genes_scores_distributions["ENSG00000233136"]
-    del genes_scores_distributions["ENSG00000172352"]
-    del genes_scores_distributions["ENSG00000233803"]
-
-    if False:
-
-        # Copy information.
-        # Copying this information is expensive.
-        #information = copy.deepcopy(genes_scores_distributions)
-        # Extract identifiers of genes with scores.
-        genes = list(genes_scores_distributions.keys())
-        # Iterate on genes.
-        for gene in genes:
-            entry = genes_scores_distributions[gene]
-            # Determine whether the gene's shuffle scores have adequate variance.
-            # Consider using the isclose method of the math package.
-            # Comparison to zero is problematic.
-            variance_coefficient = (
-                statistics.variance(entry["distributions"]["coefficient"])
-            )
-            variance_dip = (
-                statistics.variance(entry["distributions"]["dip"])
-            )
-            variance_mixture = (
-                statistics.variance(entry["distributions"]["mixture"])
-            )
-            if (
-                (variance_coefficient < threshold) or
-                (variance_dip < threshold) or
-                (variance_mixture < threshold)
-            ):
-                print("Inadequate variance in shuffle scores!")
-                print("Deleting gene:" + gene)
-                del genes_scores_distributions[gene]
-                pass
-    # Report.
-    # Extract identifiers of genes with scores.
-    count = len(list(genes_scores_distributions.keys()))
-    print("count of genes after filter by variance: " + str(count))
-    # Return information.
-    return genes_scores_distributions
-
-
 def calculate_combination_scores(
     genes_scores_permutations=None
 ):
@@ -229,33 +159,6 @@ def calculate_combination_scores(
         )
     # Return information.
     return genes_scores_permutations
-
-
-def calculate_standard_score(
-    value=None,
-    mean=None,
-    deviation=None,
-):
-    """
-    Calculates the standard score, z-score, of a value.
-
-    arguments:
-        value (float): value to transform to standard score space
-        mean (float): mean of distribution from which value comes
-        deviation (float): standard deviation of distribution from which value
-            comes
-
-    raises:
-
-    returns:
-        (float): value in standard score space
-
-    """
-
-    if deviation != 0:
-        return ((value - mean) / deviation)
-    else:
-        return float("nan")
 
 
 def calculate_standard_scores(

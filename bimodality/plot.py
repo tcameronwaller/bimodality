@@ -664,20 +664,19 @@ def read_source_distribution_gene(
     """
 
     # Specify directories and files.
-    path_distribution = os.path.join(dock, "distribution")
+    path_distribution = os.path.join(dock, "distribution_2019-09-18")
     path_gene = os.path.join(path_distribution, gene)
-    path_availability = os.path.join(path_gene, "availability")
-    path_report_aggregation = os.path.join(
-        path_availability, "report_aggregation.pickle"
+    path_data_gene_persons_signals = os.path.join(
+        path_gene, "data_gene_persons_signals.pickle"
     )
 
     # Read information from file.
-
-    with open(path_report_aggregation, "rb") as file_source:
-        report_aggregation = pickle.load(file_source)
+    data_gene_persons_signals = (
+        pandas.read_pickle(path_data_gene_persons_signals)
+    )
     # Compile and return information.
     return {
-        "report_aggregation": report_aggregation,
+        "data_gene_persons_signals": data_gene_persons_signals,
     }
 
 
@@ -732,31 +731,33 @@ def plot_charts_distribution_gene(
         figure=figure
     )
 
-    types = ["coefficient", "dip", "mixture", "combination"]
-    #types = ["combination"]
-    for type in types:
-        # Create figure.
-        figure = plot_distribution_histogram(
-            series=genes_scores_permutations[gene]["permutations"][type],
-            name="",
-            bin_method="count",
-            bin_count=50,
-            label_bins="Bins",
-            label_counts="Counts",
-            fonts=fonts,
-            colors=colors,
-            line=True,
-            position=genes_scores_permutations[gene]["scores"][type],
-            text="",
-        )
-        # Specify directories and files.
-        file = ("score_permutations_" + type + ".svg")
-        path_file = os.path.join(path, file)
-        # Write figure.
-        write_figure(
-            path=path_file,
-            figure=figure
-        )
+    if False:
+        types = ["coefficient", "dip", "mixture", "combination"]
+        #types = ["combination"]
+        for type in types:
+            # Create figure.
+            figure = plot_distribution_histogram(
+                series=genes_scores_permutations[gene]["permutations"][type],
+                name="",
+                bin_method="count",
+                bin_count=50,
+                label_bins="Bins",
+                label_counts="Counts",
+                fonts=fonts,
+                colors=colors,
+                line=True,
+                position=genes_scores_permutations[gene]["scores"][type],
+                text="",
+            )
+            # Specify directories and files.
+            file = ("score_permutations_" + type + ".svg")
+            path_file = os.path.join(path, file)
+            # Write figure.
+            write_figure(
+                path=path_file,
+                figure=figure
+            )
+    pass
 
 
 def plot_charts_distribution(
@@ -787,18 +788,21 @@ def plot_charts_distribution(
     utility.remove_directory(path=path_distribution)
     utility.create_directory(path_distribution)
     # Read source information from file.
-    source = read_source_distribution(dock=dock)
+    #source = read_source_distribution(dock=dock)
 
     # Specify genes of interest.
     genes = [
-        #"ENSG00000231925", # TAPBP
-        #"ENSG00000183878", # UTY ... Y-linked analog to KDM6A
-        "ENSG00000147050", # KDM6A ... X-linked analog to UTY <- bimodal
-        #"ENSG00000173110", # HSPA5
-        #"ENSG00000177954", # RPS27
-        #"ENSG00000103723", # AP3B2
-        #"ENSG00000108691", # CCL2
-        #"ENSG00000080371", # RAB21
+        "ENSG00000134184", # GSTM1, top 10 autosomal
+        "ENSG00000196436", # NPIPB15, top 10 autosomal
+        "ENSG00000183793", # NPIPA5, top 10 autosomal
+        "ENSG00000205571", # SMN2, top 10 autosomal
+        "ENSG00000197728", # RPS26, top 10 autosomal
+        "ENSG00000280670", # CCDC163, top 10 autosomal
+        "ENSG00000185290", # NUPR2, top 10 autosomal
+        "ENSG00000280071", # GATD3B, top 10 autosomal
+        "ENSG00000274512", # TBC1D3L, top 10 autosomal
+        "ENSG00000164308", # ERAP2, top 10 autosomal
+        "ENSG00000231925", # TAPBP
         "ENSG00000090376", # IRAK3 ... noticeably bimodal
         "ENSG00000049130", # KITLG ... KIT ligand, development
     ]
@@ -812,9 +816,7 @@ def plot_charts_distribution(
             dock=dock
         )
         # Access information.
-        data_gene_persons_signals = (
-            source_gene["report_aggregation"]["data_gene_persons_signals"]
-        )
+        data_gene_persons_signals = source_gene["data_gene_persons_signals"]
 
         # Create charts for the gene.
         path_gene = os.path.join(path_distribution, gene)
@@ -822,9 +824,7 @@ def plot_charts_distribution(
         plot_charts_distribution_gene(
             gene=gene,
             data_gene_persons_signals=data_gene_persons_signals,
-            genes_scores_permutations=(
-                source["scores_permutations_availability"]
-            ),
+            genes_scores_permutations={},
             fonts=fonts,
             colors=colors,
             path=path_gene
@@ -1580,6 +1580,76 @@ def plot_charts_tissue(
 
 
 
+def read_source_tissues_persons(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_manual = os.path.join(dock, "manual")
+    path_tissues_persons = os.path.join(
+        path_manual, "tissues_persons.tsv"
+    )
+
+    # Read information from file.
+    data_tissues_persons = pandas.read_csv(
+        path_tissues_persons,
+        sep="\t",
+        header=0,
+    )
+    # Compile and return information.
+    return {
+        "data_tissues_persons": data_tissues_persons,
+    }
+
+
+def plot_chart_tissues_persons(
+    dock=None
+):
+    """
+    Plots charts from the tissue process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_tissues_persons = os.path.join(path_plot, "tissues_persons")
+    # Remove previous files since they change from run to run.
+    utility.remove_directory(path=path_tissues_persons)
+    utility.create_directory(path_tissues_persons)
+    # Read source information from file.
+    source = read_source_tissues_persons(dock=dock)
+
+    # TODO: create scatter plot...
+
+
+    pass
+
+
+
 
 def read_source_restriction(dock=None):
     """
@@ -1675,6 +1745,7 @@ def execute_procedure(dock=None):
     #plot_charts_sample(dock=dock)
     #plot_charts_tissue(dock=dock)
     #plot_charts_restriction(dock=dock)
+    #plot_chart_tissues_persons(dock=dock)
     plot_charts_distribution(dock=dock)
 
     pass

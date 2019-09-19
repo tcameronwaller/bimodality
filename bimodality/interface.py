@@ -25,12 +25,8 @@ import tissue
 
 import split
 
-import candidacy
-
 import distribution
-import organization
-import restriction
-import aggregation
+import shuffle
 import permutation
 import collection
 
@@ -208,21 +204,6 @@ def define_main_subparser(subparsers=None):
     )
 
     parser_main.add_argument(
-        "-permutation", "--permutation", dest="permutation",
-        action="store_true",
-        help=(
-            "Prepare indices of iterative random shuffles, permutations " +
-            "for use in pipe procedure."
-        )
-    )
-    parser_main.add_argument(
-        "-count", "--count", dest="count", type=int, required=False,
-        help=(
-            "Count of shuffles to generate in shuffle procedure."
-        )
-    )
-
-    parser_main.add_argument(
         "-candidacy", "--candidacy", dest="candidacy", action="store_true",
         help=(
             "Evaluate genes' candidacy prior to shuffles."
@@ -234,6 +215,27 @@ def define_main_subparser(subparsers=None):
         action="store_true",
         help=(
             "Analyze real and shuffle signals for a single gene."
+        )
+    )
+    parser_main.add_argument(
+        "-shuffle", "--shuffle", dest="shuffle",
+        action="store_true",
+        help=(
+            "Prepare indices of iterative random shuffles, permutations " +
+            "for use in pipe procedure."
+        )
+    )
+    parser_main.add_argument(
+        "-permutation", "--permutation", dest="permutation",
+        action="store_true",
+        help=(
+            "Applies shuffles to gene's signals."
+        )
+    )
+    parser_main.add_argument(
+        "-count", "--count", dest="count", type=int, required=False,
+        help=(
+            "Count of shuffles to generate in shuffle procedure."
         )
     )
     parser_main.add_argument(
@@ -255,24 +257,6 @@ def define_main_subparser(subparsers=None):
         help=(
             "Identifier of a single gene for pipe procedure."
         )
-    )
-
-    parser_main.add_argument(
-        "-organization", "--organization", dest="organization",
-        action="store_true",
-        help="Organization of information for each gene about signals " +
-        "across persons and tissues."
-    )
-    parser_main.add_argument(
-        "-restriction", "--restriction", dest="restriction",
-        action="store_true",
-        help="Restriction of analysis for each gene to specific persons " +
-        "and tissues."
-    )
-    parser_main.add_argument(
-        "-aggregation", "--aggregation", dest="aggregation",
-        action="store_true",
-        help="Aggregation of gene's signals across tissues within persons."
     )
 
     parser_main.add_argument(
@@ -446,17 +430,6 @@ def evaluate_main_parameters(arguments):
         # Execute procedure.
         split.execute_procedure(dock=arguments.dock)
 
-    if arguments.candidacy:
-        # Report status.
-        print("... executing candidacy procedure ...")
-        # Execute procedure.
-        candidacy.execute_procedure_local(dock=arguments.dock)
-    if arguments.permutation:
-        # Report status.
-        print("... executing permutation procedure ...")
-        # Execute procedure.
-        permutation.execute_procedure(dock=arguments.dock, count=arguments.count)
-
     if arguments.distribution:
         if arguments.local:
             # Report status.
@@ -469,21 +442,22 @@ def evaluate_main_parameters(arguments):
                 dock=arguments.dock, gene=arguments.gene
             )
 
-    if arguments.organization:
+    if arguments.shuffle:
         # Report status.
-        print("... executing organization procedure ...")
+        print("... executing permutation procedure ...")
         # Execute procedure.
-        organization.test(dock=arguments.dock)
-    if arguments.restriction:
-        # Report status.
-        print("... executing restriction procedure ...")
-        # Execute procedure.
-        restriction.test(dock=arguments.dock)
-    if arguments.aggregation:
-        # Report status.
-        print("... executing aggregation procedure ...")
-        # Execute procedure.
-        aggregation.test(dock=arguments.dock)
+        shuffle.execute_procedure(dock=arguments.dock, count=arguments.count)
+    if arguments.permutation:
+        if arguments.local:
+            # Report status.
+            print("... executing permutation procedure ...")
+            # Execute procedure.
+            permutation.execute_procedure_local(dock=arguments.dock)
+        elif arguments.remote:
+            # Execute procedure.
+            permutation.execute_procedure_remote(
+                dock=arguments.dock, gene=arguments.gene
+            )
 
     if arguments.collection:
         # Report status.

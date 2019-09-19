@@ -893,7 +893,15 @@ def organize_genes_annotations(
 
     # Define and select relevant columns.
     print(source["data_gene_annotation"].shape)
-    columns = ["feature", "gene_id", "gene_type", "gene_name"]
+    columns = [
+        "gene_id",
+        "gene_name",
+        "feature",
+        "gene_type",
+        "seqname",
+        "start",
+        "end",
+    ]
     data_interest = source["data_gene_annotation"].loc[ :, columns]
     print(data_interest.shape)
     print(data_interest.iloc[0:10, 0:15])
