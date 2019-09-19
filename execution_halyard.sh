@@ -45,7 +45,7 @@ echo "Now set to call routine and procedures."
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access
 #python3 interface.py main --dock $path_dock --assembly
-python3 interface.py main --dock $path_dock --selection
+#python3 interface.py main --dock $path_dock --selection
 
 # -- nonessential, exploratory procedures
 #python3 interface.py main --dock $path_dock --measurement
@@ -54,7 +54,7 @@ python3 interface.py main --dock $path_dock --selection
 
 # - Batch Routine
 
-#python3 interface.py main --dock $path_dock --split
+python3 interface.py main --dock $path_dock --split
 
 #python3 interface.py main --dock $path_dock --permutation --count 1000
 

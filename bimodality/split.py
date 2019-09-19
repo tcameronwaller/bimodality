@@ -133,6 +133,12 @@ def split_genes_signals(
         "Split of genes' signals across samples by gene."
     )
 
+    # Optimize data types.
+    data_gene_signal = assembly.convert_data_types(
+        data=data_gene_signal,
+        type="float32"
+    )
+
     # Associate samples to factors.
     utility.print_terminal_partition(level=2)
     print(
@@ -143,18 +149,45 @@ def split_genes_signals(
         data_gene_signal=data_gene_signal,
     )
     print(data_factor)
+    # Organize data.
+    data_factor.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_factor.drop(
+        labels=["sample", "tissue_minor"],
+        axis="columns",
+        inplace=True
+    )
+    data_factor = data_factor.astype(
+        {
+            "person": "str",
+            "tissue_major": "str",
+        },
+        copy=True,
+    )
+    data_factor.set_index(
+        ["person", "tissue_major"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
+    # TODO: Wait... I don't need to stack genes or groupby genes...
+    # I just need to split by gene columns...
+    # for column in columns...
+
+
+
     # Stack by gene.
     utility.print_terminal_partition(level=2)
     print("Stack of genes to factors.")
-    data_long = data_factor.stack("gene").to_frame(name="signal")
+    #data_long = data_factor.stack("gene").to_frame(name="signal")
+    signals_long = data_factor.stack("gene")
+    data_long = signals_long.to_frame(name="signal")
     # Organize data.
     data_long.reset_index(
-        level=["sample", "person", "tissue_major", "tissue_minor", "gene"],
-        inplace=True
-    )
-    data_long.drop(
-        labels=["sample", "tissue_minor"],
-        axis="columns",
+        level=None,
         inplace=True
     )
     # Convert data types.

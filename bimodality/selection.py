@@ -219,6 +219,79 @@ def summarize_samples_genes(
 # Genes.
 
 
+def select_gene_annotation(
+    data_gene_annotation=None,
+):
+    """
+    Selects genes that encode proteins.
+
+    arguments:
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' annotations
+
+    """
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "Select annotations for genes that encode proteins and are on " +
+        "autosomes."
+    )
+
+    # Select entries for genes.
+    print(data_gene_annotation.shape)
+    data_gene_annotation = (
+        data_gene_annotation.loc[data_gene_annotation["feature"] == "gene", :]
+    )
+    data_gene_annotation.drop(
+        labels="feature",
+        axis="columns",
+        inplace=True
+    )
+    print(data_gene_annotation.shape)
+
+    # Select entries for genes on autosomes (non-sex chromosomes).
+    # There are 2422 genes on the X chromosome, of which 850 encode proteins.
+    # There are 567 genes on the Y chromosome, of which 66 encode proteins.
+    # There are 37 genes on the mitochondrial chromosome, of which 13 encode
+    # proteins.
+    print(
+        "count of genes in GENCODE annotations: " +
+        str(data_gene_annotation.shape[0])
+    )
+    data_gene_annotation = (
+        data_gene_annotation.loc[
+            data_gene_annotation["seqname"] != "chrX", :
+        ]
+    )
+    data_gene_annotation = (
+        data_gene_annotation.loc[
+            data_gene_annotation["seqname"] != "chrY", :
+        ]
+    )
+    print(
+        "count of GENCODE genes on autosomes: " +
+        str(data_gene_annotation.shape[0])
+    )
+    # Select entries for genes that encode proteins.
+    data_gene_annotation = (
+        data_gene_annotation.loc[
+            data_gene_annotation["gene_type"] == "protein_coding", :
+        ]
+    )
+    print(
+        "count of GENCODE genes that encode proteins: " +
+        str(data_gene_annotation.shape[0])
+    )
+
+    print(data_gene_annotation.iloc[0:10, 0:7])
+
+    return data_gene_annotation
+
+
 def select_genes(
     data_gene_annotation=None,
     data_gene_signal=None
@@ -238,9 +311,6 @@ def select_genes(
             and patients.
 
     """
-
-    # Due to previous filter in assembly procedure, annotation genes are only
-    # protein-coding.
 
     # Select protein-coding genes from signal data.
     # Signal matrix has genes on the index dimension.
@@ -269,18 +339,19 @@ def select_genes(
     data_gene_signal_protein = data_gene_signal.loc[
         data_gene_signal["gene"].isin(genes_protein), :
     ]
-
     genes = data_gene_signal_protein.index.to_list()
+
+    utility.print_terminal_partition(level=2)
     print(
-        "signal genes that encode proteins: " +
+        "signal genes that encode proteins and on autosomes: " +
         str(data_gene_signal_protein.shape[0])
     )
     print(
-        "signal genes that encode proteins: " +
+        "signal genes that encode proteins and on autosomes: " +
         str(len(genes))
     )
     print(
-        "unique signal genes that encode proteins: " +
+        "unique signal genes that encode proteins and on autosomes: " +
         str(len(utility.collect_unique_elements(elements_original=genes)))
     )
 
@@ -585,7 +656,8 @@ def filter_rows_columns_by_threshold_proportion(
 
 def select_samples_genes_signals(
     threshold=None,
-    proportion=None,
+    proportion_gene=None,
+    proportion_sample=None,
     data_gene_signal=None
 ):
     """
@@ -595,8 +667,10 @@ def select_samples_genes_signals(
 
     arguments:
         threshold (float): minimal gene's signal for a sample
-        proportion (float): minimal proportion of samples or genes that must
-            pass threshold
+        proportion_gene (float): minimal proportion of samples that must have
+            signals beyond threshold for a gene to pass
+        proportion_sample (float): minimal proportion of genes that must have
+            signals beyond threshold for a sample to pass
         data_gene_signal (object): Pandas data frame of genes' signals across
             samples
 
@@ -617,7 +691,7 @@ def select_samples_genes_signals(
         data=data_gene_signal,
         dimension="row",
         threshold=threshold,
-        proportion=proportion
+        proportion=proportion_gene
     )
     print("shape of data after signal filter on genes...")
     print(data_row.shape)
@@ -628,7 +702,7 @@ def select_samples_genes_signals(
         data=data_row,
         dimension="column",
         threshold=threshold,
-        proportion=proportion
+        proportion=proportion_sample
     )
     print("shape of data after signal filter on samples...")
     print(data_column.shape)
@@ -697,9 +771,9 @@ def extract_gene_signal_families_persons_tissues_samples(
     # Organize families and persons.
     #data_gene_signal_factor["family"] = data_gene_signal_factor["person"]
     data_gene_signal_factor["family"] = 0
-    data_families_persons = (
-        data_gene_signal_factor.loc[ :, ["family", "person"]]
-    )
+    data_families_persons = data_gene_signal_factor.loc[
+        :, data_gene_signal_factor.columns.isin(["family", "person"])
+    ]
     data_families_persons.rename_axis(
         "",
         axis="columns",
@@ -767,6 +841,10 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_selection = os.path.join(dock, "selection")
     utility.create_directory(path_selection)
+
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation.pickle"
+    )
     path_gene_count = os.path.join(
         path_selection, "data_gene_count.pickle"
     )
@@ -798,6 +876,10 @@ def write_product(dock=None, information=None):
 
     # Write information to file.
     pandas.to_pickle(
+        information["data_gene_annotation"],
+        path_gene_annotation
+    )
+    pandas.to_pickle(
         information["data_gene_count"],
         path_gene_count
     )
@@ -814,13 +896,21 @@ def write_product(dock=None, information=None):
         path_gene_signal_factor
     )
 
+    pandas.to_pickle(
+        information["data_families"],
+        path_data_families
+    )
+    information["data_families"].reset_index(
+        level=None,
+        inplace=True
+    )
     information["data_families"].to_csv(
         path_or_buf=path_families,
         columns=["family", "person",],
         sep="\t",
         na_rep="NA",
         header=False,
-        index=True,
+        index=False,
     )
     pandas.to_pickle(
         information["data_families"],
@@ -888,17 +978,23 @@ def execute_procedure(dock=None):
         data_gene_signal=data_gene_count,
     )
 
-    # Select genes that encode proteins.
-    data_gene_signal_gene = select_genes(
+    # Select genes that encode proteins and are on autosomes.
+    # Select annotations for protein-coding genes on autosomes.
+    # Count of genes: 18366
+    data_gene_annotation = select_gene_annotation(
         data_gene_annotation=source["data_gene_annotation"],
+    )
+    data_gene_signal_gene = select_genes(
+        data_gene_annotation=data_gene_annotation,
         data_gene_signal=data_gene_signal,
     )
     data_gene_count_gene = select_genes(
-        data_gene_annotation=source["data_gene_annotation"],
+        data_gene_annotation=data_gene_annotation,
         data_gene_signal=data_gene_count,
     )
 
     # Select samples by tissues.
+    # Count of samples: 15701
     data_gene_signal_sample = select_samples(
         data_gene_signal=data_gene_signal_gene,
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
@@ -909,14 +1005,24 @@ def execute_procedure(dock=None):
     )
 
     # Select genes and samples by signals.
+    # threshold: 1.0
+    # proportion   genes_count
+    # 0.0          18366
+    # 0.1          15445 <-- conservative but effective
+    # 0.25         13971
+    # 0.5          12435
+    # 10% of samples must have signals beyond threshold for a gene to pass.
+    # 50% of genes must have signals beyond threshold for a sample to pass.
     data_gene_signal_selection = select_samples_genes_signals(
         threshold=1.0,
-        proportion=0.5,
+        proportion_gene=0.1,
+        proportion_sample=0.50,
         data_gene_signal=data_gene_signal_sample,
     )
     data_gene_count_selection = select_samples_genes_signals(
         threshold=1.0,
-        proportion=0.1,
+        proportion_gene=0.1,
+        proportion_sample=0.50,
         data_gene_signal=data_gene_count_sample,
     )
 
@@ -940,7 +1046,6 @@ def execute_procedure(dock=None):
     )
     print(data_gene_count_factor)
 
-
     # Transpose data structure.
     # Organize genes across columns and samples across rows.
     data_transposition = data_gene_signal_selection.transpose(copy=True)
@@ -959,6 +1064,7 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
+        "data_gene_annotation": data_gene_annotation,
         "data_gene_count": data_gene_count_selection,
         "data_gene_count_factor": data_gene_count_factor,
         "data_gene_signal": data_gene_signal_selection,

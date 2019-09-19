@@ -828,40 +828,6 @@ def extract_gene_identifier(string):
     return identifier_gene
 
 
-def define_redundant_records():
-    """
-    Defines genes for which records are redundant.
-
-    arguments:
-
-    raises:
-
-    returns:
-        (dict<str>): genes with redundant records
-
-    """
-
-    correction = dict()
-    correction["ENSG00000002586"] = "CD99"
-    correction["ENSG00000196433"] = "ASMT"
-    correction["ENSG00000197976"] = "AKAP17A"
-    correction["ENSG00000182162"] = "P2RY8"
-    correction["ENSG00000167393"] = "PPP2R3B"
-    correction["ENSG00000185291"] = "IL3RA"
-    correction["ENSG00000205755"] = "CRLF2"
-    correction["ENSG00000182378"] = "PLCXD1"
-    correction["ENSG00000198223"] = "CSF2RA"
-    correction["ENSG00000214717"] = "ZBED1"
-    correction["ENSG00000185960"] = "SHOX"
-    correction["ENSG00000169084"] = "DHRSX"
-    correction["ENSG00000168939"] = "SPRY3"
-    correction["ENSG00000169093"] = "ASMTL"
-    correction["ENSG00000178605"] = "GTPBP6"
-    correction["ENSG00000124333"] = "VAMP7"
-    correction["ENSG00000169100"] = "SLC25A6"
-    return correction
-
-
 def organize_genes_annotations(
     dock=None
 ):
@@ -902,18 +868,13 @@ def organize_genes_annotations(
         "start",
         "end",
     ]
-    data_interest = source["data_gene_annotation"].loc[ :, columns]
-    print(data_interest.shape)
-    print(data_interest.iloc[0:10, 0:15])
-    # Select entries for genes.
-    data_gene_annotation = (
-        data_interest.loc[data_interest["feature"] == "gene"]
-    )
-    data_gene_annotation.drop(
-        labels="feature",
-        axis="columns",
-        inplace=True
-    )
+    #data_interest = source["data_gene_annotation"].loc[ :, columns]
+    data_gene_annotation = source["data_gene_annotation"].loc[
+        : , source["data_gene_annotation"].columns.isin(columns)
+    ]
+
+    print(data_gene_annotation.shape)
+    print(data_gene_annotation.iloc[0:10, 0:15])
     # Remove version designations from genes' identifiers.
     data_gene_annotation["identifier"] = (
         data_gene_annotation["gene_id"].apply(extract_gene_identifier)
@@ -923,24 +884,9 @@ def organize_genes_annotations(
         axis="columns",
         inplace=True
     )
-    # Select entries for genes that encode proteins.
-    print(
-        "count of genes in GENCODE annotations: " +
-        str(data_gene_annotation.shape[0])
-    )
-    data_gene_annotation = (
-        data_gene_annotation.loc[
-            data_gene_annotation["gene_type"] == "protein_coding"
-        ]
-    )
-    print(data_gene_annotation.iloc[0:10, 0:7])
-    print(
-        "count of GENCODE genes of type 'protein_coding': " +
-        str(data_gene_annotation.shape[0])
-    )
+
     # Remove redundant records.
     # Some genes' records are redundant.
-    redundancy = define_redundant_records()
     data_gene_annotation.drop_duplicates(
         subset=None,
         keep="first",
@@ -956,13 +902,6 @@ def organize_genes_annotations(
     print(data_gene_annotation.iloc[0:10, 0:15])
 
     utility.print_terminal_partition(level=1)
-
-    # Some genes' records are redundant.
-    print("check for redundancy in genes' annotation records...")
-    genes_redundant = list(redundancy.keys())
-    for gene in genes_redundant:
-        print(data_gene_annotation.loc[gene])
-        print(data_gene_annotation.loc[gene, "gene_name"])
 
     # Compile information.
     information = {
