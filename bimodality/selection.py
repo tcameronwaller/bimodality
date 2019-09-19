@@ -814,12 +814,13 @@ def write_product(dock=None, information=None):
         path_gene_signal_factor
     )
 
-    utility.write_file_text_table(
-        information=information["families"],
-        path_file=path_families,
-        names=information["families"][0].keys(),
-        delimiter="\t",
+    information["data_families"].to_csv(
+        path_or_buf=path_families,
+        columns=["family", "person",],
+        sep="\t",
+        na_rep="NA",
         header=False,
+        index=True,
     )
     pandas.to_pickle(
         information["data_families"],
