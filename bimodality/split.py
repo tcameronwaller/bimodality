@@ -113,6 +113,9 @@ def split_genes_signals(
     """
     Splits genes' signals across samples by gene.
 
+    Splitting the data by gene is more efficient for parallel processing in
+    batches by gene. Each process only needs to read in data for its gene.
+
     arguments:
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples.
@@ -131,12 +134,6 @@ def split_genes_signals(
     utility.print_terminal_partition(level=2)
     print(
         "Split of genes' signals across samples by gene."
-    )
-
-    # Optimize data types.
-    data_gene_signal = assembly.convert_data_types(
-        data=data_gene_signal,
-        type="float32"
     )
 
     # Associate samples to factors.
@@ -172,55 +169,35 @@ def split_genes_signals(
         drop=True,
         inplace=True
     )
+    # Optimize data types.
+    data_factor = assembly.convert_data_types(
+        data=data_factor,
+        type="float32"
+    )
 
-    # TODO: Wait... I don't need to stack genes or groupby genes...
-    # I just need to split by gene columns...
-    # for column in columns...
-
-
-
-    # Stack by gene.
-    utility.print_terminal_partition(level=2)
-    print("Stack of genes to factors.")
+    # Split data by gene.
+    # An alternative option is to split data by groups.
     #data_long = data_factor.stack("gene").to_frame(name="signal")
-    signals_long = data_factor.stack("gene")
-    data_long = signals_long.to_frame(name="signal")
-    # Organize data.
-    data_long.reset_index(
-        level=None,
-        inplace=True
-    )
-    # Convert data types.
-    data_type = data_long.astype(
-        {
-            "gene": "str",
-            "person": "str",
-            "tissue_major": "str",
-            "signal": "float32",
-        },
-        copy=True,
-    )
-    data_type.set_index(
-        ["gene", "person", "tissue_major"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    print(data_type)
+    #groups = data_type.groupby("gene")
+    #for name, group in groups:
+    #    pass
+    #This option is inefficient and overloads memory.
+    # Instead, slice the data by columns for genes.
 
-    # Split by gene.
     utility.print_terminal_partition(level=2)
-    print("Split of genes' signals across samples by gene.")
-    groups = data_type.groupby("gene")
-    print("Count of groups by genes: " + str(len(groups)))
+    print("Split data by columns for genes.")
+    print("Count of genes: " + str(len(data_factor.columns.to_list())))
+
     # Collect data frames by gene.
     genes_samples_signals = dict()
-    for name, group in groups:
-        data = group.copy(deep=True)
-        genes_samples_signals[name] = data
-        if name == "ENSG00000231925":
-            print(name)
-            print(group)
+    for gene in data_factor.columns.to_list():
+        data_gene = data_factor[gene].to_frame(name="signal")
+        genes_samples_signals[gene] = data_gene
+        if gene == "ENSG00000231925":
+            print(gene)
+            print(data_gene)
+
+    print("Count of data by genes: " + str(len(genes_samples_signals.keys())))
     # Access data by gene.
     print("Access data for a single gene.")
     print(genes_samples_signals["ENSG00000231925"])
@@ -354,6 +331,10 @@ def execute_procedure(dock=None):
     returns:
 
     """
+
+    # Remove previous files to avoid version or batch confusion.
+    path_split = os.path.join(dock, "split")
+    utility.remove_directory(path=path_split)
 
     # Read source information from file.
     source = read_source(dock=dock)

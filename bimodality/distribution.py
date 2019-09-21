@@ -1367,6 +1367,12 @@ def extract_gene_persons_signals(
     # Treat the complete table of families and persons as master.
     # Introduce missing values for persons without valid signals.
     # Join
+    data_families.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
     data_gene_families_persons_signals = data_families.join(
         data_gene_persons_signals,
         how="left",
@@ -1940,6 +1946,8 @@ def execute_procedure(
 
     """
 
+    print(data_gene_samples_signals)
+
     ##########
     # Organization
     bin_organization = organize_data(
@@ -2033,6 +2041,12 @@ def execute_procedure(
         data_families=data_families,
     )
 
+    print("testing now...")
+
+    print(data_families)
+    print(bin_aggregation["data_gene_persons_signals"])
+    print(data_gene_families_persons_signals)
+
     # Report
     report = prepare_gene_report(
         gene=gene,
@@ -2102,14 +2116,20 @@ def execute_procedure_local(dock=None):
     )
     print("count of genes: " + str(len(source["genes"])))
 
-    if False:
+    if True:
         report = execute_procedure_local_sub(
             gene="ENSG00000231925", # TAPBP
             data_families=source["data_families"],
             data_gene_annotation=source["data_gene_annotation"],
             dock=dock,
         )
-    if True:
+        report = execute_procedure_local_sub(
+            gene="ENSG00000134184", # TAPBP
+            data_families=source["data_families"],
+            data_gene_annotation=source["data_gene_annotation"],
+            dock=dock,
+        )
+    if False:
         # Set up partial function for iterative execution.
         # Each iteration uses a different sequential value of the "gene" variable
         # with the same value of the "dock" variable.
@@ -2127,8 +2147,8 @@ def execute_procedure_local(dock=None):
             "ENSG00000231925", # TAPBP
         ]
         #report = pool.map(execute_procedure_gene, check_genes)
-        #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
-        report = pool.map(execute_procedure_gene, source["genes"])
+        report = pool.map(execute_procedure_gene, source["genes"][0:1000])
+        #report = pool.map(execute_procedure_gene, source["genes"])
 
     # Pause procedure.
     time.sleep(10.0)
