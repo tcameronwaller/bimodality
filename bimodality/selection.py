@@ -26,7 +26,6 @@ import pandas
 
 import assembly
 import measurement
-import organization
 import utility
 
 #dir()

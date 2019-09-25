@@ -27,7 +27,6 @@ import scipy.stats
 # Custom
 
 import assembly
-import organization
 import utility
 
 

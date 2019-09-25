@@ -28,7 +28,6 @@ import statsmodels.api
 
 # Custom
 
-import organization
 import selection
 import utility
 

@@ -20,6 +20,7 @@ import multiprocessing
 import datetime
 import gc
 import time
+import random
 
 # Relevant
 
@@ -61,9 +62,9 @@ def read_source_initial(
     """
 
     # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
+    path_selection = os.path.join(dock, "selection")
     path_gene_annotation = os.path.join(
-        path_assembly, "data_gene_annotation.pickle"
+        path_selection, "data_gene_annotation.pickle"
     )
     path_selection = os.path.join(dock, "selection")
     path_families = os.path.join(path_selection, "data_families.pickle")
@@ -709,6 +710,254 @@ def evaluate_restriction(
     return information
 
 
+def calculate_gene_signal_mean_by_persons_tissues_scrap(
+    persons_tissues_samples=None,
+    data_gene_signal=None
+):
+    """
+    Calculates the mean values of genes' signals in each tissue of each
+    person.
+
+    Redundant samples exist for many persons and tissues.
+    Calculate the mean signal for each gene from all of these redundant
+    samples.
+
+    Product data format.
+    Indices by person and tissue allow convenient access.
+    ##################################################
+    # index   index   gene_1 gene_2 gene_3
+    # person tissue
+    # bob     kidney  5.0    10.0   7.0
+    # bob     skin    5.0    10.0   7.0
+    # bob     liver   5.0    10.0   7.0
+    # april   brain   2.0    3.0    4.0
+    # april   liver   2.0    3.0    4.0
+    # april   skin    2.0    3.0    4.0
+    # martin  liver   1.0    6.0    9.0
+    # sue     heart   3.0    2.0    5.0
+    ##################################################
+
+    arguments:
+        persons_tissues_samples (dict<dict<list<str>>): Samples for each
+            tissue of each person.
+        data_gene_signal (object): Pandas data frame of gene's signals for all
+            samples.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of mean values of genes' signals for all
+            tissues of all persons.
+
+    """
+
+    # Create index for convenient access.
+    data_gene_signal_index = data_gene_signal.set_index("Name")
+    # Determine list of all genes with signals.
+    genes = data_gene_signal["Name"].to_list()
+    # Collect mean signals of all genes for each person and tissue.
+    summary = list()
+    # Iterate on persons.
+    for person in persons_tissues_samples:
+        # Iterate on tissues for which person has samples.
+        for tissue in persons_tissues_samples[person]:
+            # Collect signals for all genes in each sample.
+            signals_genes = dict()
+            for sample in persons_tissues_samples[person][tissue]:
+                for gene in genes:
+                    signal = data_gene_signal_index.at[gene, sample]
+                    # Determine whether an entry already exists for the gene.
+                    if gene in signals_genes:
+                        signals_genes[gene].append(signal)
+                    else:
+                        signals_genes[gene] = list([signal])
+            # Compile record.
+            record = dict()
+            record["person"] = person
+            record["tissue"] = tissue
+            # Calculate mean signal for each gene in each person and tissue.
+            for gene in genes:
+                signal_mean = statistics.mean(signals_genes[gene])
+                record[gene] = signal_mean
+            # Include record.
+            summary.append(record)
+    # Organize data.
+    data_summary = utility.convert_records_to_dataframe(
+        records=summary
+    )
+    #data_summary_index = data_summary.set_index(
+    #    ["person", "tissue"], append=False, drop=False
+    #)
+    return data_summary
+
+
+def calculate_gene_signal_median_by_tissues_scrap(
+    tissues=None,
+    persons=None,
+    tissues_persons_samples=None,
+    data_gene_signal_mean=None
+):
+    """
+    Calculates the median values of signals for all genes across specific
+    persons and tissues.
+
+    Redundant samples exist for many persons and tissues.
+    Calculate the mean signal for each gene from all of these redundant
+    samples.
+
+    Product data format.
+    Index by gene allows convenient access.
+    ##################################################
+    # gene   brain colon liver heart kidney
+    # abc1   7     3     2     6     3
+    # mpc1   5     3     2     6     3
+    # rip1   3     3     2     6     3
+    # rnt1   2     3     2     6     3
+    # rnx3   9     3     2     6     3
+    # sst5   3     3     2     6     3
+    # sph6   2     3     2     6     3
+    # xtr4   8     3     2     6     3
+    ##################################################
+
+    arguments:
+        tissues (list<str>): Tissues of interest.
+        persons (list<str>): persons with signal for tissues of interest.
+        tissues_persons_samples (dict<dict<list<str>>): Samples for each
+            person of each tissue.
+        data_gene_signal_mean (object): Pandas data frame of mean values of
+            genes' signals for all tissues of all persons.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of median values of genes' signals for all
+            tissues.
+
+    """
+
+    # Create index for convenient access.
+    data_gene_signal_mean_index = data_gene_signal_mean.set_index(
+        ["person", "tissue"], append=False, drop=True
+    )
+    # Extract genes from names of columns.
+    genes = data_gene_signal_mean_index.columns.to_list()
+    # Collect median signals of all genes for each tissue.
+    summary = list()
+    # Iterate on genes.
+    for gene in genes:
+        # Compile record.
+        record = dict()
+        record["gene"] = gene
+        # Iterate on tissues.
+        for tissue in tissues:
+            # Collect gene's signals in the tissue across all persons.
+            signals_tissue = list()
+            # Iterate on persons.
+            for person in tissues_persons_samples[tissue]:
+                signal_tissue_person = data_gene_signal_mean_index.loc[
+                    (person, tissue), gene
+                ]
+                signals_tissue.append(signal_tissue_person)
+            # Calculate median value of gene's signal in tissue across all
+            # persons.
+            signal_tissue = statistics.median(signals_tissue)
+            record[tissue] = signal_tissue
+        # Include record.
+        summary.append(record)
+    # Organize information within a data frame.
+    data_summary = utility.convert_records_to_dataframe(
+        records=summary
+    )
+    return data_summary
+
+
+def collect_gene_signal_by_persons_tissues_scrap(
+    tissues=None,
+    persons=None,
+    persons_tissues_samples=None,
+    data_gene_signal_median_tissue=None,
+    data_gene_signal_mean=None
+):
+    """
+    Collects the signals for all genes in each tissue of each person.
+
+    Product data format.
+    Indices by person and tissue allow convenient access.
+    ##################################################
+    # index   index   gene_1 gene_2 gene_3
+    # person tissue
+    # bob     kidney  5.0    10.0   7.0
+    # april   brain   2.0    3.0    4.0
+    # martin  liver   1.0    6.0    9.0
+    # sue     heart   3.0    2.0    5.0
+    ##################################################
+
+    arguments:
+        tissues (list<str>): Tissues of interest.
+        persons (list<str>): persons with signal for tissues of interest.
+        persons_tissues_samples (dict<dict<list<str>>): Samples for each
+            tissue of each person.
+        data_gene_signal_median_tissue (object): Pandas data frame of median
+            values of genes' signals for all tissues.
+        data_gene_signal_mean (object): Pandas data frame of mean values of
+            genes' signals for all tissues of all persons.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of signals for all genes across
+            specific persons and tissues.
+
+    """
+
+    # Create indices for convenient access.
+    data_gene_signal_mean_index = data_gene_signal_mean.set_index(
+        ["person", "tissue"], append=False, drop=True
+    )
+    data_gene_signal_median_tissue_index = (
+        data_gene_signal_median_tissue.set_index("gene")
+    )
+    # Extract genes from names of columns.
+    genes = data_gene_signal_mean_index.columns.to_list()
+    # Collect signals of all genes for each person and tissue.
+    summary = list()
+    # Iterate on persons of interest.
+    for person in persons:
+        # Iterate on tissues of interest.
+        for tissue in tissues:
+            # Compile record.
+            record = dict()
+            record["person"] = person
+            record["tissue"] = tissue
+            # Determine whether the person has samples for the tissue.
+            if tissue in persons_tissues_samples[person]:
+                # Collect mean values for genes' signals.
+                # Iterate on genes.
+                for gene in genes:
+                    signal = data_gene_signal_mean_index.loc[
+                        (person, tissue), gene
+                    ]
+                    record[gene] = signal
+            else:
+                # Collect imputation values for genes' signals.
+                # Iterate on genes.
+                for gene in genes:
+                    signal = data_gene_signal_median_tissue_index.loc[
+                        gene, tissue
+                    ]
+                    record[gene] = signal
+            # Include record.
+            summary.append(record)
+    # Organize information within a data frame.
+    data_summary = utility.convert_records_to_dataframe(
+        records=summary
+    )
+    #data_summary_index = data_summary.set_index(
+    #    ["person", "tissue"], append=False, drop=False
+    #)
+    return data_summary
+
+
 def restrict_data(
     method=None,
     count=None,
@@ -1338,6 +1587,125 @@ def describe_distribution_modality(
 
 
 ##########
+# Distribution
+# The distribution subprocedure combines restriction, aggregation, and modality
+# functions.
+# This subprocedure is also useful in the permutation procedure.
+
+
+def prepare_describe_distribution(
+    data_gene_persons_tissues_signals=None,
+):
+    """
+    Prepares and describes the distribution of a gene's signals across samples,
+    persons, and tissues.
+
+    arguments:
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+
+    raises:
+
+    returns:
+        (dict): information from restriction, aggregation, and modality
+
+    """
+
+    ##########
+    # Restriction
+    # Define tissues for inclusion.
+    # This selection includes all non-sexual tissues with coverage of samples
+    # from at least 100 persons.
+    method = "availability" # "availability" or "imputation"
+    count = 11
+    tissues = [
+        "adipose", # 797
+        "adrenal", # 258
+        "artery", # 786
+        "blood", # 767
+        "brain", # 382
+        #"breast", # 459
+        "colon", # 555
+        "esophagus", # 710
+        "heart", # 561
+        "intestine", # 187
+        "liver", # 226
+        "lung", # 578
+        "muscle", # 803
+        "nerve", # 619
+        #"ovary", # 180
+        "pancreas", # 328
+        "pituitary", # 283
+        #"prostate", # 245
+        "salivary", # 162
+        "skin", # 912
+        "spleen", # 241
+        "stomach", # 359
+        #"testis", # 361
+        "thyroid", # 653
+        #"uterus", # 142
+        #"vagina", # 156
+    ]
+    # 18 September 2019
+    # count   persons
+    # 1       948
+    # 2       943
+    # 3       930
+    # 4       922
+    # 5       911
+    # 6       885
+    # 7       857
+    # 8       796
+    # 9       737
+    # 10      645
+    # 11      540
+    # 12      419
+    # 13      297
+    # 14      180
+    # 15      92
+    # 16      34
+    # 17      8
+    # 18      3
+    # 19      0
+    bin_restriction = restrict_data(
+        method=method,
+        count=count,
+        tissues=tissues,
+        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
+    )
+
+    # Aggregation
+    # Determine gene's distributions of aggregate tissue signals across
+    # persons.
+    # Use the final "data_gene_persons_tissues_signals" from restriction
+    # procedure after imputation.
+    bin_aggregation = aggregate_data(
+        data_gene_persons_tissues_signals=(
+            bin_restriction["data_gene_persons_tissues_signals_restriction"]
+        ),
+    )
+
+    # Modality
+    bin_modality = describe_distribution_modality(
+        modality=True,
+        values=bin_aggregation["values"],
+        data_gene_persons_signals=bin_aggregation["data_gene_persons_signals"],
+    )
+
+    # Compile information.
+    information = {
+        "method": method,
+        "count": count,
+        "tissues": tissues,
+        "bin_restriction": bin_restriction,
+        "bin_aggregation": bin_aggregation,
+        "bin_modality": bin_modality,
+    }
+    # Return information.
+    return information
+
+
+##########
 # Extraction
 
 
@@ -1363,6 +1731,9 @@ def extract_gene_persons_signals(
             across families and persons
 
     """
+
+    # Copy data before modification.
+    data_families = data_families.copy(deep=True)
 
     # Treat the complete table of families and persons as master.
     # Introduce missing values for persons without valid signals.
@@ -1464,6 +1835,8 @@ def prepare_gene_report(
     gene=None,
     persons_restriction=None,
     persons_aggregation=None,
+    method=None,
+    count=None,
     tissues=None,
     tissues_mean=None,
     tissues_median=None,
@@ -1480,6 +1853,12 @@ def prepare_gene_report(
         gene (str): identifier of gene
         persons_restriction (int): count of persons after restriction
         persons_aggregation (int): count of persons after aggregation
+        method (str): method for selection of tissues and persons in
+            restriction procedure, either "imputation" for selection by
+            specific tissues with imputation or "availability" for selection by
+            minimal count of tissues
+        count (int): minimal count of tissues with signal coverage for
+            selection by "availability" or "imputation" methods
         tissues (int): count of tissues
         tissues_mean (float): mean count of tissues across persons
         tissues_median (float): median count of tissues across persons
@@ -1512,6 +1891,8 @@ def prepare_gene_report(
         "end": end,
         "persons_restriction": persons_restriction,
         "persons_aggregation": persons_aggregation,
+        "method": method,
+        "count": count,
         "tissues": tissues,
         "tissues_mean": tissues_mean,
         "tissues_median": tissues_median,
@@ -1878,18 +2259,34 @@ def read_collect_write_gene_report(
     )
     # Convert modality metrics to standard, z-score space.
     # Calculate combination modality metrics.
-    data_report = calculate_combination_scores(
-        data_report=data,
-    )
-    data_report.sort_values(
-        by=["combination"],
+    if True:
+        data_report = calculate_combination_scores(
+            data_report=data,
+        )
+        data_report.sort_values(
+            by=["combination"],
+            axis="index",
+            ascending=False,
+            inplace=True,
+        )
+    else:
+        data_report = data
+
+    utility.print_terminal_partition(level=2)
+    print("Here's the data report...")
+    print(data_report)
+    print("count of genes: " + str(data_report.shape[0]))
+    data_valid = data_report.loc[
+        :, ["gene", "name", "coefficient", "dip", "mixture"]
+    ]
+    data_valid.dropna(
         axis="index",
-        ascending=False,
+        how="any",
         inplace=True,
     )
+    print("count of genes with valid modalities: " + str(data_valid.shape[0]))
     utility.print_terminal_partition(level=2)
-    print(data_report)
-    utility.print_terminal_partition(level=2)
+
     # Specify directories and files.
     path_data_report = os.path.join(
         path_distribution, "data_gene_report.pickle"
@@ -1914,11 +2311,6 @@ def read_collect_write_gene_report(
 ###############################################################################
 # Procedure
 
-# TODO: export gene's aggregate pan-tissue signals across persons
-# TODO: export gene's chromosome and coordinates
-# TODO: heritability analysis will only consider genes on autosomes (non-sex chromosomes)
-
-# TODO: this function should not accept permutations...
 
 def execute_procedure(
     gene=None,
@@ -1946,128 +2338,54 @@ def execute_procedure(
 
     """
 
-    print(data_gene_samples_signals)
-
-    ##########
     # Organization
     bin_organization = organize_data(
         data_gene_samples_signals=data_gene_samples_signals
     )
 
-    ##########
-    # Restriction
-    # Define tissues for inclusion.
-    # This selection includes all non-sexual tissues with coverage of samples
-    # from at least 100 persons.
-    tissues = [
-        "adipose", # 797
-        "adrenal", # 258
-        "artery", # 786
-        "blood", # 767
-        "brain", # 382
-        #"breast", # 459
-        "colon", # 555
-        "esophagus", # 710
-        "heart", # 561
-        "intestine", # 187
-        "liver", # 226
-        "lung", # 578
-        "muscle", # 803
-        "nerve", # 619
-        #"ovary", # 180
-        "pancreas", # 328
-        "pituitary", # 283
-        #"prostate", # 245
-        "salivary", # 162
-        "skin", # 912
-        "spleen", # 241
-        "stomach", # 359
-        #"testis", # 361
-        "thyroid", # 653
-        #"uterus", # 142
-        #"vagina", # 156
-    ]
-    # 18 September 2019
-    # count   persons
-    # 1       948
-    # 2       943
-    # 3       930
-    # 4       922
-    # 5       911
-    # 6       885
-    # 7       857
-    # 8       796
-    # 9       737
-    # 10      645
-    # 11      540
-    # 12      419
-    # 13      297
-    # 14      180
-    # 15      92
-    # 16      34
-    # 17      8
-    # 18      3
-    # 19      0
-    bin_restriction = restrict_data(
-        method="availability", # "availability" or "imputation"
-        count=11,
-        tissues=tissues,
+    # Distribution
+    bins = prepare_describe_distribution(
         data_gene_persons_tissues_signals=(
             bin_organization["data_gene_persons_tissues_signals"]
         ),
     )
 
-    # Aggregation
-    # Determine gene's distributions of aggregate tissue signals across
-    # persons.
-    # Use the final "data_gene_persons_tissues_signals" from restriction
-    # procedure after imputation.
-    bin_aggregation = aggregate_data(
-        data_gene_persons_tissues_signals=(
-            bin_restriction["data_gene_persons_tissues_signals_restriction"]
-        ),
-    )
-
-    # Modality
-    bin_modality = describe_distribution_modality(
-        modality=True,
-        values=bin_aggregation["values"],
-        data_gene_persons_signals=bin_aggregation["data_gene_persons_signals"],
-    )
-
     # Extraction
+    # TODO: error here...
     data_gene_families_persons_signals = extract_gene_persons_signals(
-        data_gene_persons_signals=bin_aggregation["data_gene_persons_signals"],
+        data_gene_persons_signals=(
+            bins["bin_aggregation"]["data_gene_persons_signals"]
+        ),
         data_families=data_families,
     )
-
-    print("testing now...")
-
-    print(data_families)
-    print(bin_aggregation["data_gene_persons_signals"])
-    print(data_gene_families_persons_signals)
 
     # Report
     report = prepare_gene_report(
         gene=gene,
-        persons_restriction=bin_restriction["persons_count_restriction"],
-        persons_aggregation=bin_aggregation["persons_count_aggregation"],
-        tissues=len(tissues),
-        tissues_mean=bin_restriction["tissues_count_mean"],
-        tissues_median=bin_restriction["tissues_count_median"],
-        coefficient=bin_modality["scores"]["coefficient"],
-        dip=bin_modality["scores"]["dip"],
-        mixture=bin_modality["scores"]["mixture"],
+        persons_restriction=(
+            bins["bin_restriction"]["persons_count_restriction"]
+        ),
+        persons_aggregation=(
+            bins["bin_aggregation"]["persons_count_aggregation"]
+        ),
+        method=bins["method"],
+        count=bins["count"],
+        tissues=len(bins["tissues"]),
+        tissues_mean=bins["bin_restriction"]["tissues_count_mean"],
+        tissues_median=bins["bin_restriction"]["tissues_count_median"],
+        coefficient=bins["bin_modality"]["scores"]["coefficient"],
+        dip=bins["bin_modality"]["scores"]["dip"],
+        mixture=bins["bin_modality"]["scores"]["mixture"],
         data_gene_annotation=data_gene_annotation,
     )
 
     # Compile information.
     information = bin_organization.copy()
-    information.update(bin_restriction)
-    information.update(bin_aggregation)
-    information.update(bin_modality)
+    information.update(bins["bin_restriction"])
+    information.update(bins["bin_aggregation"])
+    information.update(bins["bin_modality"])
     information["gene"] = gene
-    information["tissues"] = tissues
+    information["tissues"] = bins["tissues"]
     information["data_gene_families_persons_signals"] = (
         data_gene_families_persons_signals
     )
@@ -2116,7 +2434,7 @@ def execute_procedure_local(dock=None):
     )
     print("count of genes: " + str(len(source["genes"])))
 
-    if True:
+    if False:
         report = execute_procedure_local_sub(
             gene="ENSG00000231925", # TAPBP
             data_families=source["data_families"],
@@ -2124,12 +2442,18 @@ def execute_procedure_local(dock=None):
             dock=dock,
         )
         report = execute_procedure_local_sub(
-            gene="ENSG00000134184", # TAPBP
+            gene="ENSG00000000419", #
             data_families=source["data_families"],
             data_gene_annotation=source["data_gene_annotation"],
             dock=dock,
         )
-    if False:
+        report = execute_procedure_local_sub(
+            gene="ENSG00000001167", #
+            data_families=source["data_families"],
+            data_gene_annotation=source["data_gene_annotation"],
+            dock=dock,
+        )
+    if True:
         # Set up partial function for iterative execution.
         # Each iteration uses a different sequential value of the "gene" variable
         # with the same value of the "dock" variable.
@@ -2147,8 +2471,13 @@ def execute_procedure_local(dock=None):
             "ENSG00000231925", # TAPBP
         ]
         #report = pool.map(execute_procedure_gene, check_genes)
-        report = pool.map(execute_procedure_gene, source["genes"][0:1000])
-        #report = pool.map(execute_procedure_gene, source["genes"])
+        #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
+        #report = pool.map(
+        #    execute_procedure_gene,
+        #    random.sample(source["genes"], 100)
+        #)
+        report = pool.map(execute_procedure_gene, source["genes"])
+
 
     # Pause procedure.
     time.sleep(10.0)

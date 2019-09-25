@@ -1,11 +1,11 @@
 #!/bin/bash
 
-#SBATCH --job-name=dist_one
+#SBATCH --job-name=permutation
 #SBATCH --output=/cellar/users/tcwaller/Data/dock/out_one.txt
 #SBATCH --error=/cellar/users/tcwaller/Data/dock/error_one.txt
 #SBATCH --mem=5G
-#SBATCH --array=0-9000%250
-#SBATCH --time=0-20:00:00 # days-hours:minutes:seconds
+#SBATCH --array=0-15445%250
+#SBATCH --time=2-00:00:00 # days-hours:minutes:seconds
 
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH

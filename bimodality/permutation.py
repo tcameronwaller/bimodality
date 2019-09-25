@@ -15,8 +15,14 @@ import os
 import math
 import statistics
 import pickle
+import functools
+import multiprocessing
+import datetime
+import gc
+import time
 import random
 import copy
+
 
 # Relevant
 
@@ -36,13 +42,15 @@ import utility
 # Functionality
 
 
-######TODO: Call this part "shuffle" procedure#######################################
-
-def read_source(dock=None):
+def read_source_initial(
+    source_genes=None,
+    dock=None
+):
     """
     Reads and organizes source information from file
 
     arguments:
+        source_genes (str): name of directory from which to obtain genes list
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -54,198 +62,33 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_split = os.path.join(dock, "split")
-    path_persons = os.path.join(
-        path_split, "persons.pickle"
-    )
-    path_tissues = os.path.join(
-        path_split, "tissues.pickle"
-    )
+    if source_genes == "split":
+        path_source = os.path.join(dock, "split")
+        path_genes = os.path.join(path_source, "genes.txt")
+        genes = utility.read_file_text_list(
+            delimiter="\n",
+            path_file=path_genes,
+        )
+    elif source_genes == "combination":
+        path_source = os.path.join(dock, "combination")
+        path_genes = os.path.join(path_source, "genes.txt")
+        genes = utility.read_file_text_list(
+            delimiter="\n",
+            path_file=path_genes,
+        )
+    elif source_genes == "distribution":
+        path_source = os.path.join(dock, "distribution")
+        genes = os.listdir(path_source)
+    path_shuffle = os.path.join(dock, "shuffle")
+    path_shuffles = os.path.join(path_shuffle, "shuffles.pickle")
     # Read information from file.
-    with open(path_persons, "rb") as file_source:
-        persons = pickle.load(file_source)
-    with open(path_tissues, "rb") as file_source:
-        tissues = pickle.load(file_source)
+    with open(path_shuffles, "rb") as file_source:
+        shuffles = pickle.load(file_source)
     # Compile and return information.
     return {
-        "persons": persons,
-        "tissues": tissues,
+        "genes": genes,
+        "shuffles": shuffles,
     }
-
-
-def create_matrix(
-    dimension_zero=None,
-    dimension_one=None
-):
-    """
-    Creates matrix of indices.
-
-    arguments:
-        dimension_zero (int): count of indices in the first dimension or axis
-        dimension_one (int): count of indices in the second dimension or axis
-
-    raises:
-
-    returns:
-        (list<list<int>>): matrix of indices
-
-    """
-
-    # Base indices on zero.
-    range_zero = list(range(dimension_zero))
-    range_one = list(range(dimension_one))
-    matrix = list()
-    for index in range_zero:
-        matrix.append(copy.copy(range_one))
-    return matrix
-
-
-def copy_matrix_shuffle_values(
-    matrix=None
-):
-    """
-    Copies a matrix and shuffles its values.
-
-    arguments:
-        matrix (list<list<int>>): Matrix of values.
-
-    raises:
-
-    returns:
-        (list<list<list<int>>>): Matrices of values.
-
-    """
-
-    # Copy values in matrix.
-    matrix_copy = copy.deepcopy(matrix)
-    # Shuffle values in matrix.
-    for index in range(len(matrix_copy)):
-        random.shuffle(matrix_copy[index])
-    # Return matrix.
-    return matrix_copy
-
-
-def copy_matrices_shuffle_values(
-    count=None,
-    matrix=None
-):
-    """
-    Copies matrices and shuffles values.
-
-    arguments:
-        count (int): Count of matrices to create.
-        matrix (list<list<int>>): Template matrix of indices.
-
-    raises:
-
-    returns:
-        (list<list<list<int>>>): Matrices of indices.
-
-    """
-
-    matrices = list()
-    for index in range(count):
-        matrix_copy = copy_matrix_shuffle_values(matrix=matrix)
-        matrices.append(matrix_copy)
-    return matrices
-
-
-def create_shuffle_indices(
-    count=None,
-    dimension_zero=None,
-    dimension_one=None
-):
-    """
-    Creates matrices of indices to shuffle values.
-
-    Dimensions of the shuffle matrix should match the count of tissues and
-    persons in the actual matrices for genes' signals.
-
-    arguments:
-        count (int): count of matrices to create
-        dimension_zero (int): count of indices in the first dimension or axis
-        dimension_one (int): count of indices in the second dimension or axis
-
-    raises:
-
-    returns:
-        (list<list<list<int>>>): matrices of indices
-
-    """
-
-    # Structure the matrices of shuffle indices as lists of lists.
-    # The implicit semantics of data frames bind values within rows across
-    # multiple columns.
-    # Use a simple list matrix instead to make shuffles convenient.
-
-    # Generate template matrix for permutations of persons and tissues.
-    matrix = create_matrix(
-        dimension_zero=dimension_zero,
-        dimension_one=dimension_one
-    )
-
-    # Create and shuffle copies of the template matrix.
-    matrices = copy_matrices_shuffle_values(count=count, matrix=matrix)
-
-    # Summarize.
-    print(
-        "Dimensions of each matrix: " +
-        str(len(matrices[0])) +
-        " by " +
-        str(len(matrices[0][0]))
-    )
-    print("Created and shuffled matrices: " + str(len(matrices)))
-
-    # Print representation of first matrix.
-    # Convert matrix to a data frame for a clear representation.
-    data = pandas.DataFrame(data=matrices[0])
-    print(data)
-
-    print(matrices[0][5][10])
-    print(data.loc[5, 10])
-
-    # Return information.
-    return matrices
-
-
-def write_product(dock=None, information=None):
-    """
-    Writes product information to file.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
-
-    raises:
-
-    returns:
-
-    """
-
-    # Specify directories and files.
-    path_permutation = os.path.join(dock, "permutation")
-    utility.create_directory(path_permutation)
-    path_permutations = os.path.join(
-        path_permutation, "permutations.pickle"
-    )
-    # Write information to file.
-    with open(path_permutations, "wb") as file_product:
-        pickle.dump(information["permutations"], file_product)
-
-
-
-# convert dataframe to matrix using dataframe.values
-# shuffle the matrix by indices using a map function as in... https://stackoverflow.com/questions/26194389/how-to-rearrange-array-based-upon-index-array
-# assign the shuffled matrix back to the same persons indices and tissues columns in a new pandas dataframe using the Pandas dataframe constructor
-
-#sorted_matrix = np.array(list(map(
-    #lambda index, sort: sort[index], index_matrix, matrix_to_sort
-#)))
-
-
-###############################TODO: Call this part "permutation"###############################
-###########################TODO: put this in a new module... with parallel structure like distribution############################
 
 
 def read_source(
@@ -268,22 +111,157 @@ def read_source(
     """
 
     # Specify directories and files.
-    path_permutation = os.path.join(dock, "permutation")
-    path_permutations = os.path.join(
-        path_permutation, "permutations.pickle"
+    path_distribution = os.path.join(dock, "distribution")
+    path_gene = os.path.join(path_distribution, gene)
+    path_data_gene_persons_tissues_signals = os.path.join(
+        path_gene, "data_gene_persons_tissues_signals.pickle"
     )
-    path_split = os.path.join(dock, "split")
-    path_collection = os.path.join(path_split, "collection")
-    path_gene = os.path.join(path_collection, (gene + ".pickle"))
     # Read information from file.
-    with open(path_permutations, "rb") as file_source:
-        permutations = pickle.load(file_source)
-    data_gene_samples_signals = pandas.read_pickle(path_gene)
+    data_gene_persons_tissues_signals = pandas.read_pickle(
+        path_data_gene_persons_tissues_signals,
+    )
     # Compile and return information.
     return {
-        "data_gene_samples_signals": data_gene_samples_signals,
-        "permutations": permutations,
+        "data_gene_persons_tissues_signals": data_gene_persons_tissues_signals,
     }
+
+
+# Permute genes' signals
+
+
+def permute_gene_distribution(
+    gene=None,
+    data_gene_persons_tissues_signals=None,
+    shuffles=None,
+):
+    """
+    Prepares and describes the distribution of a gene's signals across persons.
+
+    arguments:
+        gene (str): identifier of gene
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+        shuffles (list<list<list<int>>>): matrices of shuffle indices
+
+    raises:
+
+    returns:
+        (dict<list<float>>): values of modality metrics across permutations
+
+    """
+
+    # Initialize collections of metrics.
+    coefficients = list()
+    dips = list()
+    mixtures = list()
+    # Iterate on permutations.
+    for shuffle_indices in shuffles:
+        # Shuffle gene's signals.
+        data_shuffle = permute_gene_signals(
+            data_gene_signals=data_gene_persons_tissues_signals,
+            shuffle_indices=shuffle_indices
+        )
+
+        # Distribution
+        bins = distribution.prepare_describe_distribution(
+            data_gene_persons_tissues_signals=data_shuffle,
+        )
+
+        # Collect metrics.
+        coefficients.append(
+            bins["bin_modality"]["scores"]["coefficient"]
+        )
+        dips.append(
+            bins["bin_modality"]["scores"]["dip"]
+        )
+        mixtures.append(
+            bins["bin_modality"]["scores"]["mixture"]
+        )
+        pass
+    # Compile information.
+    information = {
+        "coefficient": coefficients,
+        "dip": dips,
+        "mixture": mixtures,
+    }
+
+    # Return information.
+    return information
+
+
+def permute_gene_signals(
+    data_gene_signals=None,
+    shuffle_indices=None
+):
+    """
+    Shuffles the association of gene's signals between tissues and persons.
+
+    This method requires less memory and less process time than the iterative
+    method.
+
+    This method requires dimension zero to correspond to persons and dimension
+    one to correspond to tissues.
+
+    arguments:
+        data_gene_signals (object): Pandas data frame of a gene's signals
+            across persons and tissues
+        shuffle_indices (list<list<int>>): matrix of indices
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across persons and
+            tissues
+
+    """
+
+    # Copy data.
+    data = data_gene_signals.copy(deep=True)
+    # Determine values and counts of tissues and persons.
+    tissues = data.columns.to_list()
+    persons = data.index.to_list()
+    # Convert data to matrix.
+    # Transpose data matrix to match shuffle dimension.
+    # Shuffle occurs on dimension one (persons).
+    matrix_data = numpy.transpose(data.values)
+    #print("data matrix before shuffle")
+    #print(pandas.DataFrame(data=matrix_data))
+    #print(matrix_data.shape)
+
+    # Organize shuffle matrix.
+    matrix_shuffle = numpy.array(shuffle_indices)
+    #print("shuffle matrix before shuffle")
+    #print(pandas.DataFrame(data=matrix_shuffle))
+    #print(matrix_shuffle.shape)
+
+    # Sort data matrix's values by shuffle matrix's indices.
+    matrix_data_sort = numpy.array(list(map(
+        lambda index, sort: sort[index], matrix_shuffle, matrix_data
+    )))
+    matrix_sort_transpose = numpy.transpose(matrix_data_sort)
+
+    # Convert records to data frame.
+    data_sort = pandas.DataFrame(
+        data=matrix_sort_transpose,
+        index=persons,
+        columns=tissues,
+    )
+    data_sort.rename_axis(
+        columns="tissue",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    data_sort.rename_axis(
+        index="person",
+        axis="index",
+        copy=False,
+        inplace=True
+    )
+    return data_sort
+
+
+# Shuffle
 
 
 def shuffle_gene_signals_iterative(
@@ -350,305 +328,10 @@ def shuffle_gene_signals_iterative(
     return data
 
 
-def shuffle_gene_signals(
-    data_gene_signals=None,
-    shuffle=None
-):
-    """
-    Shuffles the association of gene's signals between tissues and persons.
-
-    This method requires less memory and less process time than the iterative
-    method.
-
-    This method requires dimension zero to correspond to persons and dimension
-    one to correspond to tissues.
-
-    arguments:
-        data_gene_signals (object): Pandas data frame of a gene's signals
-            across persons and tissues
-        shuffle (list<list<int>>): matrix of indices
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of a gene's signals across persons and
-            tissues
-
-    """
-
-    # Copy data.
-    data = data_gene_signals.copy(deep=True)
-    # Determine values and counts of tissues and persons.
-    tissues = data.columns.to_list()
-    persons = data.index.to_list()
-    # Convert data to matrix.
-    # Transpose data matrix to match shuffle dimension.
-    # Shuffle occurs on dimension one (persons).
-    matrix_data = numpy.transpose(data.values)
-    #print("data matrix before shuffle")
-    #print(pandas.DataFrame(data=matrix_data))
-    #print(matrix_data.shape)
-
-    # Organize shuffle matrix.
-    matrix_shuffle = numpy.array(shuffle)
-    #print("shuffle matrix before shuffle")
-    #print(pandas.DataFrame(data=matrix_shuffle))
-    #print(matrix_shuffle.shape)
-
-    # Sort data matrix's values by shuffle matrix's indices.
-    matrix_data_sort = numpy.array(list(map(
-        lambda index, sort: sort[index], matrix_shuffle, matrix_data
-    )))
-    matrix_sort_transpose = numpy.transpose(matrix_data_sort)
-
-    # Convert records to data frame.
-    data_sort = pandas.DataFrame(
-        data=matrix_sort_transpose,
-        index=persons,
-        columns=tissues,
-    )
-    data_sort.rename_axis(
-        columns="tissue",
-        axis="columns",
-        copy=False,
-        inplace=True
-    )
-    data_sort.rename_axis(
-        index="person",
-        axis="index",
-        copy=False,
-        inplace=True
-    )
-    return data_sort
+# Product
 
 
-##########
-# Shuffle
-
-
-def shuffle_gene_distributions(
-    gene=None,
-    modality=None,
-    permutations=None,
-    data_gene_persons_tissues_signals=None,
-):
-    """
-    Prepares and describes the distribution of a gene's signals across persons.
-
-    arguments:
-        gene (str): identifier of gene
-        modality (bool): whether to calculate metrics for the modality of
-            gene's distribution
-        permutations (list<list<list<int>>>): matrices of permutation indices
-        data_gene_persons_tissues_signals (object): Pandas data frame of a
-            gene's signals across persons and tissues
-
-    raises:
-
-    returns:
-        (dict): information about the distribution of a gene's signals across
-            persons
-
-    """
-
-
-    # Determine distributions of gene's signals by multiple methods.
-    imputation = shuffle_gene_distribution(
-        gene=gene,
-        modality=modality,
-        method="imputation",
-        permutations=permutations,
-        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
-    )
-    availability = shuffle_gene_distribution(
-        gene=gene,
-        modality=modality,
-        method="availability",
-        permutations=permutations,
-        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
-    )
-
-    # Compile information.
-    information = {
-        "imputation": imputation,
-        "availability": availability,
-    }
-
-    # Return information.
-    return information
-
-
-def shuffle_gene_distribution(
-    gene=None,
-    modality=None,
-    method=None,
-    permutations=None,
-    data_gene_persons_tissues_signals=None,
-):
-    """
-    Prepares and describes the distribution of a gene's signals across persons.
-
-    arguments:
-        gene (str): identifier of gene
-        modality (bool): whether to calculate metrics for the modality of
-            gene's distribution
-        method (str): method for selection of tissues and persons in
-            restriction procedure, either "imputation" for selection by
-            specific tissues with imputation or "availability" for selection by
-            minimal count of tissues
-        permutations (list<list<list<int>>>): matrices of permutation indices
-        data_gene_persons_tissues_signals (object): Pandas data frame of a
-            gene's signals across persons and tissues
-
-    raises:
-
-    returns:
-        (dict): information about the distribution of a gene's signals across
-            persons
-
-    """
-
-    # Initialize collections of metrics.
-    coefficients = list()
-    dips = list()
-    mixtures = list()
-    # Iterate on permutations.
-    for shuffle_matrix in permutations:
-        # Shuffle gene's signals.
-        data_shuffle = permutation.shuffle_gene_signals(
-            data_gene_signals=data_gene_persons_tissues_signals,
-            shuffle=shuffle_matrix
-        )
-        # Determine distributions of gene's signals
-        collection = determine_gene_distribution(
-            gene=gene,
-            modality=modality,
-            method=method,
-            data_gene_persons_tissues_signals=data_shuffle,
-        )
-
-        # Collect metrics.
-        coefficients.append(
-            collection["scores"]["coefficient"]
-        )
-        dips.append(
-            collection["scores"]["dip"]
-        )
-        mixtures.append(
-            collection["scores"]["mixture"]
-        )
-        pass
-    # Compile information.
-    information = {
-        "coefficient": coefficients,
-        "dip": dips,
-        "mixture": mixtures,
-    }
-
-    # Return information.
-    return information
-
-
-def execute_procedure_old_distribution(
-    gene=None,
-    permutations=None,
-    data_gene_samples_signals=None,
-    dock=None
-):
-    """
-    Function to execute module's main behavior.
-
-    arguments:
-        gene (str): identifier of gene
-        permutations (list<list<list<int>>>): matrices of permutation indices
-        data_gene_samples_signals (object): Pandas data frame of a gene's
-            signals across samples
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-
-    """
-
-    # Organization
-
-
-
-    # Restriction
-    # Support either availability or imputation methods.
-    # (I wish I could do this without removing data for persons who don't qualify... just assign missing values?)
-
-
-    # Aggregation
-    # TODO: apply the candidacy quality checks (population, signal, tissue)
-
-
-    # Modality
-
-
-    # TODO: prepare a table with all original persons with missing values if they were'nt used in final distribution
-
-
-    # Compilation
-
-
-    ##################Old Stuff...###########################################3
-
-    # Prepare and describe distribution of real gene's signals.
-
-    # Determine gene's distributions of aggregate tissue signals across
-    # persons.
-    observation = determine_gene_distributions(
-        gene=gene,
-        modality=True,
-        data_gene_samples_signals=data_gene_samples_signals,
-    )
-
-    # Shuffle gene's distributions.
-    shuffle = shuffle_gene_distributions(
-        gene=gene,
-        modality=True,
-        permutations=permutations,
-        data_gene_persons_tissues_signals=(
-            observation["organization"]["data_gene_persons_tissues_signals"]
-        ),
-    )
-
-    # Compile information.
-    information_imputation = {
-        "report_restriction": (
-            observation["imputation"]["report_restriction"]
-        ),
-        "report_aggregation": (
-            observation["imputation"]["report_aggregation"]
-        ),
-        "scores": observation["imputation"]["scores"],
-        "permutations": shuffle["imputation"],
-    }
-    information_availability = {
-        "report_restriction": (
-            observation["availability"]["report_restriction"]
-        ),
-        "report_aggregation": (
-            observation["availability"]["report_aggregation"]
-        ),
-        "scores": observation["availability"]["scores"],
-        "permutations": shuffle["availability"],
-    }
-    information = {
-        "report_organization": observation["organization"]["report_gene"],
-        "imputation": information_imputation,
-        "availability": information_availability,
-    }
-    #Write product information to file.
-    write_product(gene=gene, dock=dock, information=information)
-
-    pass
-
-
-def write_product_old_distribution(gene=None, dock=None, information=None):
+def write_product_gene(gene=None, dock=None, information=None):
     """
     Writes product information to file.
 
@@ -665,94 +348,171 @@ def write_product_old_distribution(gene=None, dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_distribution = os.path.join(dock, "distribution")
-    utility.create_directory(path_distribution)
-    path_gene = os.path.join(path_distribution, gene)
+    path_permutation = os.path.join(dock, "permutation")
+    utility.create_directory(path_permutation)
+    path_gene = os.path.join(path_permutation, gene)
     utility.create_directory(path_gene)
-    path_imputation = os.path.join(path_gene, "imputation")
-    utility.create_directory(path_imputation)
-    path_availability = os.path.join(path_gene, "availability")
-    utility.create_directory(path_availability)
-
-    path_report_organization = os.path.join(
-        path_gene, "report_organization.pickle"
-    )
-    # Imputation method
-    path_imputation_report_restriction = os.path.join(
-        path_imputation, "report_restriction.pickle"
-    )
-    path_imputation_report_aggregation = os.path.join(
-        path_imputation, "report_aggregation.pickle"
-    )
-    path_imputation_scores = os.path.join(
-        path_imputation, "scores.pickle"
-    )
-    path_imputation_permutations = os.path.join(
-        path_imputation, "permutations.pickle"
-    )
-    # Availability method
-    path_availability_report_restriction = os.path.join(
-        path_availability, "report_restriction.pickle"
-    )
-    path_availability_report_aggregation = os.path.join(
-        path_availability, "report_aggregation.pickle"
-    )
-    path_availability_scores = os.path.join(
-        path_availability, "scores.pickle"
-    )
-    path_availability_permutations = os.path.join(
-        path_availability, "permutations.pickle"
+    path_permutations = os.path.join(
+        path_gene, "permutations.pickle"
     )
 
     # Write information to file.
-    with open(path_report_organization, "wb") as file_product:
-        pickle.dump(information["report_organization"], file_product)
-
-    # Imputation method
-    with open(path_imputation_report_restriction, "wb") as file_product:
-        pickle.dump(information["imputation"]["report_restriction"], file_product)
-    with open(path_imputation_report_aggregation, "wb") as file_product:
-        pickle.dump(
-            information["imputation"]["report_aggregation"], file_product
-        )
-    with open(path_imputation_scores, "wb") as file_product:
-        pickle.dump(information["imputation"]["scores"], file_product)
-    with open(path_imputation_permutations, "wb") as file_product:
-        pickle.dump(information["imputation"]["permutations"], file_product)
-
-    # Imputation method
-    with open(path_availability_report_restriction, "wb") as file_product:
-        pickle.dump(
-            information["availability"]["report_restriction"], file_product
-        )
-    with open(path_availability_report_aggregation, "wb") as file_product:
-        pickle.dump(
-            information["availability"]["report_aggregation"], file_product
-        )
-    with open(path_availability_scores, "wb") as file_product:
-        pickle.dump(information["availability"]["scores"], file_product)
-    with open(path_availability_permutations, "wb") as file_product:
-        pickle.dump(information["availability"]["permutations"], file_product)
+    with open(path_permutations, "wb") as file_product:
+        pickle.dump(information["permutations"], file_product)
 
     pass
-
-
-
-
 
 
 ###############################################################################
 # Procedure
 
 
-def execute_procedure(dock=None, count=None):
+def execute_procedure(
+    gene=None,
+    data_gene_persons_tissues_signals=None,
+    shuffles=None,
+    dock=None
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+        shuffles (list<list<list<int>>>): matrices of shuffle indices
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Begin with gene's signals across persons and tissues before restrictive
+    # selection of persons by coverage of tissues.
+    # Matrices of genes' signals across persons and tissues must have same
+    # dimensions.
+    # Permutation hence controls for this restrictive selection of persons by
+    # coverage of tissues.
+
+    # Shuffle gene's distributions.
+    permutations = permute_gene_distribution(
+        gene=gene,
+        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
+        shuffles=shuffles,
+    )
+
+    # Compile information.
+    information = {
+        "permutations": permutations
+    }
+    #Write product information to file.
+    write_product_gene(
+        gene=gene,
+        dock=dock,
+        information=information
+    )
+
+    pass
+
+
+def execute_procedure_local(dock=None):
     """
     Function to execute module's main behavior.
 
     arguments:
         dock (str): path to root or dock directory for source and product
             directories and files
-        count (int): count of shuffles to create and store
+
+    raises:
+
+    returns:
+
+    """
+
+    utility.print_terminal_partition(level=1)
+    print("... Permutation procedure ...")
+
+    # Report date and time.
+    utility.print_terminal_partition(level=3)
+    start = datetime.datetime.now()
+    print(start)
+    utility.print_terminal_partition(level=3)
+
+    # Remove previous files to avoid version or batch confusion.
+    path_permutation = os.path.join(dock, "permutation")
+    utility.remove_directory(path=path_permutation)
+
+    # Read source information from file.
+    # It is an option to read directory names from "distribution"; however,
+    # distribution also writes report files to its directory, and these will
+    # include in the list.
+    source = read_source_initial(
+        source_genes="split",
+        dock=dock
+    )
+    print("count of genes: " + str(len(source["genes"])))
+
+    if False:
+        report = execute_procedure_local_sub(
+            gene="ENSG00000231925", # TAPBP
+            shuffles=source["shuffles"],
+            dock=dock,
+        )
+    if True:
+        # Set up partial function for iterative execution.
+        # Each iteration uses a different sequential value of the "gene" variable
+        # with the same value of the "dock" variable.
+        execute_procedure_gene = functools.partial(
+            execute_procedure_local_sub,
+            shuffles=source["shuffles"],
+            dock=dock,
+        )
+        # Initialize multiprocessing pool.
+        #pool = multiprocessing.Pool(processes=os.cpu_count())
+        pool = multiprocessing.Pool(processes=8)
+        # Iterate on genes.
+        check_genes=[
+            "ENSG00000231925", # TAPBP
+        ]
+        #report = pool.map(execute_procedure_gene, check_genes)
+        #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
+        report = pool.map(
+            execute_procedure_gene,
+            random.sample(source["genes"], 16)
+        )
+        #report = pool.map(execute_procedure_gene, source["genes"])
+
+    # Pause procedure.
+    time.sleep(10.0)
+
+    # Report.
+
+    # Report date and time.
+    utility.print_terminal_partition(level=3)
+    end = datetime.datetime.now()
+    print(end)
+    print("duration: " + str(end - start))
+    utility.print_terminal_partition(level=3)
+
+    pass
+
+
+def execute_procedure_local_sub(
+    gene=None,
+    shuffles=None,
+    dock=None
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process
+        shuffles (list<list<list<int>>>): matrices of shuffle indices
+        dock (str): path to root or dock directory for source and product
+            directories and files
 
     raises:
 
@@ -761,31 +521,27 @@ def execute_procedure(dock=None, count=None):
     """
 
     # Read source information from file.
-    source = read_source(dock=dock)
-
-    # Report.
-    utility.print_terminal_partition(level=3)
-    print(
-        "Creating " + str(count) + " shuffles for matrices of dimension " +
-        "zero: " + str(source["tissues"]) + " by dimension one: " +
-        str(source["persons"]) + ". "
-        "Notice that shuffles occur across dimension one."
-    )
-    utility.print_terminal_partition(level=3)
-
-    # Create shuffle indices.
-    permutations = create_shuffle_indices(
-        count=count,
-        dimension_zero=source["tissues"],
-        dimension_one=source["persons"],
+    source = read_source(
+        gene=gene,
+        dock=dock
     )
 
-    # Compile information.
-    information = {
-        "permutations": permutations
-    }
-    #Write product information to file.
-    write_product(dock=dock, information=information)
+    # Execute procedure.
+    execute_procedure(
+        gene=gene,
+        data_gene_persons_tissues_signals=(
+            source["data_gene_persons_tissues_signals"]
+        ),
+        shuffles=shuffles,
+        dock=dock
+    )
+
+    # Report progress.
+    path_permutation = os.path.join(dock, "permutation")
+    directories = os.listdir(path_permutation)
+    count = len(directories)
+    if (count % 10 == 0):
+        print("complete genes: " + str(len(directories)))
 
     pass
 
