@@ -664,7 +664,7 @@ def read_source_distribution_gene(
     """
 
     # Specify directories and files.
-    path_distribution = os.path.join(dock, "distribution_2019-09-18")
+    path_distribution = os.path.join(dock, "distribution")
     path_gene = os.path.join(path_distribution, gene)
     path_data_gene_persons_signals = os.path.join(
         path_gene, "data_gene_persons_signals.pickle"

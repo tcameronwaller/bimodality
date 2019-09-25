@@ -64,7 +64,7 @@ echo "Now set to call routine and procedures."
 
 #python3 interface.py main --dock $path_dock --shuffle --count 10000
 #python3 interface.py main --dock $path_dock --permutation --local
-nohup python3 interface.py main --dock $path_dock --permutation --local > $path_dock/report.out &
+#nohup python3 interface.py main --dock $path_dock --permutation --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --permutation --remote --gene "ENSG00000186092"
 
 #python3 interface.py main --dock $path_dock --collection
@@ -77,7 +77,7 @@ nohup python3 interface.py main --dock $path_dock --permutation --local > $path_
 
 #python3 interface.py main --dock $path_dock --rank
 #python3 interface.py main --dock $path_dock --category
-#python3 interface.py main --dock $path_dock --plot
+python3 interface.py main --dock $path_dock --plot
 
 ##########
 # New stuff...
