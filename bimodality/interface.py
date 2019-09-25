@@ -16,31 +16,31 @@ import textwrap
 
 # Custom.
 
-import access
-import assembly
-import measurement
-import sample
-import selection
-import tissue
+#import access
+#import assembly
+#import measurement
+#import sample
+#import selection
+#import tissue
 
-import split
+#import split
 
 import distribution
 import shuffle
 import permutation
-import collection
+#import collection
 
-import combination
-import rank
-import category
+#import combination
+#import rank
+#import category
 
 #import integration
 
 import metric
-import plot
-import test
+#import plot
+#import test
 import utility
-import expecto
+#import expecto
 
 #dir()
 #importlib.reload()
