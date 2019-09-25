@@ -454,6 +454,7 @@ def execute_procedure_local(dock=None):
         dock=dock
     )
     print("count of genes: " + str(len(source["genes"])))
+    print("count of shuffles: " + str(len(source["shuffles"])))
 
     if False:
         report = execute_procedure_local_sub(
@@ -472,7 +473,7 @@ def execute_procedure_local(dock=None):
         )
         # Initialize multiprocessing pool.
         #pool = multiprocessing.Pool(processes=os.cpu_count())
-        pool = multiprocessing.Pool(processes=8)
+        pool = multiprocessing.Pool(processes=100)
         # Iterate on genes.
         check_genes=[
             "ENSG00000231925", # TAPBP
@@ -481,7 +482,7 @@ def execute_procedure_local(dock=None):
         #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
         report = pool.map(
             execute_procedure_gene,
-            random.sample(source["genes"], 16)
+            random.sample(source["genes"], 100)
         )
         #report = pool.map(execute_procedure_gene, source["genes"])
 

@@ -9,7 +9,7 @@ subpath_repository="repository/bimodality-master/bimodality"
 path_repository="$path_project/$subpath_repository"
 subpath_program="repository/bimodality-master/bimodality"
 path_program="$path_project/$subpath_program"
-subpath_dock="Data/dock_ortugo"
+subpath_dock="Data/dock"
 path_dock="$path_project/$subpath_dock"
 
 # Suppress echo each command to console.
@@ -33,4 +33,4 @@ cd $path_program
 
 echo "Now set to call routine and procedures."
 
-#nohup $path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
+nohup $path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --permutation --local > $path_dock/report.out &
