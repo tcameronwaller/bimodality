@@ -20,6 +20,7 @@ import math
 import statistics
 import pickle
 import copy
+import random
 
 # Relevant
 
@@ -56,36 +57,77 @@ def read_source(dock=None):
 
     # Specify directories and files.
     path_split = os.path.join(dock, "split")
-    path_genes = os.path.join(
-        path_split, "genes.txt"
-    )
+    path_genes = os.path.join(path_split, "genes.txt")
     path_distribution = os.path.join(dock, "distribution")
+    path_permutation = os.path.join(dock, "permutation")
     # Read information from file.
-    genes = utility.read_file_text_list(path_genes)
-    genes_scores_shuffles_imputation = read_collect_genes_scores_shuffles(
-        genes=genes,
-        path_distribution=path_distribution,
-        method="imputation",
+    genes = utility.read_file_text_list(
+        delimiter="\n",
+        path_file=path_genes,
     )
-    genes_scores_shuffles_availability = read_collect_genes_scores_shuffles(
-        genes=genes,
-        path_distribution=path_distribution,
-        method="availability",
+    genes_distribution = utility.extract_subdirectory_names(
+        path=path_distribution
     )
+    genes_permutation = utility.extract_subdirectory_names(
+        path=path_permutation
+    )
+
     # Compile and return information.
     return {
         "genes": genes,
-        "genes_scores_shuffles_imputation": genes_scores_shuffles_imputation,
-        "genes_scores_shuffles_availability": (
-            genes_scores_shuffles_availability
-        ),
+        "genes_distribution": genes_distribution,
+        "genes_permutation": genes_permutation,
     }
 
 
-def read_collect_genes_scores_shuffles(
+def check_genes(
+    genes=None,
+    genes_distribution=None,
+    genes_permutation=None,
+):
+    """
+    Checks genes from split, distribution, and permutation batch procedures.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        genes_distribution (list<str>): identifiers of genes
+        genes_permutation (list<str>): identifiers of genes
+
+    raises:
+
+    returns:
+
+    """
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "Compare lists of genes from split, distribution, and permutation " +
+        "procedures."
+    )
+
+    print("count of genes from split (master): " + str(len(genes)))
+    print("count of genes from distribution: " + str(len(genes_distribution)))
+    print("count of genes from permutation: " + str(len(genes_permutation)))
+
+    print(
+        "Check whether all permutation list genes are in distribution list."
+    )
+    # Returns True if all elements in list_two are in list_one.
+    match = utility.compare_lists_by_inclusion(
+        list_one=genes_distribution,
+        list_two=genes_permutation,
+    )
+    print("permutation genes match distribution genes: " + str(match))
+
+    utility.print_terminal_partition(level=2)
+
+    pass
+
+
+def read_collect_genes_scores_permutations(
     genes=None,
     path_distribution=None,
-    method=None,
+    path_permutation=None,
 ):
     """
     Collects information about genes.
@@ -97,7 +139,7 @@ def read_collect_genes_scores_shuffles(
     ---- coefficient (float)
     ---- dip (float)
     ---- mixture (float)
-    --- shuffles (dict)
+    --- permutations (dict)
     ---- coefficient (list)
     ----- value (float)
     ---- dip (list)
@@ -109,14 +151,12 @@ def read_collect_genes_scores_shuffles(
     arguments:
         genes (list<str>): identifiers of genes
         path_distribution (str): path to distribution directory
-        method (str): method for selection of tissues and patients, either
-            "availability" for selection by minimal count of tissues, or
-            "imputation" for selection by same tissues with imputation
+        path_permutation (str): path to permutation directory
 
     raises:
 
     returns:
-        (dict<dict<dict>>): information about genes
+        (dict<dict<dict>>): information about genes' scores and permutations
 
     """
 
@@ -124,44 +164,64 @@ def read_collect_genes_scores_shuffles(
     utility.print_terminal_partition(level=1)
     print(
         "Reading and compiling information about genes' scores and " +
-        "distributions."
+        "permutations."
     )
-    # Check contents of directory.
-    print("Check that directories exist for all genes.")
-    directories = os.listdir(path_distribution)
-    match = utility.compare_lists_by_mutual_inclusion(
-        list_one=genes, list_two=directories
-    )
-    print("Genes and directories match: " + str(match))
 
+    # Check contents of directory.
+    utility.print_terminal_partition(level=3)
+    print("Check that directories exist for all genes to collect.")
+    genes_distribution = utility.extract_subdirectory_names(
+        path=path_distribution
+    )
+    genes_permutation = utility.extract_subdirectory_names(
+        path=path_permutation
+    )
+    match_distribution = utility.compare_lists_by_inclusion(
+        list_one=genes_distribution,
+        list_two=genes
+    )
+    print(
+        "Genes and distribution directories match: " +
+        str(match_distribution)
+    )
+    match_permutation = utility.compare_lists_by_inclusion(
+        list_one=genes_permutation,
+        list_two=genes
+    )
+    print(
+        "Genes and permutation directories match: " +
+        str(match_permutation)
+    )
+
+    # Collect genes' scores and permutations.
+    utility.print_terminal_partition(level=3)
+    print("Collect genes' scores and permutations.")
     # Collect information about genes.
-    genes_scores_shuffles = dict()
-    # Iterate on directories for genes.
+    genes_scores_permutations = dict()
+    # Iterate on genes.
     for gene in genes:
-        # Report progress.
-        #print(gene)
         # Specify directories and files.
-        path_gene = os.path.join(path_distribution, gene)
-        path_method = os.path.join(path_gene, method)
+        path_distribution_gene = os.path.join(path_distribution, gene)
+        path_permutation_gene = os.path.join(path_permutation, gene)
         path_scores = os.path.join(
-            path_method, "scores.pickle"
+            path_distribution_gene, "scores.pickle"
         )
-        path_shuffles = os.path.join(
-            path_method, "permutations.pickle"
+        path_permutations = os.path.join(
+            path_permutation_gene, "permutations.pickle"
         )
         # Read information from file.
         with open(path_scores, "rb") as file_source:
             scores = pickle.load(file_source)
-        with open(path_shuffles, "rb") as file_source:
-            shuffles = pickle.load(file_source)
+        with open(path_permutations, "rb") as file_source:
+            permutations = pickle.load(file_source)
         # Create entry for gene.
-        genes_scores_shuffles[gene] = dict()
+        genes_scores_permutations[gene] = dict()
         # Compile information.
-        genes_scores_shuffles[gene]["scores"] = scores
-        genes_scores_shuffles[gene]["permutations"] = shuffles
+        genes_scores_permutations[gene]["scores"] = scores
+        genes_scores_permutations[gene]["permutations"] = permutations
 
     # Return information.
-    return genes_scores_shuffles
+    return genes_scores_permutations
 
 
 def read_collect_genes_patients(path=None):
@@ -218,16 +278,17 @@ def read_collect_genes_patients(path=None):
     return genes_patients
 
 
-def check_genes_scores_distributions(
+def check_genes_scores_permutations(
     genes=None,
-    genes_scores_distributions=None
+    genes_scores_permutations=None
 ):
     """
     Checks and summarizes information about genes.
 
     arguments:
         genes (list<str>): identifiers of genes
-        genes_scores_distributions (dict<dict<dict>>): information about genes
+        genes_scores_permutations (dict<dict<dict>>): information about genes'
+            scores and permutations
 
     raises:
 
@@ -236,52 +297,61 @@ def check_genes_scores_distributions(
 
     """
 
-    #print(genes_scores_distributions)
-    #print(genes_scores_distributions["ENSG00000005483"])
-
     # Extract identifiers of genes with scores.
-    genes_scores = list(genes_scores_distributions.keys())
+    genes_scores = list(genes_scores_permutations.keys())
     print("count of genes: " + str(len(genes)))
     print("count of genes with scores: " + str(len(genes_scores)))
-    gene_entries = genes_scores_distributions["ENSG00000005483"]
+    gene_check = random.sample(genes, 1)
+    print("example gene: " + str(gene_check[0]))
+    entry = genes_scores_permutations[gene_check[0]]
     print(
-        "count of shuffles for bimodality coefficient: " +
-        str(len(
-            gene_entries["distributions"]["coefficient"]
-        ))
+        "count of permutations for bimodality coefficient: " +
+        str(len(entry["permutations"]["coefficient"]))
     )
     print(
         "count of shuffles for dip statistic: " +
-        str(len(
-            gene_entries["distributions"]["dip"]
-        ))
+        str(len(entry["permutations"]["dip"]))
     )
     print(
         "count of shuffles for mixture model: " +
-        str(len(
-            gene_entries["distributions"]["mixture"]
-        ))
+        str(len(entry["permutations"]["mixture"]))
     )
+
     # Check whether all genes have scores.
     # Iterate on genes.
+    null_genes = list()
     for gene in genes_scores:
-        entry = genes_scores_distributions[gene]
-        if not (
+        entry = genes_scores_permutations[gene]
+        # Check whether gene has valid scores.
+        scores = entry["scores"]
+        if (
+            math.isnan(scores["coefficient"]) or
+            math.isnan(scores["dip"]) or
+            math.isnan(scores["mixture"])
+        ):
+            null_genes.append(gene)
+        # Check whether gene has valid permutations.
+        if (
             (
-                len(entry["distributions"]["coefficient"]) ==
-                len(entry["distributions"]["dip"])
+                len(entry["permutations"]["coefficient"]) !=
+                len(entry["permutations"]["dip"])
             ) or
             (
-                len(entry["distributions"]["coefficient"]) ==
-                len(entry["distributions"]["mixture"])
+                len(entry["permutations"]["coefficient"]) !=
+                len(entry["permutations"]["mixture"])
+            ) or
+            (
+                len(entry["permutations"]["dip"]) !=
+                len(entry["permutations"]["mixture"])
             )
         ):
             print(
-                "***Error***: difference in counts of shuffle values for " +
-                "scores!"
+                "***Error***: difference in counts of permutation values " +
+                "for scores!"
             )
             print(gene)
             pass
+    print("count of genes with null scores: " + str(len(null_genes)))
     pass
 
 
@@ -303,20 +373,13 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_collection = os.path.join(dock, "collection")
     utility.create_directory(path_collection)
-    path_scores_shuffles_imputation = os.path.join(
-        path_collection, "genes_scores_permutations_imputation.pickle"
-    )
-    path_scores_shuffles_availability = os.path.join(
-        path_collection, "genes_scores_permutations_availability.pickle"
+    path_scores_permutations = os.path.join(
+        path_collection, "genes_scores_permutations.pickle"
     )
     # Write information to file.
-    with open(path_scores_shuffles_imputation, "wb") as file_product:
+    with open(path_scores_permutations, "wb") as file_product:
         pickle.dump(
-            information["genes_scores_permutations_imputation"], file_product
-        )
-    with open(path_scores_shuffles_availability, "wb") as file_product:
-        pickle.dump(
-            information["genes_scores_permutations_availability"], file_product
+            information["genes_scores_permutations"], file_product
         )
 
     pass
@@ -343,26 +406,32 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
-    # TODO: ...
-    # For each gene...
-    # I need to know the real modality scores
-    # I also need to know the 10,000 X shuffle modality scores...
+    # Verify that distributions and permutations are available for all genes.
+    check_genes(
+        genes=source["genes"],
+        genes_distribution=source["genes_distribution"],
+        genes_permutation=source["genes_permutation"],
+    )
 
-    if False:
-        # Check and summarize information about genes.
-        check_genes_scores_distributions(
-            genes=source["genes"],
-            genes_scores_distributions=source["genes_scores_distributions"]
-        )
+    # Collect scores from distribution procedure.
+    # Collect scores from permutation procedure.
+    path_distribution = os.path.join(dock, "distribution")
+    path_permutation = os.path.join(dock, "permutation")
+    genes_scores_permutations = read_collect_genes_scores_permutations(
+        genes=source["genes_permutation"],
+        path_distribution=path_distribution,
+        path_permutation=path_permutation,
+    )
+
+    # Check and summarize information about genes.
+    check_genes_scores_permutations(
+        genes=source["genes_permutation"],
+        genes_scores_permutations=genes_scores_permutations
+    )
 
     # Compile information.
     information = {
-        "genes_scores_permutations_imputation": (
-            source["genes_scores_shuffles_imputation"]
-        ),
-        "genes_scores_permutations_availability": (
-            source["genes_scores_shuffles_availability"]
-        ),
+        "genes_scores_permutations": genes_scores_permutations,
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

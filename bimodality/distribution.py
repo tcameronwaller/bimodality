@@ -1525,6 +1525,53 @@ def generate_null_metrics():
     return information
 
 
+def evaluate_gene_candidacy(
+    data_gene_persons_signals=None,
+):
+    """
+    Evaluates a gene's candidacy for further bimodal analysis by multiple
+    criteria.
+
+    1. candidacy by population
+    - gene must have tissue-aggregate signals across at least 100 persons
+    2. candidacy by signal
+    - gene's tissue-aggregate signals across persons must have a standard
+        deviation greater than 0
+    3. candidacy by tissue independence
+    - consider tissues with representation in at least 5% of persons
+
+    arguments:
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate, pan-tissue signals across persons
+
+    raises:
+
+    returns:
+        (dict<bool>): information about gene's candidacy
+
+    """
+
+    # Determine whether the gene's distribution is adequate.
+    # Distribution procedure applies filters to the gene's tissue-aggregate
+    # scores across persons.
+
+    # Determine whether gene has representation across adequate persons.
+    population = evaluate_gene_population(
+        threshold=0.0,
+        count=100,
+        data_gene_persons_signals=data_gene_persons_signals,
+    )
+
+    # Determine whether gene's tissue-aggregate scores across persons have
+    # adequate variance to apply metrics to the distribution.
+    signal = evaluate_gene_signal(
+        threshold=0.0,
+        data_gene_persons_signals=data_gene_persons_signals,
+    )
+
+    return (population and signal)
+
+
 # TODO: improve the candidacy checks on distributions...
 def describe_distribution_modality(
     modality=None,
@@ -1552,16 +1599,10 @@ def describe_distribution_modality(
     # Determine distribution modality metrics.
     # Determine whether to calculate metrics for gene's distribution.
     if modality:
-        population = evaluate_gene_population(
-            threshold=0.0,
-            count=100,
+        candidacy = evaluate_gene_candidacy(
             data_gene_persons_signals=data_gene_persons_signals,
         )
-        signal = evaluate_gene_signal(
-            threshold=0.0,
-            data_gene_persons_signals=data_gene_persons_signals,
-        )
-        if signal and population:
+        if candidacy:
             # Calculate metrics.
             # Calculate metrics of bimodality.
             scores = calculate_bimodality_metrics(

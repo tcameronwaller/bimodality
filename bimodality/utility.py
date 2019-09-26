@@ -63,7 +63,31 @@ def convert_string_low_alpha_num(characters):
     return characters_novel
 
 
-def create_directory(path=None):
+def extract_subdirectory_names(path=None):
+    """
+    Extracts names of subdirectories.
+
+    Reads all contents of a directory and returns only those of subdirectories.
+
+    arguments:
+        path (str): path to directory
+
+    raises:
+
+    returns:
+        (list<str>): names of subdirectories
+
+    """
+
+    contents = os.listdir(path=path)
+    names = list(filter(
+        lambda content: os.path.isdir(os.path.join(path, content)),
+        contents
+    ))
+    return names
+
+
+def create_directories(path=None):
     """
     Creates a directory if it does not already exist.
 

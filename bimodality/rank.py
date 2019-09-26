@@ -459,7 +459,9 @@ def collect_genes_names(
 
 # Thorough summary.
 
-
+# TODO: I think this is the most useful of the functions below...
+# TODO: ***for each metric separately***, split the gene ranks into low, middle, and high groups
+# TODO: I want to compare the scores and distributions of genes in these groups for each metric as a quality control
 def define_report_genes(
     data_summary_genes=None,
     rank=None

@@ -28,7 +28,7 @@ import textwrap
 import distribution
 import shuffle
 import permutation
-#import collection
+import collection
 
 #import combination
 #import rank
