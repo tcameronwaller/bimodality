@@ -66,7 +66,6 @@ def read_source_initial(
     path_gene_annotation = os.path.join(
         path_selection, "data_gene_annotation.pickle"
     )
-    path_selection = os.path.join(dock, "selection")
     path_families = os.path.join(path_selection, "data_families.pickle")
     if source_genes == "split":
         path_source = os.path.join(dock, "split")

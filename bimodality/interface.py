@@ -30,8 +30,8 @@ import shuffle
 import permutation
 import collection
 
-#import combination
-#import rank
+#import combination <-- combine with the collection procedure
+import rank
 #import category
 
 #import integration

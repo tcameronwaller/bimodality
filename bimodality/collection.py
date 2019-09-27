@@ -429,6 +429,14 @@ def execute_procedure(dock=None):
         genes_scores_permutations=genes_scores_permutations
     )
 
+    # Calculate combination scores.
+    # Combination scores are scaled means of three primary modality metrics.
+    # Combination scores are useful to rank genes.
+    # Calculate combination scores and permutations using the same values of
+    # mean and standard deviation in order to allow comparison between scores
+    # and permutations.
+
+
     # Compile information.
     information = {
         "genes_scores_permutations": genes_scores_permutations,

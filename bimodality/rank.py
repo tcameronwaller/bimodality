@@ -21,6 +21,7 @@ import statistics
 import pickle
 import copy
 import random
+import itertools
 
 # Relevant
 
@@ -60,29 +61,29 @@ def read_source(dock=None):
     # Specify directories and files.
     path_split = os.path.join(dock, "split")
     path_genes = os.path.join(path_split, "genes.txt")
-
-    path_combination = os.path.join(dock, "combination")
-    path_scores_imputation = os.path.join(
-        path_combination, "genes_scores_permutations_imputation.pickle"
+    path_selection = os.path.join(dock, "selection")
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation.pickle"
     )
-    path_scores_availability = os.path.join(
-        path_combination, "genes_scores_permutations_availability.pickle"
+    path_distribution = os.path.join(dock, "distribution")
+    path_permutation = os.path.join(dock, "permutation")
+    path_collection = os.path.join(dock, "collection")
+    path_scores_permutations = os.path.join(
+        path_collection, "genes_scores_permutations.pickle"
     )
     # Read information from file.
-    genes = utility.read_file_text_list(path_genes)
-    with open(path_scores_availability, "rb") as file_source:
-        genes_scores_permutations_availability = pickle.load(file_source)
-    with open(path_scores_imputation, "rb") as file_source:
-        genes_scores_permutations_imputation = pickle.load(file_source)
+    genes = utility.read_file_text_list(
+        delimiter="\n",
+        path_file=path_genes,
+    )
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+    with open(path_scores_permutations, "rb") as file_source:
+        genes_scores_permutations = pickle.load(file_source)
     # Compile and return information.
     return {
         "genes": genes,
-        "scores_permutations_availability": (
-            genes_scores_permutations_availability
-        ),
-        "scores_permutations_imputation": (
-            genes_scores_permutations_imputation
-        ),
+        "data_gene_annotation": data_gene_annotation,
+        "genes_scores_permutations": genes_scores_permutations,
     }
 
 
@@ -139,7 +140,7 @@ def calculate_probabilities_genes(
 
     returns:
         (object): Pandas data frame of probabilities from genes' scores and
-            distributions
+            permutations
 
     """
 
@@ -150,15 +151,15 @@ def calculate_probabilities_genes(
     # Iterate on genes.
     for gene in genes:
         # Access information about gene's scores and distributions.
-        gene_scores = genes_scores_permutations[gene]
-        score_coefficient = gene_scores["scores"]["coefficient"]
-        score_dip = gene_scores["scores"]["dip"]
-        score_mixture = gene_scores["scores"]["mixture"]
-        score_combination = gene_scores["scores"]["combination"]
-        distribution_coefficient = gene_scores["permutations"]["coefficient"]
-        distribution_dip = gene_scores["permutations"]["dip"]
-        distribution_mixture = gene_scores["permutations"]["mixture"]
-        distribution_combination = gene_scores["permutations"]["combination"]
+        entry = genes_scores_permutations[gene]
+        score_coefficient = entry["scores"]["coefficient"]
+        score_dip = entry["scores"]["dip"]
+        score_mixture = entry["scores"]["mixture"]
+        #score_combination = entry["scores"]["combination"]
+        permutations_coefficient = entry["permutations"]["coefficient"]
+        permutations_dip = entry["permutations"]["dip"]
+        permutations_mixture = entry["permutations"]["mixture"]
+        #permutations_combination = entry["permutations"]["combination"]
         # Calculate p-values.
         # These scores of bimodality indicate greater bimodality as values
         # increase.
@@ -167,20 +168,20 @@ def calculate_probabilities_genes(
         # equal to or greater than the actual score.
         probability_coefficient = calculate_probability_equal_greater(
             value=score_coefficient,
-            distribution=distribution_coefficient
+            distribution=permutations_coefficient
         )
         probability_dip = calculate_probability_equal_greater(
             value=score_dip,
-            distribution=distribution_dip
+            distribution=permutations_dip
         )
         probability_mixture = calculate_probability_equal_greater(
             value=score_mixture,
-            distribution=distribution_mixture
+            distribution=permutations_mixture
         )
-        probability_combination = calculate_probability_equal_greater(
-            value=score_combination,
-            distribution=distribution_combination
-        )
+        #probability_combination = calculate_probability_equal_greater(
+        #    value=score_combination,
+        #    distribution=permutations_combination
+        #)
         # Calculate combination of p-values.
         if False:
             probability_combination = scipy.stats.combine_pvalues(
@@ -194,7 +195,7 @@ def calculate_probabilities_genes(
         record["coefficient"] = probability_coefficient
         record["dip"] = probability_dip
         record["mixture"] = probability_mixture
-        record["combination"] = probability_combination
+        #record["combination"] = probability_combination
         genes_probabilities.append(record)
     # Organize information.
     data = utility.convert_records_to_dataframe(
@@ -203,7 +204,7 @@ def calculate_probabilities_genes(
     data["coefficient"] = data["coefficient"].astype("float32")
     data["dip"] = data["dip"].astype("float32")
     data["mixture"] = data["mixture"].astype("float32")
-    data["combination"] = data["combination"].astype("float32")
+    #data["combination"] = data["combination"].astype("float32")
     data.set_index(
         ["gene"],
         append=False,
@@ -225,6 +226,59 @@ def calculate_probabilities_genes(
     # Return information.
     return data
 
+
+def filter_genes_probabilities_threshold(
+    data=None,
+    threshold=None,
+    count=None,
+):
+    """
+    Filters genes to keep only those with scores from at least two of the three
+    modality metrics with permutation probabilities below threshold.
+
+    arguments:
+        data (object): Pandas data frame of probabilities from genes' scores
+            and permutations
+        threshold (float): maximal probability
+        count (int): minimal count of probabilities that must pass threshold
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of probabilities from genes' scores and
+            distributions
+
+    """
+
+    def count_true(slice=None, count=None):
+        values = slice.values.tolist()
+        values_true = list(itertools.compress(values, values))
+        return (len(values_true) >= count)
+
+    # Count how many of the gene's modality probabilities are below threshold
+    # Keep genes with at least 2 metrics below threshold
+
+    # Determine whether values pass threshold.
+    # Only consider the original modality metrics for this threshold.
+    data_selection = data.loc[ :, ["coefficient", "dip", "mixture"]]
+    data_threshold = (data_selection <= threshold)
+    # This aggregation operation produces a series.
+    # Aggregate columns to determine which rows to keep in the next step.
+    data_count = data_threshold.aggregate(
+        lambda slice: count_true(slice=slice, count=2),
+        axis="columns",
+    )
+
+    # Select rows and columns with appropriate values.
+    data_pass = data.loc[data_count, : ]
+    # Return information.
+    return data_pass
+
+
+
+
+
+# TODO: stuff below here needs work...
 
 # Rank
 
@@ -706,6 +760,118 @@ def prepare_report_gene(
 # Write.
 
 
+def write_product_integration(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_analysis = os.path.join(dock, "analysis")
+    utility.create_directory(path_analysis)
+    path_probabilities = os.path.join(
+        path_analysis, "data_genes_probabilities.pickle"
+    )
+    path_summary = os.path.join(
+        path_analysis, "data_summary_genes.pickle"
+    )
+    path_summary_text = os.path.join(
+        path_analysis, "data_summary_genes.txt"
+    )
+    path_summary_text_alternative = os.path.join(
+        path_analysis, "data_summary_genes_alternative.txt"
+    )
+    path_data_rank = os.path.join(
+        path_analysis, "data_rank_genes.txt"
+    )
+    path_rank_ensembl = os.path.join(
+        path_analysis, "genes_ranks_ensembl.txt"
+    )
+    path_rank_hugo = os.path.join(
+        path_analysis, "genes_ranks_hugo.txt"
+    )
+    path_genes_ensembl = os.path.join(
+        path_analysis, "genes_ensembl.txt"
+    )
+    path_genes_hugo = os.path.join(
+        path_analysis, "genes_hugo.txt"
+    )
+    path_genes_report = os.path.join(
+        path_analysis, "genes_report.txt"
+    )
+    path_reports = os.path.join(
+        path_analysis, "reports.pickle"
+    )
+    # Write information to file.
+    information["data_genes_probabilities"].to_pickle(path_summary)
+    information["data_summary_genes"].to_pickle(path_summary)
+    information["data_summary_genes"].to_csv(
+        path_or_buf=path_summary_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+    information["data_summary_genes"].reset_index(
+        level="identifier", inplace=True
+    )
+    summary_genes = utility.convert_dataframe_to_records(
+        data=information["data_summary_genes"]
+    )
+    utility.write_file_text_table(
+        information=summary_genes,
+        path_file=path_summary_text_alternative,
+        names=summary_genes[0].keys(),
+        delimiter="\t",
+        header=True,
+    )
+    information["data_rank_genes"].to_csv(
+        path_or_buf=path_data_rank,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+    information["data_rank_genes_ensembl"].to_csv(
+        path_or_buf=path_rank_ensembl,
+        sep="\t",
+        header=False,
+        index=False,
+    )
+    information["data_rank_genes_hugo"].to_csv(
+        path_or_buf=path_rank_hugo,
+        sep="\t",
+        header=False,
+        index=False,
+    )
+    utility.write_file_text_list(
+        elements=information["genes_ensembl"],
+        delimiter="\n",
+        path_file=path_genes_ensembl
+    )
+    utility.write_file_text_list(
+        elements=information["genes_hugo"],
+        delimiter="\n",
+        path_file=path_genes_hugo
+    )
+    utility.write_file_text_list(
+        elements=information["genes_report"],
+        delimiter="\n",
+        path_file=path_genes_report
+    )
+    with open(path_reports, "wb") as file_product:
+        pickle.dump(information["reports"], file_product)
+
+    pass
+
+
 def write_product(dock=None, information=None):
     """
     Writes product information to file.
@@ -775,7 +941,41 @@ def write_product(dock=None, information=None):
     pass
 
 
-# TODO: write_product_reports()
+def write_product_reports(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_analysis = os.path.join(dock, "analysis")
+    utility.create_directory(path_analysis)
+    path_reports = os.path.join(path_analysis, "reports")
+    # Remove previous files since they change from run to run.
+    utility.remove_directory(path=path_reports)
+    utility.create_directory(path_reports)
+    # Iterate on reports.
+    for gene in information["genes_report"]:
+        # Access information.
+        name = information["reports"][gene]["name"]
+        # Specify directories and files.
+        path_report = os.path.join(
+            path_reports, (name + "_reports.pickle")
+        )
+        # Write information to file.
+
+        pass
+
+    pass
 
 
 ###############################################################################
@@ -800,69 +1000,105 @@ def execute_procedure(dock=None):
     source = read_source(dock=dock)
 
     # Calculate genes' probabilities of bimodality.
-    data_genes_probabilities_availability = calculate_probabilities_genes(
-        genes_scores_permutations=(
-            source["scores_permutations_availability"]
-        ),
+    data_genes_probabilities = calculate_probabilities_genes(
+        genes_scores_permutations=source["genes_scores_permutations"],
     )
-    data_genes_probabilities_imputation = calculate_probabilities_genes(
-        genes_scores_permutations=(
-            source["scores_permutations_imputation"]
-        ),
-    )
-    print(data_genes_probabilities_availability)
-    print(data_genes_probabilities_imputation)
+    print(data_genes_probabilities)
 
-    # Rank genes by probabilities.
-    data_gene_rank_availability = rank_genes(
-        data_genes_probabilities=data_genes_probabilities_availability,
-        rank="combination",
-        method="threshold",
-        threshold=0.001,
-        count=1000,
+    # Filter genes by probabilities.
+    # Keep genes only if scores from at least two of the three modality metrics
+    # have permutation probabilities below threshold.
+    data_gene_probabilites_threshold = filter_genes_probabilities_threshold(
+        data=data_genes_probabilities,
+        threshold=0.05,
+        count=3,
     )
-    data_gene_rank_imputation = rank_genes(
-        data_genes_probabilities=data_genes_probabilities_imputation,
-        rank="combination",
-        method="threshold",
-        threshold=0.001,
-        count=1000,
-    )
-    print(data_gene_rank_availability)
-    print(data_gene_rank_imputation)
+    print(data_gene_probabilites_threshold)
 
-    # Extract identifiers of genes.
-    genes_availability = data_gene_rank_availability.index.to_list()
-    genes_imputation = data_gene_rank_imputation.index.to_list()
+    if False:
+        # Rank genes by probabilities.
+        # TODO: rank genes separately by "coefficient", "dip", and "mixture"...
+        # TODO: Then take the union of the top genes from each ranking...
+        data_gene_rank = rank_genes(
+            data_genes_probabilities=data_genes_probabilities,
+            rank="combination",
+            method="threshold",
+            threshold=0.001,
+            count=1000,
+        )
+        print(data_gene_rank)
 
-    # Combine consensus genes.
-    genes_consensus = utility.filter_unique_union_elements(
-        list_one=genes_availability,
-        list_two=genes_imputation,
-    )
-    print("Count of availability genes: " + str(len(genes_availability)))
-    print("Count of imputation genes: " + str(len(genes_imputation)))
-    print("Count of consensus genes: " + str(len(genes_consensus)))
+        # Extract identifiers of genes.
+        genes_availability = data_gene_rank_availability.index.to_list()
+        genes_imputation = data_gene_rank_imputation.index.to_list()
 
-    # Determine genes not in the consensus list.
-    genes_null = utility.filter_unique_exclusion_elements(
-        list_exclusion=genes_consensus,
-        list_total=source["genes"],
-    )
-    print("Count of null genes: " + str(len(genes_null)))
-    print("Count of total genes: " + str(len(source["genes"])))
+        # Combine consensus genes.
+        genes_consensus = utility.filter_unique_union_elements(
+            list_one=genes_availability,
+            list_two=genes_imputation,
+        )
+        print("Count of availability genes: " + str(len(genes_availability)))
+        print("Count of imputation genes: " + str(len(genes_imputation)))
+        print("Count of consensus genes: " + str(len(genes_consensus)))
 
-    # Compile information.
-    information = {
-        "data_gene_rank_availability": data_gene_rank_availability,
-        "data_gene_rank_imputation": data_gene_rank_imputation,
-        "genes_availability": genes_availability,
-        "genes_imputation": genes_imputation,
-        "genes_consensus": genes_consensus,
-        "genes_null": genes_null,
-    }
-    #Write product information to file.
-    write_product(dock=dock, information=information)
+        # Determine genes not in the consensus list.
+        genes_null = utility.filter_unique_exclusion_elements(
+            list_exclusion=genes_consensus,
+            list_total=source["genes"],
+        )
+        print("Count of null genes: " + str(len(genes_null)))
+        print("Count of total genes: " + str(len(source["genes"])))
+
+        # Organize gene summary.
+        data_summary_genes = organize_summary_genes(
+            genes_scores_distributions=source["genes_scores_distributions"],
+            data_genes_probabilities=data_genes_probabilities,
+            data_gene_annotation=source["data_gene_annotation"],
+        )
+        print(data_summary_genes.iloc[0:25, 0:10])
+
+        # Define genes of interest.
+        # Genes of interest are few for thorough summary.
+        genes_report = define_report_genes(
+            data_summary_genes=data_summary_genes,
+            rank="p_mean"
+        )
+
+        # Organize thorough summaries for a few genes of interest.
+        reports = prepare_reports_genes(
+            genes=genes_report,
+            data_gene_annotation=source["data_gene_annotation"],
+            genes_signals_patients_tissues=(
+                source["genes_signals_patients_tissues"]
+            ),
+            shuffles=source["shuffles"][0:500],
+            genes_scores_distributions=source["genes_scores_distributions"],
+        )
+
+        # Compile information.
+        information = {
+            "data_genes_probabilities": data_genes_probabilities,
+            "data_summary_genes": data_summary_genes,
+            "data_rank_genes": ranks["data_rank_genes"],
+            "data_rank_genes_ensembl": ranks["data_rank_genes_ensembl"],
+            "data_rank_genes_hugo": ranks["data_rank_genes_hugo"],
+            "genes_ensembl": ranks["genes_ensembl"],
+            "genes_hugo": ranks["genes_hugo"],
+            "genes_report": genes_report,
+            "reports": reports,
+        }
+
+        # Compile information.
+        information = {
+            "data_gene_rank_availability": data_gene_rank_availability,
+            "data_gene_rank_imputation": data_gene_rank_imputation,
+            "genes_availability": genes_availability,
+            "genes_imputation": genes_imputation,
+            "genes_consensus": genes_consensus,
+            "genes_null": genes_null,
+        }
+        #Write product information to file.
+        write_product(dock=dock, information=information)
 
     pass
 
