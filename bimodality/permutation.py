@@ -348,7 +348,7 @@ def write_product_gene(gene=None, dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_permutation = os.path.join(dock, "permutation")
+    path_permutation = os.path.join(dock, "permutation_cluster")
     utility.create_directory(path_permutation)
     path_gene = os.path.join(path_permutation, gene)
     utility.create_directory(path_gene)
@@ -543,6 +543,46 @@ def execute_procedure_local_sub(
     count = len(directories)
     if (count % 10 == 0):
         print("complete genes: " + str(len(directories)))
+
+    pass
+
+
+def execute_procedure_remote(dock=None, gene=None):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+        gene (str): identifier of single gene for which to execute the process.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source_initial = read_source_initial(
+        source_genes="split",
+        dock=dock
+    )
+
+    # Read source information from file.
+    source = read_source(
+        gene=gene,
+        dock=dock
+    )
+
+    # Execute procedure.
+    execute_procedure(
+        gene=gene,
+        data_gene_persons_tissues_signals=(
+            source["data_gene_persons_tissues_signals"]
+        ),
+        shuffles=source_initial["shuffles"],
+        dock=dock
+    )
 
     pass
 

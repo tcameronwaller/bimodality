@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #SBATCH --job-name=permutation
-#SBATCH --output=/cellar/users/tcwaller/Data/dock/out_one.txt
-#SBATCH --error=/cellar/users/tcwaller/Data/dock/error_one.txt
+#SBATCH --output=/cellar/users/tcwaller/Data/dock/out.txt
+#SBATCH --error=/cellar/users/tcwaller/Data/dock/error.txt
 #SBATCH --mem=5G
 #SBATCH --array=0-15445%250
-#SBATCH --time=2-00:00:00 # days-hours:minutes:seconds
+#SBATCH --time=3-00:00:00 # days-hours:minutes:seconds
 
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
@@ -19,8 +19,8 @@ path_dock="$path_project/$subpath_dock"
 
 # Define iteration variables.
 readarray -t genes < "$path_dock/split/genes.txt"
-count_genes=${#genes[@]}
-indices=$((count_genes-1))
+#count_genes=${#genes[@]}
+#indices=$((count_genes-1))
 #echo $indices
 #echo $count_genes
 #12824
@@ -38,6 +38,6 @@ echo "gene: " $gene
 hostname
 date
 
-$path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --distribution --remote --gene $gene
+$path_project/anaconda3/bin/python $path_program/interface.py main --dock $path_dock --permutation --remote --gene $gene
 
 date
