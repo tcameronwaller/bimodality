@@ -443,7 +443,7 @@ def execute_procedure_local(dock=None):
 
     # Remove previous files to avoid version or batch confusion.
     path_permutation = os.path.join(dock, "permutation")
-    utility.remove_directory(path=path_permutation)
+    #utility.remove_directory(path=path_permutation)
 
     # Read source information from file.
     # It is an option to read directory names from "distribution"; however,
@@ -473,18 +473,18 @@ def execute_procedure_local(dock=None):
         )
         # Initialize multiprocessing pool.
         #pool = multiprocessing.Pool(processes=os.cpu_count())
-        pool = multiprocessing.Pool(processes=100)
+        pool = multiprocessing.Pool(processes=200)
         # Iterate on genes.
         check_genes=[
             "ENSG00000231925", # TAPBP
         ]
         #report = pool.map(execute_procedure_gene, check_genes)
-        #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
+        report = pool.map(execute_procedure_gene, source["genes"][6300:])
         #report = pool.map(
         #    execute_procedure_gene,
         #    random.sample(source["genes"], 100)
         #)
-        report = pool.map(execute_procedure_gene, source["genes"])
+        #report = pool.map(execute_procedure_gene, source["genes"])
 
     # Pause procedure.
     time.sleep(10.0)
