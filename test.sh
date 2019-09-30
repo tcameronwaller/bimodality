@@ -2,34 +2,20 @@
 
 # Organize paths.
 
-export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
-
-path_project="/media/tcameronwaller/primary/data/local/work/project/2019_bimodality/"
-subpath_repository="repository/"
-path_repository="$path_project$subpath_repository"
-subpath_program="repository/bimodality/"
-path_program="$path_project$subpath_program"
-subpath_dock="dock/"
-path_dock="$path_project$subpath_dock"
-
-# Define iteration variables.
-readarray genes < $path_dock/split/genes.txt
-#echo ${genes[@]}
-#echo $genes[0]
-#echo $genes[1]
-#echo $genes[2]
-
-count_genes=${#genes[@]}
-
-echo $count_genes
-
-gene=${genes[$SGE_TASK_ID-1]}
-
-# Execute program.
-# Specify complete path to python installation.
-
-hostname
-date
-
-
-date
+# Iterate on cis chromosomes.
+for cis in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
+do
+    echo "***** cis chromosome is $cis!!!!!"
+    # Iterate on chromosomes.
+    for chromosome in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
+    do
+        # Determine whether chromosome is cis or trans.
+        if [ $chromosome != $cis ]
+        then
+            # Chromosome is trans.
+            echo "chromosome $chromosome is not cis"
+            #path="$path_trans_lists/cis"
+            #echo path >> trans.txt
+        fi
+    done
+done
