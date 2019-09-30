@@ -3,7 +3,7 @@
 #SBATCH --job-name=permutation
 #SBATCH --output=/cellar/users/tcwaller/Data/dock/out.txt
 #SBATCH --error=/cellar/users/tcwaller/Data/dock/error.txt
-#SBATCH --mem=5G
+#SBATCH --mem=10G
 #SBATCH --array=0-15445%250
 #SBATCH --time=3-00:00:00 # days-hours:minutes:seconds
 
