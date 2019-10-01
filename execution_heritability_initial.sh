@@ -10,14 +10,17 @@ path_gcta="$path_user_cellar/gcta_1.92.3beta3/gcta64"
 path_plink="$path_user_cellar/plink2"
 
 path_genotype="$path_user_nrnb/gtex_genotype"
+path_genotype_vcf="$path_genotype/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz"
+path_genotype_ped="$path_genotype/gtex-8_genotype"
+
 path_dock="$path_user_cellar/Data/dock"
 path_selection="$path_dock/selection"
 path_persons="$path_selection/families.tsv"
 path_heritability="$path_dock/heritability"
 path_relation="$path_heritability/relation"
-path_genotype_vcf="$path_genotype/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz"
-path_genotype_ped="$path_genotype/gtex-8_genotype"
 
+rm -r $path_heritability
+mkdir $path_heritability
 rm -r $path_relation
 mkdir $path_relation
 
@@ -41,7 +44,7 @@ set -x
 # GCTA requires PLINK 1 format files, .bed, .bim, and .fam.
 #$path_plink --vcf $path_genotype_vcf --no-fid --make-bed --out $path_genotype_ped
 # I think that the "no-fid" flag does not change anything when importing a VCF.
-$path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped --threads 10
+#$path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped --threads 10
 
 ##########
 # Generate GRM for all autosomal chromosomes.
