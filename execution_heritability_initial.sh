@@ -19,10 +19,10 @@ path_persons="$path_selection/families.tsv"
 path_heritability="$path_dock/heritability"
 path_relation="$path_heritability/relation"
 
-#rm -r $path_heritability
-#mkdir $path_heritability
-#rm -r $path_relation
-#mkdir $path_relation
+rm -r $path_heritability
+mkdir $path_heritability
+rm -r $path_relation
+mkdir $path_relation
 
 # Suppress echo each command to console.
 set +x
@@ -53,47 +53,43 @@ set -x
 ##########
 # Generate GRMs for individual chromosomes.
 # These GRMs are directly useful as cis GRMs.
-#path_cis="$path_relation/cis"
-#rm -r $path_cis
-#mkdir $path_cis
+path_cis="$path_relation/cis"
+rm -r $path_cis
+mkdir $path_cis
 # Iterate across autosomal chromosomes.
-#for cis in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
-#do
+for cis in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
+do
     # For cis heritability, GRM must be specific to each gene's chromosome.
     # Filter by persons and minimal allelic frequence (MAF).
     # GCTA's format requirement for list of persons is text with tab delimiters.
-#    $path_gcta --bfile $path_genotype_ped --keep $path_persons --chr $cis --maf 0.01 --make-grm --out $path_cis/$cis --threads 10
-#done
+    $path_gcta --bfile $path_genotype_ped --keep $path_persons --chr $cis --maf 0.01 --make-grm --out $path_cis/$cis --threads 10
+done
 
 ##########
 # Define combinations of chromosomes for unification of trans GRMs.
-if [ "temporary" = "blah" ]
-then
-    path_combinations="$path_relation/combinations"
-    rm -r $path_combinations
-    mkdir $path_combinations
-    # Iterate across cis autosomal chromosomes.
-    for cis in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
+path_combinations="$path_relation/combinations"
+rm -r $path_combinations
+mkdir $path_combinations
+# Iterate across cis autosomal chromosomes.
+for cis in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
+do
+    # Initialize a combination list of trans chromosomes corresponding to the
+    # cis chromosome.
+    path_combination="$path_combinations/$cis.txt"
+    # Iterate across autosomal chromosomes.
+    for chromosome in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
     do
-        # Initialize a combination list of trans chromosomes corresponding to the
-        # cis chromosome.
-        path_combination="$path_combinations/$cis.txt"
-        # Iterate across autosomal chromosomes.
-        for chromosome in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
-        do
-            # Determine whether chromosome is cis or trans.
-            if [ $chromosome != $cis ]
-            then
-                # Chromosome is trans.
-                # Define complete path to chromosome's GRM.
-                path_chromosome="$path_cis/$chromosome"
-                # Include chromosome in trans collection.
-                echo $path_chromosome >> $path_combination
-            fi
-        done
+        # Determine whether chromosome is cis or trans.
+        if [ $chromosome != $cis ]
+        then
+            # Chromosome is trans.
+            # Define complete path to chromosome's GRM.
+            path_chromosome="$path_cis/$chromosome"
+            # Include chromosome in trans collection.
+            echo $path_chromosome >> $path_combination
+        fi
     done
-fi
-
+done
 
 ##########
 # Unify GRMs for combinations of trans chromosomes
