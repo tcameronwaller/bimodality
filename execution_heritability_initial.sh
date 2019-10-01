@@ -4,11 +4,11 @@
 
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
+path_user_cellar="/cellar/users/tcwaller"
+path_user_nrnb="/nrnb/users/tcwaller"
 path_gcta="$path_user_cellar/gcta_1.92.3beta3/gcta64"
 path_plink="$path_user_cellar/plink2"
 
-path_user_cellar="/cellar/users/tcwaller"
-path_user_nrnb="/nrnb/users/tcwaller"
 path_genotype="$path_user_nrnb/gtex_genotype"
 path_dock="$path_user_cellar/Data/dock"
 path_selection="$path_dock/selection"
