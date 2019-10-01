@@ -271,8 +271,13 @@ def select_gene_annotation(
             data_gene_annotation["seqname"] != "chrY", :
         ]
     )
+    data_gene_annotation = (
+        data_gene_annotation.loc[
+            data_gene_annotation["seqname"] != "chrM", :
+        ]
+    )
     print(
-        "count of GENCODE genes on autosomes: " +
+        "count of GENCODE genes on nuclear (not mito) autosomes: " +
         str(data_gene_annotation.shape[0])
     )
     # Select entries for genes that encode proteins.

@@ -277,7 +277,7 @@ def filter_genes_probabilities_threshold(
 
 
 
-
+###########################
 # TODO: stuff below here needs work...
 
 # Rank
@@ -996,6 +996,18 @@ def execute_procedure(dock=None):
 
     """
 
+    #############################
+    # TODO:
+    # 1. calculate probabilities
+    # 2. split genes into 3 copies for each metric --> dip, mixture, coefficient
+    # 3. filter each set of genes by probability threshold
+    # 4. rank each set of genes by bimodality metric
+    # 5. filter each set of genes for top 10% of genes by bimodal metric rank
+    # 6. keep genes that are in the final ranked and filtered lists by at least 2 of the 3 metrics
+    # 7. rank final genes by combination score
+    # 8. plot examples?
+    ##############################
+
     # Read source information from file.
     source = read_source(dock=dock)
 
@@ -1014,6 +1026,10 @@ def execute_procedure(dock=None):
         count=3,
     )
     print(data_gene_probabilites_threshold)
+
+
+    # TODO: after ranking genes...
+    # TODO: Prepare a gene report, similar to the report from the distribution procedure
 
     if False:
         # Rank genes by probabilities.

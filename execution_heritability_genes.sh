@@ -17,6 +17,7 @@ path_repository="$path_user_cellar/repository"
 path_program="$path_repository/bimodality-master/bimodality"
 path_dock="$path_user_cellar/Data/dock"
 path_split="$path_dock/split"
+path_distribution="$path_dock/distribution"
 path_heritability="$path_dock/heritability"
 path_relation="$path_heritability/relation"
 
@@ -41,9 +42,14 @@ echo "gene: " $gene
 hostname
 date
 
-# read a file with gene's chromosome?
-path_gene_chromosome=
-chromosome=$(cat $path_gene_chromosome)
+# Access information about gene.
+path_distribution_gene="$path_distribution/$gene"
+path_chromosome="$path_distribution_gene/chromosome.txt"
+chromosome=$(cat $path_chromosome)
+path_relation_cis=
+path_relation_trans=
+path_gene_distribution=
+path_gene_covariates=
 
 # Organize gene-specific paths.
 path_relation_cis="$path_relation/cis/"

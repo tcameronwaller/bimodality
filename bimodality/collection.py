@@ -60,6 +60,7 @@ def read_source(dock=None):
     path_genes = os.path.join(path_split, "genes.txt")
     path_distribution = os.path.join(dock, "distribution")
     path_permutation = os.path.join(dock, "permutation")
+
     # Read information from file.
     genes = utility.read_file_text_list(
         delimiter="\n",
@@ -79,6 +80,8 @@ def read_source(dock=None):
         "genes_permutation": genes_permutation,
     }
 
+
+# Collection
 
 def check_genes(
     genes=None,
@@ -133,20 +136,19 @@ def read_collect_genes_scores_permutations(
     Collects information about genes.
 
     Data structure.
-    - genes_scores_shuffles (dict)
+    - genes_scores_permutations (dict)
     -- gene (dict)
     --- scores (dict)
-    ---- coefficient (float)
     ---- dip (float)
     ---- mixture (float)
+    ---- coefficient (float)
     --- permutations (dict)
-    ---- coefficient (list)
-    ----- value (float)
     ---- dip (list)
     ----- value (float)
     ---- mixture (list)
     ----- value (float)
-
+    ---- coefficient (list)
+    ----- value (float)
 
     arguments:
         genes (list<str>): identifiers of genes
@@ -298,6 +300,7 @@ def check_genes_scores_permutations(
     """
 
     # Extract identifiers of genes with scores.
+    utility.print_terminal_partition(level=2)
     genes_scores = list(genes_scores_permutations.keys())
     print("count of genes: " + str(len(genes)))
     print("count of genes with scores: " + str(len(genes_scores)))
@@ -353,6 +356,236 @@ def check_genes_scores_permutations(
             pass
     print("count of genes with null scores: " + str(len(null_genes)))
     pass
+
+
+# Standardization
+
+
+def calculate_mean_deviation_scores_permutations(
+    metric=None,
+    genes_scores_permutations=None,
+):
+    """
+    Calculates the mean and standard deviation of scores and permutations for a
+    single bimodality metric across all genes.
+
+    arguments:
+        metric (str): name of a single bimodality metric
+        genes_scores_permutations (dict<dict<dict>>): information about genes'
+            scores and permutations
+
+    raises:
+
+    returns:
+        (dict<float>): values of mean and standard deviation
+
+    """
+
+    # Collect values of each primary bimodality metric.
+    values = list()
+    # Extract identifiers of genes with scores.
+    genes = list(genes_scores_permutations.keys())
+    # Iterate on genes.
+    for gene in genes:
+        # Access information about gene's scores and distributions.
+        entry = genes_scores_permutations[gene]
+        # Collect values of scores.
+        values.append(entry["scores"][metric])
+        # Collect values of permutations.
+        values.extend(entry["permutations"][metric])
+
+    # Calculate mean and standard deviation of the primary bimodality metric's
+    # scores and permutations across all genes.
+    #print(str(len(values)))
+    mean = statistics.mean(values)
+    deviation = statistics.stdev(values)
+    # Compile information.
+    information = dict()
+    information["mean"] = mean
+    information["deviation"] = deviation
+    # Return information.
+    return information
+
+
+def standardize_scores_permutations(
+    genes_scores_permutations=None
+):
+    """
+    Calculates standard values of scores and permutations of the primary
+    bimodality metrics.
+
+    There are two reasonable ways to standard bimodality metrics.
+    1. standardize relative to each gene
+    - use mean and standard deviation from that gene
+    2. standardize relative to each metric across all genes
+    - use mean and standard deviation for each metric across all genes
+    - this standardization is most appropriate in order to compare genes
+
+    Data structure.
+    - genes_scores_permutations (dict)
+    -- gene (dict)
+    --- scores (dict)
+    ---- dip (float)
+    ---- mixture (float)
+    ---- coefficient (float)
+    --- permutations (dict)
+    ---- dip (list)
+    ----- value (float)
+    ---- mixture (list)
+    ----- value (float)
+    ---- coefficient (list)
+    ----- value (float)
+
+    arguments:
+        genes_scores_permutations (dict<dict<dict>>): information about genes'
+            scores and permutations
+
+    raises:
+
+    returns:
+        (dict<dict<dict>>): information about genes' scores and permutations
+
+    """
+
+    # Calculate values of mean and standard deviation across all scores and
+    # permutations for each primary bimodality metric.
+    dip = calculate_mean_deviation_scores_permutations(
+        metric="dip",
+        genes_scores_permutations=genes_scores_permutations,
+    )
+    mixture = calculate_mean_deviation_scores_permutations(
+        metric="mixture",
+        genes_scores_permutations=genes_scores_permutations,
+    )
+    coefficient = calculate_mean_deviation_scores_permutations(
+        metric="coefficient",
+        genes_scores_permutations=genes_scores_permutations,
+    )
+    # Standardize scores and permutations.
+    # Use values of mean and standard deviation for each primary bimodality
+    # metric across all genes.
+    # Collect information about genes.
+    genes_scores_permutations_standard = dict()
+    # Extract identifiers of genes with scores.
+    genes = list(genes_scores_permutations.keys())
+    # Iterate on genes.
+    for gene in genes:
+        # Access gene's original scores and permutations.
+        scores_permutations = genes_scores_permutations[gene]
+        # Calculate standard scores.
+        dip_standard = utility.calculate_standard_score(
+            value=scores_permutations["scores"]["dip"],
+            mean=dip["mean"],
+            deviation=dip["deviation"],
+        )
+        mixture_standard = utility.calculate_standard_score(
+            value=scores_permutations["scores"]["mixture"],
+            mean=mixture["mean"],
+            deviation=mixture["deviation"],
+        )
+        coefficient_standard = utility.calculate_standard_score(
+            value=scores_permutations["scores"]["coefficient"],
+            mean=coefficient["mean"],
+            deviation=coefficient["deviation"],
+        )
+        dips_standard = utility.calculate_standard_scores(
+            values=scores_permutations["permutations"]["dip"],
+            mean=dip["mean"],
+            deviation=dip["deviation"],
+        )
+        mixtures_standard = utility.calculate_standard_scores(
+            values=scores_permutations["permutations"]["mixture"],
+            mean=mixture["mean"],
+            deviation=mixture["deviation"],
+        )
+        coefficients_standard = utility.calculate_standard_scores(
+            values=scores_permutations["permutations"]["coefficient"],
+            mean=coefficient["mean"],
+            deviation=coefficient["deviation"],
+        )
+
+        # Compile information.
+        entry = dict()
+        entry["scores"] = dict()
+        entry["scores"]["dip"] = dip_standard
+        entry["scores"]["mixture"] = mixture_standard
+        entry["scores"]["coefficient"] = coefficient_standard
+        entry["permutations"] = dict()
+        entry["permutations"]["dip"] = dips_standard
+        entry["permutations"]["mixture"] = mixtures_standard
+        entry["permutations"]["coefficient"] = coefficients_standard
+        # Create entry for gene.
+        genes_scores_permutations_standard[gene] = entry
+    # Return information.
+    return genes_scores_permutations_standard
+
+
+# Combination
+
+
+def combine_scores_permutations(
+    genes_scores_permutations=None
+):
+    """
+    Calculates combination scores and permutations as the mean of standard
+    primary bimodality metrics.
+
+    Data structure.
+    - genes_scores_permutations (dict)
+    -- gene (dict)
+    --- scores (dict)
+    ---- dip (float)
+    ---- mixture (float)
+    ---- coefficient (float)
+    ---- combination (float)
+    --- permutations (dict)
+    ---- dip (list)
+    ----- value (float)
+    ---- mixture (list)
+    ----- value (float)
+    ---- coefficient (list)
+    ----- value (float)
+    ---- combination (list)
+    ----- value (float)
+
+    arguments:
+        genes_scores_permutations (dict<dict<dict>>): information about genes'
+            scores and permutations
+
+    raises:
+
+    returns:
+        (dict<dict<dict>>): information about genes' scores and permutations
+
+    """
+
+    # Extract identifiers of genes with scores.
+    genes = list(genes_scores_permutations.keys())
+    # Iterate on genes.
+    for gene in genes:
+        # Access information about gene's scores and distributions.
+        entry = genes_scores_permutations[gene]
+        # Calculate combination scores.
+        combination = statistics.mean([
+            entry["scores"]["coefficient"],
+            entry["scores"]["dip"],
+            entry["scores"]["mixture"],
+        ])
+        # Calculate combination permutations.
+        combinations = list()
+        for index in range(len(entry["permutations"]["coefficient"])):
+            dip = entry["permutations"]["dip"][index]
+            mixture = entry["permutations"]["mixture"][index]
+            coefficient = entry["permutations"]["coefficient"][index]
+            value = statistics.mean([dip, mixture, coefficient])
+            combinations.append(value)
+            pass
+        # Compile information.
+        entry["scores"]["combination"] = combination
+        entry["permutations"]["combination"] = combinations
+        genes_scores_permutations[gene].update(entry)
+    # Return information.
+    return genes_scores_permutations
 
 
 def write_product(dock=None, information=None):
@@ -424,22 +657,47 @@ def execute_procedure(dock=None):
     )
 
     # Check and summarize information about genes.
+    utility.print_terminal_partition(level=3)
+    print("original scores and permutations")
     check_genes_scores_permutations(
         genes=source["genes_permutation"],
         genes_scores_permutations=genes_scores_permutations
     )
 
-    # Calculate combination scores.
-    # Combination scores are scaled means of three primary modality metrics.
-    # Combination scores are useful to rank genes.
-    # Calculate combination scores and permutations using the same values of
+    # Standardize bimodality metrics.
+    # Calculate standard scores and permutations using the same values of
     # mean and standard deviation in order to allow comparison between scores
     # and permutations.
+    genes_scores_permutations_standard = standardize_scores_permutations(
+        genes_scores_permutations=genes_scores_permutations,
+    )
 
+    # Check and summarize information about genes.
+    utility.print_terminal_partition(level=3)
+    print("scores and permutations after standardization")
+    check_genes_scores_permutations(
+        genes=source["genes_permutation"],
+        genes_scores_permutations=genes_scores_permutations_standard
+    )
+
+    # Calculate combination scores.
+    # Combination scores are scaled means of the primary bimodality metrics.
+    # Combination scores are useful to rank genes.
+    genes_scores_permutations_combination = combine_scores_permutations(
+        genes_scores_permutations=genes_scores_permutations_standard,
+    )
+
+    # Check and summarize information about genes.
+    utility.print_terminal_partition(level=3)
+    print("scores and permutations after combination")
+    check_genes_scores_permutations(
+        genes=source["genes_permutation"],
+        genes_scores_permutations=genes_scores_permutations_combination
+    )
 
     # Compile information.
     information = {
-        "genes_scores_permutations": genes_scores_permutations,
+        "genes_scores_permutations": genes_scores_permutations_combination,
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

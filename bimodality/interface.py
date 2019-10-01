@@ -16,15 +16,14 @@ import textwrap
 
 # Custom.
 
-#import access
-#import assembly
+import access
+import assembly
 #import measurement
 #import sample
-#import selection
 #import tissue
+import selection
 
-#import split
-
+import split
 import distribution
 import shuffle
 import permutation

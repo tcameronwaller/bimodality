@@ -67,7 +67,7 @@ echo "Now set to call routine and procedures."
 #nohup python3 interface.py main --dock $path_dock --permutation --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --permutation --remote --gene "ENSG00000186092"
 
-#python3 interface.py main --dock $path_dock --collection
+python3 interface.py main --dock $path_dock --collection
 
 # -- procedure for trial
 #python3 interface.py main --dock $path_dock --metric
@@ -75,7 +75,7 @@ echo "Now set to call routine and procedures."
 ##########
 # Analysis Routine
 
-python3 interface.py main --dock $path_dock --rank
+#python3 interface.py main --dock $path_dock --rank
 #python3 interface.py main --dock $path_dock --category
 #python3 interface.py main --dock $path_dock --plot
 

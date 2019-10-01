@@ -897,6 +897,38 @@ def calculate_standard_score(
         return float("nan")
 
 
+def calculate_standard_scores(
+    values=None,
+    mean=None,
+    deviation=None,
+):
+    """
+    Calculates the standard scores, z-scores, of values.
+
+    arguments:
+        value (list<float>): values to transform to standard score space
+        mean (float): mean of distribution from which value comes
+        deviation (float): standard deviation of distribution from which value
+            comes
+
+    raises:
+
+    returns:
+        (list<float>): value in standard score space
+
+    """
+
+    values_standard = list()
+    for value in values:
+        value_standard = calculate_standard_score(
+            value=value,
+            mean=mean,
+            deviation=deviation,
+        )
+        values_standard.append(value_standard)
+    return values_standard
+
+
 # Pandas
 
 def convert_records_to_dataframe(records=None):

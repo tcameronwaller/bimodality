@@ -2127,6 +2127,9 @@ def write_product_gene(gene=None, dock=None, information=None):
     path_report = os.path.join(
         path_gene, "report.pickle"
     )
+    path_chromosome = os.path.join(
+        path_gene, "chromosome.txt"
+    )
     # Organization
     path_data_gene_signal_tissue = os.path.join(
         path_gene, "data_gene_signal_tissue.pickle"
@@ -2184,6 +2187,11 @@ def write_product_gene(gene=None, dock=None, information=None):
     )
     with open(path_report, "wb") as file_product:
         pickle.dump(information["report"], file_product)
+    utility.write_file_text_list(
+        elements=[information["chromosome"]],
+        delimiter="\n",
+        path_file=path_chromosome
+    )
     # Organization
     pandas.to_pickle(
         information["data_gene_signal_tissue"],
@@ -2430,6 +2438,7 @@ def execute_procedure(
         data_gene_families_persons_signals
     )
     information["report"] = report
+    information["chromosome"] = report["chromosome"].replace("chr", "")
     # Write product information to file.
     write_product_gene(
         gene=gene,
@@ -2512,11 +2521,11 @@ def execute_procedure_local(dock=None):
         ]
         #report = pool.map(execute_procedure_gene, check_genes)
         #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
-        #report = pool.map(
-        #    execute_procedure_gene,
-        #    random.sample(source["genes"], 100)
-        #)
-        report = pool.map(execute_procedure_gene, source["genes"])
+        report = pool.map(
+            execute_procedure_gene,
+            random.sample(source["genes"], 100)
+        )
+        #report = pool.map(execute_procedure_gene, source["genes"])
 
 
     # Pause procedure.
