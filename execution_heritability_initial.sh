@@ -62,7 +62,7 @@ do
     # For cis heritability, GRM must be specific to each gene's chromosome.
     # Filter by persons and minimal allelic frequence (MAF).
     # GCTA's format requirement for list of persons is text with tab delimiters.
-    $path_gcta --bfile $path_genotype_ped --keep $path_persons --chr $cis --maf 0.01 --make-grm --out $path_cis/$cis --threads 10
+    $path_gcta --bfile $path_genotype_ped --keep $path_persons --chr $cis --maf 0.01 --make-grm --out $path_cis/$cis --threads 1
 done
 
 ##########

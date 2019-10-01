@@ -42,7 +42,8 @@ hostname
 date
 
 # read a file with gene's chromosome?
-
+path_gene_chromosome=
+chromosome=$(cat $path_gene_chromosome)
 
 # Organize gene-specific paths.
 path_relation_cis="$path_relation/cis/"
