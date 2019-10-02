@@ -27,10 +27,9 @@ import textwrap
 import distribution
 #import shuffle
 import permutation
-#import collection
+import collection
 
-#import combination <-- combine with the collection procedure
-#import rank
+import rank
 #import category
 
 #import integration

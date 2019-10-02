@@ -66,6 +66,9 @@ def read_source(dock=None):
         path_selection, "data_gene_annotation.pickle"
     )
     path_distribution = os.path.join(dock, "distribution")
+    path_distribution_report = os.path.join(
+        path_distribution, "data_gene_report.pickle"
+    )
     path_permutation = os.path.join(dock, "permutation")
     path_collection = os.path.join(dock, "collection")
     path_scores_permutations = os.path.join(
@@ -77,12 +80,16 @@ def read_source(dock=None):
         path_file=path_genes,
     )
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+    data_gene_distribution_report = pandas.read_pickle(
+        path_distribution_report
+    )
     with open(path_scores_permutations, "rb") as file_source:
         genes_scores_permutations = pickle.load(file_source)
     # Compile and return information.
     return {
         "genes": genes,
         "data_gene_annotation": data_gene_annotation,
+        "data_gene_distribution_report": data_gene_distribution_report,
         "genes_scores_permutations": genes_scores_permutations,
     }
 
@@ -139,49 +146,50 @@ def calculate_probabilities_genes(
     raises:
 
     returns:
-        (object): Pandas data frame of probabilities from genes' scores and
-            permutations
+        (dict<dict<float>>): information about genes' probabilities
 
     """
 
     # Collect information about genes.
-    genes_probabilities = list()
+    entries = dict()
     # Extract identifiers of genes with scores.
     genes = list(genes_scores_permutations.keys())
     # Iterate on genes.
     for gene in genes:
         # Access information about gene's scores and distributions.
-        entry = genes_scores_permutations[gene]
-        score_coefficient = entry["scores"]["coefficient"]
-        score_dip = entry["scores"]["dip"]
-        score_mixture = entry["scores"]["mixture"]
-        #score_combination = entry["scores"]["combination"]
-        permutations_coefficient = entry["permutations"]["coefficient"]
-        permutations_dip = entry["permutations"]["dip"]
-        permutations_mixture = entry["permutations"]["mixture"]
-        #permutations_combination = entry["permutations"]["combination"]
+        scores_permutations = genes_scores_permutations[gene]
+        # Scores
+        dip = scores_permutations["scores"]["dip"]
+        mixture = scores_permutations["scores"]["mixture"]
+        coefficient = scores_permutations["scores"]["coefficient"]
+        combination = scores_permutations["scores"]["combination"]
+        # Permutations
+        dips = scores_permutations["permutations"]["dip"]
+        mixtures = scores_permutations["permutations"]["mixture"]
+        coefficients = scores_permutations["permutations"]["coefficient"]
+        combinations = scores_permutations["permutations"]["combination"]
         # Calculate p-values.
         # These scores of bimodality indicate greater bimodality as values
         # increase.
         # The scores are unidirectional, so the hypothesis is unidirectional.
         # The p-value is the probability of obtaining by random chance a value
         # equal to or greater than the actual score.
-        probability_coefficient = calculate_probability_equal_greater(
-            value=score_coefficient,
-            distribution=permutations_coefficient
-        )
         probability_dip = calculate_probability_equal_greater(
-            value=score_dip,
-            distribution=permutations_dip
+            value=dip,
+            distribution=dips,
         )
         probability_mixture = calculate_probability_equal_greater(
-            value=score_mixture,
-            distribution=permutations_mixture
+            value=mixture,
+            distribution=mixtures,
         )
-        #probability_combination = calculate_probability_equal_greater(
-        #    value=score_combination,
-        #    distribution=permutations_combination
-        #)
+        probability_coefficient = calculate_probability_equal_greater(
+            value=coefficient,
+            distribution=coefficients,
+        )
+        probability_combination = calculate_probability_equal_greater(
+            value=combination,
+            distribution=combinations,
+        )
         # Calculate combination of p-values.
         if False:
             probability_combination = scipy.stats.combine_pvalues(
@@ -190,41 +198,46 @@ def calculate_probabilities_genes(
                 weights=None,
             )[1]
         # Compile information.
-        record = dict()
-        record["gene"] = gene
-        record["coefficient"] = probability_coefficient
-        record["dip"] = probability_dip
-        record["mixture"] = probability_mixture
-        #record["combination"] = probability_combination
-        genes_probabilities.append(record)
-    # Organize information.
-    data = utility.convert_records_to_dataframe(
-        records=genes_probabilities
-    )
-    data["coefficient"] = data["coefficient"].astype("float32")
-    data["dip"] = data["dip"].astype("float32")
-    data["mixture"] = data["mixture"].astype("float32")
-    #data["combination"] = data["combination"].astype("float32")
-    data.set_index(
-        ["gene"],
-        append=False,
-        drop=True,
-        inplace=True,
-    )
-    data.rename_axis(
-        index="gene",
-        axis="index",
-        copy=False,
-        inplace=True,
-    )
-    data.rename_axis(
-        columns="probabilities",
-        axis="columns",
-        copy=False,
-        inplace=True
-    )
+        entry = dict()
+        entry["gene"] = gene
+        entry["dip"] = probability_dip
+        entry["mixture"] = probability_mixture
+        entry["coefficient"] = probability_coefficient
+        entry["combination"] = probability_combination
+        entries[gene] = entry
+
+    if False:
+        # Organize information.
+        data = utility.convert_records_to_dataframe(
+            records=records
+        )
+        data["coefficient"] = data["coefficient"].astype("float32")
+        data["dip"] = data["dip"].astype("float32")
+        data["mixture"] = data["mixture"].astype("float32")
+        data["combination"] = data["combination"].astype("float32")
+        data.set_index(
+            ["gene"],
+            append=False,
+            drop=True,
+            inplace=True,
+        )
+        data.rename_axis(
+            index="gene",
+            axis="index",
+            copy=False,
+            inplace=True,
+        )
+        data.rename_axis(
+            columns="probabilities",
+            axis="columns",
+            copy=False,
+            inplace=True
+        )
+        # Return information.
+        return data
+
     # Return information.
-    return data
+    return entries
 
 
 def filter_genes_probabilities_threshold(
@@ -275,6 +288,171 @@ def filter_genes_probabilities_threshold(
     return data_pass
 
 
+# Summary
+
+
+def organize_genes_scores_probabilities(
+    genes_scores_permutations=None,
+    genes_probabilities=None,
+    data_gene_distribution_report=None,
+    data_gene_annotation=None,
+):
+    """
+    Collects tissues, patients, and genes' signals for each sample.
+
+    Data structure
+    identifier        name    coefficient  p_coefficient  dip     p_dip   ...
+     ENSG00000078808   TK421   0.75         0.003          0.12    0.005  ...
+     ENSG00000029363   R2D2    0.55         0.975          0.23    0.732  ...
+
+    arguments:
+        genes_scores_distributions (dict<dict<dict>>): information about genes
+        data_genes_probabilities (object): Pandas data frame of probabilities
+            from genes' scores and distributions
+        data_gene_distribution_report (object): Pandas data frame of
+            information about genes' distributions
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' identifiers, names, and
+            probability values by bimodality coefficient and dip statistic
+
+    """
+
+    # Organize data.
+    data_gene_distribution_report.set_index(
+        ["gene"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
+    # Collect information about genes.
+    records = list()
+    # Extract identifiers of genes with scores.
+    genes = list(genes_scores_permutations.keys())
+    # Iterate on genes.
+    for gene in genes:
+        # Access information about gene.
+
+        name = data_gene_annotation.loc[gene, "gene_name"]
+        chromosome = data_gene_annotation.loc[gene, "seqname"]
+        start = data_gene_annotation.loc[gene, "start"]
+        end = data_gene_annotation.loc[gene, "end"]
+        persons = (
+            data_gene_distribution_report.loc[gene, "persons_aggregation"]
+        )
+        tissues = data_gene_distribution_report.loc[gene, "tissues"]
+        method = data_gene_distribution_report.loc[gene, "method"]
+        count = data_gene_distribution_report.loc[gene, "count"]
+        tissues_mean = data_gene_distribution_report.loc[gene, "tissues_mean"]
+        tissues_median = (
+            data_gene_distribution_report.loc[gene, "tissues_median"]
+        )
+
+        scores_permutations = genes_scores_permutations[gene]
+        score_dip = scores_permutations["scores"]["dip"]
+        score_mixture = scores_permutations["scores"]["mixture"]
+        score_coefficient = scores_permutations["scores"]["coefficient"]
+        score_combination = scores_permutations["scores"]["combination"]
+
+        probabilities = genes_probabilities[gene]
+        probability_dip = probabilities["dip"]
+        probability_mixture = probabilities["mixture"]
+        probability_coefficient = probabilities["coefficient"]
+        probability_combination = probabilities["combination"]
+
+        # Create record for gene.
+        record = dict()
+        # Compile information.
+
+        record["identifier"] = gene
+        record["name"] = name
+        record["chromosome"] = chromosome
+        record["start"] = start
+        record["end"] = end
+        record["persons"] = persons
+        record["tissues"] = tissues
+        record["method"] = method
+        record["count"] = count
+        record["tissues_mean"] = tissues_mean
+        record["tissues_median"] = tissues_median
+
+        record["dip"] = score_dip
+        record["dip_probability"] = probability_dip
+        record["mixture"] = score_mixture
+        record["mixture_probability"] = probability_mixture
+        record["coefficient"] = score_coefficient
+        record["coefficient_probability"] = probability_coefficient
+        record["combination"] = score_combination
+        record["combination_probability"] = probability_combination
+
+        records.append(record)
+
+    # Organize data.
+    data = utility.convert_records_to_dataframe(
+        records=records
+    )
+    data = data[[
+        "identifier",
+        "name",
+        "chromosome",
+        "start",
+        "end",
+        "persons",
+        "tissues",
+        "method",
+        "count",
+        "tissues_mean",
+        "tissues_median",
+        "dip",
+        "dip_probability",
+        "mixture",
+        "mixture_probability",
+        "coefficient",
+        "coefficient_probability",
+        "combination",
+        "combination_probability",
+    ]]
+    data["dip"] = data["dip"].astype("float32")
+    data["dip_probability"] = data["dip_probability"].astype("float32")
+    data["mixture"] = data["mixture"].astype("float32")
+    data["mixture_probability"] = data["mixture_probability"].astype("float32")
+    data["coefficient"] = data["coefficient"].astype("float32")
+    data["coefficient_probability"] = (
+        data["coefficient_probability"].astype("float32")
+    )
+    data["combination"] = data["combination"].astype("float32")
+    data["combination_probability"] = (
+        data["combination_probability"].astype("float32")
+    )
+    data.set_index(
+        "identifier",
+        drop=True,
+        inplace=True,
+    )
+    data.rename_axis(
+        index="identifier",
+        axis="index",
+        copy=False,
+        inplace=True,
+    )
+    data.rename_axis(
+        columns="properties",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    data.sort_values(
+        by=["combination"],
+        axis="index",
+        ascending=False,
+        inplace=True,
+    )
+    # Return information.
+    return data
 
 
 ###########################
@@ -351,164 +529,6 @@ def rank_genes(
     )
     # Return information.
     return data_genes_ranks_filter
-
-
-# Summary
-
-
-def organize_summary_genes(
-    genes_scores_distributions=None,
-    data_genes_probabilities=None,
-    data_gene_annotation=None,
-):
-    """
-    Collects tissues, patients, and genes' signals for each sample.
-
-    Data structure
-    identifier        name    coefficient  p_coefficient  dip     p_dip   ...
-     ENSG00000078808   TK421   0.75         0.003          0.12    0.005  ...
-     ENSG00000029363   R2D2    0.55         0.975          0.23    0.732  ...
-
-    arguments:
-        genes_scores_distributions (dict<dict<dict>>): information about genes
-        data_genes_probabilities (object): Pandas data frame of probabilities
-            from genes' scores and distributions
-        data_gene_annotation (object): Pandas data frame of genes' annotations
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' identifiers, names, and
-            probability values by bimodality coefficient and dip statistic
-
-    """
-
-    def match_gene_name(identifier):
-        name = data_gene_annotation.loc[identifier, "gene_name"]
-        if len(name) < 1:
-            print("*************Error?****************")
-        return name
-
-    def calculate_mean_probability(row):
-        return statistics.mean([
-            row["p_coefficient"],
-            row["p_dip"],
-            row["p_mixture"],
-            row["p_combination"]
-        ])
-
-    # Collect information about genes.
-    records = list()
-    # Extract identifiers of genes with scores.
-    genes = list(genes_scores_distributions.keys())
-    # Iterate on genes.
-    for gene in genes:
-        # Create record for gene.
-        record = dict()
-        # Access information about gene.
-        name = match_gene_name(gene)
-        gene_scores = genes_scores_distributions[gene]
-        score_coefficient = gene_scores["scores"]["coefficient"]
-        score_dip = gene_scores["scores"]["dip"]
-        score_mixture = gene_scores["scores"]["mixture"]
-        score_combination = gene_scores["scores"]["combination"]
-        probability_coefficient = (
-            data_genes_probabilities.loc[gene, "coefficient"]
-        )
-        probability_dip = data_genes_probabilities.loc[gene, "dip"]
-        probability_mixture = data_genes_probabilities.loc[gene, "mixture"]
-        probability_combination = (
-            data_genes_probabilities.loc[gene, "combination"]
-        )
-        # Compile information.
-        record["identifier"] = gene
-        record["name"] = name
-        record["coefficient"] = score_coefficient
-        record["p_coefficient"] = probability_coefficient
-        record["dip"] = score_dip
-        record["p_dip"] = probability_dip
-        record["mixture"] = score_mixture
-        record["p_mixture"] = probability_mixture
-        record["combination"] = score_combination
-        record["p_combination"] = probability_combination
-        records.append(record)
-    # Organize information.
-    data = utility.convert_records_to_dataframe(
-        records=records
-    )
-    # Calculate mean probabilities from all scores.
-    # This mean probability will facilitate ranking.
-    data["p_mean"] = data.apply(
-        calculate_mean_probability,
-        axis="columns",
-    )
-    data["coefficient"] = data["coefficient"].astype("float32")
-    data["p_coefficient"] = data["p_coefficient"].astype("float32")
-    data["dip"] = data["dip"].astype("float32")
-    data["p_dip"] = data["p_dip"].astype("float32")
-    data["mixture"] = data["mixture"].astype("float32")
-    data["p_mixture"] = data["p_mixture"].astype("float32")
-    data["combination"] = data["combination"].astype("float32")
-    data["p_combination"] = data["p_combination"].astype("float32")
-    data["p_mean"] = data["p_mean"].astype("float32")
-    data.set_index(
-        "identifier",
-        drop=True,
-        inplace=True,
-    )
-    data.rename_axis(
-        index="identifier",
-        axis="index",
-        copy=False,
-        inplace=True,
-    )
-    data.rename_axis(
-        columns="properties",
-        axis="columns",
-        copy=False,
-        inplace=True
-    )
-    data.sort_values(
-        by=["p_mean"],
-        axis="index",
-        ascending=True,
-        inplace=True,
-    )
-    # Return information.
-    return data
-
-
-def collect_genes_names(
-    data_gene_annotation=None,
-    data_gene_score=None
-):
-    """
-    Collects names of genes.
-
-    arguments:
-        data_gene_annotation (object): Pandas data frame of genes' annotations.
-        data_gene_score (object): Pandas data frame of genes' scores.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' scores.
-
-    """
-
-    def match_gene_name(identifier):
-        return data_gene_annotation.loc[identifier, "gene_name"]
-    data_gene_score.reset_index(level=["gene"], inplace=True)
-    data_gene_score["name"] = (
-        data_gene_score["gene"].apply(match_gene_name)
-    )
-    data_gene_score.set_index(
-        ["gene"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    return data_gene_score
 
 
 # Thorough summary.
@@ -1012,26 +1032,41 @@ def execute_procedure(dock=None):
     source = read_source(dock=dock)
 
     # Calculate genes' probabilities of bimodality.
-    data_genes_probabilities = calculate_probabilities_genes(
+    genes_probabilities = calculate_probabilities_genes(
         genes_scores_permutations=source["genes_scores_permutations"],
     )
-    print(data_genes_probabilities)
 
-    # Filter genes by probabilities.
-    # Keep genes only if scores from at least two of the three modality metrics
-    # have permutation probabilities below threshold.
-    data_gene_probabilites_threshold = filter_genes_probabilities_threshold(
-        data=data_genes_probabilities,
-        threshold=0.05,
-        count=3,
+    # Organize gene summary.
+    data_genes_scores_probabilities = organize_genes_scores_probabilities(
+        genes_scores_permutations=source["genes_scores_permutations"],
+        genes_probabilities=genes_probabilities,
+        data_gene_distribution_report=source["data_gene_distribution_report"],
+        data_gene_annotation=source["data_gene_annotation"],
     )
-    print(data_gene_probabilites_threshold)
+    print(data_genes_scores_probabilities)
+    print(data_genes_scores_probabilities.iloc[0:10, 0:13])
+
+    # 1. Copy gene summary for each metric --> dip, mixture, coefficient, combination
+
+    # 2. Filter each metric's gene summary by p-value threshold (0.05?)
+
 
 
     # TODO: after ranking genes...
     # TODO: Prepare a gene report, similar to the report from the distribution procedure
 
     if False:
+
+        # Filter genes by probabilities.
+        # Keep genes only if scores from at least two of the three modality metrics
+        # have permutation probabilities below threshold.
+        data_gene_probabilites_threshold = filter_genes_probabilities_threshold(
+            data=data_genes_probabilities,
+            threshold=0.05,
+            count=3,
+        )
+        print(data_gene_probabilites_threshold)
+
         # Rank genes by probabilities.
         # TODO: rank genes separately by "coefficient", "dip", and "mixture"...
         # TODO: Then take the union of the top genes from each ranking...
@@ -1064,14 +1099,6 @@ def execute_procedure(dock=None):
         )
         print("Count of null genes: " + str(len(genes_null)))
         print("Count of total genes: " + str(len(source["genes"])))
-
-        # Organize gene summary.
-        data_summary_genes = organize_summary_genes(
-            genes_scores_distributions=source["genes_scores_distributions"],
-            data_genes_probabilities=data_genes_probabilities,
-            data_gene_annotation=source["data_gene_annotation"],
-        )
-        print(data_summary_genes.iloc[0:25, 0:10])
 
         # Define genes of interest.
         # Genes of interest are few for thorough summary.
