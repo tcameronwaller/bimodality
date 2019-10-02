@@ -16,7 +16,7 @@ path_program="$path_repository/bimodality-master/bimodality"
 path_dock="$path_user_cellar/Data/dock"
 path_split="$path_dock/split"
 path_distribution="$path_dock/distribution"
-path_permutation="$path_dock/permutation"
+path_permutation="$path_dock/permutation_cluster"
 
 # Define iteration variables.
 readarray -t genes < "$path_split/genes.txt"
