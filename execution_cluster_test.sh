@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=permutation
-#SBATCH --output=/cellar/users/tcwaller/Data/dock/out.txt
-#SBATCH --error=/cellar/users/tcwaller/Data/dock/error.txt
+#SBATCH --job-name=test
+#SBATCH --output=/cellar/users/tcwaller/Data/dock/out_test.txt
+#SBATCH --error=/cellar/users/tcwaller/Data/dock/error_test.txt
 #SBATCH --mem=10G
 #SBATCH --array=100-200%1
 #SBATCH --time=5-00:00:00 # days-hours:minutes:seconds
