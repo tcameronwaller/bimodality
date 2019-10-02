@@ -16,21 +16,21 @@ import textwrap
 
 # Custom.
 
-import access
-import assembly
+#import access
+#import assembly
 #import measurement
 #import sample
 #import tissue
-import selection
+#import selection
 
-import split
+#import split
 import distribution
-import shuffle
+#import shuffle
 import permutation
-import collection
+#import collection
 
 #import combination <-- combine with the collection procedure
-import rank
+#import rank
 #import category
 
 #import integration
