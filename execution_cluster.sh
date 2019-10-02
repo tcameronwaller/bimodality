@@ -4,7 +4,7 @@
 #SBATCH --output=/cellar/users/tcwaller/Data/dock/out.txt
 #SBATCH --error=/cellar/users/tcwaller/Data/dock/error.txt
 #SBATCH --mem=10G
-#SBATCH --array=14100-15445%200
+#SBATCH --array=14100-15445%100
 #SBATCH --time=5-00:00:00 # days-hours:minutes:seconds
 
 # Organize paths.
