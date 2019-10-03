@@ -21,9 +21,9 @@ import textwrap
 #import measurement
 #import sample
 #import tissue
-#import selection
+import selection
 
-#import split
+import split
 import distribution
 #import shuffle
 import permutation
@@ -35,7 +35,7 @@ import rank
 #import integration
 
 import metric
-#import plot
+import plot
 #import test
 import utility
 #import expecto

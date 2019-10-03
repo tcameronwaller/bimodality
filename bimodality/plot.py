@@ -603,45 +603,7 @@ def write_figure(path=None, figure=None):
 # Procedures
 
 
-# Analysis
-
-def read_source_distribution(dock=None):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_combination = os.path.join(dock, "combination")
-    path_scores_imputation = os.path.join(
-        path_combination, "genes_scores_permutations_imputation.pickle"
-    )
-    path_scores_availability = os.path.join(
-        path_combination, "genes_scores_permutations_availability.pickle"
-    )
-    # Read information from file.
-    with open(path_scores_availability, "rb") as file_source:
-        genes_scores_permutations_availability = pickle.load(file_source)
-    with open(path_scores_imputation, "rb") as file_source:
-        genes_scores_permutations_imputation = pickle.load(file_source)
-    # Compile and return information.
-    return {
-        "scores_permutations_availability": (
-            genes_scores_permutations_availability
-        ),
-        "scores_permutations_imputation": (
-            genes_scores_permutations_imputation
-        ),
-    }
+# Distribution
 
 
 def read_source_distribution_gene(
@@ -759,7 +721,7 @@ def plot_charts_distribution_gene(
             )
     pass
 
-
+# This function specifies a list of genes for which to plot charts.
 def plot_charts_distribution(
     dock=None
 ):
@@ -784,6 +746,7 @@ def plot_charts_distribution(
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
     path_distribution = os.path.join(path_plot, "distribution")
+    path_permutation = os.path.join(path_plot, "permutation")
     # Remove previous files since they change from run to run.
     utility.remove_directory(path=path_distribution)
     utility.create_directory(path_distribution)
@@ -833,6 +796,8 @@ def plot_charts_distribution(
         pass
 
     pass
+
+
 
 # Sample
 
@@ -1746,6 +1711,9 @@ def execute_procedure(dock=None):
     #plot_charts_tissue(dock=dock)
     #plot_charts_restriction(dock=dock)
     #plot_chart_tissues_persons(dock=dock)
+
+    # Plot charts of distributions of genes' bimodality measurement scores and
+    # permutations.
     plot_charts_distribution(dock=dock)
 
     pass

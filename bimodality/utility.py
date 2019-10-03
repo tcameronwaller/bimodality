@@ -554,6 +554,56 @@ def find_all(match=None, sequence=None):
         return None
 
 
+def select_elements_by_sets(
+    names=None,
+    sets=None,
+    count=None,
+):
+    """
+    Selects unique elements that belong to at a minimal count of specific sets.
+
+    This altorithm assumes that each element can belong to multiple sets but
+    that each set's elements are unique or nonredundant.
+
+    Data format
+    - elements (dict)
+    -- element (list)
+    --- set (str)
+
+    arguments:
+        names (list<str>): names of sets to consider
+        sets (dict<list<str>>): sets of elements
+        count (int): minimal count of sets to which an element must belong
+
+    returns:
+        (list): unique elements that belong to minimal count of specific sets
+
+    raises:
+
+    """
+
+    # Collect sets to which each element belongs.
+    elements = dict()
+    for name in names:
+        for element in collect_unique_elements(elements_original=sets[name]):
+            if element not in elements:
+                elements[element] = list()
+                elements[element].append(name)
+            else:
+                elements[element].append(name)
+        pass
+    pass
+
+    # Filter elements by count of sets.
+    passes = list()
+    for element in elements:
+        if len(elements[element]) >= count:
+            passes.append(element)
+
+    # Return elements that pass filter.
+    return passes
+
+
 def collect_unique_elements(elements_original=None):
     """
     Collects unique elements

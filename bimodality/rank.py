@@ -206,86 +206,8 @@ def calculate_probabilities_genes(
         entry["combination"] = probability_combination
         entries[gene] = entry
 
-    if False:
-        # Organize information.
-        data = utility.convert_records_to_dataframe(
-            records=records
-        )
-        data["coefficient"] = data["coefficient"].astype("float32")
-        data["dip"] = data["dip"].astype("float32")
-        data["mixture"] = data["mixture"].astype("float32")
-        data["combination"] = data["combination"].astype("float32")
-        data.set_index(
-            ["gene"],
-            append=False,
-            drop=True,
-            inplace=True,
-        )
-        data.rename_axis(
-            index="gene",
-            axis="index",
-            copy=False,
-            inplace=True,
-        )
-        data.rename_axis(
-            columns="probabilities",
-            axis="columns",
-            copy=False,
-            inplace=True
-        )
-        # Return information.
-        return data
-
     # Return information.
     return entries
-
-
-def filter_genes_probabilities_threshold(
-    data=None,
-    threshold=None,
-    count=None,
-):
-    """
-    Filters genes to keep only those with scores from at least two of the three
-    modality metrics with permutation probabilities below threshold.
-
-    arguments:
-        data (object): Pandas data frame of probabilities from genes' scores
-            and permutations
-        threshold (float): maximal probability
-        count (int): minimal count of probabilities that must pass threshold
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of probabilities from genes' scores and
-            distributions
-
-    """
-
-    def count_true(slice=None, count=None):
-        values = slice.values.tolist()
-        values_true = list(itertools.compress(values, values))
-        return (len(values_true) >= count)
-
-    # Count how many of the gene's modality probabilities are below threshold
-    # Keep genes with at least 2 metrics below threshold
-
-    # Determine whether values pass threshold.
-    # Only consider the original modality metrics for this threshold.
-    data_selection = data.loc[ :, ["coefficient", "dip", "mixture"]]
-    data_threshold = (data_selection <= threshold)
-    # This aggregation operation produces a series.
-    # Aggregate columns to determine which rows to keep in the next step.
-    data_count = data_threshold.aggregate(
-        lambda slice: count_true(slice=slice, count=2),
-        axis="columns",
-    )
-
-    # Select rows and columns with appropriate values.
-    data_pass = data.loc[data_count, : ]
-    # Return information.
-    return data_pass
 
 
 # Summary
@@ -307,8 +229,8 @@ def organize_genes_scores_probabilities(
 
     arguments:
         genes_scores_distributions (dict<dict<dict>>): information about genes
-        data_genes_probabilities (object): Pandas data frame of probabilities
-            from genes' scores and distributions
+        genes_probabilities (dict<dict<float>>): information about genes'
+            probabilities
         data_gene_distribution_report (object): Pandas data frame of
             information about genes' distributions
         data_gene_annotation (object): Pandas data frame of genes' annotations
@@ -316,8 +238,8 @@ def organize_genes_scores_probabilities(
     raises:
 
     returns:
-        (object): Pandas data frame of genes' identifiers, names, and
-            probability values by bimodality coefficient and dip statistic
+        (object): Pandas data frame of genes' properties, bimodality scores,
+            and probabilities
 
     """
 
@@ -455,80 +377,372 @@ def organize_genes_scores_probabilities(
     return data
 
 
-###########################
-# TODO: stuff below here needs work...
+# Filtration
+
+
+def copy_split_minimal_gene_data(
+    measurement=None,
+    probability=None,
+    data_genes_scores_probabilities=None,
+):
+    """
+    Copy and split information about genes.
+
+    arguments:
+        measurement (str): name of a measurement of bimodality
+        probability (str): name of a measurement's probability
+        data_genes_scores_probabilities (object): Pandas data frame of genes'
+            properties, bimodality scores, and probabilities
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' properties, bimodality
+            scores, and probabilities
+
+    """
+
+    # Select relevant information.
+    columns = list()
+    columns.append(measurement)
+    columns.append(probability)
+    data_copy = data_genes_scores_probabilities.copy(deep=True)
+    data = data_copy.loc[
+        :, data_copy.columns.isin(columns)
+    ]
+    # Return information.
+    return data
+
+
+def filter_genes_probabilities_threshold(
+    data=None,
+    probability=None,
+    threshold=None,
+):
+    """
+    Filters genes to keep only those with scores from at least two of the three
+    modality metrics with permutation probabilities below threshold.
+
+    arguments:
+        data (object): Pandas data frame of genes' properties, bimodality
+            scores, and probabilities
+        probability (str): name of a measurement's probability
+        threshold (float): maximal probability
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' properties, bimodality
+            scores, and probabilities
+
+    """
+
+    # Determine whether values pass threshold.
+    # Only consider the original modality metrics for this threshold.
+    data_threshold = data.loc[(data[probability] < threshold), :]
+    # Return information.
+    return data_threshold
+
+
+# TODO: this function is useful...
+def filter_genes_probabilities_threshold_old(
+    data=None,
+    threshold=None,
+    count=None,
+):
+    """
+    Filters genes to keep only those with scores from at least two of the three
+    modality metrics with permutation probabilities below threshold.
+
+    arguments:
+        data (object): Pandas data frame of probabilities from genes' scores
+            and permutations
+        threshold (float): maximal probability
+        count (int): minimal count of probabilities that must pass threshold
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of probabilities from genes' scores and
+            distributions
+
+    """
+
+    def count_true(slice=None, count=None):
+        values = slice.values.tolist()
+        values_true = list(itertools.compress(values, values))
+        return (len(values_true) >= count)
+
+    # Count how many of the gene's modality probabilities are below threshold
+    # Keep genes with at least 2 metrics below threshold
+
+    # Determine whether values pass threshold.
+    # Only consider the original modality metrics for this threshold.
+    data_selection = data.loc[ :, ["coefficient", "dip", "mixture"]]
+    data_threshold = (data_selection <= threshold)
+    # This aggregation operation produces a series.
+    # Aggregate columns to determine which rows to keep in the next step.
+    data_count = data_threshold.aggregate(
+        lambda slice: count_true(slice=slice, count=2),
+        axis="columns",
+    )
+
+    # Select rows and columns with appropriate values.
+    data_pass = data.loc[data_count, : ]
+    # Return information.
+    return data_pass
+
+
+def filter_genes_by_probabilities(
+    measurements=None,
+    threshold=None,
+    data_genes_scores_probabilities=None,
+):
+    """
+    Copy and split information about genes.
+
+    arguments:
+        measurements (list<str>): names of measurements of bimodality
+        threshold (float): maximal probability
+        data_genes_scores_probabilities (object): Pandas data frame of genes'
+            properties, bimodality scores, and probabilities
+
+    raises:
+
+    returns:
+        (dict<list<str>>): identifiers of genes that pass filtration by
+            probabilities of each bimodality measurement
+
+    """
+
+    utility.print_terminal_partition(level=1)
+    print(
+        "count of genes filtered by probabilities of each bimodality " +
+        "measurement"
+    )
+
+    # Collect genes from filtration by each measurement of bimodality.
+    entries = dict()
+    for measurement in measurements:
+        probability = (measurement + "_probability")
+        # Copy minimal genes' data for each modality metric.
+        data_measurement = copy_split_minimal_gene_data(
+            measurement=measurement,
+            probability=probability,
+            data_genes_scores_probabilities=data_genes_scores_probabilities,
+        )
+
+        # Filter genes by threshold on each metric's probabilities.
+        data_filter = filter_genes_probabilities_threshold(
+            data=data_measurement,
+            probability=probability,
+            threshold=threshold,
+        )
+
+        # Extract genes' identifiers.
+        genes = data_filter.index.tolist()
+        utility.print_terminal_partition(level=3)
+        print(measurement + ": " + str(len(genes)))
+
+        # Compile information.
+        entries[measurement] = genes
+
+    # Return information.
+    return entries
+
 
 # Rank
 
 
-def rank_genes(
-    data_genes_probabilities=None,
+def select_rank_genes(
+    data_genes_scores_probabilities=None,
+    selection=None,
     rank=None,
-    method=None,
-    threshold=None,
-    count=None,
 ):
     """
     Prepares ranks of genes for subsequent functional analyses.
 
     arguments:
-        data_genes_probabilities (object): Pandas data frame of probabilities
-            from genes' scores and distributions
-        rank (str): key of data column to use for ranks
-        method (str): method of filter to apply, either threshold or count
-        threshold (float): value for threshold
-        count (int): Count of genes with greatest ranks to select
+        data_genes_scores_probabilities (object): Pandas data frame of genes'
+            properties, bimodality scores, and probabilities
+        selection (list<str>): genes for selection
+        rank (str): property to use for ranks
 
     raises:
 
     returns:
-        (dict): collection of representations of ranks of genes
+        (object): Pandas data frame of genes' properties, bimodality scores,
+            and probabilities
 
     """
 
     # Copy data.
-    data_genes_ranks = data_genes_probabilities.copy(deep=True)
-    data_genes_ranks.reset_index(level="gene", inplace=True)
-    data_genes_ranks.sort_values(
+    data_copy = data_genes_scores_probabilities.copy(deep=True)
+    # Select data for genes of interest.
+    data = data_copy.loc[
+        data_copy.index.isin(selection), :
+    ]
+    # Rank genes.
+    data.sort_values(
         by=[rank],
         axis="index",
-        ascending=True,
+        ascending=False,
         inplace=True,
     )
-    data_genes_ranks.reset_index(
-        inplace=True,
-        drop=True,
-    )
-    # Filter genes.
-    if method == "threshold":
-        data_genes_ranks_filter = (
-            data_genes_ranks.loc[(data_genes_ranks[rank] < threshold)]
-        )
-    elif method == "count":
-        data_genes_ranks_filter = (
-            data_genes_ranks.iloc[0:count]
-        )
     # Organize information.
-    data_genes_ranks_filter.set_index(
-        ["gene"],
-        append=False,
-        drop=True,
-        inplace=True,
-    )
-    data_genes_ranks_filter.rename_axis(
-        index="gene",
-        axis="index",
-        copy=False,
-        inplace=True,
-    )
-    data_genes_ranks_filter.rename_axis(
-        columns="probabilities",
-        axis="columns",
-        copy=False,
+    # Return information.
+    return data
+
+
+# Exportation
+
+
+def export_genes_function(
+    data_genes=None,
+    identifier=None,
+    rank=None,
+):
+    """
+    Prepares table of genes for export to functional analysis.
+
+    arguments:
+        data_genes (object): Pandas data frame of genes' properties, bimodality
+            scores, and probabilities
+        identifier (str): identifier to use, "ensembl" or "hugo"
+        rank (bool): whether to include gene rankings in the table
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' properties, bimodality scores,
+            and probabilities
+
+    """
+
+    # Copy data.
+    data_copy = data_genes.copy(deep=True)
+    # Organize data.
+    data_copy.reset_index(
+        level=None,
         inplace=True
     )
+    # Select columns.
+    columns = list()
+    if identifier == "ensembl":
+        columns.append("identifier")
+    elif identifier == "hugo":
+        columns.append("name")
+    if rank:
+        columns.append("combination")
+    data = data_copy.loc[
+        :, data_copy.columns.isin(columns)
+    ]
+
     # Return information.
-    return data_genes_ranks_filter
+    return data
+
+
+# Write.
+
+
+def write_product(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_rank = os.path.join(dock, "rank")
+    utility.create_directory(path_rank)
+    path_genes_scores_probabilities = os.path.join(
+        path_rank, "data_genes_scores_probabilites.pickle"
+    )
+    path_genes_scores_probabilities_text = os.path.join(
+        path_rank, "data_genes_scores_probabilites.tsv"
+    )
+    path_genes_selection_rank = os.path.join(
+        path_rank, "data_genes_selection_rank.pickle"
+    )
+    path_genes_selection_rank_text = os.path.join(
+        path_rank, "data_genes_selection_rank.tsv"
+    )
+    path_export_genes_selection = os.path.join(
+        path_rank, "export_genes_selection.tsv"
+    )
+    path_export_genes_total = os.path.join(
+        path_rank, "export_genes_total.tsv"
+    )
+    path_export_genes_rank = os.path.join(
+        path_rank, "export_genes_rank.tsv"
+    )
+
+    # Write information to file.
+    information["data_genes_scores_probabilities"].to_pickle(
+        path_genes_scores_probabilities
+    )
+    information["data_genes_selection_rank"].to_pickle(
+        path_genes_selection_rank
+    )
+    information["data_genes_scores_probabilities"].to_csv(
+        path_or_buf=path_genes_scores_probabilities_text,
+        columns=None,
+        sep="\t",
+        na_rep="",
+        header=True,
+        index=True,
+    )
+    information["data_genes_selection_rank"].to_csv(
+        path_or_buf=path_genes_selection_rank_text,
+        columns=None,
+        sep="\t",
+        na_rep="",
+        header=True,
+        index=True,
+    )
+
+    # Exportation
+    information["data_export_genes_selection"].to_csv(
+        path_or_buf=path_export_genes_selection,
+        columns=None,
+        sep="\t",
+        na_rep="",
+        header=False,
+        index=False,
+    )
+    information["data_export_genes_total"].to_csv(
+        path_or_buf=path_export_genes_total,
+        columns=None,
+        sep="\t",
+        na_rep="",
+        header=False,
+        index=False,
+    )
+    information["data_export_genes_rank"].to_csv(
+        path_or_buf=path_export_genes_rank,
+        columns=None,
+        sep="\t",
+        na_rep="",
+        header=False,
+        index=False,
+    )
+
+    pass
+
+
+
+
+
+###########################
+# TODO: stuff below here needs work...
 
 
 # Thorough summary.
@@ -777,9 +991,6 @@ def prepare_report_gene(
     return information
 
 
-# Write.
-
-
 def write_product_integration(dock=None, information=None):
     """
     Writes product information to file.
@@ -891,76 +1102,7 @@ def write_product_integration(dock=None, information=None):
 
     pass
 
-
-def write_product(dock=None, information=None):
-    """
-    Writes product information to file.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
-
-    raises:
-
-    returns:
-
-    """
-
-    # Specify directories and files.
-    path_rank = os.path.join(dock, "rank")
-    utility.create_directory(path_rank)
-    path_rank_availability = os.path.join(
-        path_rank, "data_gene_rank_availability.pickle"
-    )
-    path_rank_imputation = os.path.join(
-        path_rank, "data_gene_rank_imputation.pickle"
-    )
-    path_genes_availability = os.path.join(
-        path_rank, "genes_availability.pickle"
-    )
-    path_genes_imputation = os.path.join(
-        path_rank, "genes_imputation.pickle"
-    )
-    path_genes_consensus = os.path.join(
-        path_rank, "genes_consensus.pickle"
-    )
-    path_genes_consensus_text = os.path.join(
-        path_rank, "genes_consensus.txt"
-    )
-    path_genes_null_text = os.path.join(
-        path_rank, "genes_null.txt"
-    )
-
-    # Write information to file.
-    information["data_gene_rank_availability"].to_pickle(
-        path_rank_availability
-    )
-    information["data_gene_rank_imputation"].to_pickle(
-        path_rank_imputation
-    )
-    with open(path_genes_availability, "wb") as file_product:
-        pickle.dump(information["genes_availability"], file_product)
-    with open(path_genes_imputation, "wb") as file_product:
-        pickle.dump(information["genes_imputation"], file_product)
-    with open(path_genes_consensus, "wb") as file_product:
-        pickle.dump(information["genes_consensus"], file_product)
-
-    utility.write_file_text_list(
-        elements=information["genes_consensus"],
-        delimiter="\n",
-        path_file=path_genes_consensus_text
-    )
-    utility.write_file_text_list(
-        elements=information["genes_null"],
-        delimiter="\n",
-        path_file=path_genes_null_text
-    )
-
-
-    pass
-
-
+# TODO: obsolete?
 def write_product_reports(dock=None, information=None):
     """
     Writes product information to file.
@@ -1016,17 +1158,9 @@ def execute_procedure(dock=None):
 
     """
 
-    #############################
-    # TODO:
-    # 1. calculate probabilities
-    # 2. split genes into 3 copies for each metric --> dip, mixture, coefficient
-    # 3. filter each set of genes by probability threshold
-    # 4. rank each set of genes by bimodality metric
-    # 5. filter each set of genes for top 10% of genes by bimodal metric rank
-    # 6. keep genes that are in the final ranked and filtered lists by at least 2 of the 3 metrics
-    # 7. rank final genes by combination score
-    # 8. plot examples?
-    ##############################
+    # Remove previous files to avoid version or batch confusion.
+    path_rank = os.path.join(dock, "rank")
+    utility.remove_directory(path=path_rank)
 
     # Read source information from file.
     source = read_source(dock=dock)
@@ -1046,65 +1180,81 @@ def execute_procedure(dock=None):
     print(data_genes_scores_probabilities)
     print(data_genes_scores_probabilities.iloc[0:10, 0:13])
 
-    # 1. Copy gene summary for each metric --> dip, mixture, coefficient, combination
+    # Filter genes by probabilities of each bimodality metric.
+    genes_measurements = filter_genes_by_probabilities(
+        measurements=["dip", "mixture", "coefficient", "combination"],
+        threshold=0.001, # set threshold at 1/1000 to give 10-fold grace
+        data_genes_scores_probabilities=data_genes_scores_probabilities,
+    )
 
-    # 2. Filter each metric's gene summary by p-value threshold (0.05?)
+    # Select genes that pass filters by at least two of the three primary
+    # bimodality measurements.
+    # Multiple hypothesis threshold:
+    # 0.05 (probability) / 16000 (genes) = 3E-6
+    # Overall probability is a multiple of each measurement.
+    # (0.001)^3 = 1E-9
+    # That calculation of overall probability is inaccurate as bimodality
+    # measurements are not independent.
+    genes_selection = utility.select_elements_by_sets(
+        names=["dip", "mixture", "coefficient"],
+        sets=genes_measurements,
+        count=3,
+    )
+    utility.print_terminal_partition(level=2)
+    print(
+        "selection of genes by multiple measurements: " +
+        str(len(genes_selection))
+    )
+    utility.print_terminal_partition(level=2)
 
+    # Select and rank genes by probabilities.
+    data_genes_selection_rank = select_rank_genes(
+        data_genes_scores_probabilities=data_genes_scores_probabilities,
+        selection=genes_selection,
+        rank="combination",
+    )
+    print(data_genes_selection_rank)
 
+    # Exportation of genes for functional analysis.
+    utility.print_terminal_partition(level=1)
+    data_export_genes_selection = export_genes_function(
+        data_genes=data_genes_selection_rank,
+        identifier="ensembl",
+        rank=False,
+    )
+    print(data_export_genes_selection)
+    data_export_genes_total = export_genes_function(
+        data_genes=data_genes_scores_probabilities,
+        identifier="ensembl",
+        rank=False,
+    )
+    print(data_export_genes_total)
 
-    # TODO: after ranking genes...
-    # TODO: Prepare a gene report, similar to the report from the distribution procedure
+    data_export_genes_rank = export_genes_function(
+        data_genes=data_genes_scores_probabilities,
+        identifier="ensembl",
+        rank=True,
+    )
+    print(data_export_genes_rank)
+
+    # Compile information.
+    information = {
+        "data_genes_scores_probabilities": data_genes_scores_probabilities,
+        "data_genes_selection_rank": data_genes_selection_rank,
+        "data_export_genes_selection": data_export_genes_selection,
+        "data_export_genes_total": data_export_genes_total,
+        "data_export_genes_rank": data_export_genes_rank,
+    }
+    #Write product information to file.
+    write_product(dock=dock, information=information)
 
     if False:
-
-        # Filter genes by probabilities.
-        # Keep genes only if scores from at least two of the three modality metrics
-        # have permutation probabilities below threshold.
-        data_gene_probabilites_threshold = filter_genes_probabilities_threshold(
-            data=data_genes_probabilities,
-            threshold=0.05,
-            count=3,
-        )
-        print(data_gene_probabilites_threshold)
-
-        # Rank genes by probabilities.
-        # TODO: rank genes separately by "coefficient", "dip", and "mixture"...
-        # TODO: Then take the union of the top genes from each ranking...
-        data_gene_rank = rank_genes(
-            data_genes_probabilities=data_genes_probabilities,
-            rank="combination",
-            method="threshold",
-            threshold=0.001,
-            count=1000,
-        )
-        print(data_gene_rank)
-
-        # Extract identifiers of genes.
-        genes_availability = data_gene_rank_availability.index.to_list()
-        genes_imputation = data_gene_rank_imputation.index.to_list()
-
-        # Combine consensus genes.
-        genes_consensus = utility.filter_unique_union_elements(
-            list_one=genes_availability,
-            list_two=genes_imputation,
-        )
-        print("Count of availability genes: " + str(len(genes_availability)))
-        print("Count of imputation genes: " + str(len(genes_imputation)))
-        print("Count of consensus genes: " + str(len(genes_consensus)))
-
-        # Determine genes not in the consensus list.
-        genes_null = utility.filter_unique_exclusion_elements(
-            list_exclusion=genes_consensus,
-            list_total=source["genes"],
-        )
-        print("Count of null genes: " + str(len(genes_null)))
-        print("Count of total genes: " + str(len(source["genes"])))
 
         # Define genes of interest.
         # Genes of interest are few for thorough summary.
         genes_report = define_report_genes(
             data_summary_genes=data_summary_genes,
-            rank="p_mean"
+            rank="combination"
         )
 
         # Organize thorough summaries for a few genes of interest.
@@ -1117,31 +1267,6 @@ def execute_procedure(dock=None):
             shuffles=source["shuffles"][0:500],
             genes_scores_distributions=source["genes_scores_distributions"],
         )
-
-        # Compile information.
-        information = {
-            "data_genes_probabilities": data_genes_probabilities,
-            "data_summary_genes": data_summary_genes,
-            "data_rank_genes": ranks["data_rank_genes"],
-            "data_rank_genes_ensembl": ranks["data_rank_genes_ensembl"],
-            "data_rank_genes_hugo": ranks["data_rank_genes_hugo"],
-            "genes_ensembl": ranks["genes_ensembl"],
-            "genes_hugo": ranks["genes_hugo"],
-            "genes_report": genes_report,
-            "reports": reports,
-        }
-
-        # Compile information.
-        information = {
-            "data_gene_rank_availability": data_gene_rank_availability,
-            "data_gene_rank_imputation": data_gene_rank_imputation,
-            "genes_availability": genes_availability,
-            "genes_imputation": genes_imputation,
-            "genes_consensus": genes_consensus,
-            "genes_null": genes_null,
-        }
-        #Write product information to file.
-        write_product(dock=dock, information=information)
 
     pass
 
