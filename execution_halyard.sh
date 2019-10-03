@@ -40,6 +40,10 @@ cd $path_program
 echo "Now set to call routine and procedures."
 
 
+# Hello Meghana!!! :)
+
+
+
 ##########
 # - Preparation Routine
 
@@ -55,6 +59,7 @@ echo "Now set to call routine and procedures."
 
 ##########
 # - Batch Routine
+
 
 python3 interface.py main --dock $path_dock --split
 
