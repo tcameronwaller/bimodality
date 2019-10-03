@@ -39,28 +39,20 @@ echo "gene: " $gene
 # Execute program.
 # Specify complete path to python installation.
 
-hostname
-date
-
 # Access information about gene.
 path_distribution_gene="$path_distribution/$gene"
 path_chromosome="$path_distribution_gene/chromosome.txt"
 chromosome=$(cat $path_chromosome)
-path_relation_cis=
-path_relation_trans=
-path_gene_distribution=
+path_relation_cis="$path_relation/cis/chromosome"
+path_relation_trans="$path_relation/trans/chromosome"
 path_gene_covariates=
 
-# Organize gene-specific paths.
-path_relation_cis="$path_relation/cis/"
+path_phenotype="$path_distribution_gene/data_gene_families_persons_signals.tsv"
 
-$path_python $path_program/interface.py main --dock $path_dock --permutation --remote --gene $gene
+path_heritability_gene="$path_heritability/$gene"
+rm -r $path_heritability_gene
+mkdir $path_heritability_gene
 
-date
-
-
-
-path_distribution="data_gene_families_persons_signals.tsv"
 
 path_gene_distribution="$path_heritability/$gene/$path_distribution"
 path_gene_heritability="$path_dock/heritability/$gene"
@@ -90,6 +82,8 @@ mkdir $path_product
 # TODO: eventually include covariates
 
 
+# Analysis
+#$path_gcta --grm $path_relation/chromosome_6 --pheno $path_distribution --reml --out $path_result
 
 
 # Analysis

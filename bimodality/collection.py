@@ -21,6 +21,7 @@ import statistics
 import pickle
 import copy
 import random
+import gc
 
 # Relevant
 
@@ -181,8 +182,6 @@ def collect_organize_genes_scores_permutations(
         genes=genes,
         genes_scores_permutations=genes_scores_permutations_standard
     )
-
-    print("right before combine_scores_permutations")
 
     # Calculate combination scores.
     # Combination scores are scaled means of the primary bimodality measures.
@@ -380,9 +379,9 @@ def check_genes_scores_permutations(
     genes_scores = list(genes_scores_permutations.keys())
     print("count of genes: " + str(len(genes)))
     print("count of genes with scores: " + str(len(genes_scores)))
-    gene_check = random.sample(genes, 1)
-    print("example gene: " + str(gene_check[0]))
-    entry = genes_scores_permutations[gene_check[0]]
+    gene_check = random.sample(genes, 1)[0]
+    print("example gene: " + str(gene_check))
+    entry = genes_scores_permutations[gene_check]
     print(
         "count of permutations for bimodality coefficient: " +
         str(len(entry["permutations"]["coefficient"]))
@@ -397,7 +396,7 @@ def check_genes_scores_permutations(
     )
 
     # Check whether all genes have scores.
-    utility.print_terminal_partition(leve=3)
+    utility.print_terminal_partition(level=3)
     print("check for genes with null scores")
     # Iterate on genes.
     null_genes = list()
@@ -435,12 +434,14 @@ def check_genes_scores_permutations(
     print("count of genes with null scores: " + str(len(null_genes)))
 
     # Check standardization.
-    utility.print_terminal_partition(leve=3)
+    utility.print_terminal_partition(level=3)
     print("check standardization of scores and permutations")
-    gene_check = random.sample(genes, 1)
-    print("example gene: " + str(gene_check[0]))
-    entry = genes_scores_permutations[gene_check[0]]
+    print("... mean is not zero and standard deviation is not one because")
+    print("standardization is across all genes")
+    print("example gene: " + str(gene_check))
+    entry = genes_scores_permutations[gene_check]
     for measure in ["dip", "mixture", "coefficient"]:
+        print("----------")
         print(measure + ": " + str(entry["scores"][measure]))
         mean = statistics.mean(entry["permutations"][measure])
         deviation = statistics.stdev(entry["permutations"][measure])
@@ -539,8 +540,9 @@ def standardize_scores_permutations(
 
     """
 
-    # Calculate values of mean and standard deviation across all scores and
-    # permutations for each primary bimodality measure.
+    # Calculate values of mean and standard deviation from scores and
+    # permutations for each primary bimodality measure across all genes.
+    # This standardization allows subsequent comparison between genes.
     dip = calculate_mean_deviation_scores_permutations(
         measure="dip",
         genes_scores_permutations=genes_scores_permutations,
@@ -723,6 +725,9 @@ def execute_procedure(dock=None):
 
     """
 
+    # Enable automatic garbage collection to clear memory.
+    gc.enable()
+
     # Remove previous files to avoid version or batch confusion.
     path_collection = os.path.join(dock, "collection")
     utility.remove_directory(path=path_collection)
@@ -747,8 +752,12 @@ def execute_procedure(dock=None):
         path_permutation=path_permutation,
     )
 
-    utility.print_terminal_partition(level=1)
+    utility.print_terminal_partition(level=2)
     print("collection, standardization, and combination done!!!")
+    utility.print_terminal_partition(level=2)
+
+    # Collect garbage to clear memory.
+    gc.collect()
 
     # Compile information.
     information = {

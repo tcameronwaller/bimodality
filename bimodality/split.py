@@ -17,6 +17,7 @@ import os
 import math
 import statistics
 import pickle
+import json
 
 # Relevant
 
@@ -274,6 +275,9 @@ def write_product(dock=None, information=None):
     path_signal = os.path.join(
         path_split, "genes_samples_signals.pickle"
     )
+    path_signal_test = os.path.join(
+        path_split, "genes_samples_signals_test.json"
+    )
     path_demo = os.path.join(
         path_split, "demonstration_gene_samples_signals.pickle"
     )
@@ -291,6 +295,11 @@ def write_product(dock=None, information=None):
         pickle.dump(information["tissues"], file_product)
     with open(path_signal, "wb") as file_product:
         pickle.dump(information["genes_samples_signals"], file_product)
+
+    with open(path_signal_test, "wb") as file_product:
+        json.dump(information["genes_samples_signals"], file_product)
+
+
     pandas.to_pickle(
         information["data_gene_samples_signals"],
         path_demo

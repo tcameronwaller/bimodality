@@ -44,7 +44,7 @@ set -x
 # GCTA requires PLINK 1 format files, .bed, .bim, and .fam.
 #$path_plink --vcf $path_genotype_vcf --no-fid --make-bed --out $path_genotype_ped
 # I think that the "no-fid" flag does not change anything when importing a VCF.
-$path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped --threads 10
+#-->   $path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped --threads 10
 
 ##########
 # Generate GRM for all autosomal chromosomes.
@@ -99,6 +99,9 @@ done
 # in a different directory.
 # TODO: is there an error in --unify-grm?
 
+# TODO: 2019-10-03
+# TODO: GCTA reads the --mgrm lists properly
+# TODO: GCTA can't seem to actually read the files that the list specifies
 
 path_trans="$path_relation/trans"
 rm -r $path_trans
@@ -111,6 +114,3 @@ do
     # Define path to union GRM.
     $path_gcta --mgrm $path_combination --unify-grm --out $path_trans/$cis --threads 10
 done
-
-# Analysis
-#$path_gcta --grm $path_relation/chromosome_6 --pheno $path_distribution --reml --out $path_result
