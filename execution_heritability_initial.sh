@@ -44,7 +44,7 @@ set -x
 # GCTA requires PLINK 1 format files, .bed, .bim, and .fam.
 #$path_plink --vcf $path_genotype_vcf --no-fid --make-bed --out $path_genotype_ped
 # I think that the "no-fid" flag does not change anything when importing a VCF.
-#run this one -->##$path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped --threads 10
+$path_plink --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped --threads 10
 
 ##########
 # Generate GRM for all autosomal chromosomes.
@@ -62,7 +62,7 @@ do
     # For cis heritability, GRM must be specific to each gene's chromosome.
     # Filter by persons and minimal allelic frequence (MAF).
     # GCTA's format requirement for list of persons is text with tab delimiters.
-    $path_gcta --bfile $path_genotype_ped --keep $path_persons --chr $cis --maf 0.01 --make-grm --out $path_cis/$cis --threads 1
+    $path_gcta --bfile $path_genotype_ped --keep $path_persons --chr $cis --maf 0.01 --make-grm --out $path_cis/$cis --threads 10
 done
 
 ##########
@@ -95,6 +95,11 @@ done
 # Unify GRMs for combinations of trans chromosomes
 # multi_grm.txt file should include complete paths to all individual grms to unify...
 
+# TODO: in previous trials, this next part wrote .log files to the correct directory but dumped all other files with strange names
+# in a different directory.
+# TODO: is there an error in --unify-grm?
+
+
 path_trans="$path_relation/trans"
 rm -r $path_trans
 mkdir $path_trans
@@ -104,7 +109,7 @@ do
     # Define path to list of chromosomes for trans combination.
     path_combination="$path_combinations/$cis.txt"
     # Define path to union GRM.
-    $path_gcta --mgrm $path_combination --unify-grm --out $path_trans/$cis
+    $path_gcta --mgrm $path_combination --unify-grm --out $path_trans/$cis --threads 10
 done
 
 # Analysis

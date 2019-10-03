@@ -46,7 +46,7 @@ echo "Now set to call routine and procedures."
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access
 #python3 interface.py main --dock $path_dock --assembly
-python3 interface.py main --dock $path_dock --selection
+#python3 interface.py main --dock $path_dock --selection
 
 # -- nonessential, exploratory procedures
 #python3 interface.py main --dock $path_dock --measurement
@@ -56,9 +56,9 @@ python3 interface.py main --dock $path_dock --selection
 ##########
 # - Batch Routine
 
-python3 interface.py main --dock $path_dock --split
+#python3 interface.py main --dock $path_dock --split
 
-python3 interface.py main --dock $path_dock --distribution --local
+#python3 interface.py main --dock $path_dock --distribution --local
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 
@@ -67,7 +67,7 @@ python3 interface.py main --dock $path_dock --distribution --local
 #nohup python3 interface.py main --dock $path_dock --permutation --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --permutation --remote --gene "ENSG00000186092"
 
-#python3 interface.py main --dock $path_dock --collection
+python3 interface.py main --dock $path_dock --collection
 
 # -- procedure for trial
 #python3 interface.py main --dock $path_dock --metric
@@ -75,7 +75,7 @@ python3 interface.py main --dock $path_dock --distribution --local
 ##########
 # Analysis Routine
 
-python3 interface.py main --dock $path_dock --rank
+#python3 interface.py main --dock $path_dock --rank
 #python3 interface.py main --dock $path_dock --category
 #python3 interface.py main --dock $path_dock --plot
 

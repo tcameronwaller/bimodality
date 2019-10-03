@@ -421,7 +421,7 @@ def filter_genes_probabilities_threshold(
 ):
     """
     Filters genes to keep only those with scores from at least two of the three
-    modality metrics with permutation probabilities below threshold.
+    modality measures with permutation probabilities below threshold.
 
     arguments:
         data (object): Pandas data frame of genes' properties, bimodality
@@ -438,7 +438,7 @@ def filter_genes_probabilities_threshold(
     """
 
     # Determine whether values pass threshold.
-    # Only consider the original modality metrics for this threshold.
+    # Only consider the original modality measures for this threshold.
     data_threshold = data.loc[(data[probability] < threshold), :]
     # Return information.
     return data_threshold
@@ -452,7 +452,7 @@ def filter_genes_probabilities_threshold_old(
 ):
     """
     Filters genes to keep only those with scores from at least two of the three
-    modality metrics with permutation probabilities below threshold.
+    modality measures with permutation probabilities below threshold.
 
     arguments:
         data (object): Pandas data frame of probabilities from genes' scores
@@ -474,10 +474,10 @@ def filter_genes_probabilities_threshold_old(
         return (len(values_true) >= count)
 
     # Count how many of the gene's modality probabilities are below threshold
-    # Keep genes with at least 2 metrics below threshold
+    # Keep genes with at least 2 measures below threshold
 
     # Determine whether values pass threshold.
-    # Only consider the original modality metrics for this threshold.
+    # Only consider the original modality measures for this threshold.
     data_selection = data.loc[ :, ["coefficient", "dip", "mixture"]]
     data_threshold = (data_selection <= threshold)
     # This aggregation operation produces a series.
@@ -525,14 +525,14 @@ def filter_genes_by_probabilities(
     entries = dict()
     for measurement in measurements:
         probability = (measurement + "_probability")
-        # Copy minimal genes' data for each modality metric.
+        # Copy minimal genes' data for each modality measure.
         data_measurement = copy_split_minimal_gene_data(
             measurement=measurement,
             probability=probability,
             data_genes_scores_probabilities=data_genes_scores_probabilities,
         )
 
-        # Filter genes by threshold on each metric's probabilities.
+        # Filter genes by threshold on each measure's probabilities.
         data_filter = filter_genes_probabilities_threshold(
             data=data_measurement,
             probability=probability,
@@ -748,8 +748,8 @@ def write_product(dock=None, information=None):
 # Thorough summary.
 
 # TODO: I think this is the most useful of the functions below...
-# TODO: ***for each metric separately***, split the gene ranks into low, middle, and high groups
-# TODO: I want to compare the scores and distributions of genes in these groups for each metric as a quality control
+# TODO: ***for each measure separately***, split the gene ranks into low, middle, and high groups
+# TODO: I want to compare the scores and distributions of genes in these groups for each measure as a quality control
 def define_report_genes(
     data_summary_genes=None,
     rank=None
@@ -759,7 +759,7 @@ def define_report_genes(
 
     arguments:
         data_summary_genes (object): Pandas data frame of genes' identifiers,
-            names, and probability values by metrics of modality
+            names, and probability values by measures of modality
         rank (str): key of data column to use for ranks
 
     raises:
@@ -878,7 +878,7 @@ def report_gene_modality_scores_distributions(
     raises:
 
     returns:
-        (dict<dict>): scores and distributions by multiple metrics
+        (dict<dict>): scores and distributions by multiple measures
 
     """
 
@@ -1180,7 +1180,7 @@ def execute_procedure(dock=None):
     print(data_genes_scores_probabilities)
     print(data_genes_scores_probabilities.iloc[0:10, 0:13])
 
-    # Filter genes by probabilities of each bimodality metric.
+    # Filter genes by probabilities of each bimodality measure.
     genes_measurements = filter_genes_by_probabilities(
         measurements=["dip", "mixture", "coefficient", "combination"],
         threshold=0.001, # set threshold at 1/1000 to give 10-fold grace
