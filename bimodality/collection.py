@@ -40,98 +40,9 @@ import utility
 ###############################################################################
 # Functionality
 
+# Scrap before separation...
 
-# Source
-
-
-def read_source(dock=None):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_split = os.path.join(dock, "split")
-    path_genes = os.path.join(path_split, "genes.txt")
-    path_distribution = os.path.join(dock, "distribution")
-    path_permutation = os.path.join(dock, "permutation")
-
-    # Read information from file.
-    genes = utility.read_file_text_list(
-        delimiter="\n",
-        path_file=path_genes,
-    )
-    genes_distribution = utility.extract_subdirectory_names(
-        path=path_distribution
-    )
-    genes_permutation = utility.extract_subdirectory_names(
-        path=path_permutation
-    )
-
-    # Compile and return information.
-    return {
-        "genes": genes,
-        "genes_distribution": genes_distribution,
-        "genes_permutation": genes_permutation,
-    }
-
-
-# Collection
-
-def check_genes(
-    genes=None,
-    genes_distribution=None,
-    genes_permutation=None,
-):
-    """
-    Checks genes from split, distribution, and permutation batch procedures.
-
-    arguments:
-        genes (list<str>): identifiers of genes
-        genes_distribution (list<str>): identifiers of genes
-        genes_permutation (list<str>): identifiers of genes
-
-    raises:
-
-    returns:
-
-    """
-
-    utility.print_terminal_partition(level=2)
-    print(
-        "Compare lists of genes from split, distribution, and permutation " +
-        "procedures."
-    )
-
-    print("count of genes from split (master): " + str(len(genes)))
-    print("count of genes from distribution: " + str(len(genes_distribution)))
-    print("count of genes from permutation: " + str(len(genes_permutation)))
-
-    print(
-        "Check whether all permutation list genes are in distribution list."
-    )
-    # Returns True if all elements in list_two are in list_one.
-    match = utility.compare_lists_by_inclusion(
-        list_one=genes_distribution,
-        list_two=genes_permutation,
-    )
-    print("permutation genes match distribution genes: " + str(match))
-
-    utility.print_terminal_partition(level=2)
-
-    pass
-
-
-def collect_organize_genes_scores_permutations(
+def collect_organize_genes_scores_permutations_old(
     genes=None,
     path_distribution=None,
     path_permutation=None,
@@ -177,11 +88,7 @@ def collect_organize_genes_scores_permutations(
 
     # Check and summarize information about genes.
     utility.print_terminal_partition(level=3)
-    print("scores and permutations after standardization")
-    check_genes_scores_permutations(
-        genes=genes,
-        genes_scores_permutations=genes_scores_permutations_standard
-    )
+    print("standardization complete")
 
     # Calculate combination scores.
     # Combination scores are scaled means of the primary bimodality measures.
@@ -192,17 +99,12 @@ def collect_organize_genes_scores_permutations(
 
     # Check and summarize information about genes.
     utility.print_terminal_partition(level=3)
-    print("scores and permutations after combination")
-    check_genes_scores_permutations(
-        genes=genes,
-        genes_scores_permutations=genes_scores_permutations_combination
-    )
+    print("combination complete")
 
     # Return information.
     return genes_scores_permutations_combination
 
-
-def read_collect_genes_scores_permutations(
+def read_collect_genes_scores_permutations_old(
     genes=None,
     path_distribution=None,
     path_permutation=None,
@@ -299,6 +201,449 @@ def read_collect_genes_scores_permutations(
 
     # Return information.
     return genes_scores_permutations
+
+def standardize_scores_permutations_old(
+    genes_scores_permutations=None
+):
+    """
+    Calculates standard values of scores and permutations of the primary
+    bimodality measures.
+
+    There are two reasonable ways to standard bimodality measures.
+    1. standardize relative to each gene
+    - use mean and standard deviation from that gene
+    2. standardize relative to each measure across all genes
+    - use mean and standard deviation for each measure across all genes
+    - this standardization is most appropriate in order to compare genes
+
+    Data structure.
+    - genes_scores_permutations (dict)
+    -- gene (dict)
+    --- scores (dict)
+    ---- dip (float)
+    ---- mixture (float)
+    ---- coefficient (float)
+    --- permutations (dict)
+    ---- dip (list)
+    ----- value (float)
+    ---- mixture (list)
+    ----- value (float)
+    ---- coefficient (list)
+    ----- value (float)
+
+    arguments:
+        genes_scores_permutations (dict<dict<dict>>): information about genes'
+            scores and permutations
+
+    raises:
+
+    returns:
+        (dict<dict<dict>>): information about genes' scores and permutations
+
+    """
+
+    # Calculate values of mean and standard deviation from scores and
+    # permutations for each primary bimodality measure across all genes.
+    # This standardization allows subsequent comparison between genes.
+    dip = calculate_mean_deviation_scores_permutations(
+        measure="dip",
+        genes_scores_permutations=genes_scores_permutations,
+    )
+    mixture = calculate_mean_deviation_scores_permutations(
+        measure="mixture",
+        genes_scores_permutations=genes_scores_permutations,
+    )
+    coefficient = calculate_mean_deviation_scores_permutations(
+        measure="coefficient",
+        genes_scores_permutations=genes_scores_permutations,
+    )
+
+    # Standardize scores and permutations.
+    # Use values of mean and standard deviation for each primary bimodality
+    # measure across all genes.
+    # Collecting standard values in a new collection would require a lot of
+    # memory.
+    # Rather, change values to standard values in the original collection.
+    # Iterate on genes.
+    for gene in genes_scores_permutations:
+        # Access gene's original scores and permutations.
+        entry = genes_scores_permutations[gene]
+        # Calculate standard scores.
+        entry["scores"]["dip"] = utility.calculate_standard_score(
+            value=entry["scores"]["dip"],
+            mean=dip["mean"],
+            deviation=dip["deviation"],
+        )
+        entry["scores"]["mixture"] = utility.calculate_standard_score(
+            value=entry["scores"]["mixture"],
+            mean=mixture["mean"],
+            deviation=mixture["deviation"],
+        )
+        entry["scores"]["coefficient"] = utility.calculate_standard_score(
+            value=entry["scores"]["coefficient"],
+            mean=coefficient["mean"],
+            deviation=coefficient["deviation"],
+        )
+        entry["permutations"]["dip"] = utility.calculate_standard_scores(
+            values=entry["permutations"]["dip"],
+            mean=dip["mean"],
+            deviation=dip["deviation"],
+        )
+        entry["permutations"]["mixture"] = utility.calculate_standard_scores(
+            values=entry["permutations"]["mixture"],
+            mean=mixture["mean"],
+            deviation=mixture["deviation"],
+        )
+        entry["permutations"]["coefficient"] = (
+                utility.calculate_standard_scores(
+                values=entry["permutations"]["coefficient"],
+                mean=coefficient["mean"],
+                deviation=coefficient["deviation"],
+            )
+        )
+
+        # Compile information.
+        genes_scores_permutations[gene] = entry
+    # Return information.
+    return genes_scores_permutations
+
+def combine_scores_permutations_old(
+    genes_scores_permutations=None
+):
+    """
+    Calculates combination scores and permutations as the mean of standard
+    primary bimodality measures.
+
+    Data structure.
+    - genes_scores_permutations (dict)
+    -- gene (dict)
+    --- scores (dict)
+    ---- dip (float)
+    ---- mixture (float)
+    ---- coefficient (float)
+    ---- combination (float)
+    --- permutations (dict)
+    ---- dip (list)
+    ----- value (float)
+    ---- mixture (list)
+    ----- value (float)
+    ---- coefficient (list)
+    ----- value (float)
+    ---- combination (list)
+    ----- value (float)
+
+    arguments:
+        genes_scores_permutations (dict<dict<dict>>): information about genes'
+            scores and permutations
+
+    raises:
+
+    returns:
+        (dict<dict<dict>>): information about genes' scores and permutations
+
+    """
+
+    # Extract identifiers of genes with scores.
+    genes = list(genes_scores_permutations.keys())
+    # Iterate on genes.
+    for gene in genes:
+        # Access information about gene's scores and distributions.
+        entry = genes_scores_permutations[gene]
+        # Calculate combination scores.
+        combination = statistics.mean([
+            entry["scores"]["coefficient"],
+            entry["scores"]["dip"],
+            entry["scores"]["mixture"],
+        ])
+        # Calculate combination permutations.
+        combinations = list()
+        for index in range(len(entry["permutations"]["coefficient"])):
+            dip = entry["permutations"]["dip"][index]
+            mixture = entry["permutations"]["mixture"][index]
+            coefficient = entry["permutations"]["coefficient"][index]
+            value = statistics.mean([dip, mixture, coefficient])
+            combinations.append(value)
+            pass
+        # Compile information.
+        entry["scores"]["combination"] = combination
+        entry["permutations"]["combination"] = combinations
+        genes_scores_permutations[gene].update(entry)
+    # Return information.
+    return genes_scores_permutations
+
+
+###############################
+
+
+# Source
+
+
+def read_source(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_split = os.path.join(dock, "split")
+    path_genes = os.path.join(path_split, "genes.txt")
+    path_distribution = os.path.join(dock, "distribution")
+    path_permutation = os.path.join(dock, "permutation")
+
+    # Read information from file.
+    genes = utility.read_file_text_list(
+        delimiter="\n",
+        path_file=path_genes,
+    )
+    genes_distribution = utility.extract_subdirectory_names(
+        path=path_distribution
+    )
+    genes_permutation = utility.extract_subdirectory_names(
+        path=path_permutation
+    )
+
+    # Compile and return information.
+    return {
+        "genes": genes,
+        "genes_distribution": genes_distribution,
+        "genes_permutation": genes_permutation,
+    }
+
+
+# Collection
+
+
+def check_genes(
+    genes=None,
+    genes_distribution=None,
+    genes_permutation=None,
+):
+    """
+    Checks genes from split, distribution, and permutation batch procedures.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        genes_distribution (list<str>): identifiers of genes
+        genes_permutation (list<str>): identifiers of genes
+
+    raises:
+
+    returns:
+
+    """
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "Compare lists of genes from split, distribution, and permutation " +
+        "procedures."
+    )
+
+    print("count of genes from split (master): " + str(len(genes)))
+    print("count of genes from distribution: " + str(len(genes_distribution)))
+    print("count of genes from permutation: " + str(len(genes_permutation)))
+
+    print(
+        "Check whether all permutation list genes are in distribution list."
+    )
+    # Returns True if all elements in list_two are in list_one.
+    match = utility.compare_lists_by_inclusion(
+        list_one=genes_distribution,
+        list_two=genes_permutation,
+    )
+    print("permutation genes match distribution genes: " + str(match))
+
+    utility.print_terminal_partition(level=2)
+
+    pass
+
+
+def collect_organize_genes_scores_permutations(
+    genes=None,
+    path_distribution=None,
+    path_permutation=None,
+):
+    """
+    Collects and organizes information about genes.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        path_distribution (str): path to distribution directory
+        path_permutation (str): path to permutation directory
+
+    raises:
+
+    returns:
+        (dict<dict<dict>>): information about genes' scores and permutations
+
+    """
+
+    # Collect scores from distribution procedure.
+    # Collect scores from permutation procedure.
+    originality = read_collect_genes_scores_permutations(
+        genes=genes,
+        path_distribution=path_distribution,
+        path_permutation=path_permutation,
+    )
+    utility.print_terminal_partition(level=3)
+    print("collection complete")
+
+    # Check and summarize information about genes.
+    if False:
+        utility.print_terminal_partition(level=3)
+        print("original scores and permutations")
+        check_genes_scores_permutations(
+            genes=genes,
+            genes_scores_permutations=genes_scores_permutations
+        )
+
+    # Standardize bimodality measures.
+    # Calculate standard scores and permutations using the same values of
+    # mean and standard deviation in order to allow comparison between scores
+    # and permutations.
+    standardization = standardize_scores_permutations(
+        genes_scores=originality["genes_scores"],
+        genes_permutations=originality["genes_permutations"],
+    )
+    utility.print_terminal_partition(level=3)
+    print("standardization complete")
+
+    # Calculate combination scores.
+    # Combination scores are scaled means of the primary bimodality measures.
+    # Combination scores are useful to rank genes.
+    combination = combine_scores_permutations(
+        genes_scores=standardization["genes_scores"],
+        genes_permutations=standardization["genes_permutations"],
+    )
+    utility.print_terminal_partition(level=3)
+    print("combination complete")
+
+    # Convert permutations.
+    genes_permutations = convert_genes_permutations(
+        genes_permutations=combination["genes_permutations"]
+    )
+    utility.print_terminal_partition(level=3)
+    print("conversion complete")
+
+    # Compile information.
+    information = dict()
+    information["genes_scores"] = combination["genes_scores"]
+    information["genes_permutations"] = genes_permutations
+    # Return information.
+    return information
+
+
+def read_collect_genes_scores_permutations(
+    genes=None,
+    path_distribution=None,
+    path_permutation=None,
+):
+    """
+    Collects information about genes.
+
+    Data structure.
+
+    - genes_scores (dict)
+    -- gene (dict)
+    --- dip (float)
+    --- mixture (float)
+    --- coefficient (float)
+
+    - genes_permutations (dict)
+    -- gene (dict)
+    --- dip (list)
+    ---- value (float)
+    --- mixture (list)
+    ---- value (float)
+    --- coefficient (list)
+    ---- value (float)
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        path_distribution (str): path to distribution directory
+        path_permutation (str): path to permutation directory
+
+    raises:
+
+    returns:
+        (dict): information about genes' scores and permutations
+
+    """
+
+    # Report process.
+    utility.print_terminal_partition(level=1)
+    print(
+        "Reading and compiling information about genes' scores and " +
+        "permutations."
+    )
+
+    # Check contents of directory.
+    utility.print_terminal_partition(level=3)
+    print("Check that directories exist for all genes to collect.")
+    genes_distribution = utility.extract_subdirectory_names(
+        path=path_distribution
+    )
+    genes_permutation = utility.extract_subdirectory_names(
+        path=path_permutation
+    )
+    match_distribution = utility.compare_lists_by_inclusion(
+        list_one=genes_distribution,
+        list_two=genes
+    )
+    print(
+        "Genes and distribution directories match: " +
+        str(match_distribution)
+    )
+    match_permutation = utility.compare_lists_by_inclusion(
+        list_one=genes_permutation,
+        list_two=genes
+    )
+    print(
+        "Genes and permutation directories match: " +
+        str(match_permutation)
+    )
+
+    # Collect genes' scores and permutations.
+    utility.print_terminal_partition(level=3)
+    print("Collect genes' scores and permutations.")
+    # Collect information about genes.
+    genes_scores = dict()
+    genes_permutations = dict()
+    # Iterate on genes.
+    for gene in genes:
+        # Specify directories and files.
+        path_distribution_gene = os.path.join(path_distribution, gene)
+        path_permutation_gene = os.path.join(path_permutation, gene)
+        path_scores = os.path.join(
+            path_distribution_gene, "scores.pickle"
+        )
+        path_permutations = os.path.join(
+            path_permutation_gene, "permutations.pickle"
+        )
+        # Read information from file.
+        with open(path_scores, "rb") as file_source:
+            scores = pickle.load(file_source)
+        with open(path_permutations, "rb") as file_source:
+            permutations = pickle.load(file_source)
+        # Create entry for gene.
+        # Compile information.
+        genes_scores[gene] = scores
+        genes_permutations[gene] = permutations
+
+    # Compile information.
+    information = dict()
+    information["genes_scores"] = genes_scores
+    information["genes_permutations"] = genes_permutations
+    # Return information.
+    return information
 
 
 def read_collect_genes_patients(path=None):
@@ -456,7 +801,8 @@ def check_genes_scores_permutations(
 
 def calculate_mean_deviation_scores_permutations(
     measure=None,
-    genes_scores_permutations=None,
+    genes_scores=None,
+    genes_permutations=None,
 ):
     """
     Calculates the mean and standard deviation of scores and permutations for a
@@ -464,8 +810,9 @@ def calculate_mean_deviation_scores_permutations(
 
     arguments:
         measure (str): name of a single bimodality measure
-        genes_scores_permutations (dict<dict<dict>>): information about genes'
-            scores and permutations
+        genes_scores (dict<dict<float>>): information about genes' scores
+        genes_permutations (dict<dict<list<float>>>): information about genes'
+            permutations
 
     raises:
 
@@ -476,16 +823,15 @@ def calculate_mean_deviation_scores_permutations(
 
     # Collect values of each primary bimodality measure.
     values = list()
-    # Extract identifiers of genes with scores.
-    genes = list(genes_scores_permutations.keys())
     # Iterate on genes.
-    for gene in genes:
+    for gene in genes_scores:
         # Access information about gene's scores and distributions.
-        entry = genes_scores_permutations[gene]
+        scores = genes_scores[gene]
+        permutations = genes_permutations[gene]
         # Collect values of scores.
-        values.append(entry["scores"][measure])
+        values.append(scores[measure])
         # Collect values of permutations.
-        values.extend(entry["permutations"][measure])
+        values.extend(permutations[measure])
 
     # Calculate mean and standard deviation of the primary bimodality measure's
     # scores and permutations across all genes.
@@ -501,7 +847,8 @@ def calculate_mean_deviation_scores_permutations(
 
 
 def standardize_scores_permutations(
-    genes_scores_permutations=None
+    genes_scores=None,
+    genes_permutations=None,
 ):
     """
     Calculates standard values of scores and permutations of the primary
@@ -515,28 +862,30 @@ def standardize_scores_permutations(
     - this standardization is most appropriate in order to compare genes
 
     Data structure.
-    - genes_scores_permutations (dict)
+    - genes_scores (dict)
     -- gene (dict)
-    --- scores (dict)
-    ---- dip (float)
-    ---- mixture (float)
-    ---- coefficient (float)
-    --- permutations (dict)
-    ---- dip (list)
-    ----- value (float)
-    ---- mixture (list)
-    ----- value (float)
-    ---- coefficient (list)
-    ----- value (float)
+    --- dip (float)
+    --- mixture (float)
+    --- coefficient (float)
+
+    - genes_permutations (dict)
+    -- gene (dict)
+    --- dip (list)
+    ---- value (float)
+    --- mixture (list)
+    ---- value (float)
+    --- coefficient (list)
+    ---- value (float)
 
     arguments:
-        genes_scores_permutations (dict<dict<dict>>): information about genes'
-            scores and permutations
+        genes_scores (dict<dict<float>>): information about genes' scores
+        genes_permutations (dict<dict<list<float>>>): information about genes'
+            permutations
 
     raises:
 
     returns:
-        (dict<dict<dict>>): information about genes' scores and permutations
+        (dict): information about genes' scores and permutations
 
     """
 
@@ -545,15 +894,18 @@ def standardize_scores_permutations(
     # This standardization allows subsequent comparison between genes.
     dip = calculate_mean_deviation_scores_permutations(
         measure="dip",
-        genes_scores_permutations=genes_scores_permutations,
+        genes_scores=genes_scores,
+        genes_permutations=genes_permutations
     )
     mixture = calculate_mean_deviation_scores_permutations(
         measure="mixture",
-        genes_scores_permutations=genes_scores_permutations,
+        genes_scores=genes_scores,
+        genes_permutations=genes_permutations
     )
     coefficient = calculate_mean_deviation_scores_permutations(
         measure="coefficient",
-        genes_scores_permutations=genes_scores_permutations,
+        genes_scores=genes_scores,
+        genes_permutations=genes_permutations
     )
 
     # Standardize scores and permutations.
@@ -563,54 +915,61 @@ def standardize_scores_permutations(
     # memory.
     # Rather, change values to standard values in the original collection.
     # Iterate on genes.
-    for gene in genes_scores_permutations:
+    for gene in genes_scores:
         # Access gene's original scores and permutations.
-        entry = genes_scores_permutations[gene]
+        scores = genes_scores[gene]
+        permutations = genes_permutations[gene]
         # Calculate standard scores.
-        entry["scores"]["dip"] = utility.calculate_standard_score(
-            value=entry["scores"]["dip"],
+        scores["dip"] = utility.calculate_standard_score(
+            value=scores["dip"],
             mean=dip["mean"],
             deviation=dip["deviation"],
         )
-        entry["scores"]["mixture"] = utility.calculate_standard_score(
-            value=entry["scores"]["mixture"],
+        scores["mixture"] = utility.calculate_standard_score(
+            value=scores["mixture"],
             mean=mixture["mean"],
             deviation=mixture["deviation"],
         )
-        entry["scores"]["coefficient"] = utility.calculate_standard_score(
-            value=entry["scores"]["coefficient"],
+        scores["coefficient"] = utility.calculate_standard_score(
+            value=scores["coefficient"],
             mean=coefficient["mean"],
             deviation=coefficient["deviation"],
         )
-        entry["permutations"]["dip"] = utility.calculate_standard_scores(
-            values=entry["permutations"]["dip"],
+        permutations["dip"] = utility.calculate_standard_scores(
+            values=permutations["dip"],
             mean=dip["mean"],
             deviation=dip["deviation"],
         )
-        entry["permutations"]["mixture"] = utility.calculate_standard_scores(
-            values=entry["permutations"]["mixture"],
+        permutations["mixture"] = utility.calculate_standard_scores(
+            values=permutations["mixture"],
             mean=mixture["mean"],
             deviation=mixture["deviation"],
         )
-        entry["permutations"]["coefficient"] = (
+        permutations["coefficient"] = (
                 utility.calculate_standard_scores(
-                values=entry["permutations"]["coefficient"],
+                values=permutations["coefficient"],
                 mean=coefficient["mean"],
                 deviation=coefficient["deviation"],
             )
         )
 
         # Compile information.
-        genes_scores_permutations[gene] = entry
+        genes_scores[gene] = scores
+        genes_permutations[gene] = permutations
+    # Compile information.
+    information = dict()
+    information["genes_scores"] = genes_scores
+    information["genes_permutations"] = genes_permutations
     # Return information.
-    return genes_scores_permutations
+    return information
 
 
 # Combination
 
 
 def combine_scores_permutations(
-    genes_scores_permutations=None
+    genes_scores=None,
+    genes_permutations=None
 ):
     """
     Calculates combination scores and permutations as the mean of standard
@@ -635,43 +994,90 @@ def combine_scores_permutations(
     ----- value (float)
 
     arguments:
-        genes_scores_permutations (dict<dict<dict>>): information about genes'
-            scores and permutations
+        genes_scores (dict<dict<float>>): information about genes' scores
+        genes_permutations (dict<dict<list<float>>>): information about genes'
+            permutations
 
     raises:
 
     returns:
-        (dict<dict<dict>>): information about genes' scores and permutations
+        (dict): information about genes' scores and permutations
 
     """
 
-    # Extract identifiers of genes with scores.
-    genes = list(genes_scores_permutations.keys())
     # Iterate on genes.
-    for gene in genes:
+    for gene in genes_scores:
         # Access information about gene's scores and distributions.
-        entry = genes_scores_permutations[gene]
+        scores = genes_scores[gene]
+        permutations = genes_permutations[gene]
         # Calculate combination scores.
         combination = statistics.mean([
-            entry["scores"]["coefficient"],
-            entry["scores"]["dip"],
-            entry["scores"]["mixture"],
+            scores["coefficient"],
+            scores["dip"],
+            scores["mixture"],
         ])
         # Calculate combination permutations.
         combinations = list()
-        for index in range(len(entry["permutations"]["coefficient"])):
-            dip = entry["permutations"]["dip"][index]
-            mixture = entry["permutations"]["mixture"][index]
-            coefficient = entry["permutations"]["coefficient"][index]
+        for index in range(len(permutations["coefficient"])):
+            dip = permutations["dip"][index]
+            mixture = permutations["mixture"][index]
+            coefficient = permutations["coefficient"][index]
             value = statistics.mean([dip, mixture, coefficient])
             combinations.append(value)
             pass
         # Compile information.
-        entry["scores"]["combination"] = combination
-        entry["permutations"]["combination"] = combinations
-        genes_scores_permutations[gene].update(entry)
+        scores["combination"] = combination
+        permutations["combination"] = combinations
+        genes_scores[gene] = scores
+        genes_permutations[gene] = permutations
+    # Compile information.
+    information = dict()
+    information["genes_scores"] = genes_scores
+    information["genes_permutations"] = genes_permutations
     # Return information.
-    return genes_scores_permutations
+    return information
+
+
+# Conversion
+
+
+def convert_genes_permutations(
+    genes_permutations=None
+):
+    """
+    Converts genes' permutations from lists to NumPy arrays.
+
+    arguments:
+        genes_permutations (dict<dict<list<float>>>): information about genes'
+            permutations
+
+    raises:
+
+    returns:
+        (dict<array>): information about genes' permutations
+
+    """
+
+    # Iterate on genes.
+    for gene in genes_permutations:
+        # Access information about gene's scores and distributions.
+        permutations = genes_permutations[gene]
+        permutations["dip"] = numpy.asarray(
+            permutations["dip"], dtype=numpy.float32
+        )
+        permutations["mixture"] = numpy.asarray(
+            permutations["mixture"], dtype=numpy.float32
+        )
+        permutations["coefficient"] = numpy.asarray(
+            permutations["coefficient"], dtype=numpy.float32
+        )
+        permutations["combination"] = numpy.asarray(
+            permutations["combination"], dtype=numpy.float32
+        )
+        # Compile information.
+        genes_permutations[gene] = permutations
+    # Return information.
+    return genes_permutations
 
 
 # Product
@@ -695,13 +1101,20 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_collection = os.path.join(dock, "collection")
     utility.create_directory(path_collection)
-    path_scores_permutations = os.path.join(
-        path_collection, "genes_scores_permutations.pickle"
+    path_scores = os.path.join(
+        path_collection, "genes_scores.pickle"
+    )
+    path_permutations = os.path.join(
+        path_collection, "genes_permutations.pickle"
     )
     # Write information to file.
-    with open(path_scores_permutations, "wb") as file_product:
+    with open(path_scores, "wb") as file_product:
         pickle.dump(
-            information["genes_scores_permutations"], file_product
+            information["genes_scores"], file_product
+        )
+    with open(path_permutations, "wb") as file_product:
+        pickle.dump(
+            information["genes_permutations"], file_product
         )
 
     pass
@@ -761,7 +1174,8 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
-        "genes_scores_permutations": genes_scores_permutations,
+        "genes_scores": genes_scores_permutations["genes_scores"],
+        "genes_permutations": genes_scores_permutations["genes_permutations"],
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

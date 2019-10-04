@@ -50,6 +50,9 @@ set -x
 # Generate GRM for all autosomal chromosomes.
 #$path_gcta --bfile $path_genotype_ped/genotype --keep $path_persons --autosome --maf 0.01 --make-grm --out $path_relation/autosome --threads 20
 
+# TODO: 2019-10-05 I decided to remove the --threads 10 from the end of the --make-grm and --unify-grm lines...
+
+
 ##########
 # Generate GRMs for individual chromosomes.
 # These GRMs are directly useful as cis GRMs.
@@ -62,7 +65,7 @@ do
     # For cis heritability, GRM must be specific to each gene's chromosome.
     # Filter by persons and minimal allelic frequence (MAF).
     # GCTA's format requirement for list of persons is text with tab delimiters.
-    $path_gcta --bfile $path_genotype_ped --keep $path_persons --chr $cis --maf 0.01 --make-grm --out $path_cis/$cis --threads 10
+    $path_gcta --bfile $path_genotype_ped --keep $path_persons --chr $cis --maf 0.01 --make-grm --out $path_cis/$cis
 done
 
 ##########
@@ -103,6 +106,8 @@ done
 # TODO: GCTA reads the --mgrm lists properly
 # TODO: GCTA can't seem to actually read the files that the list specifies
 
+# TODO: the cis GRMs aren't writing properly to the .../cis/ directory... only the .log file
+
 path_trans="$path_relation/trans"
 rm -r $path_trans
 mkdir $path_trans
@@ -112,5 +117,5 @@ do
     # Define path to list of chromosomes for trans combination.
     path_combination="$path_combinations/$cis.txt"
     # Define path to union GRM.
-    $path_gcta --mgrm $path_combination --unify-grm --out $path_trans/$cis --threads 10
+    $path_gcta --mgrm $path_combination --unify-grm --out $path_trans/$cis
 done

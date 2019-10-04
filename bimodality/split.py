@@ -296,8 +296,8 @@ def write_product(dock=None, information=None):
     with open(path_signal, "wb") as file_product:
         pickle.dump(information["genes_samples_signals"], file_product)
 
-    with open(path_signal_test, "wb") as file_product:
-        json.dump(information["genes_samples_signals"], file_product)
+    #with open(path_signal_test, "wb") as file_product:
+    #    json.dump(information["genes_samples_signals"], file_product)
 
 
     pandas.to_pickle(
