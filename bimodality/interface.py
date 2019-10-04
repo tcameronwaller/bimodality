@@ -17,7 +17,7 @@ import textwrap
 # Custom.
 
 #import access
-#import assembly
+import assembly
 #import measurement
 #import sample
 #import tissue
@@ -25,7 +25,7 @@ import selection
 
 import split
 import distribution
-#import shuffle
+import shuffle
 import permutation
 import collection
 
@@ -34,7 +34,7 @@ import rank
 
 #import integration
 
-import metric
+import modality
 import plot
 #import test
 import utility
@@ -297,8 +297,8 @@ def define_main_subparser(subparsers=None):
         help="Functional analyses on ranks of genes."
     )
     parser_main.add_argument(
-        "-metric", "--metric", dest="metric", action="store_true",
-        help="Definition and test of metrics for modality."
+        "-modality", "--modality", dest="modality", action="store_true",
+        help="Definition and test of measures for modality."
     )
     parser_main.add_argument(
         "-plot", "--plot", dest="plot", action="store_true",
@@ -488,11 +488,11 @@ def evaluate_main_parameters(arguments):
         print("... executing function procedure ...")
         # Execute procedure.
         function.execute_procedure(dock=arguments.dock)
-    if arguments.metric:
+    if arguments.modality:
         # Report status.
-        print("... executing metric procedure ...")
+        print("... executing modality procedure ...")
         # Execute procedure.
-        metric.execute_procedure(dock=arguments.dock)
+        modality.execute_procedure(dock=arguments.dock)
     if arguments.plot:
         # Report status.
         print("... executing plot procedure ...")

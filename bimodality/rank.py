@@ -32,7 +32,6 @@ import scipy.stats
 # Custom
 
 import distribution
-import metric
 import plot
 import utility
 
@@ -1194,7 +1193,7 @@ def execute_procedure(dock=None):
     # Filter genes by probabilities of each bimodality measure.
     genes_measurements = filter_genes_by_probabilities(
         measurements=["dip", "mixture", "coefficient", "combination"],
-        threshold=0.001, # set threshold at 1/1000 to give 10-fold grace
+        threshold=0.01, # set threshold at 1/1000 to give 10-fold grace
         data_genes_scores_probabilities=data_genes_scores_probabilities,
     )
 
@@ -1209,7 +1208,7 @@ def execute_procedure(dock=None):
     genes_selection = utility.select_elements_by_sets(
         names=["dip", "mixture", "coefficient"],
         sets=genes_measurements,
-        count=2,
+        count=3,
     )
     utility.print_terminal_partition(level=2)
     print(

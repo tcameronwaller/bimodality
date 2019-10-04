@@ -50,8 +50,8 @@ set -x
 # Generate GRM for all autosomal chromosomes.
 #$path_gcta --bfile $path_genotype_ped/genotype --keep $path_persons --autosome --maf 0.01 --make-grm --out $path_relation/autosome --threads 20
 
-# TODO: 2019-10-05 I decided to remove the --threads 10 from the end of the --make-grm and --unify-grm lines...
-
+# TODO: 2019-10-04 I decided to remove the --threads 10 from the end of the --make-grm and --unify-grm lines...
+# TODO: 2019-10-04 The script gets killed while trying to read in the .bim file from PLINK
 
 ##########
 # Generate GRMs for individual chromosomes.

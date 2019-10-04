@@ -93,9 +93,20 @@ def calculate_bimodality_coefficient(series=None):
     """
 
     # Calculate skewness.
-    skewness = scipy.stats.skew(series, axis=None)
+    # Correct for statistical sample bias.
+    skewness = scipy.stats.skew(
+        series,
+        axis=None,
+        bias=False,
+    )
     # Calculate excess kurtosis.
-    kurtosis = scipy.stats.kurtosis(series, axis=None, fisher=True)
+    # Correct for statistical sample bias.
+    kurtosis = scipy.stats.kurtosis(
+        series,
+        axis=None,
+        fisher=True,
+        bias=False,
+    )
     # Calculate count.
     count = len(series)
     # Calculate count factor.
@@ -123,7 +134,6 @@ def calculate_dip_statistic(series=None):
     # Calculate the Hartigans' dip test statistic.
     # Python package "unidip".
     dip = unidip.dip.dip_fn(series, is_hist=False, just_dip=True)
-    #if False:
     # Python package "diptest".
     if False:
         dip = diptest.dip(

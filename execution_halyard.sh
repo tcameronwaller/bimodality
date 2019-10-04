@@ -80,9 +80,9 @@ echo "Now set to call routine and procedures."
 ##########
 # Analysis Routine
 
-python3 interface.py main --dock $path_dock --rank
+#python3 interface.py main --dock $path_dock --rank
 #python3 interface.py main --dock $path_dock --category
-#python3 interface.py main --dock $path_dock --plot
+python3 interface.py main --dock $path_dock --plot
 
 ##########
 # New stuff...

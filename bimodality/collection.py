@@ -31,7 +31,6 @@ import scipy.stats
 
 # Custom
 
-import metric
 import utility
 
 #dir()

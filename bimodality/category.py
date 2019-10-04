@@ -39,7 +39,7 @@ import statsmodels.api
 # Custom
 
 import distribution
-import metric
+import modality
 import plot
 import utility
 

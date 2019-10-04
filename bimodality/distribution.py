@@ -30,8 +30,8 @@ import scipy.stats
 
 # Custom
 
-import measurement
-import metric
+import assembly
+import modality
 import category
 import utility
 
@@ -1192,7 +1192,7 @@ def normalize_standardize_gene_signal(
 
     # Transform genes' signals to logarithmic space.
     # Transform values of genes' signals to base-2 logarithmic space.
-    data_normal = measurement.transform_gene_signal_log(
+    data_normal = assembly.transform_gene_signal_log(
         data_gene_signal=data_gene_persons_tissues_signals,
         pseudo_count=1.0,
     )
@@ -1469,11 +1469,11 @@ def evaluate_gene_tissue(
     threshold_count = threshold_proportion * count_persons
 
 
-def calculate_bimodality_metrics(
+def measure_bimodality(
     values=None
 ):
     """
-    Calculates bimodality metrics for a distribution.
+    Calculates bimodality measures for a distribution.
 
     arguments:
         values (list): values of a distribution
@@ -1481,14 +1481,14 @@ def calculate_bimodality_metrics(
     raises:
 
     returns:
-        (dict<float>): values of metrics of bimodality
+        (dict<float>): values of measures of bimodality
 
     """
 
-    # Calculate metrics of bimodality.
-    coefficient = metric.calculate_bimodality_coefficient(series=values)
-    dip = metric.calculate_dip_statistic(series=values)
-    mixture = metric.calculate_mixture_model_score(series=values)
+    # Calculate measures of bimodality.
+    coefficient = modality.calculate_bimodality_coefficient(series=values)
+    dip = modality.calculate_dip_statistic(series=values)
+    mixture = modality.calculate_mixture_model_score(series=values)
     # Compile information.
     information = {
         "coefficient": coefficient,
@@ -1500,16 +1500,16 @@ def calculate_bimodality_metrics(
     return information
 
 
-def generate_null_metrics():
+def generate_null_measures():
     """
-    Generates null metrics.
+    Generates null measures.
 
     arguments:
 
     raises:
 
     returns:
-        (dict<float>): values of metrics of bimodality
+        (dict<float>): values of measures of bimodality
 
     """
 
@@ -1562,7 +1562,7 @@ def evaluate_gene_candidacy(
     )
 
     # Determine whether gene's tissue-aggregate scores across persons have
-    # adequate variance to apply metrics to the distribution.
+    # adequate variance to apply measures to the distribution.
     signal = evaluate_gene_signal(
         threshold=0.0,
         data_gene_persons_signals=data_gene_persons_signals,
@@ -1578,11 +1578,11 @@ def describe_distribution_modality(
     data_gene_persons_signals=None,
 ):
     """
-    Applies multiple metrics to describe the distribution of a gene's signals
+    Applies multiple measures to describe the distribution of a gene's signals
     across persons.
 
     arguments:
-        modality (bool): whether to calculate metrics for the modality of
+        modality (bool): whether to calculate measures for the modality of
             gene's distribution
         values (list<float>): values of a gene's signals across persons
         data_gene_persons_signals (object): Pandas data frame of a gene's
@@ -1591,30 +1591,30 @@ def describe_distribution_modality(
     raises:
 
     returns:
-        (dict): scores of modality metrics
+        (dict): scores of modality measures
 
     """
 
-    # Determine distribution modality metrics.
-    # Determine whether to calculate metrics for gene's distribution.
+    # Determine distribution modality measures.
+    # Determine whether to calculate measures for gene's distribution.
     if modality:
         candidacy = evaluate_gene_candidacy(
             data_gene_persons_signals=data_gene_persons_signals,
         )
         if candidacy:
-            # Calculate metrics.
-            # Calculate metrics of bimodality.
-            scores = calculate_bimodality_metrics(
+            # Calculate measures.
+            # Calculate measures of bimodality.
+            scores = measure_bimodality(
                 values=values
             )
             pass
         else:
             # Generate missing values.
-            scores = generate_null_metrics()
+            scores = generate_null_measures()
             pass
     else:
         # Generate missing values.
-        scores = generate_null_metrics()
+        scores = generate_null_measures()
         pass
 
     # Compile information.
@@ -1804,8 +1804,8 @@ def calculate_combination_scores(
     data_report=None,
 ):
     """
-    Converts genes' modality metrics to standard, z-score space and then
-    calculates combination metrics.
+    Converts genes' modality measures to standard, z-score space and then
+    calculates combination measures.
 
     arguments:
         data_report (object): Pandas data frame of information about genes'
@@ -1820,7 +1820,7 @@ def calculate_combination_scores(
 
     # Copy data.
     data = data_report.copy(deep=True)
-    # Calculate mean and standard deviation of each modality metric across
+    # Calculate mean and standard deviation of each modality measure across
     # genes.
     coefficients = data["coefficient"].to_list()
     dips = data["dip"].to_list()
@@ -1831,7 +1831,7 @@ def calculate_combination_scores(
     deviation_dip = statistics.stdev(dips)
     mean_mixture = statistics.mean(mixtures)
     deviation_mixture = statistics.stdev(mixtures)
-    # Convert gene's modality metrics to standard, z-score, space across genes.
+    # Convert gene's modality measures to standard, z-score, space across genes.
     data["coefficient_z"] = data.apply(
         lambda row: utility.calculate_standard_score(
             value=row["coefficient"],
@@ -1856,7 +1856,7 @@ def calculate_combination_scores(
         ),
         axis="columns",
     )
-    # Calculate combination score as mean of other modality metrics.
+    # Calculate combination score as mean of other modality measures.
     data["combination"] = data.apply(
         lambda row: statistics.mean(
             [
@@ -1924,7 +1924,7 @@ def prepare_gene_report(
     end = data_gene_annotation.loc[gene, "end"]
     # Compile information.
     information = {
-        "gene": gene,
+        "identifier": gene,
         "name": name,
         "chromosome": chromosome,
         "start": start,
@@ -1942,156 +1942,6 @@ def prepare_gene_report(
     }
     # Return information.
     return information
-
-
-##########################################################*******************
-########## More or less scrap beyond here...
-# Distribution
-
-def determine_gene_distributions(
-    gene=None,
-    modality=None,
-    data_gene_samples_signals=None,
-):
-    """
-    Prepares and describes the distributions of a gene's signals across
-    persons.
-
-    arguments:
-        gene (str): identifier of gene
-        modality (bool): whether to calculate metrics for the modality of
-            gene's distribution
-        data_gene_samples_signals (object): Pandas data frame of a gene's
-            signals across samples
-
-    raises:
-
-    returns:
-        (dict): information about the distribution of a gene's signals across
-            persons
-
-    """
-
-    # Organize data for analysis.
-    collection_organization = organization.execute_procedure(
-        data_gene_samples_signals=data_gene_samples_signals
-    )
-
-    # Determine distributions of gene's signals by multiple methods.
-    imputation = determine_gene_distribution(
-        gene=gene,
-        modality=modality,
-        method="imputation",
-        data_gene_persons_tissues_signals=(
-            collection_organization["data_gene_persons_tissues_signals"]
-        ),
-    )
-    availability = determine_gene_distribution(
-        gene=gene,
-        modality=modality,
-        method="availability",
-        data_gene_persons_tissues_signals=(
-            collection_organization["data_gene_persons_tissues_signals"]
-        ),
-    )
-
-    # Compile information.
-    information = {
-        "organization": collection_organization,
-        "imputation": imputation,
-        "availability": availability,
-    }
-
-    # Return information.
-    return information
-
-
-# Use this function as a reference to extract information for a gene's
-# distribution.
-def extract_gene_distribution_information(
-    method=None,
-    observation=None,
-):
-    """
-    Extracts information about a gene's distribution of pan-tissue signals
-    across persons.
-
-    arguments:
-        method (str): method for selection of tissues and persons in
-            restriction procedure, either "imputation" for selection by
-            specific tissues with imputation or "availability" for selection by
-            minimal count of tissues
-        observation (dict): information about a gene's actual distribution of
-            signals across persons and tissues
-
-    raises:
-
-    returns:
-
-    """
-
-    # Access information.
-    report_organization = observation["organization"]["report_gene"]
-    report_restriction = observation[method]["report_restriction"]
-    report_aggregation = observation[method]["report_aggregation"]
-
-    # Gene's signals across original, complete set of persons and tissues.
-    data_gene_persons_tissues_signals_complete = (
-        observation["organization"]["data_gene_persons_tissues_signals"]
-    )
-    # Mean of gene's signals across major tissue categories.
-    data_gene_tissue_mean = report_organization["data_gene_tissue_mean"]
-    # Variance of gene's signals across major tissue categories.
-    data_gene_tissue_variance = (
-        report_organization["data_gene_tissue_variance"]
-    )
-    # Standard deviation of gene's signals across major tissue categories.
-    data_gene_tissue_deviation = (
-        report_organization["data_gene_tissue_deviation"]
-    )
-    # Coefficient of variation of gene's signals across major tissue
-    # categories.
-    data_gene_tissue_variation = (
-        report_organization["data_gene_tissue_variation"]
-    )
-    # Dispersion in gene's signals across major tissue categories.
-    data_gene_tissue_dispersion = (
-        report_organization["data_gene_tissue_dispersion"]
-    )
-
-
-
-    # Gene's signals across tissues and persons, before any imputation.
-    data_gene_persons_tissues_signals = (
-        report_restriction["data_gene_persons_tissues_signals"]
-    )
-    # Boolean availability of valid gene's signals across tissues and persons.
-    data_gene_persons_tissues = (
-        report_restriction["data_gene_persons_tissues"]
-    )
-    # Count of tissues for which gene has valid signals across persons.
-    data_gene_persons_tissues_count = (
-        report_restriction["data_gene_persons_tissues_count"]
-    )
-    # Count of persons for which gene has valid signals across adequate
-    # tissues.
-    restriction_persons = report_restriction["persons"]
-    # Mean count of tissues per person.
-    restriction_tissues_mean = report_restriction["tissues_mean"]
-    # Median count of tissues per person.
-    restriction_tissues_median = report_restriction["tissues_median"]
-
-
-
-    # Gene's pan-tissue aggregate signals across persons.
-    data_gene_persons_signals = (
-        report_aggregation["data_gene_persons_signals"]
-    )
-    # Count of persons for which gene has valid signals across adequate
-    # tissues.
-    aggregation_persons = report_aggregation["persons"]
-
-    pass
 
 
 ##########
@@ -2258,12 +2108,59 @@ def write_product_gene(gene=None, dock=None, information=None):
     pass
 
 
-def read_collect_write_gene_report(
+def write_product_collection(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_distribution = os.path.join(dock, "distribution")
+    utility.create_directory(path_distribution)
+    path_genes_scores = os.path.join(
+        path_distribution, "genes_scores.pickle"
+    )
+    path_data_report = os.path.join(
+        path_distribution, "data_gene_report.pickle"
+    )
+    path_data_report_text = os.path.join(
+        path_distribution, "data_gene_report.tsv"
+    )
+    # Write information to file.
+    information["data_report"].to_pickle(
+        path=path_data_report
+    )
+    information["data_report"].to_csv(
+        path_or_buf=path_data_report_text,
+        sep="\t",
+        header=True,
+        index=False,
+    )
+    with open(path_genes_scores, "wb") as file_product:
+        pickle.dump(information["genes_scores"], file_product)
+
+    pass
+
+
+##########
+# Collection
+
+
+def read_collect_write_iterations(
     genes=None,
     dock=None,
 ):
     """
-    Collects information about genes.
+    Reads, collects, and writes information from iterations.
 
     arguments:
         genes (list<str>): identifiers of genes
@@ -2276,21 +2173,124 @@ def read_collect_write_gene_report(
 
     """
 
-    # Check contents of directory.
-    utility.print_terminal_partition(level=2)
-    print("Check that directories exist for all genes.")
-    path_distribution = os.path.join(dock, "distribution")
-    directories = os.listdir(path_distribution)
-    match = utility.compare_lists_by_mutual_inclusion(
-        list_one=genes, list_two=directories
+    # Report process.
+    utility.print_terminal_partition(level=1)
+    print(
+        "Reading, collecting, and writing information about genes' " +
+        "distributions."
     )
-    print("Genes and directories match: " + str(match))
+
+    # Check contents of directory.
+    utility.print_terminal_partition(level=3)
+    print("Check that directories exist for all genes to collect.")
+    path_distribution = os.path.join(dock, "distribution")
+    genes_distribution = utility.extract_subdirectory_names(
+        path=path_distribution
+    )
+    match_distribution = utility.compare_lists_by_inclusion(
+        list_one=genes_distribution,
+        list_two=genes
+    )
+    print(
+        "Genes and distribution directories match: " +
+        str(match_distribution)
+    )
     utility.print_terminal_partition(level=2)
+
+    # Genes' scores.
+    genes_scores = read_collect_genes_scores(
+        genes=genes_distribution,
+        path_distribution=path_distribution,
+    )
+    # Report of genes' distributions.
+    data_report = read_collect_gene_report(
+        genes=genes_distribution,
+        path_distribution=path_distribution,
+    )
+
+    # Compile information.
+    information = dict()
+    information["genes_scores"] = genes_scores
+    information["data_report"] = data_report
+    # Write product information to file.
+    write_product_collection(
+        dock=dock,
+        information=information
+    )
+    pass
+
+
+def read_collect_genes_scores(
+    genes=None,
+    path_distribution=None,
+):
+    """
+    Collects information about genes.
+
+    Data structure.
+
+    - genes_scores (dict)
+    -- gene (dict)
+    --- dip (float)
+    --- mixture (float)
+    --- coefficient (float)
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        path_distribution (str): path to distribution directory
+
+    raises:
+
+    returns:
+        (dict): information about genes' scores and permutations
+
+    """
+
+    # Collect genes' scores and permutations.
+    utility.print_terminal_partition(level=3)
+    print("Collect genes' scores.")
+    # Collect information about genes.
+    genes_scores = dict()
+    # Iterate on genes.
+    for gene in genes:
+        # Specify directories and files.
+        path_distribution_gene = os.path.join(path_distribution, gene)
+        path_scores = os.path.join(
+            path_distribution_gene, "scores.pickle"
+        )
+        # Read information from file.
+        with open(path_scores, "rb") as file_source:
+            scores = pickle.load(file_source)
+        # Create entry for gene.
+        # Compile information.
+        genes_scores[gene] = scores
+
+    # Return information.
+    return genes_scores
+
+
+def read_collect_gene_report(
+    genes=None,
+    path_distribution=None,
+):
+    """
+    Collects information about genes.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        path_distribution (str): path to distribution directory
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of information about genes' distributions
+
+    """
 
     # Collect information about genes.
     records = list()
     # Iterate on directories for genes.
-    for gene in directories:
+    for gene in genes:
         # Specify directories and files.
         path_gene = os.path.join(path_distribution, gene)
         path_report = os.path.join(
@@ -2305,8 +2305,25 @@ def read_collect_write_gene_report(
     data = utility.convert_records_to_dataframe(
         records=records,
     )
-    # Convert modality metrics to standard, z-score space.
-    # Calculate combination modality metrics.
+    data = data[[
+        "identifier",
+        "name",
+        "chromosome",
+        "start",
+        "end",
+        "persons_restriction",
+        "persons_aggregation",
+        "method",
+        "count",
+        "tissues",
+        "tissues_mean",
+        "tissues_median",
+        "dip",
+        "mixture",
+        "coefficient",
+    ]]
+    # Convert modality measures to standard, z-score space.
+    # Calculate combination modality measures.
     if True:
         data_report = calculate_combination_scores(
             data_report=data,
@@ -2335,25 +2352,7 @@ def read_collect_write_gene_report(
     print("count of genes with valid modalities: " + str(data_valid.shape[0]))
     utility.print_terminal_partition(level=2)
 
-    # Specify directories and files.
-    path_data_report = os.path.join(
-        path_distribution, "data_gene_report.pickle"
-    )
-    path_data_report_text = os.path.join(
-        path_distribution, "data_gene_report.tsv"
-    )
-    # Write information to file.
-    data_report.to_pickle(
-        path=path_data_report
-    )
-    data_report.to_csv(
-        path_or_buf=path_data_report_text,
-        sep="\t",
-        header=True,
-        index=False,
-    )
-
-    pass
+    return data_report
 
 
 ###############################################################################
@@ -2521,25 +2520,21 @@ def execute_procedure_local(dock=None):
         ]
         #report = pool.map(execute_procedure_gene, check_genes)
         #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
-        #report = pool.map(
-        #    execute_procedure_gene,
-        #    random.sample(source["genes"], 100)
-        #)
-        report = pool.map(execute_procedure_gene, source["genes"])
+        report = pool.map(
+            execute_procedure_gene,
+            random.sample(source["genes"], 1000)
+        )
+        #report = pool.map(execute_procedure_gene, source["genes"])
 
 
     # Pause procedure.
     time.sleep(10.0)
 
-    # Report.
-    read_collect_write_gene_report(
+    # Read, collect, and write information from iterations.
+    read_collect_write_iterations(
         genes=source["genes"],
         dock=dock,
     )
-    #print("Process complete for the following genes...")
-    #print(str(len(report)))
-
-    # TODO: execute a collection procedure to assemble genes and a report...
 
     # Report date and time.
     utility.print_terminal_partition(level=3)

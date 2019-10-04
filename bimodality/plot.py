@@ -603,6 +603,147 @@ def write_figure(path=None, figure=None):
 # Procedures
 
 
+##########
+# Distributions of each bimodality measure's scores across genes
+
+
+def read_source_modality_gene_distribution(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_distribution = os.path.join(dock, "distribution")
+    path_genes_scores = os.path.join(
+        path_distribution, "genes_scores.pickle"
+    )
+
+    # Read information from file.
+    with open(path_genes_scores, "rb") as file_source:
+        genes_scores = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "genes_scores": genes_scores,
+    }
+
+
+def plot_chart_modality_gene_distribution(
+    values=None,
+    path=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        values (list<float>): values
+        path (str): path to directory and file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_distribution_histogram(
+        series=values,
+        name="",
+        bin_method="count",
+        bin_count=100,
+        label_bins="Bins",
+        label_counts="Counts",
+        fonts=fonts,
+        colors=colors,
+        line=False,
+        position=0,
+        text="",
+    )
+    # Write figure.
+    write_figure(
+        path=path,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_modality_gene_distribution(
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    print("going to plot distribution of bimodality metrics across genes")
+
+    # Read source information from file.
+    source = read_source_modality_gene_distribution(dock=dock)
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_distribution = os.path.join(path_plot, "distribution")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_distribution)
+    utility.create_directory(path=path_distribution)
+
+    # Specify bimodality measures.
+    measures = ["dip", "mixture", "coefficient"]
+    # Iterate on bimodality measures.
+    for measure in measures:
+
+        utility.print_terminal_partition(level=3)
+        print(measure)
+
+        # Collect bimodality measures across genes.
+        values = list()
+        for gene in source["genes_scores"]:
+            score = source["genes_scores"][gene][measure]
+            values.append(score)
+            pass
+
+        # Prepare charts.
+        # Specify directories and files.
+        path_measure = os.path.join(path_distribution, str(measure + ".svg"))
+
+        plot_chart_modality_gene_distribution(
+            values=values,
+            path=path_measure
+        )
+
+        pass
+
+    pass
+
+
+
 # Distribution
 
 
@@ -721,6 +862,7 @@ def plot_charts_distribution_gene(
             )
     pass
 
+# TODO: change the sub-directory to "rank" instead of "distribution"
 # This function specifies a list of genes for which to plot charts.
 def plot_charts_distribution(
     dock=None
@@ -755,19 +897,28 @@ def plot_charts_distribution(
 
     # Specify genes of interest.
     genes = [
-        "ENSG00000134184", # GSTM1, top 10 autosomal
-        "ENSG00000196436", # NPIPB15, top 10 autosomal
-        "ENSG00000183793", # NPIPA5, top 10 autosomal
-        "ENSG00000205571", # SMN2, top 10 autosomal
-        "ENSG00000197728", # RPS26, top 10 autosomal
-        "ENSG00000280670", # CCDC163, top 10 autosomal
-        "ENSG00000185290", # NUPR2, top 10 autosomal
-        "ENSG00000280071", # GATD3B, top 10 autosomal
-        "ENSG00000274512", # TBC1D3L, top 10 autosomal
-        "ENSG00000164308", # ERAP2, top 10 autosomal
-        "ENSG00000231925", # TAPBP
-        "ENSG00000090376", # IRAK3 ... noticeably bimodal
-        "ENSG00000049130", # KITLG ... KIT ligand, development
+        # First 5
+        "ENSG00000134184", # GSTM1 chr1 ... not too pretty
+        "ENSG00000274419", # TBC1D3D chr17 ... blown out by low
+        "ENSG00000160221", # GATD3A chr21 ... blown out by low
+        "ENSG00000196436", # NPIPB15 chr16 ... balanced and multimodal
+        "ENSG00000204644", # ZFP57 chr6 ... somewhat balanced and multimodal
+
+        "ENSG00000255501", # CARD18 chr11 ... blown out by low
+
+        # Middle selections
+        #"ENSG00000134333", # LDHA chr11 ... not bimodal
+        "ENSG00000164308", # ERAP2 chr5? ... beautiful <---
+        #"ENSG00000231925", # TAPBP chr6 ... not bimodal
+        #"ENSG00000090376", # IRAK3 chr? ... not bimodal
+        "ENSG00000142178", # SIK1 chr21 ... multimodal and messy
+
+        # Last 5
+        #"ENSG00000161533", # ACOX1 chr17 ... not bimodal
+        #"ENSG00000163536", # SERPINI1 chr3
+        #"ENSG00000101639", # CEP192 chr18
+        #"ENSG00000026652", # AGPAT4 chr6
+        #"ENSG00000091972", # CD200 chr3
     ]
 
     # Iterate on genes.
@@ -1705,6 +1856,15 @@ def execute_procedure(dock=None):
 
     """
 
+    # Plot charts of distributions of each bimodality measure's scores across
+    # genes.
+    prepare_charts_modality_gene_distribution(dock=dock)
+    #- distribution of a single bimodality measure's scores across all genes
+    #-- histogram
+    #-- bins by bimodality measure's score (z-score first?)
+    #-- count of genes in each bin
+
+
 
     #plot_charts_analysis(dock=dock)
     #plot_charts_sample(dock=dock)
@@ -1714,7 +1874,7 @@ def execute_procedure(dock=None):
 
     # Plot charts of distributions of genes' bimodality measurement scores and
     # permutations.
-    plot_charts_distribution(dock=dock)
+    #plot_charts_distribution(dock=dock)
 
     pass
 
