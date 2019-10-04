@@ -71,8 +71,11 @@ def read_source(dock=None):
     )
     path_permutation = os.path.join(dock, "permutation")
     path_collection = os.path.join(dock, "collection")
-    path_scores_permutations = os.path.join(
-        path_collection, "genes_scores_permutations.pickle"
+    path_scores = os.path.join(
+        path_collection, "genes_scores.pickle"
+    )
+    path_permutations = os.path.join(
+        path_collection, "genes_permutations.pickle"
     )
     # Read information from file.
     genes = utility.read_file_text_list(
@@ -83,14 +86,17 @@ def read_source(dock=None):
     data_gene_distribution_report = pandas.read_pickle(
         path_distribution_report
     )
-    with open(path_scores_permutations, "rb") as file_source:
-        genes_scores_permutations = pickle.load(file_source)
+    with open(path_scores, "rb") as file_source:
+        genes_scores = pickle.load(file_source)
+    with open(path_permutations, "rb") as file_source:
+        genes_permutations = pickle.load(file_source)
     # Compile and return information.
     return {
         "genes": genes,
         "data_gene_annotation": data_gene_annotation,
         "data_gene_distribution_report": data_gene_distribution_report,
-        "genes_scores_permutations": genes_scores_permutations,
+        "genes_scores": genes_scores,
+        "genes_permutations": genes_permutations,
     }
 
 
@@ -127,7 +133,8 @@ def calculate_probability_equal_greater(
 
 
 def calculate_probabilities_genes(
-    genes_scores_permutations=None
+    genes_scores=None,
+    genes_permutations=None,
 ):
     """
     Calculates probabilities (p-values) from genes' scores and random
@@ -141,7 +148,9 @@ def calculate_probabilities_genes(
     ---- mixture (float)
 
     arguments:
-        genes_scores_permutations (dict<dict<dict>>): information about genes
+        genes_scores (dict<dict<float>>): information about genes' scores
+        genes_permutations (dict<dict<list<float>>>): information about genes'
+            permutations
 
     raises:
 
@@ -152,22 +161,21 @@ def calculate_probabilities_genes(
 
     # Collect information about genes.
     entries = dict()
-    # Extract identifiers of genes with scores.
-    genes = list(genes_scores_permutations.keys())
     # Iterate on genes.
-    for gene in genes:
+    for gene in genes_scores:
         # Access information about gene's scores and distributions.
-        scores_permutations = genes_scores_permutations[gene]
+        scores = genes_scores[gene]
+        permutations = genes_permutations[gene]
         # Scores
-        dip = scores_permutations["scores"]["dip"]
-        mixture = scores_permutations["scores"]["mixture"]
-        coefficient = scores_permutations["scores"]["coefficient"]
-        combination = scores_permutations["scores"]["combination"]
+        dip = scores["dip"]
+        mixture = scores["mixture"]
+        coefficient = scores["coefficient"]
+        combination = scores["combination"]
         # Permutations
-        dips = scores_permutations["permutations"]["dip"]
-        mixtures = scores_permutations["permutations"]["mixture"]
-        coefficients = scores_permutations["permutations"]["coefficient"]
-        combinations = scores_permutations["permutations"]["combination"]
+        dips = permutations["dip"].tolist()
+        mixtures = permutations["mixture"].tolist()
+        coefficients = permutations["coefficient"].tolist()
+        combinations = permutations["combination"].tolist()
         # Calculate p-values.
         # These scores of bimodality indicate greater bimodality as values
         # increase.
@@ -214,7 +222,8 @@ def calculate_probabilities_genes(
 
 
 def organize_genes_scores_probabilities(
-    genes_scores_permutations=None,
+    genes_scores=None,
+    genes_permutations=None,
     genes_probabilities=None,
     data_gene_distribution_report=None,
     data_gene_annotation=None,
@@ -228,7 +237,9 @@ def organize_genes_scores_probabilities(
      ENSG00000029363   R2D2    0.55         0.975          0.23    0.732  ...
 
     arguments:
-        genes_scores_distributions (dict<dict<dict>>): information about genes
+        genes_scores (dict<dict<float>>): information about genes' scores
+        genes_permutations (dict<dict<list<float>>>): information about genes'
+            permutations
         genes_probabilities (dict<dict<float>>): information about genes'
             probabilities
         data_gene_distribution_report (object): Pandas data frame of
@@ -253,10 +264,8 @@ def organize_genes_scores_probabilities(
 
     # Collect information about genes.
     records = list()
-    # Extract identifiers of genes with scores.
-    genes = list(genes_scores_permutations.keys())
     # Iterate on genes.
-    for gene in genes:
+    for gene in genes_scores:
         # Access information about gene.
 
         name = data_gene_annotation.loc[gene, "gene_name"]
@@ -274,11 +283,11 @@ def organize_genes_scores_probabilities(
             data_gene_distribution_report.loc[gene, "tissues_median"]
         )
 
-        scores_permutations = genes_scores_permutations[gene]
-        score_dip = scores_permutations["scores"]["dip"]
-        score_mixture = scores_permutations["scores"]["mixture"]
-        score_coefficient = scores_permutations["scores"]["coefficient"]
-        score_combination = scores_permutations["scores"]["combination"]
+        scores = genes_scores[gene]
+        score_dip = scores["dip"]
+        score_mixture = scores["mixture"]
+        score_coefficient = scores["coefficient"]
+        score_combination = scores["combination"]
 
         probabilities = genes_probabilities[gene]
         probability_dip = probabilities["dip"]
@@ -1167,12 +1176,14 @@ def execute_procedure(dock=None):
 
     # Calculate genes' probabilities of bimodality.
     genes_probabilities = calculate_probabilities_genes(
-        genes_scores_permutations=source["genes_scores_permutations"],
+        genes_scores=source["genes_scores"],
+        genes_permutations=source["genes_permutations"],
     )
 
     # Organize gene summary.
     data_genes_scores_probabilities = organize_genes_scores_probabilities(
-        genes_scores_permutations=source["genes_scores_permutations"],
+        genes_scores=source["genes_scores"],
+        genes_permutations=source["genes_permutations"],
         genes_probabilities=genes_probabilities,
         data_gene_distribution_report=source["data_gene_distribution_report"],
         data_gene_annotation=source["data_gene_annotation"],
@@ -1198,7 +1209,7 @@ def execute_procedure(dock=None):
     genes_selection = utility.select_elements_by_sets(
         names=["dip", "mixture", "coefficient"],
         sets=genes_measurements,
-        count=3,
+        count=2,
     )
     utility.print_terminal_partition(level=2)
     print(
