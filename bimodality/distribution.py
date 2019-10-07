@@ -2520,11 +2520,11 @@ def execute_procedure_local(dock=None):
         ]
         #report = pool.map(execute_procedure_gene, check_genes)
         #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
-        report = pool.map(
-            execute_procedure_gene,
-            random.sample(source["genes"], 100)
-        )
-        #report = pool.map(execute_procedure_gene, source["genes"])
+        #report = pool.map(
+        #    execute_procedure_gene,
+        #    random.sample(source["genes"], 100)
+        #)
+        report = pool.map(execute_procedure_gene, source["genes"])
 
 
     # Pause procedure.
