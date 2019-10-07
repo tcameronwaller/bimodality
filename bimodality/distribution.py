@@ -2129,6 +2129,9 @@ def write_product_collection(dock=None, information=None):
     path_genes_scores = os.path.join(
         path_distribution, "genes_scores.pickle"
     )
+    path_scores = os.path.join(
+        path_distribution, "scores.pickle"
+    )
     path_data_report = os.path.join(
         path_distribution, "data_gene_report.pickle"
     )
@@ -2147,6 +2150,8 @@ def write_product_collection(dock=None, information=None):
     )
     with open(path_genes_scores, "wb") as file_product:
         pickle.dump(information["genes_scores"], file_product)
+    with open(path_scores, "wb") as file_product:
+        pickle.dump(information["scores"], file_product)
 
     pass
 
@@ -2210,7 +2215,8 @@ def read_collect_write_iterations(
 
     # Compile information.
     information = dict()
-    information["genes_scores"] = genes_scores
+    information["genes_scores"] = genes_scores["genes_scores"]
+    information["scores"] = genes_scores["scores"]
     information["data_report"] = data_report
     # Write product information to file.
     write_product_collection(
@@ -2219,6 +2225,12 @@ def read_collect_write_iterations(
     )
     pass
 
+
+
+######## TODO ##################
+# TODO: in this compilation step, also collect the values in lists... save time in the plot procedure...
+# TODO: also calculate mean and standard deviation of each score's distribution...
+# TODO: draw a line at mean + 2 * sigma
 
 def read_collect_genes_scores(
     genes=None,
@@ -2235,6 +2247,11 @@ def read_collect_genes_scores(
     --- mixture (float)
     --- coefficient (float)
 
+    - scores (dict)
+    -- dip (dict)
+    -- mixture (dict)
+    -- coefficient (dict)
+
     arguments:
         genes (list<str>): identifiers of genes
         path_distribution (str): path to distribution directory
@@ -2248,9 +2265,15 @@ def read_collect_genes_scores(
 
     # Collect genes' scores and permutations.
     utility.print_terminal_partition(level=3)
-    print("Collect genes' scores.")
+    print("Collecting genes' scores.")
     # Collect information about genes.
     genes_scores = dict()
+    # Collect information about bimodality measures.
+    scores = dict()
+    measures = ["dip", "mixture", "coefficient"]
+    for measure in measures:
+        scores[measure] = dict()
+        scores[measure]["values"] = list()
     # Iterate on genes.
     for gene in genes:
         # Specify directories and files.
@@ -2260,13 +2283,27 @@ def read_collect_genes_scores(
         )
         # Read information from file.
         with open(path_scores, "rb") as file_source:
-            scores = pickle.load(file_source)
+            gene_scores = pickle.load(file_source)
         # Create entry for gene.
         # Compile information.
-        genes_scores[gene] = scores
+        genes_scores[gene] = gene_scores
+        # Iterate on bimodality measures.
+        for measure in measures:
+            scores[measure]["values"].append(gene_scores[measure])
 
+    # Compile information about scores.
+    # Iterate on bimodality measures.
+    for measure in measures:
+        scores[measure]["mean"] = statistics.mean(scores[measure]["values"])
+        scores[measure]["deviation"] = (
+            statistics.stdev(scores[measure]["values"])
+        )
+    # Compile information.
+    information = dict()
+    information["genes_scores"] = genes_scores
+    information["scores"] = scores
     # Return information.
-    return genes_scores
+    return information
 
 
 def read_collect_gene_report(
@@ -2522,7 +2559,7 @@ def execute_procedure_local(dock=None):
         #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
         #report = pool.map(
         #    execute_procedure_gene,
-        #    random.sample(source["genes"], 100)
+        #    random.sample(source["genes"], 1000)
         #)
         report = pool.map(execute_procedure_gene, source["genes"])
 

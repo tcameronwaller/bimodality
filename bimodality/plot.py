@@ -630,6 +630,9 @@ def read_source_modality_gene_distribution(
     path_genes_scores = os.path.join(
         path_distribution, "genes_scores.pickle"
     )
+    path_scores = os.path.join(
+        path_distribution, "scores.pickle"
+    )
 
     # Read information from file.
     with open(path_genes_scores, "rb") as file_source:
@@ -667,7 +670,7 @@ def plot_chart_modality_gene_distribution(
         series=values,
         name="",
         bin_method="count",
-        bin_count=100,
+        bin_count=50,
         label_bins="Bins",
         label_counts="Counts",
         fonts=fonts,
