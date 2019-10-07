@@ -63,7 +63,7 @@ echo "Now set to call routine and procedures."
 
 #python3 interface.py main --dock $path_dock --split
 
-#python3 interface.py main --dock $path_dock --distribution --local
+python3 interface.py main --dock $path_dock --distribution --local
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 
@@ -82,7 +82,7 @@ echo "Now set to call routine and procedures."
 
 #python3 interface.py main --dock $path_dock --rank
 #python3 interface.py main --dock $path_dock --category
-python3 interface.py main --dock $path_dock --plot
+#python3 interface.py main --dock $path_dock --plot
 
 ##########
 # New stuff...

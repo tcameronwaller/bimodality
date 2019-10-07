@@ -2522,7 +2522,7 @@ def execute_procedure_local(dock=None):
         #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
         report = pool.map(
             execute_procedure_gene,
-            random.sample(source["genes"], 1000)
+            random.sample(source["genes"], 100)
         )
         #report = pool.map(execute_procedure_gene, source["genes"])
 
