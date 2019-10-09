@@ -219,7 +219,7 @@ def calculate_probabilities_genes(
 
 # Summary
 
-
+# TODO: This function is useful material to compile summary information about genes.
 def organize_genes_scores_probabilities(
     genes_scores=None,
     genes_permutations=None,
@@ -561,7 +561,7 @@ def filter_genes_by_probabilities(
 
 # Rank
 
-
+# TODO: should I move this to the selection module?
 def select_rank_genes(
     data_genes_scores_probabilities=None,
     selection=None,

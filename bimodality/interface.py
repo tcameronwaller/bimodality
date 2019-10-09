@@ -25,6 +25,8 @@ import selection
 
 import split
 import distribution
+import candidacy
+
 import shuffle
 import permutation
 import collection
@@ -137,6 +139,31 @@ def define_main_subparser(subparsers=None):
 
     """
 
+    if False:
+        parser_main.add_argument(
+            "-measurement", "--measurement", dest="measurement",
+            action="store_true",
+            help=(
+                "Selection of genes and measurements of interest for further " +
+                "analysis."
+            )
+        )
+        parser_main.add_argument(
+            "-sample", "--sample", dest="sample", action="store_true",
+            help=(
+                "Selection of samples, patients, and tissues of interest for " +
+                "further analysis."
+            )
+        )
+        parser_main.add_argument(
+            "-tissue", "--tissue", dest="tissue", action="store_true",
+            help=(
+                "Comparison of minor and major categories of tissues."
+            )
+        )
+
+
+
     # Define description.
     description = define_main_description()
     # Define epilog.
@@ -168,21 +195,6 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
-        "-measurement", "--measurement", dest="measurement",
-        action="store_true",
-        help=(
-            "Selection of genes and measurements of interest for further " +
-            "analysis."
-        )
-    )
-    parser_main.add_argument(
-        "-sample", "--sample", dest="sample", action="store_true",
-        help=(
-            "Selection of samples, patients, and tissues of interest for " +
-            "further analysis."
-        )
-    )
-    parser_main.add_argument(
         "-selection", "--selection", dest="selection", action="store_true",
         help=(
             "Coordination of selection of samples and genes of interest for " +
@@ -190,22 +202,8 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
-        "-tissue", "--tissue", dest="tissue", action="store_true",
-        help=(
-            "Comparison of minor and major categories of tissues."
-        )
-    )
-
-    parser_main.add_argument(
         "-split", "--split", dest="split", action="store_true",
         help="Split genes' signals across samples by genes."
-    )
-
-    parser_main.add_argument(
-        "-candidacy", "--candidacy", dest="candidacy", action="store_true",
-        help=(
-            "Evaluate genes' candidacy prior to shuffles."
-        )
     )
 
     parser_main.add_argument(
@@ -215,6 +213,13 @@ def define_main_subparser(subparsers=None):
             "Analyze real and shuffle signals for a single gene."
         )
     )
+    parser_main.add_argument(
+        "-candidacy", "--candidacy", dest="candidacy", action="store_true",
+        help=(
+            "Evaluate genes' candidacy by bimodal distribution."
+        )
+    )
+
     parser_main.add_argument(
         "-shuffle", "--shuffle", dest="shuffle",
         action="store_true",
@@ -389,6 +394,24 @@ def evaluate_main_parameters(arguments):
 
     """
 
+    if False:
+        if arguments.measurement:
+            # Report status.
+            print("... executing measurement procedure ...")
+            # Execute procedure.
+            measurement.execute_procedure(dock=arguments.dock)
+        if arguments.sample:
+            # Report status.
+            print("... executing sample procedure ...")
+            # Execute procedure.
+            sample.execute_procedure(dock=arguments.dock)
+        if arguments.tissue:
+            # Report status.
+            print("... executing tissue procedure ...")
+            # Execute procedure.
+            tissue.execute_procedure(dock=arguments.dock)
+    pass
+
     print("--------------------------------------------------")
     print("... call to main routine ...")
     # Execute procedure.
@@ -402,26 +425,11 @@ def evaluate_main_parameters(arguments):
         print("... executing assembly procedure ...")
         # Execute procedure.
         assembly.execute_procedure(dock=arguments.dock)
-    if arguments.measurement:
-        # Report status.
-        print("... executing measurement procedure ...")
-        # Execute procedure.
-        measurement.execute_procedure(dock=arguments.dock)
-    if arguments.sample:
-        # Report status.
-        print("... executing sample procedure ...")
-        # Execute procedure.
-        sample.execute_procedure(dock=arguments.dock)
     if arguments.selection:
         # Report status.
         print("... executing selection procedure ...")
         # Execute procedure.
         selection.execute_procedure(dock=arguments.dock)
-    if arguments.tissue:
-        # Report status.
-        print("... executing tissue procedure ...")
-        # Execute procedure.
-        tissue.execute_procedure(dock=arguments.dock)
     if arguments.split:
         # Report status.
         print("... executing split procedure ...")
@@ -439,6 +447,11 @@ def evaluate_main_parameters(arguments):
             distribution.execute_procedure_remote(
                 dock=arguments.dock, gene=arguments.gene
             )
+    if arguments.candidacy:
+        # Report status.
+        print("... executing candidacy procedure ...")
+        # Execute procedure.
+        candidacy.execute_procedure(dock=arguments.dock)
 
     if arguments.shuffle:
         # Report status.
@@ -508,10 +521,6 @@ def evaluate_main_parameters(arguments):
         print("... executing expecto procedure ...")
         # Execute procedure.
         expecto.execute_procedure(dock=arguments.dock)
-
-
-
-
 
 
 ###############################################################################

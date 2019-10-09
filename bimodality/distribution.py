@@ -2371,6 +2371,11 @@ def read_collect_gene_report(
             ascending=False,
             inplace=True,
         )
+        data_report.reset_index(
+            level=None,
+            inplace=True
+        )
+
     else:
         data_report = data
 

@@ -633,18 +633,21 @@ def read_source_modality_gene_distribution(
     path_scores = os.path.join(
         path_distribution, "scores.pickle"
     )
-
     # Read information from file.
     with open(path_genes_scores, "rb") as file_source:
         genes_scores = pickle.load(file_source)
+    with open(path_scores, "rb") as file_source:
+        scores = pickle.load(file_source)
     # Compile and return information.
     return {
         "genes_scores": genes_scores,
+        "scores": scores,
     }
 
 
 def plot_chart_modality_gene_distribution(
     values=None,
+    threshold=None,
     path=None
 ):
     """
@@ -652,6 +655,7 @@ def plot_chart_modality_gene_distribution(
 
     arguments:
         values (list<float>): values
+        threshold (float): value of threshold for which to draw line
         path (str): path to directory and file
 
     raises:
@@ -675,8 +679,8 @@ def plot_chart_modality_gene_distribution(
         label_counts="Counts",
         fonts=fonts,
         colors=colors,
-        line=False,
-        position=0,
+        line=True,
+        position=threshold,
         text="",
     )
     # Write figure.
@@ -717,6 +721,8 @@ def prepare_charts_modality_gene_distribution(
     utility.remove_directory(path=path_distribution)
     utility.create_directory(path=path_distribution)
 
+    print(source["scores"]["dip"])
+
     # Specify bimodality measures.
     measures = ["dip", "mixture", "coefficient"]
     # Iterate on bimodality measures.
@@ -725,19 +731,19 @@ def prepare_charts_modality_gene_distribution(
         utility.print_terminal_partition(level=3)
         print(measure)
 
-        # Collect bimodality measures across genes.
-        values = list()
-        for gene in source["genes_scores"]:
-            score = source["genes_scores"][gene][measure]
-            values.append(score)
-            pass
+        # Calculate selection threshold.
+        threshold = (
+            source["scores"][measure]["mean"] +
+            (2 * source["scores"][measure]["deviation"])
+        )
 
         # Prepare charts.
         # Specify directories and files.
         path_measure = os.path.join(path_distribution, str(measure + ".svg"))
 
         plot_chart_modality_gene_distribution(
-            values=values,
+            values=source["scores"][measure]["values"],
+            threshold=threshold,
             path=path_measure
         )
 
@@ -950,7 +956,6 @@ def plot_charts_distribution(
         pass
 
     pass
-
 
 
 # Sample
