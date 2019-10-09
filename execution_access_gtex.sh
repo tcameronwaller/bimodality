@@ -8,8 +8,8 @@ export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
 # Origin
 path_pagadalla="/nrnb/users/mpagadal"
 path_origin_gtex_8="$path_pagadalla/gtex/PhenoGenotypeFiles/RootStudyConsentSet_phs000424.GTEx.v8.p2.c1.GRU"
-path_origin_genotype="$path_source_gtex_8/GenotypeFiles/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz"
-path_origin_attributes="$path_source_gtex_8/PhenotypeFiles"
+path_origin_genotype="$path_origin_gtex_8/GenotypeFiles/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz"
+path_origin_attributes="$path_origin_gtex_8/PhenotypeFiles"
 path_origin_attribute_sample="$path_origin_attributes/phs000424.v8.pht002743.v8.p2.c1.GTEx_Sample_Attributes.GRU.txt"
 path_origin_attribute_person="$path_origin_attributes/phs000424.v8.pht002742.v8.p2.c1.GTEx_Subject_Phenotypes.GRU.txt"
 path_origin_explanation_sample="$path_origin_attributes/phs000424.v8.pht002743.v8.GTEx_Sample_Attributes.data_dict.xml"
