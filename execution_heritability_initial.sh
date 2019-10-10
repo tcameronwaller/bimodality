@@ -29,9 +29,9 @@ path_relation_plink_2="$path_relation/plink_2"
 rm -r $path_relation_gcta
 rm -r $path_relation_plink_1
 rm -r $path_relation_plink_2
-mkdir -r $path_relation_gcta
-mkdir -r $path_relation_plink_1
-mkdir -r $path_relation_plink_2
+mkdir $path_relation_gcta
+mkdir $path_relation_plink_1
+mkdir $path_relation_plink_2
 
 # Suppress echo each command to console.
 set +x
