@@ -66,8 +66,8 @@ set -x
 # Calculate principal components.
 # Preserve rare variants in this analysis (do not filter by minor allele
 # frequency).
-#$path_gcta --grm $path_relation/autosome_rare-common --pca 10 --out $path_relation_gcta/autosome_rare-common
-#$path_gcta --grm $path_relation/autosome_common --pca 10 --out $path_relation_gcta/autosome_common
+$path_gcta --grm $path_relation/autosome_rare-common --pca 10 --out $path_relation_gcta/autosome_rare-common
+$path_gcta --grm $path_relation/autosome_common --pca 10 --out $path_relation_gcta/autosome_common
 
-$path_plink_1 --bfile $path_genotype_bed --autosome --maf 0.01 --pca 10 "header" "tabs" --out $path_relation_plink_1/autosome_common
+#$path_plink_1 --bfile $path_genotype_bed --autosome --maf 0.01 --pca 10 "header" "tabs" --out $path_relation_plink_1/autosome_common
 #$path_plink_2 --bfile $path_genotype_bed --autosome --maf 0.01 --pca 10 "header" "tabs" --out $path_relation_plink_2/autosome_common
