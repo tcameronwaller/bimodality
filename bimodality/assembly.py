@@ -160,7 +160,7 @@ def read_gene_signal_samples(path=None):
     samples = headers
     return samples
 
-
+# TODO: need to read in person and sample attributes from new source directory
 def read_source_sample(dock=None):
     """
     Reads and organizes source information from file.
@@ -181,18 +181,18 @@ def read_source_sample(dock=None):
     path_attribute_sample = os.path.join(path_access, "attribute_sample.txt")
     path_attribute_person = os.path.join(path_access, "attribute_person.txt")
 
-    path_private = os.path.join(dock, "gtex-8_private")
-    path_attribute_sample_private = os.path.join(
-        path_private, "sample_attributes.txt"
+    path_gtex = os.path.join(dock, "gtex-8")
+    path_attribute_sample_gtex = os.path.join(
+        path_gtex, "sample_attribute.txt"
     )
-    path_attribute_person_private = os.path.join(
-        path_private, "person_attributes.txt"
+    path_attribute_person_gtex = os.path.join(
+        path_gtex, "person_attribute.txt"
     )
     path_person_ancestry = os.path.join(
-        path_private, "persons_ancestry.txt"
+        path_gtex, "persons_ancestry.txt"
     )
-    path_ancestry_component = os.path.join(
-        path_private, "ancestry_components.mds"
+    path_genotype_component = os.path.join(
+        path_gtex, "relation", "autosome_common.eigenvec"
     )
 
     path_customization = os.path.join(dock, "customization")
@@ -220,8 +220,14 @@ def read_source_sample(dock=None):
         header=0,
     )
 
-    data_person_attribute_private = pandas.read_csv(
-        path_attribute_person_private,
+    data_sample_attribute_gtex = pandas.read_csv(
+        path_attribute_sample_gtex,
+        sep="\t",
+        header=9,
+        low_memory=False,
+    )
+    data_person_attribute_gtex = pandas.read_csv(
+        path_attribute_person_gtex,
         sep="\t",
         header=9,
         low_memory=False,
@@ -232,20 +238,18 @@ def read_source_sample(dock=None):
         header=0,
         low_memory=False,
     )
-    data_ancestry_component = pandas.read_csv(
-        path_ancestry_component,
-        sep="\s+",
-        header=0,
+    data_genotype_component = pandas.read_csv(
+        path_genotype_component,
+        sep="\t", # "\s+"
+        header=None,
+        names=[
+            "family", "person",
+            "component_1", "component_2", "component_3", "component_4",
+            "component_5", "component_6", "component_7", "component_8",
+            "component_9", "component_10",
+        ],
         low_memory=False,
     )
-
-    if False:
-        data_sample_attribute_private = pandas.read_csv(
-            path_attribute_sample_private,
-            sep="\t",
-            header=9,
-            low_memory=False,
-        )
 
     data_tissues_major = pandas.read_csv(
         path_tissues_major,
@@ -265,10 +269,10 @@ def read_source_sample(dock=None):
     return {
         "data_person_attribute": data_person_attribute,
         "data_sample_attribute": data_sample_attribute,
-        "data_person_attribute_private": data_person_attribute_private,
+        "data_sample_attribute_gtex": data_sample_attribute_gtex,
+        "data_person_attribute_gtex": data_person_attribute_gtex,
         "data_person_ancestry": data_person_ancestry,
-        "data_ancestry_component": data_ancestry_component,
-        #"data_sample_attribute_private": data_sample_attribute_private,
+        "data_genotype_component": data_genotype_component,
         "data_tissues_major": data_tissues_major,
         "data_tissues_minor": data_tissues_minor,
         "samples": samples,
@@ -465,14 +469,16 @@ def translate_ancestry(value=None):
 
     return ancestry
 
-
+# TODO: confirm that all attribute translations are accurate...
+# TODO: make sure to extract most relevant attributes
 def collect_samples_tissues_persons(
     samples=None,
     data_person_attribute=None,
-    data_person_attribute_private=None,
+    data_person_attribute_gtex=None,
     data_person_ancestry=None,
-    data_ancestry_component=None,
+    data_genotype_component=None,
     data_sample_attribute=None,
+    data_sample_attribute_gtex=None,
     data_tissues_major=None,
     data_tissues_minor=None,
 ):
@@ -495,14 +501,16 @@ def collect_samples_tissues_persons(
         samples (list<str>): identifiers of samples
         data_person_attribute (object): Pandas data frame of attributes for
             all persons
-        data_person_attribute_private (object): Pandas data frame of attributes
-            for all persons
+        data_person_attribute_gtex (object): Pandas data frame of attributes
+            for all persons, including exclusive attributes
         data_person_ancestry (object): Pandas data frame of ancestry for all
             persons
-        data_ancestry_component (object): Pandas data frame of principal
-            components from ancestry analysis for all persons
+        data_genotype_component (object): Pandas data frame of principal
+            components from genotypes for all persons
         data_sample_attribute (object): Pandas data frame of attributes for all
             samples
+        data_sample_attribute_gtex (object): Pandas data frame of attributes
+            for all samples, including exclusive attributes
         data_tissues_major (object): Pandas data frame of translations for
             names of major tissues
         data_tissues_minor (object): Pandas data frame of translations for
@@ -528,7 +536,7 @@ def collect_samples_tissues_persons(
         drop=True,
         inplace=True
     )
-    data_person_attribute_private.set_index(
+    data_person_attribute_gtex.set_index(
         ["SUBJID"],
         append=False,
         drop=True,
@@ -540,9 +548,8 @@ def collect_samples_tissues_persons(
         drop=True,
         inplace=True
     )
-
-    data_ancestry_component.set_index(
-        ["IID"],
+    data_genotype_component.set_index(
+        ["person"],
         append=False,
         drop=True,
         inplace=True
@@ -572,11 +579,11 @@ def collect_samples_tissues_persons(
         tissue_minor = data_tissues_minor.at[minor, "product"]
         # Access person attributes.
         person = extract_gtex_sample_person_identifier(sample=sample)
-        sex_raw = data_person_attribute_private.at[person, "SEX"]
+        sex_raw = data_person_attribute_gtex.at[person, "SEX"]
         sex = translate_sex(value=sex_raw)
         age_decade = data_person_attribute.at[person, "AGE"]
-        age = data_person_attribute_private.at[person, "AGE"]
-        race_raw = data_person_attribute_private.at[person, "RACE"]
+        age = data_person_attribute_gtex.at[person, "AGE"]
+        race_raw = data_person_attribute_gtex.at[person, "RACE"]
         race = translate_race(value=race_raw)
 
         # TODO: derive ancestry from Meghana's analysis...
@@ -600,20 +607,21 @@ def collect_samples_tissues_persons(
             )
             ancestry_race = ancestry
         # Include principal components from ancestry analysis.
-        if person in data_ancestry_component.index.values.tolist():
-            ancestry_1 = data_ancestry_component.at[person, "C1"]
-            ancestry_2 = data_ancestry_component.at[person, "C2"]
-            ancestry_3 = data_ancestry_component.at[person, "C3"]
+        if person in data_genotype_component.index.values.tolist():
+            genotype_1 = data_genotype_component.at[person, "component_1"]
+            genotype_2 = data_genotype_component.at[person, "component_2"]
+            genotype_3 = data_genotype_component.at[person, "component_3"]
+            genotype_4 = data_genotype_component.at[person, "component_4"]
+            genotype_5 = data_genotype_component.at[person, "component_5"]
         else:
-            ancestry_1 = float("nan")
-            ancestry_2 = float("nan")
-            ancestry_3 = float("nan")
+            genotype_1 = float("nan")
+            genotype_2 = float("nan")
+            genotype_3 = float("nan")
+            genotype_4 = float("nan")
+            genotype_5 = float("nan")
 
         # ...
-        body = data_person_attribute_private.at[person, "BMI"]
-
-        # TODO: other variables exist for alcohol, smoking, non-prescription drugs, etc...
-        toxicity = data_person_attribute_private.at[person, "MHTXCEXP"]
+        body = data_person_attribute_gtex.at[person, "BMI"]
 
         hardiness_raw = data_person_attribute_private.at[person, "DTHHRDY"]
         hardiness = translate_hardiness(value=hardiness_raw)
@@ -634,11 +642,12 @@ def collect_samples_tissues_persons(
             "age_decade": age_decade,
             "age": age,
             "ancestry": ancestry_race,
-            "ancestry_1": ancestry_1,
-            "ancestry_2": ancestry_2,
-            "ancestry_3": ancestry_3,
+            "genotype_1": genotype_1,
+            "genotype_2": genotype_2,
+            "genotype_3": genotype_3,
+            "genotype_4": genotype_4,
+            "genotype_5": genotype_5,
             "body": body,
-            "toxicity": toxicity,
             "hardiness": hardiness,
             "season": season,
             "delay": delay,
@@ -702,10 +711,11 @@ def organize_samples_tissues_persons(
     samples_tissues_persons = collect_samples_tissues_persons(
         samples=source["samples"],
         data_person_attribute=source["data_person_attribute"],
-        data_person_attribute_private=source["data_person_attribute_private"],
+        data_person_attribute_gtex=source["data_person_attribute_gtex"],
         data_person_ancestry=source["data_person_ancestry"],
-        data_ancestry_component=source["data_ancestry_component"],
+        data_genotype_component=source["data_genotype_component"],
         data_sample_attribute=source["data_sample_attribute"],
+        data_sample_attribute_gtex=source["data_sample_attribute_gtex"],
         data_tissues_major=source["data_tissues_major"],
         data_tissues_minor=source["data_tissues_minor"],
     )

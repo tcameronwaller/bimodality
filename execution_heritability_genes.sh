@@ -1,67 +1,5 @@
 #!/bin/bash
 
-#SBATCH --job-name=heritability
-#SBATCH --output=/cellar/users/tcwaller/Data/dock/heritability_out.txt
-#SBATCH --error=/cellar/users/tcwaller/Data/dock/heritability_error.txt
-#SBATCH --mem=5G
-#SBATCH --array=0-15445%10
-#SBATCH --time=2-00:00:00 # days-hours:minutes:seconds
-
-# Organize paths.
-export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
-path_user_cellar="/cellar/users/tcwaller"
-path_python="$path_user_cellar/anaconda3/bin/python"
-path_gcta="$path_user_cellar/gcta_1.92.3beta3/gcta64"
-path_plink="$path_user_cellar/plink2"
-path_repository="$path_user_cellar/repository"
-path_program="$path_repository/bimodality-master/bimodality"
-path_dock="$path_user_cellar/Data/dock"
-path_split="$path_dock/split"
-path_distribution="$path_dock/distribution"
-path_heritability="$path_dock/heritability"
-path_relation="$path_heritability/relation"
-
-# Define iteration variables.
-readarray -t genes < "$path_split/genes.txt"
-#count_genes=${#genes[@]}
-#indices=$((count_genes-1))
-#echo $indices
-#echo $count_genes
-#12824
-
-#echo ${genes[@]}
-#echo $genes[0]
-
-gene=${genes[$SLURM_ARRAY_TASK_ID]}
-echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
-echo "gene: " $gene
-
-# Execute program.
-# Specify complete path to python installation.
-
-# Access information about gene.
-path_distribution_gene="$path_distribution/$gene"
-path_chromosome="$path_distribution_gene/chromosome.txt"
-chromosome=$(cat $path_chromosome)
-path_relation_cis="$path_relation/cis/chromosome"
-path_relation_trans="$path_relation/trans/chromosome"
-path_gene_covariates=
-
-path_phenotype="$path_distribution_gene/data_gene_families_persons_signals.tsv"
-
-path_heritability_gene="$path_heritability/$gene"
-rm -r $path_heritability_gene
-mkdir $path_heritability_gene
-
-
-path_gene_distribution="$path_heritability/$gene/$path_distribution"
-path_gene_heritability="$path_dock/heritability/$gene"
-
-# TODO: read the gene's chromosome...
-# chromosome 6 --> 6_cis (chrom 6 only), 6_trans (all autosomes other than 6)
-
-
-
 # Suppress echo each command to console.
 set +x
 
@@ -74,27 +12,56 @@ echo "--------------------------------------------------"
 # Echo each command to console.
 set -x
 
-rm -r $path_product
-mkdir $path_product
+# Organize paths.
+path_gcta="/home/tcameronwaller/gcta_1.92.4beta/gcta64"
 
-# TODO: read in array of genes from "split" directory...
-# TODO: define references to gene's phenotype file...
-# TODO: eventually include covariates
+path_dock="/home/tcameronwaller/dock/"
+path_gtex="$path_dock/gtex-8"
+path_relation="$path_gtex/relation/autosome_common"
+path_genes="$path_dock/split/genes.txt"
+path_persons="$path_dock/selection/families_persons.txt" # <-- I need to make this file...
+path_category="$path_dock/selection/persons_categories.txt" # <-- I need to make this file...
+path_quantity="$path_dock/selection/persons_quantities.txt" # <-- I need to make this file...
+path_distribution="$path_dock/distribution"
+path_heritability="$path_dock/heritability"
 
+rm -r $path_heritability
+mkdir $path_heritability
 
-# Analysis
-#$path_gcta --grm $path_relation/chromosome_6 --pheno $path_distribution --reml --out $path_result
+# Suppress echo each command to console.
+set +x
 
+# Read genes.
+readarray -t genes < $path_genes
+# Report count of genes.
+count_genes=${#genes[@]}
+echo "count of genes: "
+echo $count_genes
+#echo ${genes[@]}
+#echo $genes[0]
 
-# Analysis
-$path_gcta --grm $path_relation --pheno $path_source_ENSG00000134184 --reml --out $path_product/ENSG00000134184
-$path_gcta --grm $path_relation --pheno $path_source_ENSG00000164308 --reml --out $path_product/ENSG00000164308
-$path_gcta --grm $path_relation --pheno $path_source_ENSG00000183793 --reml --out $path_product/ENSG00000183793
-$path_gcta --grm $path_relation --pheno $path_source_ENSG00000185290 --reml --out $path_product/ENSG00000185290
-$path_gcta --grm $path_relation --pheno $path_source_ENSG00000196436 --reml --out $path_product/ENSG00000196436
-$path_gcta --grm $path_relation --pheno $path_source_ENSG00000197728 --reml --out $path_product/ENSG00000197728
-$path_gcta --grm $path_relation --pheno $path_source_ENSG00000205571 --reml --out $path_product/ENSG00000205571
-$path_gcta --grm $path_relation --pheno $path_source_ENSG00000231925 --reml --out $path_product/ENSG00000231925
-$path_gcta --grm $path_relation --pheno $path_source_ENSG00000274512 --reml --out $path_product/ENSG00000274512
-$path_gcta --grm $path_relation --pheno $path_source_ENSG00000280071 --reml --out $path_product/ENSG00000280071
-$path_gcta --grm $path_relation --pheno $path_source_ENSG00000280670 --reml --out $path_product/ENSG00000280670
+# Iterate on genes.
+for gene in "${genes[@]}"
+do
+    echo "current gene: "
+    echo $gene
+
+    # Organize path.
+    path_heritability_gene="$path_heritability/$gene"
+    rm -r $path_heritability_gene
+    mkdir $path_heritability_gene
+    path_simple="$path_heritability_gene/simple"
+    path_complex="$path_heritability_gene/complex"
+    mkdir $path_simple
+    mkdir $path_complex
+
+    # Access information about gene.
+    #path_distribution_gene="$path_distribution/$gene"
+    # TODO: is this file in the proper format???
+    #path_phenotype="$path_distribution_gene/data_gene_families_persons_signals.tsv"
+
+    # Execute heritability analysis.
+    $path_gcta --grm $path_relation --keep $path_persons --pheno $path_source_ENSG00000134184 --reml --out $path_simple/out --threads 5
+    $path_gcta --grm $path_relation --keep $path_persons --pheno $path_source_ENSG00000134184 --covar $path_category --qcovar $path_quantity --reml --out $path_complex/out --threads 5
+
+done
