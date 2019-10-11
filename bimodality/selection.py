@@ -717,6 +717,15 @@ def select_samples_genes_signals(
 
 # Families, persons, tissues, samples.
 
+# TODO: I need a new function to organize category and quantity covariates.
+# TODO: try to organize the whole "families_persons" thing
+# TODO: make sure that both the "families" and the "persons" get written to the text file...
+
+# TODO: rename this function
+# TODO: within this function
+# 1. extract samples, tissues, persons as simple lists
+# 2. select relevant persons and their attributes
+# 3. organize exports in proper formats
 
 def extract_gene_signal_families_persons_tissues_samples(
     data_samples_tissues_persons=None,
@@ -789,6 +798,10 @@ def extract_gene_signal_families_persons_tissues_samples(
         inplace=True,
     )
     data_families_persons.reindex()
+
+    # TODO: Why do I set "person" as the index? This doesn't make sense...
+    # TODO: Oh... I think I need "person" as index in the distribution procedure...
+
     data_families_persons.set_index(
         ["person"],
         append=False,
@@ -812,7 +825,7 @@ def extract_gene_signal_families_persons_tissues_samples(
 
     # Compile information.
     information = {
-        "families": families_persons,
+        "families_persons": families_persons,
         "data_families": data_families_persons,
         "persons": persons,
         "tissues_major": tissues_major,
@@ -862,8 +875,8 @@ def write_product(dock=None, information=None):
         path_selection, "data_gene_signal_factor.pickle"
     )
 
-    path_families = os.path.join(
-        path_selection, "families.tsv"
+    path_families_persons = os.path.join(
+        path_selection, "families_persons.tsv"
     )
     path_data_families = os.path.join(
         path_selection, "data_families.pickle"
@@ -904,17 +917,13 @@ def write_product(dock=None, information=None):
         information["data_families"],
         path_data_families
     )
-    information["data_families"].reset_index(
-        level=None,
-        inplace=True
-    )
     information["data_families"].to_csv(
-        path_or_buf=path_families,
+        path_or_buf=path_families_persons,
         columns=["family", "person",],
         sep="\t",
         na_rep="NA",
         header=False,
-        index=False,
+        index=True,
     )
     pandas.to_pickle(
         information["data_families"],
@@ -1060,6 +1069,14 @@ def execute_procedure(dock=None):
     )
     print(data_gene_signal_factor)
 
+    #########################
+    # TODO:
+    # export categorical and quantitative covariates of persons...
+    # 1. select relevant persons
+    # 2. export person properties in a convenient format (Pandas to pickle) for category procedure
+    # 3. export person properties in separate files for GCTA...
+    #########################
+
     # Extract gene signal families, persons, tissues, samples.
     collection = extract_gene_signal_families_persons_tissues_samples(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
@@ -1073,7 +1090,7 @@ def execute_procedure(dock=None):
         "data_gene_count_factor": data_gene_count_factor,
         "data_gene_signal": data_gene_signal_selection,
         "data_gene_signal_factor": data_gene_signal_factor,
-        "families": collection["families"],
+        "families_persons": collection["families_persons"],
         "data_families": collection["data_families"],
         "persons": collection["persons"],
         "tissues_major": collection["tissues_major"],

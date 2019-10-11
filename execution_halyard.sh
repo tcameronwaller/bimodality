@@ -49,7 +49,7 @@ echo "Now set to call routine and procedures."
 
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access
-#python3 interface.py main --dock $path_dock --assembly
+python3 interface.py main --dock $path_dock --assembly
 #python3 interface.py main --dock $path_dock --selection
 
 # -- nonessential, exploratory procedures
@@ -66,7 +66,7 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --distribution --local
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
-python3 interface.py main --dock $path_dock --candidacy
+#python3 interface.py main --dock $path_dock --candidacy
 
 
 #python3 interface.py main --dock $path_dock --shuffle --count 10000

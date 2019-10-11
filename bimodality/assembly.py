@@ -160,7 +160,7 @@ def read_gene_signal_samples(path=None):
     samples = headers
     return samples
 
-# TODO: need to read in person and sample attributes from new source directory
+
 def read_source_sample(dock=None):
     """
     Reads and organizes source information from file.
@@ -240,7 +240,7 @@ def read_source_sample(dock=None):
     )
     data_genotype_component = pandas.read_csv(
         path_genotype_component,
-        sep="\t", # "\s+"
+        sep="\s+",
         header=None,
         names=[
             "family", "person",
@@ -469,8 +469,7 @@ def translate_ancestry(value=None):
 
     return ancestry
 
-# TODO: confirm that all attribute translations are accurate...
-# TODO: make sure to extract most relevant attributes
+
 def collect_samples_tissues_persons(
     samples=None,
     data_person_attribute=None,
@@ -622,16 +621,15 @@ def collect_samples_tissues_persons(
 
         # ...
         body = data_person_attribute_gtex.at[person, "BMI"]
-
-        hardiness_raw = data_person_attribute_private.at[person, "DTHHRDY"]
+        hardiness_raw = data_person_attribute_gtex.at[person, "DTHHRDY"]
         hardiness = translate_hardiness(value=hardiness_raw)
 
-        season_raw = data_person_attribute_private.at[person, "DTHSEASON"]
+        season_raw = data_person_attribute_gtex.at[person, "DTHSEASON"]
         season = translate_season(value=season_raw)
         # Duration of time in minutes between death and procedure start.
         #delay = data_person_attribute_private.at[person, "TRISCHD"]
         # Duration of time in minutes between death and sample collection.
-        delay = data_person_attribute_private.at[person, "TRDNISCH"]
+        delay = data_person_attribute_gtex.at[person, "TRDNISCH"]
 
         record = {
             "sample": sample,
@@ -1594,7 +1592,7 @@ def write_product_sample(dock=None, information=None):
         path_or_buf=path_samples_tissues_persons_text,
         sep="\t",
         header=True,
-        index=False,
+        index=True,
     )
     pass
 
