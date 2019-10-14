@@ -323,6 +323,31 @@ def read_file_text_table(path_file=None, names=None, delimiter=None):
     return information
 
 
+def read_file_text(
+    path_file=None
+):
+    """
+    Reads information from file as a text string.
+
+    arguments:
+        path_file (str): path to directory and file
+
+    returns:
+        (str): information from file
+
+    raises:
+
+    """
+
+    # Read information from file
+    #with open(path_file_source, "r") as file_source:
+    #    content = file_source.read()
+    with open(path_file, "r") as file_source:
+        content = file_source.read()
+    # Return information
+    return content
+
+
 def read_file_text_list(
     delimiter=None,
     path_file=None
@@ -344,10 +369,7 @@ def read_file_text_list(
     """
 
     # Read information from file
-    #with open(path_file_source, "r") as file_source:
-    #    content = file_source.read()
-    with open(path_file, "r") as file_source:
-        content = file_source.read()
+    content = read_file_text(path_file=path_file)
     # Split content by line delimiters.
     information = content.split(delimiter)
     # Return information
@@ -361,7 +383,6 @@ def read_file_text_lines(
 ):
     """
     Reads a range of lines from a text file.
-
 
     arguments:
         path_file (str): path to directory and file

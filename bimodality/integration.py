@@ -119,6 +119,9 @@ def execute_procedure(dock=None):
 
     """
 
+    # TODO: pull in a lot of functionality from the rank procedure
+    # TODO: I'll need gene annotations, sample attributes, genes from bimodality (with permutations), heritability, and category (once that's done)
+
     pass
 
 

@@ -717,15 +717,6 @@ def select_samples_genes_signals(
 
 # Families, persons, tissues, samples.
 
-# TODO: I need a new function to organize category and quantity covariates.
-# TODO: try to organize the whole "families_persons" thing
-# TODO: make sure that both the "families" and the "persons" get written to the text file...
-
-# TODO: rename this function
-# TODO: within this function
-# 1. extract samples, tissues, persons as simple lists
-# 2. select relevant persons and their attributes
-# 3. organize exports in proper formats
 
 def extract_gene_signal_families_persons_tissues_samples(
     data_samples_tissues_persons=None,
@@ -753,69 +744,110 @@ def extract_gene_signal_families_persons_tissues_samples(
     utility.print_terminal_partition(level=2)
     print("extract samples, persons, and tissues")
 
-    # Transpose data structure.
-    # Organize genes across columns and samples across rows.
-    data_transposition = data_gene_signal.transpose(copy=True)
-    # Associate samples to persons and tissues.
-    data_gene_signal_factor = assembly.associate_samples_persons_tissues(
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        data_gene_sample=data_transposition,
-    )
-    print(data_gene_signal_factor)
-    # Remove indices.
-    data_gene_signal_factor.reset_index(
-        level=None,
-        inplace=True
-    )
-
     # Extract selection samples.
     samples = utility.collect_unique_elements(
-        elements_original=data_gene_signal_factor["sample"].to_list()
+        elements_original=data_gene_signal.columns.tolist()
     )
+    # Select information about samples.
+    data_samples_copy = data_samples_tissues_persons.copy(deep=True)
+    data_samples_selection = data_samples_copy.loc[
+        data_samples_copy.index.isin(samples), :
+    ]
     # Extract selection tissues.
     tissues_major = utility.collect_unique_elements(
-        elements_original=data_gene_signal_factor["tissue_major"].to_list()
+        elements_original=data_samples_selection["tissue_major"].to_list()
     )
     # Extract selection persons.
     persons = utility.collect_unique_elements(
-        elements_original=data_gene_signal_factor["person"].to_list()
+        elements_original=data_samples_selection["person"].to_list()
     )
-
-    # Organize families and persons.
-    #data_gene_signal_factor["family"] = data_gene_signal_factor["person"]
-    data_gene_signal_factor["family"] = 0
-    data_families_persons = data_gene_signal_factor.loc[
-        :, data_gene_signal_factor.columns.isin(["family", "person"])
-    ]
-    data_families_persons.rename_axis(
+    # Introduce empty identifiers for families for compatibility with Plink and
+    # GCTA.
+    # Organize data.
+    data_persons_properties = data_samples_selection.copy(deep=True)
+    data_persons_properties["family"] = 0
+    data_persons_properties.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_persons_properties.rename_axis(
         "",
         axis="columns",
         inplace=True,
     )
-    data_families_persons.drop_duplicates(
-        subset=None,
-        keep="first",
-        inplace=True,
+    data_persons_properties.drop(
+        labels=["sample", "tissue_major", "tissue_minor"],
+        axis="columns",
+        inplace=True
     )
-    data_families_persons.reindex()
-
-    # TODO: Why do I set "person" as the index? This doesn't make sense...
-    # TODO: Oh... I think I need "person" as index in the distribution procedure...
-
-    data_families_persons.set_index(
+    data_persons_properties.set_index(
         ["person"],
         append=False,
         drop=True,
         inplace=True
     )
-
-    families_persons = utility.convert_dataframe_to_records(
-        data=data_families_persons
+    data_persons_properties.drop_duplicates(
+        subset=None,
+        keep="first",
+        inplace=True,
     )
+    data_persons_properties.reindex()
+    # Extract families and persons.
+    data_copy = data_persons_properties.copy(deep=True)
+    data_persons_families = data_copy.loc[
+        :, data_copy.columns.isin(["person", "family"])
+    ]
+    data_families_persons = data_persons_families.reset_index(
+        level=None,
+        inplace=False
+    )
+    data_families_persons = data_families_persons[[
+        "family",
+        "person",
+    ]]
+    # Extract categorical covariates.
+    data_copy = data_persons_properties.copy(deep=True)
+    data_persons_categories = data_copy.loc[
+        :, data_copy.columns.isin([
+            "person", "family", "sex", "hardiness", "season"
+        ])
+    ]
+    data_persons_categories.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_persons_categories = data_persons_categories[[
+        "family",
+        "person",
+        "sex",
+        "hardiness",
+        "season",
+    ]]
+    # Extract quantitative covariates.
+    data_copy = data_persons_properties.copy(deep=True)
+    data_persons_quantities = data_copy.loc[
+        :, data_copy.columns.isin([
+            "person", "family", "age", "body", "delay"
+        ])
+    ]
+    data_persons_quantities.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_persons_quantities = data_persons_quantities[[
+        "family",
+        "person",
+        "age",
+        "body",
+        "delay",
+    ]]
 
-    utility.print_terminal_partition(level=1)
-    print("data families persons...")
+
+    print(data_persons_properties)
+    print(data_persons_families)
     print(data_families_persons)
+    print(data_persons_categories)
+    print(data_persons_quantities)
 
     # Summary.
     utility.print_terminal_partition(level=2)
@@ -825,8 +857,12 @@ def extract_gene_signal_families_persons_tissues_samples(
 
     # Compile information.
     information = {
-        "families_persons": families_persons,
-        "data_families": data_families_persons,
+        "data_samples_selection": data_samples_selection,
+        "data_persons_properties": data_persons_properties,
+        "data_persons_families": data_persons_families,
+        "data_families_persons": data_families_persons,
+        "data_persons_categories": data_persons_categories,
+        "data_persons_quantities": data_persons_quantities,
         "persons": persons,
         "tissues_major": tissues_major,
         "samples": samples,
@@ -875,12 +911,25 @@ def write_product(dock=None, information=None):
         path_selection, "data_gene_signal_factor.pickle"
     )
 
+    path_samples_selection = os.path.join(
+        path_selection, "data_samples_tissues_persons.pickle"
+    )
+    path_samples_selection_text = os.path.join(
+        path_selection, "data_samples_tissues_persons.tsv"
+    )
+    path_persons_families = os.path.join(
+        path_selection, "data_persons_families.pickle"
+    )
     path_families_persons = os.path.join(
         path_selection, "families_persons.tsv"
     )
-    path_data_families = os.path.join(
-        path_selection, "data_families.pickle"
+    path_persons_categories = os.path.join(
+        path_selection, "persons_categories.tsv"
     )
+    path_persons_quantities = os.path.join(
+        path_selection, "persons_quantities.tsv"
+    )
+
     path_persons = os.path.join(
         path_selection, "persons.txt"
     )
@@ -912,22 +961,40 @@ def write_product(dock=None, information=None):
         information["data_gene_signal_factor"],
         path_gene_signal_factor
     )
-
     pandas.to_pickle(
-        information["data_families"],
-        path_data_families
+        information["data_samples_selection"],
+        path_samples_selection
     )
-    information["data_families"].to_csv(
-        path_or_buf=path_families_persons,
-        columns=["family", "person",],
+    information["data_samples_selection"].to_csv(
+        path_or_buf=path_samples_selection_text,
         sep="\t",
-        na_rep="NA",
-        header=False,
+        header=True,
         index=True,
     )
     pandas.to_pickle(
-        information["data_families"],
-        path_data_families
+        information["data_persons_families"],
+        path_persons_families
+    )
+    information["data_families_persons"].to_csv(
+        path_or_buf=path_families_persons,
+        sep="\t",
+        na_rep="NA",
+        header=False,
+        index=False,
+    )
+    information["data_persons_categories"].to_csv(
+        path_or_buf=path_persons_categories,
+        sep="\t",
+        na_rep="NA",
+        header=False,
+        index=False,
+    )
+    information["data_persons_quantities"].to_csv(
+        path_or_buf=path_persons_quantities,
+        sep="\t",
+        na_rep="NA",
+        header=False,
+        index=False,
     )
     utility.write_file_text_list(
         elements=information["persons"],
@@ -1069,15 +1136,7 @@ def execute_procedure(dock=None):
     )
     print(data_gene_signal_factor)
 
-    #########################
-    # TODO:
-    # export categorical and quantitative covariates of persons...
-    # 1. select relevant persons
-    # 2. export person properties in a convenient format (Pandas to pickle) for category procedure
-    # 3. export person properties in separate files for GCTA...
-    #########################
-
-    # Extract gene signal families, persons, tissues, samples.
+    # Extract samples, tissues, persons, families, and properties.
     collection = extract_gene_signal_families_persons_tissues_samples(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_signal=data_gene_signal_selection,
@@ -1090,8 +1149,11 @@ def execute_procedure(dock=None):
         "data_gene_count_factor": data_gene_count_factor,
         "data_gene_signal": data_gene_signal_selection,
         "data_gene_signal_factor": data_gene_signal_factor,
-        "families_persons": collection["families_persons"],
-        "data_families": collection["data_families"],
+        "data_samples_selection": collection["data_samples_selection"],
+        "data_persons_families": collection["data_persons_families"],
+        "data_families_persons": collection["data_families_persons"],
+        "data_persons_categories": collection["data_persons_categories"],
+        "data_persons_quantities": collection["data_persons_quantities"],
         "persons": collection["persons"],
         "tissues_major": collection["tissues_major"],
         "samples": collection["samples"],

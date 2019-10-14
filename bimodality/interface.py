@@ -29,10 +29,11 @@ import candidacy
 
 import shuffle
 import permutation
-import collection
+import probability
 
 import rank
-#import category
+import category
+import heritability
 
 #import integration
 
@@ -263,7 +264,7 @@ def define_main_subparser(subparsers=None):
     )
 
     parser_main.add_argument(
-        "-collection", "--collection", dest="collection",
+        "-probability", "--probability", dest="probability",
         action="store_true",
         help=(
             "Collection from pipe procedure of scores and random " +
@@ -292,6 +293,14 @@ def define_main_subparser(subparsers=None):
             "Analysis of groups of persons for individual genes."
         )
     )
+    parser_main.add_argument(
+        "-heritability", "--heritability", dest="heritability",
+        action="store_true",
+        help=(
+            "Collection of results from heritability analysis in GCTA."
+        )
+    )
+
 
     parser_main.add_argument(
         "-analysis", "--analysis", dest="analysis", action="store_true",
@@ -470,11 +479,11 @@ def evaluate_main_parameters(arguments):
                 dock=arguments.dock, gene=arguments.gene
             )
 
-    if arguments.collection:
+    if arguments.probability:
         # Report status.
-        print("... executing collection procedure ...")
+        print("... executing probability procedure ...")
         # Execute procedure.
-        collection.execute_procedure(dock=arguments.dock)
+        probability.execute_procedure(dock=arguments.dock)
     if arguments.combination:
         # Report status.
         print("... executing combination procedure ...")
@@ -490,6 +499,12 @@ def evaluate_main_parameters(arguments):
         print("... executing category procedure ...")
         # Execute procedure.
         category.execute_procedure_local(dock=arguments.dock)
+    if arguments.heritability:
+        # Report status.
+        print("... executing heritability procedure ...")
+        # Execute procedure.
+        heritability.execute_procedure(dock=arguments.dock)
+
 
     if arguments.analysis:
         # Report status.

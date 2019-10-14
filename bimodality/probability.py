@@ -1171,6 +1171,8 @@ def execute_procedure(dock=None):
     # Collect garbage to clear memory.
     gc.collect()
 
+    # Calculate probabilities.
+
     # Compile information.
     information = {
         "genes_scores": genes_scores_permutations["genes_scores"],

@@ -66,7 +66,9 @@ def read_source_initial(
     path_gene_annotation = os.path.join(
         path_selection, "data_gene_annotation.pickle"
     )
-    path_families = os.path.join(path_selection, "data_families.pickle")
+    path_persons_families = os.path.join(
+        path_selection, "data_persons_families.pickle"
+    )
     if source_genes == "split":
         path_source = os.path.join(dock, "split")
     elif source_genes == "combination":
@@ -76,7 +78,7 @@ def read_source_initial(
     )
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_families = pandas.read_pickle(path_families)
+    data_persons_families = pandas.read_pickle(path_persons_families)
     genes = utility.read_file_text_list(
         delimiter="\n",
         path_file=path_genes,
@@ -84,7 +86,7 @@ def read_source_initial(
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
-        "data_families": data_families,
+        "data_persons_families": data_persons_families,
         "genes": genes,
     }
 
@@ -1751,7 +1753,7 @@ def prepare_describe_distribution(
 
 def extract_gene_persons_signals(
     data_gene_persons_signals=None,
-    data_families=None,
+    data_persons_families=None,
 ):
     """
     Extracts information about a gene's distribution of pan-tissue signals
@@ -1762,7 +1764,7 @@ def extract_gene_persons_signals(
     arguments:
         data_gene_persons_signals (object): Pandas data frame of a gene's
             aggregate, pan-tissue signals across persons
-        data_families (object): Pandas data frame of families and persons
+        data_persons_families (object): Pandas data frame of families and persons
 
     raises:
 
@@ -1773,18 +1775,12 @@ def extract_gene_persons_signals(
     """
 
     # Copy data before modification.
-    data_families = data_families.copy(deep=True)
+    data_persons_families = data_persons_families.copy(deep=True)
 
     # Treat the complete table of families and persons as master.
     # Introduce missing values for persons without valid signals.
     # Join
-    data_families.set_index(
-        ["person"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data_gene_families_persons_signals = data_families.join(
+    data_gene_families_persons_signals = data_persons_families.join(
         data_gene_persons_signals,
         how="left",
         on="person"
@@ -2404,7 +2400,7 @@ def read_collect_gene_report(
 def execute_procedure(
     gene=None,
     data_gene_samples_signals=None,
-    data_families=None,
+    data_persons_families=None,
     data_gene_annotation=None,
     dock=None
 ):
@@ -2415,7 +2411,7 @@ def execute_procedure(
         gene (str): identifier of gene
         data_gene_samples_signals (object): Pandas data frame of a gene's
             signals across samples
-        data_families (object): Pandas data frame of person's identifiers and
+        data_persons_families (object): Pandas data frame of person's identifiers and
             families' identifiers
         data_gene_annotation (object): Pandas data frame of genes' annotations
         dock (str): path to root or dock directory for source and product
@@ -2445,7 +2441,7 @@ def execute_procedure(
         data_gene_persons_signals=(
             bins["bin_aggregation"]["data_gene_persons_signals"]
         ),
-        data_families=data_families,
+        data_persons_families=data_persons_families,
     )
 
     # Report
@@ -2527,19 +2523,19 @@ def execute_procedure_local(dock=None):
     if False:
         report = execute_procedure_local_sub(
             gene="ENSG00000231925", # TAPBP
-            data_families=source["data_families"],
+            data_persons_families=source["data_persons_families"],
             data_gene_annotation=source["data_gene_annotation"],
             dock=dock,
         )
         report = execute_procedure_local_sub(
             gene="ENSG00000000419", #
-            data_families=source["data_families"],
+            data_persons_families=source["data_persons_families"],
             data_gene_annotation=source["data_gene_annotation"],
             dock=dock,
         )
         report = execute_procedure_local_sub(
             gene="ENSG00000001167", #
-            data_families=source["data_families"],
+            data_persons_families=source["data_persons_families"],
             data_gene_annotation=source["data_gene_annotation"],
             dock=dock,
         )
@@ -2549,7 +2545,7 @@ def execute_procedure_local(dock=None):
         # with the same value of the "dock" variable.
         execute_procedure_gene = functools.partial(
             execute_procedure_local_sub,
-            data_families=source["data_families"],
+            data_persons_families=source["data_persons_families"],
             data_gene_annotation=source["data_gene_annotation"],
             dock=dock,
         )
@@ -2590,7 +2586,7 @@ def execute_procedure_local(dock=None):
 
 def execute_procedure_local_sub(
     gene=None,
-    data_families=None,
+    data_persons_families=None,
     data_gene_annotation=None,
     dock=None
 ):
@@ -2599,7 +2595,7 @@ def execute_procedure_local_sub(
 
     arguments:
         gene (str): identifier of single gene for which to execute the process
-        data_families (object): Pandas data frame of person's identifiers and
+        data_persons_families (object): Pandas data frame of person's identifiers and
             families' identifiers
         data_gene_annotation (object): Pandas data frame of genes' annotations
         dock (str): path to root or dock directory for source and product
@@ -2621,7 +2617,7 @@ def execute_procedure_local_sub(
     execute_procedure(
         gene=gene,
         data_gene_samples_signals=source["data_gene_samples_signals"],
-        data_families=data_families,
+        data_persons_families=data_persons_families,
         data_gene_annotation=data_gene_annotation,
         dock=dock
     )
