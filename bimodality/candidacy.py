@@ -63,6 +63,10 @@ def read_source(
     )
     path_split = os.path.join(dock, "split")
     path_split_genes = os.path.join(path_split, "genes.txt")
+
+    # Use genes' bimodality measures from distribution procedure (not those
+    # from the probability procedure) because here we want the raw values
+    # before standardization.
     path_distribution = os.path.join(dock, "distribution")
     path_genes_scores = os.path.join(
         path_distribution, "genes_scores.pickle"
@@ -376,11 +380,63 @@ def select_genes_by_identifier_rank(
     return data
 
 
-
-
-
 ##########
 # Product
+
+
+def write_product(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_candidacy = os.path.join(dock, "candidacy")
+    utility.create_directory(path_candidacy)
+    path_measures_thresholds = os.path.join(
+        path_candidacy, "measures_thresholds.pickle"
+    )
+    path_genes_sets = os.path.join(
+        path_candidacy, "sets_genes_measures.pickle"
+    )
+    path_genes_candidacy = os.path.join(
+        path_candidacy, "genes_candidacy.pickle"
+    )
+    path_data_genes_candidacy = os.path.join(
+        path_candidacy, "data_genes_candidacy.pickle"
+    )
+    path_data_genes_candidacy_text = os.path.join(
+        path_candidacy, "data_genes_candidacy.tsv"
+    )
+    # Write information to file.
+    with open(path_measures_thresholds, "wb") as file_product:
+        pickle.dump(information["measures_thresholds"], file_product)
+    with open(path_genes_sets, "wb") as file_product:
+        pickle.dump(information["sets_genes_measures"], file_product)
+    with open(path_genes_candidacy, "wb") as file_product:
+        pickle.dump(
+            information["genes_candidacy"], file_product
+        )
+    information["data_genes_candidacy"].to_pickle(
+        path=path_data_genes_candidacy
+    )
+    information["data_genes_candidacy"].to_csv(
+        path_or_buf=path_data_genes_candidacy_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+
+    pass
 
 
 
@@ -405,8 +461,8 @@ def execute_procedure(
     """
 
     # Remove previous files to avoid version or batch confusion.
-    path_assembly = os.path.join(dock, "assembly")
-    utility.remove_directory(path=path_assembly)
+    path_candidacy = os.path.join(dock, "candidacy")
+    utility.remove_directory(path=path_candidacy)
 
     # Read source information from file.
     source = read_source(dock=dock)
@@ -417,10 +473,11 @@ def execute_procedure(
     measures = ["dip", "mixture", "coefficient"]
     # Set factors for each measure of bimodality.
     # Set factors to select 50-100 genes by each measure of bimodality.
+    # Values of bimodality coefficient greater than 0.555 are multimodal.
     factors = dict()
-    factors["dip"] = 3
-    factors["mixture"] = 5
-    factors["coefficient"] = 4
+    factors["dip"] = 2 # (mean + (3 * sigma) = 0.021): 55
+    factors["mixture"] = 3 # (mean + (5 * sigma) = 0.273): 62
+    factors["coefficient"] = 3 # (mean + (4 * sigma) = 0.574): 68
     # Calculate thresholds for each measure of bimodality.
     measures_thresholds = determine_bimodality_measures_thresholds(
         measures=measures,
@@ -442,7 +499,7 @@ def execute_procedure(
 
     # Select genes that pass filters by multiple measures of bimodality.
     genes_candidacy = utility.select_elements_by_sets(
-        names=["dip", "mixture", "coefficient"],
+        names=measures,
         sets=genes_measures,
         count=2,
     )
@@ -459,12 +516,20 @@ def execute_procedure(
         genes=genes_candidacy,
         rank="combination",
     )
-    print(data_genes_candidacy)
-    print(data_genes_candidacy.iloc[0:10, 0:13])
+    #print(data_genes_candidacy)
+    #print(data_genes_candidacy.iloc[0:10, 0:13])
 
+    # Compile information.
+    information = {
+        "measures_thresholds": measures_thresholds,
+        "sets_genes_measures": genes_measures,
+        "genes_candidacy": genes_candidacy,
+        "data_genes_candidacy": data_genes_candidacy,
+    }
+    #Write product information to file.
+    write_product(dock=dock, information=information)
 
     pass
-
 
 
 if (__name__ == "__main__"):

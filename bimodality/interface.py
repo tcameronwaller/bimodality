@@ -31,7 +31,7 @@ import shuffle
 import permutation
 import probability
 
-import rank
+import integration
 import category
 import heritability
 
@@ -279,10 +279,10 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
-        "-rank", "--rank", dest="rank",
+        "-integration", "--integration", dest="integration",
         action="store_true",
         help=(
-            "Ranks of genes by bimodality in signal distribution."
+            "Integration of information about genes."
         )
     )
 
@@ -489,11 +489,11 @@ def evaluate_main_parameters(arguments):
         print("... executing combination procedure ...")
         # Execute procedure.
         combination.execute_procedure(dock=arguments.dock)
-    if arguments.rank:
+    if arguments.integration:
         # Report status.
-        print("... executing rank procedure ...")
+        print("... executing integration procedure ...")
         # Execute procedure.
-        rank.execute_procedure(dock=arguments.dock)
+        integration.execute_procedure(dock=arguments.dock)
     if arguments.category:
         # Report status.
         print("... executing category procedure ...")

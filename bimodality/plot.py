@@ -23,6 +23,7 @@ matplotlib.use("agg")
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
 import matplotlib.pyplot
 import matplotlib.lines
+import matplotlib_venn
 import seaborn
 
 # Custom
@@ -573,6 +574,57 @@ def create_legend_elements(
     return elements
 
 
+def plot_overlap_sets(
+    sets=None,
+    count=None,
+    fonts=None,
+    colors=None,
+):
+    """
+    Creates a Venn Diagram to represent overlap between multiple sets.
+
+    arguments:
+        sets (dict<list<str>>): values in sets
+        count (int): count of sets, either 2 or 3
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+
+    raises:
+
+    returns:
+        (object): figure object
+
+    """
+
+    # Organize information.
+    names = list(sets.keys())
+
+    # Create figure.
+    figure = matplotlib.pyplot.figure(
+        figsize=(15.748, 11.811),
+        tight_layout=True
+    )
+    if count == 2:
+        venn = matplotlib_venn.venn2(
+            subsets=[
+                set(sets[names[0]]),
+                set(sets[names[1]]),
+            ],
+            set_labels=names,
+        )
+    elif count == 3:
+        venn = matplotlib_venn.venn3(
+            subsets=[
+                set(sets[names[0]]),
+                set(sets[names[1]]),
+                set(sets[names[2]]),
+            ],
+            set_labels=names,
+        )
+
+    return figure
+
+
 def write_figure(path=None, figure=None):
     """
     Writes figure to file.
@@ -605,7 +657,7 @@ def write_figure(path=None, figure=None):
 
 ##########
 # Distributions of each bimodality measure's scores across genes
-
+# Status: working
 
 def read_source_modality_gene_distribution(
     dock=None
@@ -633,15 +685,25 @@ def read_source_modality_gene_distribution(
     path_scores = os.path.join(
         path_distribution, "scores.pickle"
     )
+
+    path_candidacy = os.path.join(dock, "candidacy")
+    path_measures_thresholds = os.path.join(
+        path_candidacy, "measures_thresholds.pickle"
+    )
+
     # Read information from file.
     with open(path_genes_scores, "rb") as file_source:
         genes_scores = pickle.load(file_source)
     with open(path_scores, "rb") as file_source:
         scores = pickle.load(file_source)
+    with open(path_measures_thresholds, "rb") as file_source:
+        measures_thresholds = pickle.load(file_source)
+
     # Compile and return information.
     return {
         "genes_scores": genes_scores,
         "scores": scores,
+        "measures_thresholds": measures_thresholds,
     }
 
 
@@ -716,12 +778,11 @@ def prepare_charts_modality_gene_distribution(
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
-    path_distribution = os.path.join(path_plot, "distribution")
+    path_candidacy = os.path.join(path_plot, "candidacy")
+    path_measure = os.path.join(path_candidacy, "measure")
     # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_distribution)
-    utility.create_directory(path=path_distribution)
-
-    print(source["scores"]["dip"])
+    utility.remove_directory(path=path_measure)
+    utility.create_directories(path=path_measure)
 
     # Specify bimodality measures.
     measures = ["dip", "mixture", "coefficient"]
@@ -732,19 +793,18 @@ def prepare_charts_modality_gene_distribution(
         print(measure)
 
         # Calculate selection threshold.
-        threshold = (
-            source["scores"][measure]["mean"] +
-            (2 * source["scores"][measure]["deviation"])
-        )
+        threshold = source["measures_thresholds"][measure]
 
         # Prepare charts.
         # Specify directories and files.
-        path_measure = os.path.join(path_distribution, str(measure + ".svg"))
+        path_measure_figure = os.path.join(
+            path_measure, str(measure + ".svg")
+        )
 
         plot_chart_modality_gene_distribution(
             values=source["scores"][measure]["values"],
             threshold=threshold,
-            path=path_measure
+            path=path_measure_figure
         )
 
         pass
@@ -752,11 +812,538 @@ def prepare_charts_modality_gene_distribution(
     pass
 
 
+##########
+# Overlap between sets in selection of genes by bimodality
+# Status: working
 
-# Distribution
+
+def read_source_gene_sets_candidacy(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_candidacy = os.path.join(dock, "candidacy")
+    path_sets_genes_measures = os.path.join(
+        path_candidacy, "sets_genes_measures.pickle"
+    )
+    # Read information from file.
+    with open(path_sets_genes_measures, "rb") as file_source:
+        sets_genes_measures = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "sets_genes_measures": sets_genes_measures,
+    }
 
 
-def read_source_distribution_gene(
+def plot_chart_gene_sets_candidacy(
+    sets=None,
+    path=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        sets (dict<list<str>>): values in sets
+        path (str): path to directory and file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_overlap_sets(
+        sets=sets,
+        count=3,
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_gene_sets_candidacy(
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    print("going to plot overlap between sets of genes by bimodality")
+
+    # Read source information from file.
+    source = read_source_gene_sets_candidacy(dock=dock)
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_candidacy = os.path.join(path_plot, "candidacy")
+    path_set = os.path.join(path_candidacy, "set")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_set)
+    utility.create_directories(path=path_set)
+    path_set_figure = os.path.join(path_set, "sets.svg")
+
+    plot_chart_gene_sets_candidacy(
+        sets=source["sets_genes_measures"],
+        path=path_set_figure,
+    )
+
+    pass
+
+
+##########
+# Overlap between sets in selection of genes by permutation probability of
+# bimodality
+# Status: working
+
+
+def read_source_gene_sets_probability(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_probability = os.path.join(dock, "probability")
+    path_sets_genes_measures = os.path.join(
+        path_probability, "sets_genes_measures.pickle"
+    )
+    # Read information from file.
+    with open(path_sets_genes_measures, "rb") as file_source:
+        sets_genes_measures = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "sets_genes_measures": sets_genes_measures,
+    }
+
+
+def plot_chart_gene_sets_probability(
+    sets=None,
+    path=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        sets (dict<list<str>>): values in sets
+        path (str): path to directory and file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_overlap_sets(
+        sets=sets,
+        count=3,
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_gene_sets_probability(
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    print("going to plot overlap between sets of genes by probability")
+
+    # Read source information from file.
+    source = read_source_gene_sets_probability(dock=dock)
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_probability = os.path.join(path_plot, "probability")
+    path_set = os.path.join(path_probability, "set")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_set)
+    utility.create_directories(path=path_set)
+    path_set_figure = os.path.join(path_set, "sets.svg")
+
+    plot_chart_gene_sets_probability(
+        sets=source["sets_genes_measures"],
+        path=path_set_figure,
+    )
+
+    pass
+
+
+##########
+# Overlap between sets in selection of genes by heritability
+# Status: working
+
+
+def read_source_gene_heritability(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_split = os.path.join(dock, "split")
+    path_genes_split = os.path.join(path_split, "genes.txt")
+
+    path_heritability = os.path.join(dock, "heritability")
+    path_collection = os.path.join(path_heritability, "collection")
+    path_sets_genes_models = os.path.join(
+        path_collection, "sets_genes_models.pickle"
+    )
+    # Read information from file.
+    genes_split = utility.read_file_text_list(
+        delimiter="\n",
+        path_file=path_genes_split,
+    )
+    with open(path_sets_genes_models, "rb") as file_source:
+        sets_genes_models = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "genes_split": genes_split,
+        "sets_genes_models": sets_genes_models,
+    }
+
+
+def plot_chart_gene_heritability(
+    sets=None,
+    path=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        sets (dict<list<str>>): values in sets
+        path (str): path to directory and file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_overlap_sets(
+        sets=sets,
+        count=3,
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_gene_heritability(
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    print("going to plot overlap between sets of genes by heritability")
+
+    # Read source information from file.
+    source = read_source_gene_heritability(dock=dock)
+
+    # Organize information.
+    sets = dict()
+    sets["total"] = source["genes_split"]
+    sets["simple"] = source["sets_genes_models"]["simple"]
+    sets["complex"] = source["sets_genes_models"]["complex"]
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_heritability = os.path.join(path_plot, "heritability")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_heritability)
+    utility.create_directory(path=path_heritability)
+    path_sets = os.path.join(path_heritability, "sets.svg")
+
+    plot_chart_gene_heritability(
+        sets=sets,
+        path=path_sets,
+    )
+
+    pass
+
+
+##########
+# Overlap between sets in selection of genes by integration
+# Status: working
+
+
+def read_source_gene_sets_integration(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_candidacy = os.path.join(dock, "candidacy")
+    path_genes_candidacy = os.path.join(
+        path_candidacy, "genes_candidacy.pickle"
+    )
+
+    path_probability = os.path.join(dock, "probability")
+    path_genes_probability = os.path.join(
+        path_probability, "genes_probability.pickle"
+    )
+
+    path_heritability = os.path.join(dock, "heritability")
+    path_collection = os.path.join(path_heritability, "collection")
+    path_genes_heritability = os.path.join(
+        path_collection, "genes_heritability.pickle"
+    )
+    # Read information from file.
+    with open(path_genes_candidacy, "rb") as file_source:
+        genes_candidacy = pickle.load(file_source)
+    with open(path_genes_probability, "rb") as file_source:
+        genes_probability = pickle.load(file_source)
+    with open(path_genes_heritability, "rb") as file_source:
+        genes_heritability = pickle.load(file_source)
+
+    # Compile and return information.
+    return {
+        "genes_candidacy": genes_candidacy,
+        "genes_probability": genes_probability,
+        "genes_heritability": genes_heritability,
+    }
+
+
+def plot_chart_gene_sets_integration(
+    sets=None,
+    path=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        sets (dict<list<str>>): values in sets
+        path (str): path to directory and file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_overlap_sets(
+        sets=sets,
+        count=3,
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_gene_sets_integration(
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    print("going to plot overlap between sets of genes by probability")
+
+    # Read source information from file.
+    source = read_source_gene_sets_integration(dock=dock)
+
+    # Organize information.
+    sets = dict()
+    sets["candidacy"] = source["genes_candidacy"]
+    sets["probability"] = source["genes_probability"]
+    sets["heritability"] = source["genes_heritability"]
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_integration = os.path.join(path_plot, "integration")
+    path_set = os.path.join(path_integration, "set")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_set)
+    utility.create_directories(path=path_set)
+    path_set_figure = os.path.join(path_set, "sets.svg")
+
+    plot_chart_gene_sets_probability(
+        sets=sets,
+        path=path_set_figure,
+    )
+
+    pass
+
+
+##########
+# Distributions of genes' pan-tissue aggregate signals across persons
+# Status: in progress
+
+
+def read_source_genes_persons_signals_initial(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_integration = os.path.join(dock, "integration")
+    path_genes_integration = os.path.join(
+        path_integration, "genes_integration.pickle"
+    )
+
+    # Read information from file.
+    with open(path_genes_integration, "rb") as file_source:
+        genes_integration = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "genes_integration": genes_integration,
+    }
+
+
+def read_source_genes_persons_signals(
     gene=None,
     dock=None
 ):
@@ -792,12 +1379,9 @@ def read_source_distribution_gene(
     }
 
 
-def plot_charts_distribution_gene(
+def plot_chart_genes_persons_signals(
     gene=None,
-    data_gene_persons_signals=None,
-    genes_scores_permutations=None,
-    fonts=None,
-    colors=None,
+    values=None,
     path=None
 ):
     """
@@ -805,12 +1389,9 @@ def plot_charts_distribution_gene(
 
     arguments:
         gene (str): identifier of a single gene
-        data_gene_persons_signals (object): Pandas data frame of a gene's
-            aggregate signals across persons
-        genes_scores_permutations (dict<dict<dict>>): information about genes
-        fonts (dict<object>): references to definitions of font properties
-        colors (dict<tuple>): references to definitions of color properties
-        path (str): path to directory
+        values (list<float>): values of a gene's pan-tissue aggregate signals
+            across persons
+        path (str): path for file
 
     raises:
 
@@ -818,8 +1399,11 @@ def plot_charts_distribution_gene(
 
     """
 
-    # Distribution of gene's signals across persons.
-    values = data_gene_persons_signals["value"].tolist()
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
     # Create figure.
     figure = plot_distribution_histogram(
         series=values,
@@ -834,12 +1418,9 @@ def plot_charts_distribution_gene(
         position=0,
         text="",
     )
-    # Specify directories and files.
-    file = ("real.svg")
-    path_file = os.path.join(path, file)
     # Write figure.
     write_figure(
-        path=path_file,
+        path=path,
         figure=figure
     )
 
@@ -871,9 +1452,8 @@ def plot_charts_distribution_gene(
             )
     pass
 
-# TODO: change the sub-directory to "rank" instead of "distribution"
-# This function specifies a list of genes for which to plot charts.
-def plot_charts_distribution(
+
+def prepare_charts_genes_persons_signals(
     dock=None
 ):
     """
@@ -889,74 +1469,47 @@ def plot_charts_distribution(
 
     """
 
-    # Define fonts.
-    fonts = define_font_properties()
-    # Define colors.
-    colors = define_color_properties()
+    # Read source information from file.
+    source_initial = read_source_genes_persons_signals_initial(dock=dock)
+
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
     path_distribution = os.path.join(path_plot, "distribution")
-    path_permutation = os.path.join(path_plot, "permutation")
-    # Remove previous files since they change from run to run.
-    utility.remove_directory(path=path_distribution)
-    utility.create_directory(path_distribution)
-    # Read source information from file.
-    #source = read_source_distribution(dock=dock)
-
-    # Specify genes of interest.
-    genes = [
-        # First 5
-        "ENSG00000134184", # GSTM1 chr1 ... not too pretty
-        "ENSG00000274419", # TBC1D3D chr17 ... blown out by low
-        "ENSG00000160221", # GATD3A chr21 ... blown out by low
-        "ENSG00000196436", # NPIPB15 chr16 ... balanced and multimodal
-        "ENSG00000204644", # ZFP57 chr6 ... somewhat balanced and multimodal
-
-        "ENSG00000255501", # CARD18 chr11 ... blown out by low
-
-        # Middle selections
-        #"ENSG00000134333", # LDHA chr11 ... not bimodal
-        "ENSG00000164308", # ERAP2 chr5? ... beautiful <---
-        #"ENSG00000231925", # TAPBP chr6 ... not bimodal
-        #"ENSG00000090376", # IRAK3 chr? ... not bimodal
-        "ENSG00000142178", # SIK1 chr21 ... multimodal and messy
-
-        # Last 5
-        #"ENSG00000161533", # ACOX1 chr17 ... not bimodal
-        #"ENSG00000163536", # SERPINI1 chr3
-        #"ENSG00000101639", # CEP192 chr18
-        #"ENSG00000026652", # AGPAT4 chr6
-        #"ENSG00000091972", # CD200 chr3
-    ]
+    path_genes_persons = os.path.join(path_distribution, "genes_persons")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_genes_persons)
+    utility.create_directories(path=path_genes_persons)
 
     # Iterate on genes.
-    for gene in genes:
+    for gene in source_initial["genes_integration"]:
 
         # Read source information from file.
-        source_gene = read_source_distribution_gene(
+        source_gene = read_source_genes_persons_signals(
             gene=gene,
             dock=dock
         )
         # Access information.
         data_gene_persons_signals = source_gene["data_gene_persons_signals"]
+        # Distribution of gene's signals across persons.
+        values = data_gene_persons_signals["value"].to_list()
 
         # Create charts for the gene.
-        path_gene = os.path.join(path_distribution, gene)
-        utility.create_directory(path_gene)
-        plot_charts_distribution_gene(
+        path_gene_figure = os.path.join(path_genes_persons, str(gene + ".svg"))
+        plot_chart_genes_persons_signals(
             gene=gene,
-            data_gene_persons_signals=data_gene_persons_signals,
-            genes_scores_permutations={},
-            fonts=fonts,
-            colors=colors,
-            path=path_gene
+            values=values,
+            path=path_gene_figure
         )
 
         pass
 
     pass
 
+
+
+
+################# Need to Update ###############################
 
 # Sample
 
@@ -1866,11 +2419,30 @@ def execute_procedure(dock=None):
 
     # Plot charts of distributions of each bimodality measure's scores across
     # genes.
-    prepare_charts_modality_gene_distribution(dock=dock)
     #- distribution of a single bimodality measure's scores across all genes
     #-- histogram
     #-- bins by bimodality measure's score (z-score first?)
     #-- count of genes in each bin
+    prepare_charts_modality_gene_distribution(dock=dock)
+
+    # Plot charts of distributions of genes' pan-tissue aggregate signals
+    # across persons.
+    prepare_charts_genes_persons_signals(dock=dock)
+
+    # Plot charts of overlap between sets in selection of genes by bimodality.
+    prepare_charts_gene_sets_candidacy(dock=dock)
+
+    # Plot charts of overlap between sets in selection of genes by permutation
+    # probability of bimodality.
+    prepare_charts_gene_sets_probability(dock=dock)
+
+    # Plot charts of overlap between sets in selection of genes by
+    # heritability.
+    prepare_charts_gene_heritability(dock=dock)
+
+    # Plot charts of overlap between sets in selection of genes by
+    # integration.
+    prepare_charts_gene_sets_integration(dock=dock)
 
 
 

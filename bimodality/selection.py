@@ -917,6 +917,12 @@ def write_product(dock=None, information=None):
     path_samples_selection_text = os.path.join(
         path_selection, "data_samples_tissues_persons.tsv"
     )
+    path_persons_properties = os.path.join(
+        path_selection, "data_persons_properties.pickle"
+    )
+    path_persons_properties_text = os.path.join(
+        path_selection, "data_persons_properties.tsv"
+    )
     path_persons_families = os.path.join(
         path_selection, "data_persons_families.pickle"
     )
@@ -967,6 +973,16 @@ def write_product(dock=None, information=None):
     )
     information["data_samples_selection"].to_csv(
         path_or_buf=path_samples_selection_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+    pandas.to_pickle(
+        information["data_persons_properties"],
+        path_persons_properties
+    )
+    information["data_persons_properties"].to_csv(
+        path_or_buf=path_persons_properties_text,
         sep="\t",
         header=True,
         index=True,
@@ -1150,6 +1166,7 @@ def execute_procedure(dock=None):
         "data_gene_signal": data_gene_signal_selection,
         "data_gene_signal_factor": data_gene_signal_factor,
         "data_samples_selection": collection["data_samples_selection"],
+        "data_persons_properties": collection["data_persons_properties"],
         "data_persons_families": collection["data_persons_families"],
         "data_families_persons": collection["data_families_persons"],
         "data_persons_categories": collection["data_persons_categories"],

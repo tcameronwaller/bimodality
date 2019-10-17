@@ -418,6 +418,48 @@ def read_source(dock=None):
     }
 
 
+def read_source_alternate(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_probability = os.path.join(dock, "probability")
+    path_scores = os.path.join(
+        path_probability, "genes_scores.pickle"
+    )
+    path_permutations = os.path.join(
+        path_probability, "genes_permutations.pickle"
+    )
+    path_genes_probabilities = os.path.join(
+        path_probability, "genes_probabilities.pickle"
+    )
+
+    # Read information from file.
+    with open(path_scores, "rb") as file_source:
+        genes_scores = pickle.load(file_source)
+    with open(path_permutations, "rb") as file_source:
+        genes_permutations = pickle.load(file_source)
+    with open(path_genes_probabilities, "rb") as file_source:
+        genes_probabilities = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "genes_scores": genes_scores,
+        "genes_permutations": genes_permutations,
+        "genes_probabilities": genes_probabilities,
+    }
+
+
 # Collection
 
 
@@ -1079,6 +1121,154 @@ def convert_genes_permutations(
     return genes_permutations
 
 
+# Probability
+
+
+def calculate_probability_equal_greater(
+    value=None,
+    distribution=None,
+):
+    """
+    Calculates from a distribution the probability of obtaining a value equal
+    to or greater than a specific value.
+
+    arguments:
+        value (float): value
+        distribution (list<float>): distribution of values
+
+    raises:
+
+    returns:
+        (float): probability of obtaining from the distribution a value equal
+            to or greater than the specific value
+
+    """
+
+    count_total = len(distribution)
+    count_matches = 0
+    for value_distribution in distribution:
+        if value_distribution >= value:
+            count_matches += 1
+    probability = count_matches / count_total
+    return probability
+
+
+def calculate_probabilities_genes(
+    genes_scores=None,
+    genes_permutations=None,
+):
+    """
+    Calculates probabilities (p-values) from genes' scores and random
+    distributions.
+
+    Data structure.
+    - genes_p_values (dict)
+    -- gene (dict)
+    ---- dip (float)
+    ---- mixture (float)
+    ---- coefficient (float)
+    ---- combination (float)
+
+    arguments:
+        genes_scores (dict<dict<float>>): information about genes' scores
+        genes_permutations (dict<dict<list<float>>>): information about genes'
+            permutations
+
+    raises:
+
+    returns:
+        (dict<dict<float>>): information about genes' probabilities
+
+    """
+
+    # Collect information about genes.
+    entries = dict()
+    # Iterate on genes.
+    for gene in genes_scores:
+        # Access information about gene's scores and distributions.
+        scores = genes_scores[gene]
+        permutations = genes_permutations[gene]
+        # Scores
+        dip = scores["dip"]
+        mixture = scores["mixture"]
+        coefficient = scores["coefficient"]
+        combination = scores["combination"]
+        # Permutations
+        dips = permutations["dip"].tolist()
+        mixtures = permutations["mixture"].tolist()
+        coefficients = permutations["coefficient"].tolist()
+        combinations = permutations["combination"].tolist()
+        # Calculate p-values.
+        # These scores of bimodality indicate greater bimodality as values
+        # increase.
+        # The scores are unidirectional, so the hypothesis is unidirectional.
+        # The p-value is the probability of obtaining by random chance a value
+        # equal to or greater than the actual score.
+        probability_dip = calculate_probability_equal_greater(
+            value=dip,
+            distribution=dips,
+        )
+        probability_mixture = calculate_probability_equal_greater(
+            value=mixture,
+            distribution=mixtures,
+        )
+        probability_coefficient = calculate_probability_equal_greater(
+            value=coefficient,
+            distribution=coefficients,
+        )
+        probability_combination = calculate_probability_equal_greater(
+            value=combination,
+            distribution=combinations,
+        )
+        # Calculate combination of p-values.
+        if False:
+            probability_combination = scipy.stats.combine_pvalues(
+                [probability_coefficient, probability_dip, probability_mixture],
+                method="stouffer",
+                weights=None,
+            )[1]
+        # Compile information.
+        entry = dict()
+        entry["gene"] = gene
+        entry["dip"] = probability_dip
+        entry["mixture"] = probability_mixture
+        entry["coefficient"] = probability_coefficient
+        entry["combination"] = probability_combination
+        entries[gene] = entry
+
+    # Return information.
+    return entries
+
+
+def select_genes_by_threshold(
+    genes_probabilities=None,
+    measure=None,
+    threshold=None,
+):
+    """
+    Selects genes by a threshold on probabilities for bimodality measures.
+
+    arguments:
+        genes_probabilities (dict<dict<float>>): information about genes'
+            probabilities
+        measure (str): name of a measure of bimodality
+        threshold (float): value of a threshold for a measure of bimodality
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' properties, bimodality
+            scores, and probabilities
+
+    """
+
+    genes = list()
+    for gene in genes_probabilities:
+        if genes_probabilities[gene][measure] < threshold:
+            genes.append(gene)
+    return genes
+
+
 # Product
 
 
@@ -1098,14 +1288,25 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_collection = os.path.join(dock, "collection")
-    utility.create_directory(path_collection)
+    path_probability = os.path.join(dock, "probability")
+    utility.create_directory(path_probability)
     path_scores = os.path.join(
-        path_collection, "genes_scores.pickle"
+        path_probability, "genes_scores.pickle"
     )
     path_permutations = os.path.join(
-        path_collection, "genes_permutations.pickle"
+        path_probability, "genes_permutations.pickle"
     )
+    path_probabilities = os.path.join(
+        path_probability, "genes_probabilities.pickle"
+    )
+    path_sets_genes_measures = os.path.join(
+        path_probability, "sets_genes_measures.pickle"
+    )
+    path_genes_probability = os.path.join(
+        path_probability, "genes_probability.pickle"
+    )
+
+
     # Write information to file.
     with open(path_scores, "wb") as file_product:
         pickle.dump(
@@ -1114,6 +1315,18 @@ def write_product(dock=None, information=None):
     with open(path_permutations, "wb") as file_product:
         pickle.dump(
             information["genes_permutations"], file_product
+        )
+    with open(path_probabilities, "wb") as file_product:
+        pickle.dump(
+            information["genes_probabilities"], file_product
+        )
+    with open(path_sets_genes_measures, "wb") as file_product:
+        pickle.dump(
+            information["sets_genes_measures"], file_product
+        )
+    with open(path_genes_probability, "wb") as file_product:
+        pickle.dump(
+            information["genes_probability"], file_product
         )
 
     pass
@@ -1137,49 +1350,108 @@ def execute_procedure(dock=None):
 
     """
 
-    # Enable automatic garbage collection to clear memory.
-    gc.enable()
+    if False:
 
-    # Remove previous files to avoid version or batch confusion.
-    path_collection = os.path.join(dock, "collection")
-    utility.remove_directory(path=path_collection)
+        # Enable automatic garbage collection to clear memory.
+        gc.enable()
 
-    # Read source information from file.
-    source = read_source(dock=dock)
+        # Remove previous files to avoid version or batch confusion.
+        path_probability = os.path.join(dock, "probability")
+        utility.remove_directory(path=path_probability)
 
-    # Verify that distributions and permutations are available for all genes.
-    check_genes(
-        genes=source["genes"],
-        genes_distribution=source["genes_distribution"],
-        genes_permutation=source["genes_permutation"],
-    )
+        # Read source information from file.
+        source = read_source(dock=dock)
 
-    # Collect and organize genes' scores and permutations.
-    # Contain these processes within a separate function to conserve memory.
-    path_distribution = os.path.join(dock, "distribution")
-    path_permutation = os.path.join(dock, "permutation")
-    genes_scores_permutations = collect_organize_genes_scores_permutations(
-        genes=source["genes"],
-        path_distribution=path_distribution,
-        path_permutation=path_permutation,
-    )
+        # Verify that distributions and permutations are available for all genes.
+        check_genes(
+            genes=source["genes"],
+            genes_distribution=source["genes_distribution"],
+            genes_permutation=source["genes_permutation"],
+        )
 
-    utility.print_terminal_partition(level=2)
-    print("collection, standardization, and combination done!!!")
-    utility.print_terminal_partition(level=2)
+        # Collect and organize genes' scores and permutations.
+        # Contain these processes within a separate function to conserve memory.
+        # This procedure standardizes values of each bimodality measure.
+        path_distribution = os.path.join(dock, "distribution")
+        path_permutation = os.path.join(dock, "permutation")
+        genes_scores_permutations = collect_organize_genes_scores_permutations(
+            genes=source["genes"],
+            path_distribution=path_distribution,
+            path_permutation=path_permutation,
+        )
 
-    # Collect garbage to clear memory.
-    gc.collect()
+        utility.print_terminal_partition(level=2)
+        print("collection, standardization, and combination done!!!")
+        utility.print_terminal_partition(level=2)
 
-    # Calculate probabilities.
+        # Collect garbage to clear memory.
+        gc.collect()
 
-    # Compile information.
-    information = {
-        "genes_scores": genes_scores_permutations["genes_scores"],
-        "genes_permutations": genes_scores_permutations["genes_permutations"],
-    }
-    #Write product information to file.
-    write_product(dock=dock, information=information)
+        # Calculate genes' probabilities of bimodality.
+        genes_probabilities = calculate_probabilities_genes(
+            genes_scores=genes_scores_permutations["genes_scores"],
+            genes_permutations=genes_scores_permutations["genes_permutations"],
+        )
+    else:
+
+        source_alternate = read_source_alternate(dock=dock)
+        genes_scores = source_alternate["genes_scores"]
+        genes_permutations = source_alternate["genes_permutations"]
+        genes_scores_permutations = dict()
+        genes_scores_permutations["genes_scores"] = genes_scores
+        genes_scores_permutations["genes_permutations"] = genes_permutations
+        genes_probabilities = source_alternate["genes_probabilities"]
+
+        # Select genes by probabilities.
+        utility.print_terminal_partition(level=2)
+        print("Select genes by threshold on measures' probabilities...")
+        genes_dip = select_genes_by_threshold(
+            genes_probabilities=genes_probabilities,
+            measure="dip",
+            threshold=0.05, # 0.001 (61), 0.005 (125), 0.05 (675)
+        )
+        genes_mixture = select_genes_by_threshold(
+            genes_probabilities=genes_probabilities,
+            measure="mixture",
+            threshold=0.0005, # 0.0005 (2626), 0.001 (2945), 0.005 (3895),
+        )
+        genes_coefficient = select_genes_by_threshold(
+            genes_probabilities=genes_probabilities,
+            measure="coefficient",
+            threshold=0.001, # 0.0005 (1160), 0.001 (1331), 0.005 (1827)
+        )
+        utility.print_terminal_partition(level=2)
+        print("dip: " + str(len(genes_dip)))
+        print("mixture: " + str(len(genes_mixture)))
+        print("coefficient: " + str(len(genes_coefficient)))
+        sets_genes_measures = dict()
+        sets_genes_measures["dip"] = genes_dip
+        sets_genes_measures["mixture"] = genes_mixture
+        sets_genes_measures["coefficient"] = genes_coefficient
+
+        # Select genes that pass filters by multiple measures of bimodality.
+        genes_probability = utility.select_elements_by_sets(
+            names=["dip", "mixture", "coefficient"],
+            sets=sets_genes_measures,
+            count=2,
+        )
+        utility.print_terminal_partition(level=2)
+        print(
+            "selection of genes by multiple measurements: " +
+            str(len(genes_probability))
+        )
+        utility.print_terminal_partition(level=2)
+
+        # Compile information.
+        information = {
+            "genes_scores": genes_scores_permutations["genes_scores"],
+            "genes_permutations": genes_scores_permutations["genes_permutations"],
+            "genes_probabilities": genes_probabilities,
+            "sets_genes_measures": sets_genes_measures,
+            "genes_probability": genes_probability,
+        }
+        # Write product information to file.
+        write_product(dock=dock, information=information)
 
     pass
 
