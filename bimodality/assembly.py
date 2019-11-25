@@ -1753,10 +1753,10 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize genes' counts.
-    organize_genes_counts(dock=dock)
+    #organize_genes_counts(dock=dock)
 
     # Collect garbage to clear memory.
-    gc.collect()
+    #gc.collect()
 
     ##################################################
     ##################################################

@@ -480,38 +480,40 @@ def write_product(dock=None, information=None):
             information["genes_integration"], file_product
         )
 
-    information["data_genes_integration"].to_pickle(
-        path_data_genes_integration
-    )
-    information["data_genes_selection"].to_pickle(
-        path_data_genes_selection
-    )
-    information["data_genes_selection"].to_csv(
-        path_or_buf=path_data_genes_selection_text,
-        columns=None,
-        sep="\t",
-        na_rep="",
-        header=True,
-        index=True,
-    )
+    if False:
 
-    # Exportation
-    information["data_export_genes_selection"].to_csv(
-        path_or_buf=path_export_genes_selection,
-        columns=None,
-        sep="\t",
-        na_rep="",
-        header=False,
-        index=False,
-    )
-    information["data_export_genes_total"].to_csv(
-        path_or_buf=path_export_genes_total,
-        columns=None,
-        sep="\t",
-        na_rep="",
-        header=False,
-        index=False,
-    )
+        information["data_genes_integration"].to_pickle(
+            path_data_genes_integration
+        )
+        information["data_genes_selection"].to_pickle(
+            path_data_genes_selection
+        )
+        information["data_genes_selection"].to_csv(
+            path_or_buf=path_data_genes_selection_text,
+            columns=None,
+            sep="\t",
+            na_rep="",
+            header=True,
+            index=True,
+        )
+
+        # Exportation
+        information["data_export_genes_selection"].to_csv(
+            path_or_buf=path_export_genes_selection,
+            columns=None,
+            sep="\t",
+            na_rep="",
+            header=False,
+            index=False,
+        )
+        information["data_export_genes_total"].to_csv(
+            path_or_buf=path_export_genes_total,
+            columns=None,
+            sep="\t",
+            na_rep="",
+            header=False,
+            index=False,
+        )
 
     pass
 
@@ -964,48 +966,50 @@ def execute_procedure(dock=None):
     )
     utility.print_terminal_partition(level=2)
 
-    # Integrate and organize information about all genes.
-    data_genes_integration = organize_genes_integration(
-        genes=source["genes_split"],
-        data_gene_annotation=source["data_gene_annotation"],
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_distribution_report=source["data_gene_distribution_report"],
-        genes_scores=source["genes_scores"],
-        genes_probabilities=source["genes_probabilities"],
-        genes_heritabilities_simple=source["genes_heritabilities_simple"],
-        genes_heritabilities_complex=source["genes_heritabilities_complex"],
-    )
+    if False:
 
-    # Select genes of interest.
-    data_genes_selection = select_rank_genes(
-        data_genes_integration=data_genes_integration,
-        selection=genes_integration,
-        rank="combination",
-    )
-    print(data_genes_selection)
+        # Integrate and organize information about all genes.
+        data_genes_integration = organize_genes_integration(
+            genes=source["genes_split"],
+            data_gene_annotation=source["data_gene_annotation"],
+            data_samples_tissues_persons=source["data_samples_tissues_persons"],
+            data_gene_distribution_report=source["data_gene_distribution_report"],
+            genes_scores=source["genes_scores"],
+            genes_probabilities=source["genes_probabilities"],
+            genes_heritabilities_simple=source["genes_heritabilities_simple"],
+            genes_heritabilities_complex=source["genes_heritabilities_complex"],
+        )
 
-    # Exportation of genes for functional analysis.
-    utility.print_terminal_partition(level=1)
-    data_export_genes_selection = export_genes_function(
-        data_genes=data_genes_selection,
-        identifier="ensembl",
-        rank=False,
-    )
-    print(data_export_genes_selection)
-    data_export_genes_total = export_genes_function(
-        data_genes=data_genes_integration,
-        identifier="ensembl",
-        rank=False,
-    )
-    print(data_export_genes_total)
+        # Select genes of interest.
+        data_genes_selection = select_rank_genes(
+            data_genes_integration=data_genes_integration,
+            selection=genes_integration,
+            rank="combination",
+        )
+        print(data_genes_selection)
+
+        # Exportation of genes for functional analysis.
+        utility.print_terminal_partition(level=1)
+        data_export_genes_selection = export_genes_function(
+            data_genes=data_genes_selection,
+            identifier="ensembl",
+            rank=False,
+        )
+        print(data_export_genes_selection)
+        data_export_genes_total = export_genes_function(
+            data_genes=data_genes_integration,
+            identifier="ensembl",
+            rank=False,
+        )
+        print(data_export_genes_total)
 
     # Compile information.
     information = {
         "genes_integration": genes_integration,
-        "data_genes_integration": data_genes_integration,
-        "data_genes_selection": data_genes_selection,
-        "data_export_genes_selection": data_export_genes_selection,
-        "data_export_genes_total": data_export_genes_total,
+        #"data_genes_integration": data_genes_integration,
+        #"data_genes_selection": data_genes_selection,
+        #"data_export_genes_selection": data_export_genes_selection,
+        #"data_export_genes_total": data_export_genes_total,
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

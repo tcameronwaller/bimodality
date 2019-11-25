@@ -565,7 +565,7 @@ def execute_procedure(dock=None):
         "genes_heritabilities_simple": genes_heritabilities_simple,
         "genes_heritabilities_complex": genes_heritabilities_complex,
         "sets_genes_models": sets_genes_models,
-        "genes_heritability": genes_heritability,
+        "genes_heritability": genes_heritable_complex, # can also use "genes_heritability" which is union
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

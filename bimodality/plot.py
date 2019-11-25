@@ -232,6 +232,11 @@ def plot_distribution_histogram(
         label=name,
         stacked=False
     )
+    axes.set_title(
+        name,
+        #fontdict=fonts["properties"]["one"],
+        loc="center",
+    )
     if False:
         axes.legend(
             loc="upper right",
@@ -295,6 +300,7 @@ def plot_bar_stack(
     label_horizontal=None,
     fonts=None,
     colors=None,
+    color_count=None,
     rotation=None,
     legend=None,
 ):
@@ -308,6 +314,7 @@ def plot_bar_stack(
         label_horizontal (str): label for horizontal axis
         fonts (dict<object>): references to definitions of font properties
         colors (dict<tuple>): references to definitions of color properties
+        color_count (int): count of colors for subcategories (stacks)
         rotation (str): value for rotation of labels
         legend (bool): whether to include a legend for series on the chart
 
@@ -328,6 +335,13 @@ def plot_bar_stack(
     )
     series_names = list(data.columns)
 
+    if color_count > 1:
+        colors_series = list(
+            seaborn.color_palette("hls", n_colors=color_count)
+        )
+    else:
+        colors_series = [colors["blue"]]
+
     # Create figure.
     figure = matplotlib.pyplot.figure(
         figsize=(15.748, 11.811),
@@ -341,6 +355,7 @@ def plot_bar_stack(
     # Initialize bars.
     bars = []
     # Iterate on series.
+    index = 0
     for series_name in series_names:
         # Access series values.
         values = list(data.loc[:, series_name])
@@ -353,11 +368,15 @@ def plot_bar_stack(
             width=0.8,
             bottom=bases,
             align="center",
+            color=colors_series[index],
         )
         bars.append(series_bars[0])
         # Restore bases.
         bases = list(map(sum, zip(bases, values)))
         print(bases)
+        index += 1
+        pass
+
     axes.set_ylabel(
         ylabel=label_vertical,
         labelpad=20,
@@ -653,6 +672,319 @@ def write_figure(path=None, figure=None):
 
 
 # Procedures
+
+
+##########
+# Sex and age of persons in GTEx
+# Status: working
+
+
+def read_source_person_sex_age(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection")
+    path_data_persons_sex_age_counts = os.path.join(
+        path_selection, "data_persons_sex_age_counts.pickle"
+    )
+    # Read information from file.
+    with open(path_data_persons_sex_age_counts, "rb") as file_source:
+        data_persons_sex_age_counts = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "data_persons_sex_age_counts": data_persons_sex_age_counts,
+    }
+
+
+def prepare_chart_person_sex_age(
+    dock=None
+):
+    """
+    Plots charts from the sample process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_person_sex_age(dock=dock)
+    print(source["data_persons_sex_age_counts"])
+
+    # Copy data.
+    data_persons_sex_age_counts = (
+        source["data_persons_sex_age_counts"].copy(deep=True)
+    )
+    # Organize data.
+    data_pivot = data_persons_sex_age_counts.pivot_table(
+        values="count",
+        index="sex",
+        columns="age_decade",
+        aggfunc="sum",
+        fill_value=0,
+    )
+    print(data_pivot)
+    data_pivot.rename_axis(
+        index="groups",
+        axis="index",
+        copy=False,
+        inplace=True,
+    )
+    data_pivot.reset_index(
+        level=["groups"], inplace=True
+    )
+    print("these are the data passed to the plot function")
+    print(data_pivot)
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    path_persons = os.path.join(path_plot, "persons")
+    utility.create_directory(path_persons)
+
+    # Create figures.
+    figure = plot_bar_stack(
+        data=data_pivot,
+        label_vertical="Persons",
+        label_horizontal="Sex",
+        fonts=fonts,
+        colors=colors,
+        color_count=6,
+        rotation="horizontal",
+        legend=True,
+    )
+    # Specify directories and files.
+    file = ("persons_sex_age.svg")
+    path_file = os.path.join(path_persons, file)
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+##########
+# Counts of persons per major tissue type
+# Status: working
+
+def read_source_persons_per_tissue(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection")
+    path_data_persons_per_tissue = os.path.join(
+        path_selection, "data_persons_per_tissue.pickle"
+    )
+    # Read information from file.
+    with open(path_data_persons_per_tissue, "rb") as file_source:
+        data_persons_per_tissue = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "data_persons_per_tissue": data_persons_per_tissue,
+    }
+
+
+def prepare_chart_persons_per_tissue(dock=None):
+    """
+    Plots charts from the sample process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_persons_per_tissue(dock=dock)
+    print(source["data_persons_per_tissue"])
+
+    # Copy data.
+    data_persons_per_tissue = (
+        source["data_persons_per_tissue"].copy(deep=True)
+    )
+    # Organize data.
+    data_persons_per_tissue.set_index(
+        "tissue",
+        drop=True,
+        inplace=True,
+    )
+    data_persons_per_tissue.rename_axis(
+        index="groups",
+        axis="index",
+        copy=False,
+        inplace=True,
+    )
+    data_persons_per_tissue.reset_index(
+        level=["groups"], inplace=True
+    )
+    print(data_persons_per_tissue)
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    path_persons = os.path.join(path_plot, "persons")
+    utility.create_directory(path_persons)
+
+    # Create figures.
+    figure = plot_bar_stack(
+        data=data_persons_per_tissue,
+        label_vertical="Persons per tissue type",
+        label_horizontal="Major tissue type",
+        fonts=fonts,
+        colors=colors,
+        color_count=1,
+        rotation="vertical",
+        legend=False,
+    )
+    # Specify directories and files.
+    file = ("persons_per_tissue.svg")
+    path_file = os.path.join(path_persons, file)
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+##########
+# Counts of tissues per person, histogram with bins by counts
+# Status: working
+
+
+def read_source_tissues_per_person(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection")
+    path_data_tissues_per_person = os.path.join(
+        path_selection, "data_tissues_per_person.pickle"
+    )
+    path_tissues_per_person = os.path.join(
+        path_selection, "tissues_per_person.pickle"
+    )
+    # Read information from file.
+    with open(path_data_tissues_per_person, "rb") as file_source:
+        data_tissues_per_person = pickle.load(file_source)
+    with open(path_tissues_per_person, "rb") as file_source:
+        tissues_per_person = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "data_tissues_per_person": data_tissues_per_person,
+        "tissues_per_person": tissues_per_person,
+    }
+
+
+def prepare_chart_tissues_per_person(dock=None):
+    """
+    Plots charts from the sample process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_tissues_per_person(dock=dock)
+    print(source["data_tissues_per_person"])
+    print(source["tissues_per_person"])
+
+    # Organize data.
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    path_persons = os.path.join(path_plot, "persons")
+    utility.create_directory(path_persons)
+
+    # Create figures.
+    figure = plot_distribution_histogram(
+        series=source["tissues_per_person"],
+        name="",
+        bin_method="count",
+        bin_count=17,
+        label_bins="Bins by count of tissues per person",
+        label_counts="Counts of persons in each bin",
+        fonts=fonts,
+        colors=colors,
+        line=True,
+        position=11,
+        text="",
+    )
+    # Specify directories and files.
+    file = ("tissues_per_person.svg")
+    path_file = os.path.join(path_persons, file)
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
 
 
 ##########
@@ -1308,7 +1640,7 @@ def prepare_charts_gene_sets_integration(
 
 ##########
 # Distributions of genes' pan-tissue aggregate signals across persons
-# Status: in progress
+# Status: working
 
 
 def read_source_genes_persons_signals_initial(
@@ -1407,7 +1739,7 @@ def plot_chart_genes_persons_signals(
     # Create figure.
     figure = plot_distribution_histogram(
         series=values,
-        name="",
+        name=gene,
         bin_method="count",
         bin_count=50,
         label_bins="Bins",
@@ -1424,32 +1756,6 @@ def plot_chart_genes_persons_signals(
         figure=figure
     )
 
-    if False:
-        types = ["coefficient", "dip", "mixture", "combination"]
-        #types = ["combination"]
-        for type in types:
-            # Create figure.
-            figure = plot_distribution_histogram(
-                series=genes_scores_permutations[gene]["permutations"][type],
-                name="",
-                bin_method="count",
-                bin_count=50,
-                label_bins="Bins",
-                label_counts="Counts",
-                fonts=fonts,
-                colors=colors,
-                line=True,
-                position=genes_scores_permutations[gene]["scores"][type],
-                text="",
-            )
-            # Specify directories and files.
-            file = ("score_permutations_" + type + ".svg")
-            path_file = os.path.join(path, file)
-            # Write figure.
-            write_figure(
-                path=path_file,
-                figure=figure
-            )
     pass
 
 
@@ -1513,142 +1819,7 @@ def prepare_charts_genes_persons_signals(
 
 # Sample
 
-def read_source_sample(dock=None):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
-    #path_genes_report = os.path.join(
-    #    path_analysis, "genes_report.txt"
-    #)
-    path_samples = os.path.join(
-        path_assembly, "data_samples_tissues_patients.pickle"
-    )
-    # Read information from file.
-    #genes = utility.read_file_text_list(path_genes_report)
-    with open(path_samples, "rb") as file_source:
-        data_samples = pickle.load(file_source)
-    # Compile and return information.
-    return {
-        "data_samples": data_samples,
-    }
-
-
-def plot_chart_sample_patients(
-    data=None,
-    fonts=None,
-    colors=None,
-    path=None,
-):
-    """
-    Plots charts from the sample process.
-
-    arguments:
-        data (object): Pandas data frame with information about samples
-        fonts (dict<object>): references to definitions of font properties
-        colors (dict<tuple>): references to definitions of color properties
-        path (str): path to directory
-
-    raises:
-
-    returns:
-
-    """
-
-    data_patients = data.copy(deep=True)
-    data_patients.reset_index(level=["sample"], inplace=True)
-    # Remove relevant redundancy.
-    print(
-        "Data dimensions before removal of redundancy: " +
-        str(data_patients.shape)
-    )
-    data_patients.drop_duplicates(
-        subset=["patient"],
-        keep="first",
-        inplace=True,
-    )
-    print(
-        "Data dimensions after removal of redundancy: " +
-        str(data_patients.shape)
-    )
-    # Remove irrelevant columns.
-    data_patients.drop(
-        labels=["sample", "tissue_major", "tissue_minor"],
-        axis="columns",
-        inplace=True,
-    )
-    data_patients.set_index(
-        ["sex", "age"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    print(data_patients)
-    data_patients_counts = data_patients.groupby(
-        level=["sex", "age"],
-        sort=True,
-        as_index=False
-    ).size().to_frame(
-        name="count"
-    )
-    data_patients_counts.reset_index(
-        level=["sex", "age"], inplace=True
-    )
-    print(data_patients_counts)
-    # Organize data for chart.
-    data_pivot = data_patients_counts.pivot_table(
-        values="count",
-        index="sex",
-        columns="age",
-        aggfunc="sum",
-        fill_value=0,
-    )
-    print(data_pivot)
-    data_pivot.rename_axis(
-        index="groups",
-        axis="index",
-        copy=False,
-        inplace=True,
-    )
-    data_pivot.reset_index(
-        level=["groups"], inplace=True
-    )
-    print(data_pivot)
-
-    # Create figures.
-    figure = plot_bar_stack(
-        data=data_pivot,
-        label_vertical="Patients",
-        label_horizontal="Sex",
-        fonts=fonts,
-        colors=colors,
-        rotation="horizontal",
-        legend=True,
-    )
-    # Specify directories and files.
-    file = ("sample_patients.svg")
-    path_file = os.path.join(path, file)
-    # Write figure.
-    write_figure(
-        path=path_file,
-        figure=figure
-    )
-
-    pass
-
-
+# TODO: this obsolete function plots the minor tissue categories within each major tissue category...
 def plot_chart_sample_tissues_samples(
     data=None,
     fonts=None,
@@ -1764,262 +1935,6 @@ def plot_chart_sample_tissues_samples(
     )
 
     pass
-
-
-def plot_chart_sample_tissues_patients(
-    data=None,
-    fonts=None,
-    colors=None,
-    path=None,
-):
-    """
-    Plots charts from the sample process.
-
-    arguments:
-        data (object): Pandas data frame with information about samples
-        fonts (dict<object>): references to definitions of font properties
-        colors (dict<tuple>): references to definitions of color properties
-        path (str): path to directory
-
-    raises:
-
-    returns:
-
-    """
-
-    data_copy = data.copy(deep=True)
-    data_copy.reset_index(level=["sample"], inplace=True)
-    # Remove relevant redundancy.
-    print(
-        "Data dimensions before removal of redundancy: " +
-        str(data_copy.shape)
-    )
-    # Some patients have samples for multiple minor types of the same major
-    # type of tissue.
-    # Remove this redundancy.
-    data_copy.drop_duplicates(
-        subset=["patient", "tissue_major"],
-        keep="first",
-        inplace=True,
-    )
-    print(
-        "Data dimensions after removal of redundancy: " +
-        str(data_copy.shape)
-    )
-    # Remove irrelevant columns.
-    data_copy.drop(
-        labels=["sample", "age", "sex", "tissue_minor"],
-        axis="columns",
-        inplace=True,
-    )
-    data_copy.set_index(
-        ["tissue_major"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    print(data_copy)
-    data_count = data_copy.groupby(
-        level=["tissue_major"],
-        sort=True,
-        as_index=False
-    ).size().to_frame(
-        name="count"
-    )
-    print(data_count)
-    # Organize data for chart.
-    data_count.rename_axis(
-        index="groups",
-        axis="index",
-        copy=False,
-        inplace=True,
-    )
-    data_count.reset_index(
-        level=["groups"], inplace=True
-    )
-    print(data_count)
-    tissues_filter = [
-        "breast",
-        "cervix",
-        "fallopius",
-        "ovary",
-        "prostate",
-        "testis",
-        "uterus",
-        "vagina",
-    ]
-    data_filter = data_count.loc[~data_count["groups"].isin(tissues_filter)]
-
-    # Create figures.
-    figure = plot_bar_stack(
-        data=data_filter,
-        label_vertical="Patients per tissue type",
-        label_horizontal="Major tissue type",
-        fonts=fonts,
-        colors=colors,
-        rotation="vertical",
-        legend=False,
-    )
-    # Specify directories and files.
-    file = ("sample_tissues_patients.svg")
-    path_file = os.path.join(path, file)
-    # Write figure.
-    write_figure(
-        path=path_file,
-        figure=figure
-    )
-
-    pass
-
-
-def plot_chart_sample_patients_tissues(
-    data=None,
-    fonts=None,
-    colors=None,
-    path=None,
-):
-    """
-    Plots charts from the sample process.
-
-    arguments:
-        data (object): Pandas data frame with information about samples
-        fonts (dict<object>): references to definitions of font properties
-        colors (dict<tuple>): references to definitions of color properties
-        path (str): path to directory
-
-    raises:
-
-    returns:
-
-    """
-
-    data_copy = data.copy(deep=True)
-    data_copy.reset_index(level=["sample"], inplace=True)
-    # Remove relevant redundancy.
-    print(
-        "Data dimensions before removal of redundancy: " +
-        str(data_copy.shape)
-    )
-    # Some patients have samples for multiple minor types of the same major
-    # type of tissue.
-    # Remove this redundancy.
-    data_copy.drop_duplicates(
-        subset=["patient", "tissue_major"],
-        keep="first",
-        inplace=True,
-    )
-    print(
-        "Data dimensions after removal of redundancy: " +
-        str(data_copy.shape)
-    )
-    # Remove irrelevant columns.
-    data_copy.drop(
-        labels=["sample", "age", "sex", "tissue_minor"],
-        axis="columns",
-        inplace=True,
-    )
-    data_copy.set_index(
-        ["patient"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    print(data_copy)
-    data_count = data_copy.groupby(
-        level=["patient"],
-        sort=True,
-        as_index=False
-    ).size().to_frame(
-        name="count"
-    )
-    print(data_count)
-    # Organize data for chart.
-    counts = list(data_count.loc[:, "count"])
-    # Create figures.
-    figure = plot_distribution_histogram(
-        series=counts,
-        name="",
-        bin_method="count",
-        bin_count=21,
-        label_bins="Bins by tissues sampled for each patient",
-        label_counts="Counts of patients in each bin",
-        fonts=fonts,
-        colors=colors,
-        line=True,
-        position=7,
-        text="",
-    )
-    # Specify directories and files.
-    file = ("sample_patients_tissues.svg")
-    path_file = os.path.join(path, file)
-    # Write figure.
-    write_figure(
-        path=path_file,
-        figure=figure
-    )
-
-    pass
-
-
-def plot_charts_sample(
-    dock=None
-):
-    """
-    Plots charts from the sample process.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-
-    """
-
-    # Define fonts.
-    fonts = define_font_properties()
-    # Define colors.
-    colors = define_color_properties()
-    # Specify directories and files.
-    path_plot = os.path.join(dock, "plot")
-    path_sample = os.path.join(path_plot, "sample")
-    utility.create_directory(path_sample)
-    # Read source information from file.
-    source = read_source_sample(dock=dock)
-    #source["data_samples"]
-    print(source["data_samples"])
-    # Patients' sex and age.
-    plot_chart_sample_patients(
-        data=source["data_samples"],
-        fonts=fonts,
-        colors=colors,
-        path=path_sample
-    )
-    # Samples per major and minor tissue.
-    plot_chart_sample_tissues_samples(
-        data=source["data_samples"],
-        fonts=fonts,
-        colors=colors,
-        path=path_sample
-    )
-    # Patients per major tissue.
-    plot_chart_sample_tissues_patients(
-        data=source["data_samples"],
-        fonts=fonts,
-        colors=colors,
-        path=path_sample
-    )
-    # Tissues per patient.
-    plot_chart_sample_patients_tissues(
-        data=source["data_samples"],
-        fonts=fonts,
-        colors=colors,
-        path=path_sample
-    )
-
-    pass
-
 
 # Tissue
 
@@ -2255,8 +2170,6 @@ def plot_charts_tissue(
     pass
 
 
-
-
 def read_source_tissues_persons(dock=None):
     """
     Reads and organizes source information from file
@@ -2324,8 +2237,6 @@ def plot_chart_tissues_persons(
 
 
     pass
-
-
 
 
 def read_source_restriction(dock=None):
@@ -2417,6 +2328,20 @@ def execute_procedure(dock=None):
 
     """
 
+    # Remove previous files to avoid version or batch confusion.
+    path_plot = os.path.join(dock, "plot")
+    utility.remove_directory(path=path_plot)
+    utility.create_directory(path_plot)
+
+    # Plot chart for sex and age of persons in GTEx consortium.
+    prepare_chart_person_sex_age(dock=dock)
+
+    # Plot chart for counts of persons per major tissue type.
+    prepare_chart_persons_per_tissue(dock=dock)
+
+    # Plot chart for counts of major tissue type per person, a histogram.
+    prepare_chart_tissues_per_person(dock=dock)
+
     # Plot charts of distributions of each bimodality measure's scores across
     # genes.
     #- distribution of a single bimodality measure's scores across all genes
@@ -2447,7 +2372,6 @@ def execute_procedure(dock=None):
 
 
     #plot_charts_analysis(dock=dock)
-    #plot_charts_sample(dock=dock)
     #plot_charts_tissue(dock=dock)
     #plot_charts_restriction(dock=dock)
     #plot_chart_tissues_persons(dock=dock)

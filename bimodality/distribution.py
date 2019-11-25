@@ -67,7 +67,7 @@ def read_source_initial(
         path_selection, "data_gene_annotation.pickle"
     )
     path_persons_families = os.path.join(
-        path_selection, "data_persons_families.pickle"
+        path_selection, "data_families_persons.pickle"
     )
     if source_genes == "split":
         path_source = os.path.join(dock, "split")
@@ -2551,7 +2551,7 @@ def execute_procedure_local(dock=None):
         )
         # Initialize multiprocessing pool.
         #pool = multiprocessing.Pool(processes=os.cpu_count())
-        pool = multiprocessing.Pool(processes=8)
+        pool = multiprocessing.Pool(processes=5)
         # Iterate on genes.
         check_genes=[
             "ENSG00000231925", # TAPBP
