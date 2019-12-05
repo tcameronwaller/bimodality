@@ -169,6 +169,203 @@ def define_color_properties():
     }
 
 
+def plot_heatmap(
+    data=None,
+    label_rows=None,
+    label_columns=None,
+    fonts=None,
+    colors=None,
+):
+    """
+    Creates a figure of a chart of type heatmap.
+
+    arguments:
+        data (object): Pandas data frame of quantitative values with mappings
+            to columns and rows that will be transposed in heatmap
+        label_rows (bool): whether to include explicit labels on heatmap's rows
+        label_columns (bool): whether to include explicit labels on heatmap's
+            columns
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+
+    raises:
+
+    returns:
+        (object): figure object
+
+    """
+
+    # Organize data.
+    # Map data's columns to heatmap's rows.
+    # Map data's rows to heatmap's columns.
+    labels_rows = data.columns.to_list()
+    labels_columns = data.index.to_list()
+    matrix = numpy.transpose(data.values)
+
+    # Create figure.
+    figure = matplotlib.pyplot.figure(
+        figsize=(15.748, 11.811),
+        tight_layout=True
+    )
+    axes = matplotlib.pyplot.axes()
+
+    # Represent data as a color grid.
+    image = axes.imshow(
+        matrix,
+        #cmap= ,
+        aspect="auto",
+    )
+
+    # Create legend for color map.
+    label_bar = "legend"
+    bar = axes.figure.colorbar(image, ax=axes)
+    bar.ax.set_ylabel(label_bar, rotation=-90, va="bottom")
+
+    # Create ticks and labels for each grid.
+    # Let the horizontal axes labeling appear on top.
+    axes.tick_params(
+        axis="both",
+        which="both",
+        direction="out",
+        length=5.0,
+        width=3.0,
+        color=colors["black"],
+        pad=5,
+        labelsize=fonts["values"]["two"]["size"],
+        labelcolor=colors["black"],
+        top=True,
+        bottom=False,
+        labeltop=True,
+        labelbottom=False
+    )
+    # Rotate the tick labels and set their alignment.
+    matplotlib.pyplot.setp(
+        axes.get_xticklabels(),
+        rotation=-30,
+        ha="right",
+        rotation_mode="anchor"
+    )
+
+    if label_columns:
+        axes.set_xticks(numpy.arange(matrix.shape[1]))
+        axes.set_xticklabels(labels_columns)
+    if label_rows:
+        axes.set_yticks(numpy.arange(matrix.shape[0]))
+        axes.set_yticklabels(
+            labels_rows,
+            minor=False,
+            alpha=1.0,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"]["four"]
+        )
+
+    return figure
+
+# TODO: This function is in progress...
+# TODO: I'm trying to include a bar or bars to designate groups of persons
+def plot_heatmap_groups(
+    data=None,
+    label_rows=None,
+    label_columns=None,
+    fonts=None,
+    colors=None,
+):
+    """
+    Creates a figure of a chart of type heatmap.
+
+    arguments:
+        data (object): Pandas data frame of quantitative values with mappings
+            to columns and rows that will be transposed in heatmap
+        label_rows (bool): whether to include explicit labels on heatmap's rows
+        label_columns (bool): whether to include explicit labels on heatmap's
+            columns
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+
+    raises:
+
+    returns:
+        (object): figure object
+
+    """
+
+    # Organize data.
+    # Map data's columns to heatmap's rows.
+    # Map data's rows to heatmap's columns.
+    labels_rows = data.columns.to_list()
+    labels_columns = data.index.to_list()
+    matrix = numpy.transpose(data.values)
+
+    # Create figure.
+    figure = matplotlib.pyplot.figure(
+        figsize=(15.748, 11.811),
+        tight_layout=True
+    )
+    axes = figure.subplots(
+        nrows=2,
+        ncols=1,
+        sharex=True,
+        squeeze=True,
+        gridspec_kw=dict(height_ratios=[1, 5])
+    )
+
+    axes[0].axis("off")
+
+    # Represent data as a color grid.
+    image = axes[1].imshow(
+        matrix,
+        #cmap= ,
+        aspect="auto",
+    )
+
+    # Create legend for color map.
+    label_bar = "legend"
+    bar = axes[1].figure.colorbar(image, ax=axes[1])
+    bar.ax.set_ylabel(label_bar, rotation=-90, va="bottom")
+
+    # Create ticks and labels for each grid.
+    # Let the horizontal axes labeling appear on top.
+    axes[1].tick_params(
+        axis="both",
+        which="both",
+        direction="out",
+        length=5.0,
+        width=3.0,
+        color=colors["black"],
+        pad=5,
+        labelsize=fonts["values"]["two"]["size"],
+        labelcolor=colors["black"],
+        top=False,
+        bottom=True,
+        labeltop=False,
+        labelbottom=True
+    )
+    # Rotate the tick labels and set their alignment.
+    matplotlib.pyplot.setp(
+        axes[1].get_xticklabels(),
+        rotation=-30,
+        ha="right",
+        rotation_mode="anchor"
+    )
+
+    if label_columns:
+        axes[1].set_xticks(numpy.arange(matrix.shape[1]))
+        axes[1].set_xticklabels(labels_columns)
+    if label_rows:
+        axes[1].set_yticks(numpy.arange(matrix.shape[0]))
+        axes[1].set_yticklabels(
+            labels_rows,
+            minor=False,
+            alpha=1.0,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"]["four"]
+        )
+
+    return figure
+
+
 def plot_distribution_histogram(
     series=None,
     name=None,
@@ -983,8 +1180,6 @@ def prepare_chart_tissues_per_person(dock=None):
     )
 
     pass
-
-
 
 
 ##########
@@ -1813,6 +2008,544 @@ def prepare_charts_genes_persons_signals(
     pass
 
 
+##########
+# Genes' signals across tissues and persons
+# Status: working
+
+
+def read_source_genes_signals_tissues_persons_initial(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_integration = os.path.join(dock, "integration")
+    path_genes_integration = os.path.join(
+        path_integration, "genes_integration.pickle"
+    )
+
+    # Read information from file.
+    with open(path_genes_integration, "rb") as file_source:
+        genes_integration = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "genes_integration": genes_integration,
+    }
+
+
+def read_source_genes_signals_tissues_persons(
+    gene=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_distribution = os.path.join(dock, "distribution")
+    path_gene = os.path.join(path_distribution, gene)
+    path_data_gene_persons_signals = os.path.join(
+        path_gene, "data_gene_persons_signals.pickle"
+    )
+    path_data_gene_signals_tissues_persons = os.path.join(
+        path_gene, "data_gene_signals_tissues_persons_normal_standard.pickle"
+    )
+
+    # Read information from file.
+    data_gene_persons_signals = (
+        pandas.read_pickle(path_data_gene_persons_signals)
+    )
+    data_gene_signals_tissues_persons = (
+        pandas.read_pickle(path_data_gene_signals_tissues_persons)
+    )
+    # Compile and return information.
+    return {
+        "data_gene_persons_signals": data_gene_persons_signals,
+        "data_gene_signals_tissues_persons": data_gene_signals_tissues_persons,
+    }
+
+
+def organize_genes_signals_tissues_persons(
+    data_gene_persons_signals=None,
+    data_gene_signals_tissues_persons=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        data_gene_persons_signals (object): Pandas data frame of a gene's
+            aggregate, pan-tissue signals across persons
+        data_gene_signals_tissues_persons (object): Pandas data frame of a
+            gene's signals across tissues and persons
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's signals across tissues and
+            persons
+
+    """
+
+    # Rename the aggregate, pantissue signals.
+    data_gene_persons_signals.rename(
+        columns={
+            "value": "signal",
+        },
+        inplace=True,
+    )
+    # Introduce aggregate, pantissue signals to tissue-person matrix.
+    # These aggregate signals will be useful to sort the data.
+    # Join
+    data_hybrid = data_gene_signals_tissues_persons.join(
+        data_gene_persons_signals,
+        how="left",
+        on="person"
+    )
+    # Sort data by the aggregate, pantissue signals.
+    data_hybrid.sort_values(
+        by=["signal"],
+        axis="index",
+        ascending=True,
+        inplace=True,
+    )
+    # Remove the column for aggregate, pantissue signals.
+    data_hybrid.drop(
+        labels="signal",
+        axis="columns",
+        inplace=True
+    )
+    # Return information
+    return data_hybrid
+
+
+def plot_chart_genes_signals_tissues_persons(
+    gene=None,
+    data=None,
+    path_directory=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        gene (str): identifier of a single gene
+        data (object): Pandas data frame of a gene's aggregate, pantissue
+            signals across tissues and persons
+        path_directory (str): path for directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define file name.
+    path_figure = os.path.join(
+        path_directory, str(gene + ".svg")
+    )
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_heatmap(
+        data=data,
+        label_columns=False,
+        label_rows=True,
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path_figure,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_genes_signals_tissues_persons(
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source_initial = read_source_genes_signals_tissues_persons_initial(dock=dock)
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_distribution = os.path.join(path_plot, "distribution")
+    path_genes_tissues_persons = os.path.join(
+        path_distribution, "genes_tissues_persons"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_genes_tissues_persons)
+    utility.create_directories(path=path_genes_tissues_persons)
+
+    # Iterate on genes.
+    for gene in source_initial["genes_integration"]:
+
+        # Read source information from file.
+        source_gene = read_source_genes_signals_tissues_persons(
+            gene=gene,
+            dock=dock
+        )
+        # Organize data.
+        # Sort persons by their pantissue aggregate signals for the gene.
+        # The same order is important to compare the heatmap to the histogram.
+        data_gene_signals_tissues_persons = organize_genes_signals_tissues_persons(
+            data_gene_persons_signals=source_gene["data_gene_persons_signals"],
+            data_gene_signals_tissues_persons=(
+                source_gene["data_gene_signals_tissues_persons"]
+            ),
+        )
+        # Create charts for the gene.
+        plot_chart_genes_signals_tissues_persons(
+            gene=gene,
+            data=data_gene_signals_tissues_persons,
+            path_directory=path_genes_tissues_persons
+        )
+        pass
+    pass
+
+
+##########
+# Genes' signals across groups of persons
+# Status: in progres...
+
+
+def read_source_genes_signals_persons_groups_initial(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection")
+    path_persons_properties = os.path.join(
+        path_selection, "data_persons_properties.pickle"
+    )
+
+    path_integration = os.path.join(dock, "integration")
+    path_genes_integration = os.path.join(
+        path_integration, "genes_integration.pickle"
+    )
+
+    # Read information from file.
+    data_persons_properties = pandas.read_pickle(path_persons_properties)
+    with open(path_genes_integration, "rb") as file_source:
+        genes_integration = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "data_persons_properties": data_persons_properties,
+        "genes_integration": genes_integration,
+    }
+
+
+def read_source_genes_signals_persons_groups(
+    gene=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_distribution = os.path.join(dock, "distribution")
+    path_gene = os.path.join(path_distribution, gene)
+    path_data_gene_persons_signals = os.path.join(
+        path_gene, "data_gene_persons_signals.pickle"
+    )
+
+    # Read information from file.
+    data_gene_persons_signals = (
+        pandas.read_pickle(path_data_gene_persons_signals)
+    )
+    # Compile and return information.
+    return {
+        "data_gene_persons_signals": data_gene_persons_signals,
+    }
+
+
+def collect_genes_signals_persons(
+    genes=None,
+    dock=None,
+):
+    """
+    Collects genes' aggregate, pantissue signals across persons.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+        genes (list<str>): identifiers of genes
+
+    raises:
+
+    returns:
+        (dict<object>): collection of Pandas data frames of genes' aggregate,
+            pantissue signals across persons
+
+    """
+
+    # Collect information for genes.
+    collection = dict()
+    # Iterate on genes.
+    for gene in genes:
+        # Read source information from file.
+        source_gene = read_source_genes_signals_persons_groups(
+            gene=gene,
+            dock=dock
+        )
+        # Organize data.
+        collection[gene] = source_gene["data_gene_persons_signals"]
+        pass
+    # Return information.
+    return collection
+
+
+def organize_genes_signals_persons(
+    collection_genes_signals=None,
+    data_persons_properties=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        collection_genes_signals (dict<object>): collection of Pandas data
+            frames of genes' aggregate, pantissue signals across persons
+        data_persons_properties (object): Pandas data frame of persons'
+            properties
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of multiple genes' signals across persons
+
+    """
+
+    # Copy data.
+    data_persons = data_persons_properties.copy(deep=True)
+    # Organize data.
+    data_persons = data_persons.loc[
+        :, data_persons.columns.isin([
+            "age", "body", "delay",
+            "hardiness", "season", "sex",
+        ])
+    ]
+
+    # Iterate on genes.
+    for gene in collection_genes_signals.keys():
+        data_gene = collection_genes_signals[gene]
+        # Rename the aggregate, pantissue signals.
+        data_gene.rename(
+            columns={
+                "value": gene,
+            },
+            inplace=True,
+        )
+        # Introduce aggregate, pantissue signals for each gene to person data.
+        # Join
+        data_persons = data_persons.join(
+            data_gene,
+            how="left",
+            on="person"
+        )
+        pass
+
+    # Sort data by the aggregate, pantissue signals.
+    data_persons.sort_values(
+        by=["sex", "age"], # ["sex", "age"]
+        axis="index",
+        ascending=True,
+        inplace=True,
+    )
+    print(data_persons)
+
+    # Remove unnecessary columns.
+    data_persons.drop(
+        labels=[
+            "age", "body", "delay",
+            "hardiness", "season", "sex",
+        ],
+        axis="columns",
+        inplace=True
+    )
+
+    # Remove persons without signal for any genes.
+    data_persons.dropna(
+        axis="index",
+        how="all",
+        thresh=1,
+        inplace=True,
+    )
+
+    print(data_persons)
+
+    # Return information
+    return data_persons
+
+
+# TODO: I eventually want to use function "plot_heatmap_groups"
+def plot_chart_genes_signals_persons_groups(
+    data=None,
+    path_directory=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        data (object): Pandas data frame of a gene's aggregate, pantissue
+            signals across tissues and persons
+        path_directory (str): path for directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define file name.
+    path_figure = os.path.join(
+        path_directory, str("genes_signals_persons.svg")
+    )
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    # TODO: I eventually want to use function "plot_heatmap_groups"
+    figure = plot_heatmap(
+        data=data,
+        label_columns=False,
+        label_rows=True,
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path_figure,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_genes_signals_persons_groups(
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source_initial = (
+        read_source_genes_signals_persons_groups_initial(dock=dock)
+    )
+
+    # Collect aggregate, pantissue signals across persons for all priority
+    # genes.
+    collection_genes_signals = collect_genes_signals_persons(
+        genes=source_initial["genes_integration"],
+        dock=dock,
+    )
+    # Organize data.
+    # Combine all genes' signals in single data frame.
+    # Sort persons by sex and age.
+
+    ######
+    # TODO: Might be good to include a designation of sort groups in the arguments to this function...
+    ######
+    data_genes_signals_persons_groups = organize_genes_signals_persons(
+        collection_genes_signals=collection_genes_signals,
+        data_persons_properties=source_initial["data_persons_properties"],
+    )
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_distribution = os.path.join(path_plot, "distribution")
+    path_genes_persons = os.path.join(
+        path_distribution, "genes_persons_groups"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_genes_persons)
+    utility.create_directories(path=path_genes_persons)
+    # Create chart.
+    plot_chart_genes_signals_persons_groups(
+        data=data_genes_signals_persons_groups,
+        path_directory=path_genes_persons
+    )
+
+    pass
 
 
 ################# Need to Update ###############################
@@ -2333,41 +3066,57 @@ def execute_procedure(dock=None):
     utility.remove_directory(path=path_plot)
     utility.create_directory(path_plot)
 
-    # Plot chart for sex and age of persons in GTEx consortium.
-    prepare_chart_person_sex_age(dock=dock)
+    if False:
+        # Plot chart for sex and age of persons in GTEx consortium.
+        prepare_chart_person_sex_age(dock=dock)
 
-    # Plot chart for counts of persons per major tissue type.
-    prepare_chart_persons_per_tissue(dock=dock)
+        # Plot chart for counts of persons per major tissue type.
+        prepare_chart_persons_per_tissue(dock=dock)
 
-    # Plot chart for counts of major tissue type per person, a histogram.
-    prepare_chart_tissues_per_person(dock=dock)
+        # Plot chart for counts of major tissue type per person, a histogram.
+        prepare_chart_tissues_per_person(dock=dock)
 
-    # Plot charts of distributions of each bimodality measure's scores across
-    # genes.
-    #- distribution of a single bimodality measure's scores across all genes
-    #-- histogram
-    #-- bins by bimodality measure's score (z-score first?)
-    #-- count of genes in each bin
-    prepare_charts_modality_gene_distribution(dock=dock)
+        # Plot charts of distributions of each bimodality measure's scores across
+        # genes.
+        #- distribution of a single bimodality measure's scores across all genes
+        #-- histogram
+        #-- bins by bimodality measure's score (z-score first?)
+        #-- count of genes in each bin
+        prepare_charts_modality_gene_distribution(dock=dock)
 
     # Plot charts of distributions of genes' pan-tissue aggregate signals
     # across persons.
     prepare_charts_genes_persons_signals(dock=dock)
 
-    # Plot charts of overlap between sets in selection of genes by bimodality.
-    prepare_charts_gene_sets_candidacy(dock=dock)
+    # Plot charts, heatmaps, for each gene's signals across persons (columns)
+    # and tissues (rows).
+    prepare_charts_genes_signals_tissues_persons(dock=dock)
 
-    # Plot charts of overlap between sets in selection of genes by permutation
-    # probability of bimodality.
-    prepare_charts_gene_sets_probability(dock=dock)
+    # TODO: plot aggregate, pantissue signals across persons for each hit gene
+    # TODO: plot these as a heatmap with genes across rows and persons across columns
+    # TODO: figure out how to sort people columns by 1. sex, 2. age
+    # Plot charts, heatmaps, for each gene's aggregate, pantissue signals
+    # across persons.
+    # Genes will be across rows, and persons will be across columns.
+    # This chart will illustrate whether the same persons are in low and high
+    # groups for multiple genes.
+    prepare_charts_genes_signals_persons_groups(dock=dock)
 
-    # Plot charts of overlap between sets in selection of genes by
-    # heritability.
-    prepare_charts_gene_heritability(dock=dock)
+    if False:
+        # Plot charts of overlap between sets in selection of genes by bimodality.
+        prepare_charts_gene_sets_candidacy(dock=dock)
 
-    # Plot charts of overlap between sets in selection of genes by
-    # integration.
-    prepare_charts_gene_sets_integration(dock=dock)
+        # Plot charts of overlap between sets in selection of genes by permutation
+        # probability of bimodality.
+        prepare_charts_gene_sets_probability(dock=dock)
+
+        # Plot charts of overlap between sets in selection of genes by
+        # heritability.
+        prepare_charts_gene_heritability(dock=dock)
+
+        # Plot charts of overlap between sets in selection of genes by
+        # integration.
+        prepare_charts_gene_sets_integration(dock=dock)
 
 
 

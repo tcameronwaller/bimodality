@@ -426,6 +426,9 @@ def write_product(dock=None, information=None):
     path_data_complex = os.path.join(
         path_collection, "data_genes_heritabilities_complex.pickle"
     )
+    path_data_complex_text = os.path.join(
+        path_collection, "data_genes_heritabilities_complex.tsv"
+    )
     path_genes_heritability = os.path.join(
         path_collection, "genes_heritability.pickle"
     )
@@ -444,6 +447,18 @@ def write_product(dock=None, information=None):
         pickle.dump(
             information["genes_heritability"], file_product
         )
+    with open(path_data_complex, "wb") as file_product:
+        pickle.dump(
+            information["data_genes_heritabilities_complex"], file_product
+        )
+    information["data_genes_heritabilities_complex"].to_csv(
+        path_or_buf=path_data_complex_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+
+
 
     pass
 
@@ -562,6 +577,7 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
+        "data_genes_heritabilities_complex": data_genes_heritabilities_complex,
         "genes_heritabilities_simple": genes_heritabilities_simple,
         "genes_heritabilities_complex": genes_heritabilities_complex,
         "sets_genes_models": sets_genes_models,

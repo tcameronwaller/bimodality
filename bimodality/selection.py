@@ -981,8 +981,8 @@ def count_persons_sex_age(
     Counts persons in each group by sex and age.
 
     arguments:
-        data_persons_properties (object): Pandas data frame of persons their
-            properties
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
 
     raises:
 

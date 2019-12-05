@@ -923,6 +923,240 @@ def write_product_reports(dock=None, information=None):
     pass
 
 
+###############Temporary development##########################
+
+
+def collect_genes_signals(
+    genes=None,
+    data_persons_properties=None,
+    dock=None,
+):
+    """
+    Collects genes' pantissue signals across persons.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' pantissue signals across persons
+
+    """
+
+    # Organize template of data for persons.
+    data_collection = data_persons_properties.copy(deep=True)
+    data_collection.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_collection = data_collection.loc[
+        :, data_collection.columns.isin([
+            "person", "sex"
+        ])
+    ]
+    data_collection.drop_duplicates(
+        subset=None,
+        keep="first",
+        inplace=True,
+    )
+    data_collection.reindex()
+    data_collection.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
+    # Collect aggregate, pantissue signals across persons for all priority
+    # genes.
+    collection_genes_signals = plot.collect_genes_signals_persons(
+        genes=genes,
+        dock=dock,
+    )
+
+    # Collect information about genes.
+    # Iterate on genes.
+    for gene in collection_genes_signals.keys():
+        data_gene = collection_genes_signals[gene]
+        # Rename the aggregate, pantissue signals.
+        data_gene.rename(
+            columns={
+                "value": gene,
+            },
+            inplace=True,
+        )
+        # Introduce aggregate, pantissue signals for each gene to person data.
+        # Join
+        data_collection = data_collection.join(
+            data_gene,
+            how="left",
+            on="person"
+        )
+        pass
+
+    # Organize data.
+    data_collection.drop(
+        labels="sex",
+        axis="columns",
+        inplace=True
+    )
+    data_collection.rename_axis(
+        columns="genes",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    # Remove persons without signal for any genes.
+    data_collection.dropna(
+        axis="index",
+        how="all",
+        thresh=1,
+        inplace=True,
+    )
+    # Return information.
+    return data_collection
+
+
+def calculate_pairwise_signal_correlations(
+    entities=None,
+    data_signals=None,
+):
+    """
+    Collects genes' pantissue signals across persons.
+
+    arguments:
+        entities (list<str>): identifiers of entities
+        data_signals (object): Pandas data frame of entities' signals across
+            observations
+
+    raises:
+
+    returns:
+        (dict): correlation coefficients for pairs of entities
+
+    """
+
+    # Determine orderless, pairwise combinations of genes.
+    pairs = utility.combine_unique_elements_pairwise_order(
+        elements=entities,
+    )
+    print("count of orderless pairs of unique entities:" + str(len(pairs)))
+    utility.print_terminal_partition(level=1)
+
+    # Collect counts and correlations across pairs of features.
+    correlations = dict()
+    # Iterate on pairs of features.
+    for pair in pairs:
+        # Select data for pair of features.
+        data_pair = data_signals.loc[:, list(pair)]
+        # Remove observations with missing values for either feature.
+        data_pair.dropna(
+            axis="index",
+            how="any",
+            inplace=True,
+        )
+        # Determine observations for which pair of features has matching
+        # values.
+        count = data_pair.shape[0]
+        # Calculate correlation.
+        if count > 1:
+            correlation = scipy.stats.pearsonr(
+                data_pair[pair[0]].values,
+                data_pair[pair[1]].values,
+            )[0]
+            pass
+        else:
+            correlation = float("nan")
+            pass
+
+        # Collect information.
+        if not pair[0] in correlations:
+            correlations[pair[0]] = dict()
+            pass
+        correlations[pair[0]][pair[1]] = dict()
+        correlations[pair[0]][pair[1]]["count"] = count
+        correlations[pair[0]][pair[1]]["correlation"] = correlation
+
+        pass
+
+    # Return information.
+    return correlations
+
+
+def organize_correlations_matrix(
+    entities=None,
+    correlations=None,
+):
+    """
+    Collects genes' pantissue signals across persons.
+
+    arguments:
+        entities (list<str>): identifiers of entities
+        (dict): correlation coefficients for pairs of entities
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of correlations between entities
+
+    """
+
+    # Collect counts and correlations across pairs of features.
+    records = list()
+    # Iterate on dimension one of entities.
+    for entity_one in entities:
+        # Collect information.
+        record = dict()
+        record["gene"] = entity_one
+
+        # Iterate on dimension two of entities.
+        for entity_two in entities:
+            # Access value.
+            if entity_two in correlations[entity_one]:
+                correlation = (
+                    correlations[entity_one][entity_two]["correlation"]
+                )
+            else:
+                correlation = float("nan")
+            pass
+            # Collect information.
+            record[entity_two] = correlation
+
+        # Collect information.
+        records.append(record)
+        pass
+
+    # Organize data.
+    data = utility.convert_records_to_dataframe(records=records)
+    data.sort_values(
+        by=["gene"],
+        axis="index",
+        ascending=True,
+        inplace=True,
+    )
+    data.set_index(
+        ["gene"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data.rename_axis(
+        columns="genes",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    # Return information.
+    return data
+
+
+
+
 ###############################################################################
 # Procedure
 
@@ -965,6 +1199,46 @@ def execute_procedure(dock=None):
         str(len(genes_integration))
     )
     utility.print_terminal_partition(level=2)
+
+    # Collect genes' pantissue signals across persons.
+    # I should do this to the collection step in the distribution procedure.
+    data_signals_persons_genes = collect_genes_signals(
+        genes=genes_integration,
+        data_persons_properties=source["data_persons_properties"],
+        dock=dock,
+    )
+
+    # Calculate correlations between gene pairs of their pantissue signals
+    # across persons.
+    correlations_genes = calculate_pairwise_signal_correlations(
+        entities=genes_integration,
+        data_signals=data_signals_persons_genes,
+    )
+    print("count of genes: " + str(len(correlations_genes.keys())))
+
+    # Organize data matrix.
+    data_correlations = organize_correlations_matrix(
+        entities=genes_integration,
+        correlations=correlations_genes,
+    )
+
+    print(data_correlations)
+
+    # Plot matrix...
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_test = os.path.join(path_plot, "test")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_test)
+    utility.create_directories(path=path_test)
+    # Create chart.
+    plot.plot_chart_genes_signals_persons_groups(
+        data=data_correlations,
+        path_directory=path_test
+    )
+
 
     if False:
 

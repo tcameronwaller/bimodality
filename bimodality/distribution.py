@@ -1343,7 +1343,7 @@ def aggregate_data(
     )
 
     # Determine values of gene's tissue-aggregate signals across persons.
-    # This procedure includes basic filters.
+    # This procedure includes basic filters to remove missing values.
     collection = determine_gene_persons_signals(
         data_gene_persons_signals=data_gene_persons_signals
     )
@@ -1356,8 +1356,11 @@ def aggregate_data(
 
     # Compile information.
     information = {
-        "data_gene_persons_signals": collection["data_gene_persons_signals"],
-        "values": collection["values"],
+        "data_gene_signals_tissues_persons_normal_standard": (
+            data_normal_standard
+        ),
+        "data_gene_persons_signals": data_gene_persons_signals, # These data include signals across all persons.
+        "values": collection["values"], # These values include only nonmissing signals across persons.
         "persons_count_aggregation": pack["persons_count_aggregation"],
     }
     # Return information.
@@ -2018,6 +2021,10 @@ def write_product_gene(gene=None, dock=None, information=None):
     path_data_gene_families_persons_signals_text = os.path.join(
         path_gene, "data_gene_families_persons_signals.tsv"
     )
+    path_data_gene_signals_tissues_persons_normal_standard = os.path.join(
+        path_gene, "data_gene_signals_tissues_persons_normal_standard.pickle"
+    )
+
     # Modality
     path_scores = os.path.join(
         path_gene, "scores.pickle"
@@ -2097,6 +2104,11 @@ def write_product_gene(gene=None, dock=None, information=None):
         header=False,
         index=False,
     )
+    pandas.to_pickle(
+        information["data_gene_signals_tissues_persons_normal_standard"],
+        path_data_gene_signals_tissues_persons_normal_standard
+    )
+
     # Modality
     with open(path_scores, "wb") as file_product:
         pickle.dump(information["scores"], file_product)
@@ -2411,8 +2423,8 @@ def execute_procedure(
         gene (str): identifier of gene
         data_gene_samples_signals (object): Pandas data frame of a gene's
             signals across samples
-        data_persons_families (object): Pandas data frame of person's identifiers and
-            families' identifiers
+        data_persons_families (object): Pandas data frame of person's
+            identifiers and families' identifiers
         data_gene_annotation (object): Pandas data frame of genes' annotations
         dock (str): path to root or dock directory for source and product
             directories and files
@@ -2429,6 +2441,10 @@ def execute_procedure(
     )
 
     # Distribution
+    # The "aggregate_data" function prepares a data frame with the name
+    # "data_gene_signals_tissues_persons_normal_standard".
+    # This data frame gives gene's signals across tissues and persons after
+    # normalization and standardization.
     bins = prepare_describe_distribution(
         data_gene_persons_tissues_signals=(
             bin_organization["data_gene_persons_tissues_signals"]
@@ -2436,7 +2452,8 @@ def execute_procedure(
     )
 
     # Extraction
-    # TODO: error here...
+    # Extract distribution of gene's signals across persons for heritability
+    # analysis.
     data_gene_families_persons_signals = extract_gene_persons_signals(
         data_gene_persons_signals=(
             bins["bin_aggregation"]["data_gene_persons_signals"]
@@ -2551,7 +2568,7 @@ def execute_procedure_local(dock=None):
         )
         # Initialize multiprocessing pool.
         #pool = multiprocessing.Pool(processes=os.cpu_count())
-        pool = multiprocessing.Pool(processes=5)
+        pool = multiprocessing.Pool(processes=7)
         # Iterate on genes.
         check_genes=[
             "ENSG00000231925", # TAPBP

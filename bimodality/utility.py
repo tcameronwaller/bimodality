@@ -18,6 +18,7 @@ import string
 import gzip
 import shutil
 import textwrap
+import itertools
 
 # Relevant
 
@@ -998,6 +999,54 @@ def calculate_standard_scores(
         )
         values_standard.append(value_standard)
     return values_standard
+
+
+def combine_unique_elements_pairwise_orderless(
+    elements=None,
+):
+    """
+    Combines elements in orderless pairs.
+
+    arguments:
+        elements (list): elements of interest
+
+    returns:
+        (list<tuple>): unique pairs of elements
+
+    raises:
+
+    """
+
+    # Select unique elements.
+    elements_unique = collect_unique_elements(elements_original=elements)
+    # Combine elements in pairs.
+    pairs = list(itertools.combinations(elements_unique, 2))
+    # Return information.
+    return pairs
+
+
+def combine_unique_elements_pairwise_order(
+    elements=None,
+):
+    """
+    Combines elements in ordered pairs.
+
+    arguments:
+        elements (list): elements of interest
+
+    returns:
+        (list<tuple>): unique pairs of elements
+
+    raises:
+
+    """
+
+    # Select unique elements.
+    elements_unique = collect_unique_elements(elements_original=elements)
+    # Combine elements in pairs.
+    pairs = list(itertools.permutations(elements_unique, 2))
+    # Return information.
+    return pairs
 
 
 # Pandas
