@@ -2325,6 +2325,7 @@ def read_source_genes_signals_persons_groups(
     }
 
 
+# TODO: this function will soon be obsolete as I'm moving it to the distribution procedure
 def collect_genes_signals_persons(
     genes=None,
     dock=None,

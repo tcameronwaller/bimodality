@@ -42,6 +42,52 @@ import utility
 # Functionality
 
 
+##########
+# Initialization
+
+
+def initialize_directories(dock=None):
+    """
+    Initialize directories for procedure's product files.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (dict<str>): collection of paths to directories for procedure's files
+
+    """
+
+    # Define paths to directories.
+    path_distribution = os.path.join(dock, "distribution")
+    path_genes = os.path.join(path_distribution, "genes")
+    path_collection = os.path.join(path_distribution, "collection")
+
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_distribution)
+
+    # Initialize directories.
+    utility.create_directory(path_distribution)
+    utility.create_directory(path_genes)
+    utility.create_directory(path_collection)
+
+    # Collect information.
+    paths = dict()
+    paths["distribution"] = path_distribution
+    paths["genes"] = path_genes
+    paths["collection"] = path_collection
+
+    # Return information.
+    return paths
+
+
+##########
+# Source
+
+
 def read_source_initial(
     source_genes=None,
     dock=None
@@ -1947,15 +1993,19 @@ def prepare_gene_report(
 # Product
 
 
-def write_product_gene(gene=None, dock=None, information=None):
+def write_product_gene(
+    gene=None,
+    information=None,
+    paths=None,
+):
     """
     Writes product information to file.
 
     arguments:
-        gene (str): identifier of single gene for which to execute the process.
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
+        gene (str): identifier of single gene for which to execute the process
+        information (object): information to write to file
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
 
     raises:
 
@@ -1965,10 +2015,9 @@ def write_product_gene(gene=None, dock=None, information=None):
 
     ##########
     # Specify directories and files.
-    path_distribution = os.path.join(dock, "distribution")
-    utility.create_directory(path_distribution)
-    path_gene = os.path.join(path_distribution, gene)
+    path_gene = os.path.join(paths["genes"], gene)
     utility.create_directory(path_gene)
+
     # General
     path_tissues = os.path.join(
         path_gene, "tissues.txt"
@@ -2116,14 +2165,17 @@ def write_product_gene(gene=None, dock=None, information=None):
     pass
 
 
-def write_product_collection(dock=None, information=None):
+def write_product_collection(
+    information=None,
+    paths=None,
+):
     """
     Writes product information to file.
 
     arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
+        information (object): information to write to file
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
 
     raises:
 
@@ -2132,21 +2184,25 @@ def write_product_collection(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_distribution = os.path.join(dock, "distribution")
-    utility.create_directory(path_distribution)
+    path_data_signals_genes_persons = os.path.join(
+        paths["collection"], "data_signals_genes_persons.pickle"
+    )
     path_genes_scores = os.path.join(
-        path_distribution, "genes_scores.pickle"
+        paths["collection"], "genes_scores.pickle"
     )
     path_scores = os.path.join(
-        path_distribution, "scores.pickle"
+        paths["collection"], "scores.pickle"
     )
     path_data_report = os.path.join(
-        path_distribution, "data_gene_report.pickle"
+        paths["collection"], "data_gene_report.pickle"
     )
     path_data_report_text = os.path.join(
-        path_distribution, "data_gene_report.tsv"
+        paths["collection"], "data_gene_report.tsv"
     )
     # Write information to file.
+    information["data_signals_genes_persons"].to_pickle(
+        path=path_data_signals_genes_persons,
+    )
     information["data_report"].to_pickle(
         path=path_data_report
     )
@@ -2168,81 +2224,228 @@ def write_product_collection(dock=None, information=None):
 # Collection
 
 
-def read_collect_write_iterations(
-    genes=None,
-    dock=None,
+def read_collection_initial(
+    dock=None
 ):
     """
-    Reads, collects, and writes information from iterations.
+    Reads and organizes source information from file
 
     arguments:
-        genes (list<str>): identifiers of genes
         dock (str): path to root or dock directory for source and product
             directories and files
 
     raises:
 
     returns:
+        (object): source information
 
     """
 
-    # Report process.
-    utility.print_terminal_partition(level=1)
-    print(
-        "Reading, collecting, and writing information about genes' " +
-        "distributions."
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection")
+    path_persons_properties = os.path.join(
+        path_selection, "data_persons_properties.pickle"
+    )
+    # Read information from file.
+    data_persons_properties = pandas.read_pickle(path_persons_properties)
+    # Compile and return information.
+    return {
+        "data_persons_properties": data_persons_properties,
+    }
+
+
+def read_collection_signals_gene_persons(
+    gene=None,
+    paths=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_gene = os.path.join(paths["genes"], gene)
+    path_data_gene_persons_signals = os.path.join(
+        path_gene, "data_gene_persons_signals.pickle"
     )
 
-    # Check contents of directory.
-    utility.print_terminal_partition(level=3)
-    print("Check that directories exist for all genes to collect.")
-    path_distribution = os.path.join(dock, "distribution")
-    genes_distribution = utility.extract_subdirectory_names(
-        path=path_distribution
+    # Read information from file.
+    data_gene_persons_signals = (
+        pandas.read_pickle(path_data_gene_persons_signals)
     )
-    match_distribution = utility.compare_lists_by_inclusion(
-        list_one=genes_distribution,
-        list_two=genes
+    # Compile and return information.
+    return {
+        "data_gene_persons_signals": data_gene_persons_signals,
+    }
+
+
+def read_collect_signals_genes_persons(
+    genes=None,
+    paths=None,
+):
+    """
+    Collects genes' pantissue signals across persons.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' pantissue signals across persons
+
+    """
+
+    """
+    Collects genes' aggregate, pantissue signals across persons.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+        genes (list<str>): identifiers of genes
+
+    raises:
+
+    returns:
+        (dict<object>): collection of Pandas data frames of genes' aggregate,
+            pantissue signals across persons
+
+    """
+
+    # Collect information for genes.
+    collection = dict()
+    # Iterate on genes.
+    for gene in genes:
+        # Read source information from file.
+        source_gene = read_collection_signals_gene_persons(
+            gene=gene,
+            paths=paths
+        )
+        # Organize data.
+        collection[gene] = source_gene["data_gene_persons_signals"]
+        pass
+    # Return information.
+    return collection
+
+
+def read_collect_organize_signals_genes_persons(
+    genes=None,
+    data_persons_properties=None,
+    paths=None,
+):
+    """
+    Collects genes' pantissue signals across persons.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' pantissue signals across persons
+
+    """
+
+    # Organize template of data for persons.
+    data_collection = data_persons_properties.copy(deep=True)
+    data_collection.reset_index(
+        level=None,
+        inplace=True
     )
-    print(
-        "Genes and distribution directories match: " +
-        str(match_distribution)
+    data_collection = data_collection.loc[
+        :, data_collection.columns.isin([
+            "person", "sex"
+        ])
+    ]
+    data_collection.drop_duplicates(
+        subset=None,
+        keep="first",
+        inplace=True,
     )
+    data_collection.reindex()
+    data_collection.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
+    # Collect aggregate, pantissue signals across persons for all priority
+    # genes.
+    collection_signals = read_collect_signals_genes_persons(
+        genes=genes,
+        paths=paths,
+    )
+
+    # Collect information about genes.
+    # Iterate on genes.
+    for gene in collection_signals.keys():
+        data_gene = collection_signals[gene]
+        # Rename the aggregate, pantissue signals.
+        data_gene.rename(
+            columns={
+                "value": gene,
+            },
+            inplace=True,
+        )
+        # Introduce aggregate, pantissue signals for each gene to person data.
+        # Join
+        data_collection = data_collection.join(
+            data_gene,
+            how="left",
+            on="person"
+        )
+        pass
+
+    # Organize data.
+    data_collection.drop(
+        labels="sex",
+        axis="columns",
+        inplace=True
+    )
+    data_collection.rename_axis(
+        columns="genes",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    # Remove persons without signal for any genes.
+    data_collection.dropna(
+        axis="index",
+        how="all",
+        thresh=1,
+        inplace=True,
+    )
+
+    # Report
     utility.print_terminal_partition(level=2)
+    print("Here're genes' pantissue signals across persons...")
+    print(data_collection)
+    print("count of genes: " + str(data_collection.shape[1]))
 
-    # Genes' scores.
-    genes_scores = read_collect_genes_scores(
-        genes=genes_distribution,
-        path_distribution=path_distribution,
-    )
-    # Report of genes' distributions.
-    data_report = read_collect_gene_report(
-        genes=genes_distribution,
-        path_distribution=path_distribution,
-    )
+    # Return information.
+    return data_collection
 
-    # Compile information.
-    information = dict()
-    information["genes_scores"] = genes_scores["genes_scores"]
-    information["scores"] = genes_scores["scores"]
-    information["data_report"] = data_report
-    # Write product information to file.
-    write_product_collection(
-        dock=dock,
-        information=information
-    )
-    pass
-
-
-
-######## TODO ##################
-# TODO: in this compilation step, also collect the values in lists... save time in the plot procedure...
-# TODO: also calculate mean and standard deviation of each score's distribution...
-# TODO: draw a line at mean + 2 * sigma
 
 def read_collect_genes_scores(
     genes=None,
-    path_distribution=None,
+    paths=None,
 ):
     """
     Collects information about genes.
@@ -2262,7 +2465,8 @@ def read_collect_genes_scores(
 
     arguments:
         genes (list<str>): identifiers of genes
-        path_distribution (str): path to distribution directory
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
 
     raises:
 
@@ -2285,9 +2489,9 @@ def read_collect_genes_scores(
     # Iterate on genes.
     for gene in genes:
         # Specify directories and files.
-        path_distribution_gene = os.path.join(path_distribution, gene)
+        path_gene = os.path.join(paths["genes"], gene)
         path_scores = os.path.join(
-            path_distribution_gene, "scores.pickle"
+            path_gene, "scores.pickle"
         )
         # Read information from file.
         with open(path_scores, "rb") as file_source:
@@ -2316,14 +2520,15 @@ def read_collect_genes_scores(
 
 def read_collect_gene_report(
     genes=None,
-    path_distribution=None,
+    paths=None,
 ):
     """
     Collects information about genes.
 
     arguments:
         genes (list<str>): identifiers of genes
-        path_distribution (str): path to distribution directory
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
 
     raises:
 
@@ -2337,7 +2542,7 @@ def read_collect_gene_report(
     # Iterate on directories for genes.
     for gene in genes:
         # Specify directories and files.
-        path_gene = os.path.join(path_distribution, gene)
+        path_gene = os.path.join(paths["genes"], gene)
         path_report = os.path.join(
             path_gene, "report.pickle"
         )
@@ -2405,6 +2610,86 @@ def read_collect_gene_report(
     return data_report
 
 
+def read_collect_write_iterations(
+    genes=None,
+    paths=None,
+    dock=None,
+):
+    """
+    Reads, collects, and writes information from iterations.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_collection_initial(dock=dock)
+
+    # Report process.
+    utility.print_terminal_partition(level=1)
+    print(
+        "Reading, collecting, and writing information about genes' " +
+        "distributions."
+    )
+    utility.print_terminal_partition(level=2)
+
+    # Check contents of directory.
+    utility.print_terminal_partition(level=3)
+    print("Check that directories exist for all genes to collect.")
+    genes_distribution = utility.extract_subdirectory_names(
+        path=paths["genes"]
+    )
+    match_distribution = utility.compare_lists_by_inclusion(
+        list_one=genes_distribution,
+        list_two=genes
+    )
+    print(
+        "Genes and distribution directories match: " +
+        str(match_distribution)
+    )
+    utility.print_terminal_partition(level=2)
+
+    # Genes' pantissue signals across persons.
+    data_signals_genes_persons = read_collect_organize_signals_genes_persons(
+        genes=genes_distribution,
+        data_persons_properties=source["data_persons_properties"],
+        paths=paths,
+    )
+
+    # Genes' scores.
+    genes_scores = read_collect_genes_scores(
+        genes=genes_distribution,
+        paths=paths,
+    )
+    # Report of genes' distributions.
+    data_report = read_collect_gene_report(
+        genes=genes_distribution,
+        paths=paths,
+    )
+
+    # Compile information.
+    information = dict()
+    information["data_signals_genes_persons"] = data_signals_genes_persons
+    information["genes_scores"] = genes_scores["genes_scores"]
+    information["scores"] = genes_scores["scores"]
+    information["data_report"] = data_report
+    # Write product information to file.
+    write_product_collection(
+        information=information,
+        paths=paths,
+    )
+    pass
+
+
 ###############################################################################
 # Procedure
 
@@ -2414,6 +2699,7 @@ def execute_procedure(
     data_gene_samples_signals=None,
     data_persons_families=None,
     data_gene_annotation=None,
+    paths=None,
     dock=None
 ):
     """
@@ -2426,6 +2712,8 @@ def execute_procedure(
         data_persons_families (object): Pandas data frame of person's
             identifiers and families' identifiers
         data_gene_annotation (object): Pandas data frame of genes' annotations
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -2496,7 +2784,7 @@ def execute_procedure(
     # Write product information to file.
     write_product_gene(
         gene=gene,
-        dock=dock,
+        paths=paths,
         information=information
     )
 
@@ -2526,9 +2814,8 @@ def execute_procedure_local(dock=None):
     print(start)
     utility.print_terminal_partition(level=3)
 
-    # Remove previous files to avoid version or batch confusion.
-    path_distribution = os.path.join(dock, "distribution")
-    utility.remove_directory(path=path_distribution)
+    # Initialize directories.
+    paths = initialize_directories(dock=dock)
 
     # Read source information from file.
     source = read_source_initial(
@@ -2536,6 +2823,9 @@ def execute_procedure_local(dock=None):
         dock=dock
     )
     print("count of genes: " + str(len(source["genes"])))
+
+    # Specify genes on which to iterate.
+    genes_iteration = source["genes"][0:100]
 
     if False:
         report = execute_procedure_local_sub(
@@ -2564,6 +2854,7 @@ def execute_procedure_local(dock=None):
             execute_procedure_local_sub,
             data_persons_families=source["data_persons_families"],
             data_gene_annotation=source["data_gene_annotation"],
+            paths=paths,
             dock=dock,
         )
         # Initialize multiprocessing pool.
@@ -2579,7 +2870,10 @@ def execute_procedure_local(dock=None):
         #    execute_procedure_gene,
         #    random.sample(source["genes"], 1000)
         #)
-        report = pool.map(execute_procedure_gene, source["genes"])
+        report = pool.map(
+            execute_procedure_gene,
+            genes_iteration,
+        )
 
 
     # Pause procedure.
@@ -2587,7 +2881,8 @@ def execute_procedure_local(dock=None):
 
     # Read, collect, and write information from iterations.
     read_collect_write_iterations(
-        genes=source["genes"],
+        genes=genes_iteration,
+        paths=paths,
         dock=dock,
     )
 
@@ -2605,6 +2900,7 @@ def execute_procedure_local_sub(
     gene=None,
     data_persons_families=None,
     data_gene_annotation=None,
+    paths=None,
     dock=None
 ):
     """
@@ -2612,9 +2908,11 @@ def execute_procedure_local_sub(
 
     arguments:
         gene (str): identifier of single gene for which to execute the process
-        data_persons_families (object): Pandas data frame of person's identifiers and
-            families' identifiers
+        data_persons_families (object): Pandas data frame of persons'
+            identifiers and families' identifiers
         data_gene_annotation (object): Pandas data frame of genes' annotations
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -2636,12 +2934,12 @@ def execute_procedure_local_sub(
         data_gene_samples_signals=source["data_gene_samples_signals"],
         data_persons_families=data_persons_families,
         data_gene_annotation=data_gene_annotation,
+        paths=paths,
         dock=dock
     )
 
     # Report progress.
-    path_distribution = os.path.join(dock, "distribution")
-    directories = os.listdir(path_distribution)
+    directories = os.listdir(paths["genes"])
     count = len(directories)
     if (count % 10 == 0):
         print("complete genes: " + str(len(directories)))
