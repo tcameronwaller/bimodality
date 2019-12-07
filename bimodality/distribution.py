@@ -2825,7 +2825,7 @@ def execute_procedure_local(dock=None):
     print("count of genes: " + str(len(source["genes"])))
 
     # Specify genes on which to iterate.
-    genes_iteration = source["genes"][0:100]
+    genes_iteration = source["genes"]#[0:100]
 
     if False:
         report = execute_procedure_local_sub(
@@ -2859,7 +2859,7 @@ def execute_procedure_local(dock=None):
         )
         # Initialize multiprocessing pool.
         #pool = multiprocessing.Pool(processes=os.cpu_count())
-        pool = multiprocessing.Pool(processes=7)
+        pool = multiprocessing.Pool(processes=8)
         # Iterate on genes.
         check_genes=[
             "ENSG00000231925", # TAPBP

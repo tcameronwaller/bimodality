@@ -1207,10 +1207,10 @@ def read_source_modality_gene_distribution(
     # Specify directories and files.
     path_distribution = os.path.join(dock, "distribution")
     path_genes_scores = os.path.join(
-        path_distribution, "genes_scores.pickle"
+        path_distribution, "collection", "genes_scores.pickle"
     )
     path_scores = os.path.join(
-        path_distribution, "scores.pickle"
+        path_distribution, "collection", "scores.pickle"
     )
 
     path_candidacy = os.path.join(dock, "candidacy")
@@ -1891,7 +1891,7 @@ def read_source_genes_persons_signals(
 
     # Specify directories and files.
     path_distribution = os.path.join(dock, "distribution")
-    path_gene = os.path.join(path_distribution, gene)
+    path_gene = os.path.join(path_distribution, "genes", gene)
     path_data_gene_persons_signals = os.path.join(
         path_gene, "data_gene_persons_signals.pickle"
     )
@@ -2066,7 +2066,7 @@ def read_source_genes_signals_tissues_persons(
 
     # Specify directories and files.
     path_distribution = os.path.join(dock, "distribution")
-    path_gene = os.path.join(path_distribution, gene)
+    path_gene = os.path.join(path_distribution, "genes", gene)
     path_data_gene_persons_signals = os.path.join(
         path_gene, "data_gene_persons_signals.pickle"
     )
@@ -2205,7 +2205,9 @@ def prepare_charts_genes_signals_tissues_persons(
     """
 
     # Read source information from file.
-    source_initial = read_source_genes_signals_tissues_persons_initial(dock=dock)
+    source_initial = (
+        read_source_genes_signals_tissues_persons_initial(dock=dock)
+    )
 
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
@@ -2229,11 +2231,13 @@ def prepare_charts_genes_signals_tissues_persons(
         # Organize data.
         # Sort persons by their pantissue aggregate signals for the gene.
         # The same order is important to compare the heatmap to the histogram.
-        data_gene_signals_tissues_persons = organize_genes_signals_tissues_persons(
-            data_gene_persons_signals=source_gene["data_gene_persons_signals"],
-            data_gene_signals_tissues_persons=(
-                source_gene["data_gene_signals_tissues_persons"]
-            ),
+        data_gene_signals_tissues_persons = (
+            organize_genes_signals_tissues_persons(
+                data_gene_persons_signals=source_gene["data_gene_persons_signals"],
+                data_gene_signals_tissues_persons=(
+                    source_gene["data_gene_signals_tissues_persons"]
+                ),
+            )
         )
         # Create charts for the gene.
         plot_chart_genes_signals_tissues_persons(
@@ -2247,10 +2251,10 @@ def prepare_charts_genes_signals_tissues_persons(
 
 ##########
 # Genes' signals across groups of persons
-# Status: in progres...
+# Status: working
 
 
-def read_source_genes_signals_persons_groups_initial(
+def read_source_signals_genes_persons_groups(
     dock=None
 ):
     """
@@ -2272,7 +2276,11 @@ def read_source_genes_signals_persons_groups_initial(
     path_persons_properties = os.path.join(
         path_selection, "data_persons_properties.pickle"
     )
-
+    path_distribution = os.path.join(dock, "distribution")
+    path_collection = os.path.join(path_distribution, "collection")
+    path_data_signals_genes_persons = os.path.join(
+        path_collection, "data_signals_genes_persons.pickle"
+    )
     path_integration = os.path.join(dock, "integration")
     path_genes_integration = os.path.join(
         path_integration, "genes_integration.pickle"
@@ -2280,110 +2288,44 @@ def read_source_genes_signals_persons_groups_initial(
 
     # Read information from file.
     data_persons_properties = pandas.read_pickle(path_persons_properties)
+    data_signals_genes_persons = pandas.read_pickle(
+        path_data_signals_genes_persons
+    )
     with open(path_genes_integration, "rb") as file_source:
         genes_integration = pickle.load(file_source)
     # Compile and return information.
     return {
         "data_persons_properties": data_persons_properties,
+        "data_signals_genes_persons": data_signals_genes_persons,
         "genes_integration": genes_integration,
     }
 
 
-def read_source_genes_signals_persons_groups(
-    gene=None,
-    dock=None
-):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        gene (str): identifier of single gene for which to execute the process.
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_distribution = os.path.join(dock, "distribution")
-    path_gene = os.path.join(path_distribution, gene)
-    path_data_gene_persons_signals = os.path.join(
-        path_gene, "data_gene_persons_signals.pickle"
-    )
-
-    # Read information from file.
-    data_gene_persons_signals = (
-        pandas.read_pickle(path_data_gene_persons_signals)
-    )
-    # Compile and return information.
-    return {
-        "data_gene_persons_signals": data_gene_persons_signals,
-    }
-
-
-# TODO: this function will soon be obsolete as I'm moving it to the distribution procedure
-def collect_genes_signals_persons(
+def organize_signals_genes_persons(
     genes=None,
-    dock=None,
-):
-    """
-    Collects genes' aggregate, pantissue signals across persons.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-        genes (list<str>): identifiers of genes
-
-    raises:
-
-    returns:
-        (dict<object>): collection of Pandas data frames of genes' aggregate,
-            pantissue signals across persons
-
-    """
-
-    # Collect information for genes.
-    collection = dict()
-    # Iterate on genes.
-    for gene in genes:
-        # Read source information from file.
-        source_gene = read_source_genes_signals_persons_groups(
-            gene=gene,
-            dock=dock
-        )
-        # Organize data.
-        collection[gene] = source_gene["data_gene_persons_signals"]
-        pass
-    # Return information.
-    return collection
-
-
-def organize_genes_signals_persons(
-    collection_genes_signals=None,
     data_persons_properties=None,
+    data_signals_genes_persons=None,
 ):
     """
     Plots charts from the analysis process.
 
     arguments:
-        collection_genes_signals (dict<object>): collection of Pandas data
-            frames of genes' aggregate, pantissue signals across persons
-        data_persons_properties (object): Pandas data frame of persons'
-            properties
+        genes (list<str>): identifiers of genes
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+        data_signals_genes_persons (object): Pandas data frame of genes'
+            pantissue signals across persons
 
     raises:
 
     returns:
-        (object): Pandas data frame of multiple genes' signals across persons
+        (object): Pandas data frame of genes' pantissue signals across persons
 
     """
 
     # Copy data.
     data_persons = data_persons_properties.copy(deep=True)
+    data_signals = data_signals_genes_persons.copy(deep=True)
     # Organize data.
     data_persons = data_persons.loc[
         :, data_persons.columns.isin([
@@ -2391,37 +2333,33 @@ def organize_genes_signals_persons(
             "hardiness", "season", "sex",
         ])
     ]
+    data_signals = data_signals.loc[
+        :, data_signals.columns.isin(genes)
+    ]
 
-    # Iterate on genes.
-    for gene in collection_genes_signals.keys():
-        data_gene = collection_genes_signals[gene]
-        # Rename the aggregate, pantissue signals.
-        data_gene.rename(
-            columns={
-                "value": gene,
-            },
-            inplace=True,
-        )
-        # Introduce aggregate, pantissue signals for each gene to person data.
-        # Join
-        data_persons = data_persons.join(
-            data_gene,
-            how="left",
-            on="person"
-        )
-        pass
+    # Introduce aggregate, pantissue signals for each gene to person data.
+    # Join
+    data_hybrid = data_signals.join(
+        data_persons,
+        how="left",
+        on="person"
+    )
 
     # Sort data by the aggregate, pantissue signals.
-    data_persons.sort_values(
+    data_hybrid.sort_values(
         by=["sex", "age"], # ["sex", "age"]
         axis="index",
         ascending=True,
         inplace=True,
     )
-    print(data_persons)
+
+    if False:
+        utility.print_terminal_partition(level=2)
+        print("check sort order...")
+        print(data_hybrid)
 
     # Remove unnecessary columns.
-    data_persons.drop(
+    data_hybrid.drop(
         labels=[
             "age", "body", "delay",
             "hardiness", "season", "sex",
@@ -2431,21 +2369,18 @@ def organize_genes_signals_persons(
     )
 
     # Remove persons without signal for any genes.
-    data_persons.dropna(
+    data_hybrid.dropna(
         axis="index",
         how="all",
         thresh=1,
         inplace=True,
     )
-
-    print(data_persons)
-
     # Return information
-    return data_persons
+    return data_hybrid
 
 
 # TODO: I eventually want to use function "plot_heatmap_groups"
-def plot_chart_genes_signals_persons_groups(
+def plot_chart_signals_genes_persons_groups(
     data=None,
     path_directory=None
 ):
@@ -2491,7 +2426,7 @@ def plot_chart_genes_signals_persons_groups(
     pass
 
 
-def prepare_charts_genes_signals_persons_groups(
+def prepare_charts_signals_genes_persons_groups(
     dock=None
 ):
     """
@@ -2508,16 +2443,8 @@ def prepare_charts_genes_signals_persons_groups(
     """
 
     # Read source information from file.
-    source_initial = (
-        read_source_genes_signals_persons_groups_initial(dock=dock)
-    )
+    source = read_source_signals_genes_persons_groups(dock=dock)
 
-    # Collect aggregate, pantissue signals across persons for all priority
-    # genes.
-    collection_genes_signals = collect_genes_signals_persons(
-        genes=source_initial["genes_integration"],
-        dock=dock,
-    )
     # Organize data.
     # Combine all genes' signals in single data frame.
     # Sort persons by sex and age.
@@ -2525,9 +2452,10 @@ def prepare_charts_genes_signals_persons_groups(
     ######
     # TODO: Might be good to include a designation of sort groups in the arguments to this function...
     ######
-    data_genes_signals_persons_groups = organize_genes_signals_persons(
-        collection_genes_signals=collection_genes_signals,
-        data_persons_properties=source_initial["data_persons_properties"],
+    data = organize_signals_genes_persons(
+        genes=source["genes_integration"],
+        data_persons_properties=source["data_persons_properties"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
     )
 
     # Specify directories and files.
@@ -2541,12 +2469,19 @@ def prepare_charts_genes_signals_persons_groups(
     utility.remove_directory(path=path_genes_persons)
     utility.create_directories(path=path_genes_persons)
     # Create chart.
-    plot_chart_genes_signals_persons_groups(
-        data=data_genes_signals_persons_groups,
+    plot_chart_signals_genes_persons_groups(
+        data=data,
         path_directory=path_genes_persons
     )
 
     pass
+
+
+##########
+# Correlations in signals between pairs of genes
+# Status: in progres...
+
+# TODO: I need to move this functionality from integration procedure to here
 
 
 ################# Need to Update ###############################
@@ -3101,7 +3036,7 @@ def execute_procedure(dock=None):
     # Genes will be across rows, and persons will be across columns.
     # This chart will illustrate whether the same persons are in low and high
     # groups for multiple genes.
-    prepare_charts_genes_signals_persons_groups(dock=dock)
+    prepare_charts_signals_genes_persons_groups(dock=dock)
 
     if False:
         # Plot charts of overlap between sets in selection of genes by bimodality.
