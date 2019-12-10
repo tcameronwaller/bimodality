@@ -73,9 +73,14 @@ def read_source(dock=None):
     path_genes_split = os.path.join(path_split, "genes.txt")
 
     path_distribution = os.path.join(dock, "distribution")
+    path_collection = os.path.join(path_distribution, "collection")
     path_distribution_report = os.path.join(
-        path_distribution, "data_gene_report.pickle"
+        path_collection, "data_gene_report.pickle"
     )
+    path_data_signals_genes_persons = os.path.join(
+        path_collection, "data_signals_genes_persons.pickle"
+    )
+
     path_candidacy = os.path.join(dock, "candidacy")
     path_genes_candidacy = os.path.join(
         path_candidacy, "genes_candidacy.pickle"
@@ -113,6 +118,9 @@ def read_source(dock=None):
         path_file=path_genes_split,
     )
 
+    data_signals_genes_persons = pandas.read_pickle(
+        path_data_signals_genes_persons
+    )
     data_gene_distribution_report = pandas.read_pickle(
         path_distribution_report
     )
@@ -139,6 +147,7 @@ def read_source(dock=None):
         "data_samples_tissues_persons": data_samples_tissues_persons,
         "data_persons_properties": data_persons_properties,
         "genes_split": genes_split,
+        "data_signals_genes_persons": data_signals_genes_persons,
         "data_gene_distribution_report": data_gene_distribution_report,
         "genes_candidacy": genes_candidacy,
 
@@ -153,6 +162,29 @@ def read_source(dock=None):
 
 
 # Summary
+
+
+def access_gene_name(
+    identifier=None,
+    data_gene_annotation=None,
+):
+    """
+    Combines elements in ordered pairs.
+
+    arguments:
+        identifier (str): identifier of gene
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+
+    returns:
+        (str): name of gene
+
+    raises:
+
+    """
+
+    name = data_gene_annotation.loc[identifier, "gene_name"].replace(".", "-")
+    return name
 
 
 def organize_genes_integration(
@@ -209,7 +241,10 @@ def organize_genes_integration(
     for gene in genes:
         # Access information about gene.
 
-        name = data_gene_annotation.loc[gene, "gene_name"]
+        name = access_gene_name(
+            identifier=gene,
+            data_gene_annotation=data_gene_annotation,
+        )
         chromosome = data_gene_annotation.loc[gene, "seqname"]
         start = data_gene_annotation.loc[gene, "start"]
         end = data_gene_annotation.loc[gene, "end"]
@@ -343,6 +378,142 @@ def organize_genes_integration(
     return data
 
 
+# Correlations
+
+
+def calculate_pairwise_signal_correlations(
+    entities=None,
+    data_signals=None,
+):
+    """
+    Collects genes' pantissue signals across persons.
+
+    arguments:
+        entities (list<str>): identifiers of entities
+        data_signals (object): Pandas data frame of entities' signals across
+            observations
+
+    raises:
+
+    returns:
+        (dict): correlation coefficients for pairs of entities
+
+    """
+
+    # Determine orderless, pairwise combinations of genes.
+    pairs = utility.combine_unique_elements_pairwise_order(
+        elements=entities,
+    )
+    print("count of orderless pairs of unique entities:" + str(len(pairs)))
+    utility.print_terminal_partition(level=1)
+
+    # Collect counts and correlations across pairs of features.
+    correlations = dict()
+    # Iterate on pairs of features.
+    for pair in pairs:
+        # Select data for pair of features.
+        data_pair = data_signals.loc[:, list(pair)]
+        # Remove observations with missing values for either feature.
+        data_pair.dropna(
+            axis="index",
+            how="any",
+            inplace=True,
+        )
+        # Determine observations for which pair of features has matching
+        # values.
+        count = data_pair.shape[0]
+        # Calculate correlation.
+        if count > 1:
+            correlation = scipy.stats.pearsonr(
+                data_pair[pair[0]].values,
+                data_pair[pair[1]].values,
+            )[0]
+            pass
+        else:
+            correlation = float("nan")
+            pass
+
+        # Collect information.
+        if not pair[0] in correlations:
+            correlations[pair[0]] = dict()
+            pass
+        correlations[pair[0]][pair[1]] = dict()
+        correlations[pair[0]][pair[1]]["count"] = count
+        correlations[pair[0]][pair[1]]["correlation"] = correlation
+
+        pass
+
+    # Return information.
+    return correlations
+
+
+def organize_correlations_matrix(
+    entities=None,
+    correlations=None,
+):
+    """
+    Collects genes' pantissue signals across persons.
+
+    arguments:
+        entities (list<str>): identifiers of entities
+        (dict): correlation coefficients for pairs of entities
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of correlations between entities
+
+    """
+
+    # Collect counts and correlations across pairs of features.
+    records = list()
+    # Iterate on dimension one of entities.
+    for entity_one in entities:
+        # Collect information.
+        record = dict()
+        record["gene"] = entity_one
+
+        # Iterate on dimension two of entities.
+        for entity_two in entities:
+            # Access value.
+            if entity_two in correlations[entity_one]:
+                correlation = (
+                    correlations[entity_one][entity_two]["correlation"]
+                )
+            else:
+                correlation = float("nan")
+            pass
+            # Collect information.
+            record[entity_two] = correlation
+
+        # Collect information.
+        records.append(record)
+        pass
+
+    # Organize data.
+    data = utility.convert_records_to_dataframe(records=records)
+    data.sort_values(
+        by=["gene"],
+        axis="index",
+        ascending=True,
+        inplace=True,
+    )
+    data.set_index(
+        ["gene"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data.rename_axis(
+        columns="genes",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    # Return information.
+    return data
+
+
 # Rank
 
 def select_rank_genes(
@@ -460,6 +631,10 @@ def write_product(dock=None, information=None):
     path_data_genes_integration = os.path.join(
         path_integration, "data_genes_integration.pickle"
     )
+    path_data_genes_correlations = os.path.join(
+        path_integration, "data_genes_correlations.pickle"
+    )
+
     path_data_genes_selection = os.path.join(
         path_integration, "data_genes_selection.pickle"
     )
@@ -479,6 +654,9 @@ def write_product(dock=None, information=None):
         pickle.dump(
             information["genes_integration"], file_product
         )
+    information["data_genes_correlations"].to_pickle(
+        path_data_genes_correlations
+    )
 
     if False:
 
@@ -923,144 +1101,6 @@ def write_product_reports(dock=None, information=None):
     pass
 
 
-###############Temporary development##########################
-
-
-def calculate_pairwise_signal_correlations(
-    entities=None,
-    data_signals=None,
-):
-    """
-    Collects genes' pantissue signals across persons.
-
-    arguments:
-        entities (list<str>): identifiers of entities
-        data_signals (object): Pandas data frame of entities' signals across
-            observations
-
-    raises:
-
-    returns:
-        (dict): correlation coefficients for pairs of entities
-
-    """
-
-    # Determine orderless, pairwise combinations of genes.
-    pairs = utility.combine_unique_elements_pairwise_order(
-        elements=entities,
-    )
-    print("count of orderless pairs of unique entities:" + str(len(pairs)))
-    utility.print_terminal_partition(level=1)
-
-    # Collect counts and correlations across pairs of features.
-    correlations = dict()
-    # Iterate on pairs of features.
-    for pair in pairs:
-        # Select data for pair of features.
-        data_pair = data_signals.loc[:, list(pair)]
-        # Remove observations with missing values for either feature.
-        data_pair.dropna(
-            axis="index",
-            how="any",
-            inplace=True,
-        )
-        # Determine observations for which pair of features has matching
-        # values.
-        count = data_pair.shape[0]
-        # Calculate correlation.
-        if count > 1:
-            correlation = scipy.stats.pearsonr(
-                data_pair[pair[0]].values,
-                data_pair[pair[1]].values,
-            )[0]
-            pass
-        else:
-            correlation = float("nan")
-            pass
-
-        # Collect information.
-        if not pair[0] in correlations:
-            correlations[pair[0]] = dict()
-            pass
-        correlations[pair[0]][pair[1]] = dict()
-        correlations[pair[0]][pair[1]]["count"] = count
-        correlations[pair[0]][pair[1]]["correlation"] = correlation
-
-        pass
-
-    # Return information.
-    return correlations
-
-
-def organize_correlations_matrix(
-    entities=None,
-    correlations=None,
-):
-    """
-    Collects genes' pantissue signals across persons.
-
-    arguments:
-        entities (list<str>): identifiers of entities
-        (dict): correlation coefficients for pairs of entities
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of correlations between entities
-
-    """
-
-    # Collect counts and correlations across pairs of features.
-    records = list()
-    # Iterate on dimension one of entities.
-    for entity_one in entities:
-        # Collect information.
-        record = dict()
-        record["gene"] = entity_one
-
-        # Iterate on dimension two of entities.
-        for entity_two in entities:
-            # Access value.
-            if entity_two in correlations[entity_one]:
-                correlation = (
-                    correlations[entity_one][entity_two]["correlation"]
-                )
-            else:
-                correlation = float("nan")
-            pass
-            # Collect information.
-            record[entity_two] = correlation
-
-        # Collect information.
-        records.append(record)
-        pass
-
-    # Organize data.
-    data = utility.convert_records_to_dataframe(records=records)
-    data.sort_values(
-        by=["gene"],
-        axis="index",
-        ascending=True,
-        inplace=True,
-    )
-    data.set_index(
-        ["gene"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data.rename_axis(
-        columns="genes",
-        axis="columns",
-        copy=False,
-        inplace=True
-    )
-    # Return information.
-    return data
-
-
-
-
 ###############################################################################
 # Procedure
 
@@ -1104,45 +1144,19 @@ def execute_procedure(dock=None):
     )
     utility.print_terminal_partition(level=2)
 
-    # Collect genes' pantissue signals across persons.
-    # I should do this to the collection step in the distribution procedure.
-    data_signals_persons_genes = collect_genes_signals(
-        genes=genes_integration,
-        data_persons_properties=source["data_persons_properties"],
-        dock=dock,
-    )
-
     # Calculate correlations between gene pairs of their pantissue signals
     # across persons.
     correlations_genes = calculate_pairwise_signal_correlations(
         entities=genes_integration,
-        data_signals=data_signals_persons_genes,
+        data_signals=source["data_signals_genes_persons"],
     )
     print("count of genes: " + str(len(correlations_genes.keys())))
-
     # Organize data matrix.
-    data_correlations = organize_correlations_matrix(
+    data_genes_correlations = organize_correlations_matrix(
         entities=genes_integration,
         correlations=correlations_genes,
     )
-
-    print(data_correlations)
-
-    # Plot matrix...
-
-    # Specify directories and files.
-    path_plot = os.path.join(dock, "plot")
-    utility.create_directory(path_plot)
-    path_test = os.path.join(path_plot, "test")
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_test)
-    utility.create_directories(path=path_test)
-    # Create chart.
-    plot.plot_chart_genes_signals_persons_groups(
-        data=data_correlations,
-        path_directory=path_test
-    )
-
+    print(data_genes_correlations)
 
     if False:
 
@@ -1185,6 +1199,7 @@ def execute_procedure(dock=None):
     information = {
         "genes_integration": genes_integration,
         #"data_genes_integration": data_genes_integration,
+        "data_genes_correlations": data_genes_correlations,
         #"data_genes_selection": data_genes_selection,
         #"data_export_genes_selection": data_export_genes_selection,
         #"data_export_genes_total": data_export_genes_total,

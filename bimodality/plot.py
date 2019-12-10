@@ -28,6 +28,7 @@ import seaborn
 
 # Custom
 
+import integration
 import utility
 
 #dir()
@@ -429,12 +430,12 @@ def plot_distribution_histogram(
         label=name,
         stacked=False
     )
-    axes.set_title(
-        name,
-        #fontdict=fonts["properties"]["one"],
-        loc="center",
-    )
     if False:
+        axes.set_title(
+            name,
+            #fontdict=fonts["properties"]["one"],
+            loc="center",
+        )
         axes.legend(
             loc="upper right",
             markerscale=2.5,
@@ -487,6 +488,9 @@ def plot_distribution_histogram(
             horizontalalignment="right",
             verticalalignment="top",
             transform=axes.transAxes,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"]["one"]
         )
     return figure
 
@@ -757,6 +761,96 @@ def plot_scatter_cluster(
     return figure
 
 
+def plot_scatter(
+    data=None,
+    abscissa=None,
+    ordinate=None,
+    title_abscissa=None,
+    title_ordinate=None,
+    fonts=None,
+    colors=None,
+):
+    """
+    Creates a figure of a chart of type scatter.
+
+    arguments:
+        data (object): Pandas data frame of groups, series, and values
+        abscissa (str): name of data column with independent variable
+        ordinate (str): name of data column with dependent variable
+        title_abscissa (str): title for abscissa on horizontal axis
+        title_ordinate (str): title for ordinate on vertical axis
+        factor (str): name of data column with groups or factors of samples
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+
+    raises:
+
+    returns:
+        (object): figure object
+
+    """
+
+    # Organize data.
+    data_copy = data.copy(deep=True)
+    data_selection = data_copy.loc[:, [abscissa, ordinate]]
+    data_selection.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+    values_abscissa = data_selection[abscissa].values
+    values_ordinate = data_selection[ordinate].values
+
+    ##########
+    # Create figure.
+    figure = matplotlib.pyplot.figure(
+        figsize=(15.748, 11.811),
+        tight_layout=True
+    )
+    # Create axes.
+    axes = matplotlib.pyplot.axes()
+    axes.set_xlabel(
+        xlabel=title_abscissa,
+        labelpad=20,
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["one"]
+    )
+    axes.set_ylabel(
+        ylabel=title_ordinate,
+        labelpad=20,
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["one"]
+    )
+    axes.tick_params(
+        axis="both",
+        which="both",
+        direction="out",
+        length=5.0,
+        width=3.0,
+        color=colors["black"],
+        pad=5,
+        labelsize=fonts["values"]["one"]["size"],
+        labelcolor=colors["black"]
+    )
+    # Plot points for values from each group.
+    handle = axes.plot(
+        values_abscissa,
+        values_ordinate,
+        linestyle="",
+        marker="o",
+        markersize=5,
+        markeredgecolor=colors["blue"],
+        markerfacecolor=colors["blue"]
+    )
+
+    # Return figure.
+    return figure
+
+
 def create_legend_elements(
     colors=None,
     labels=None,
@@ -868,6 +962,7 @@ def write_figure(path=None, figure=None):
     pass
 
 
+##################################################
 # Procedures
 
 
@@ -985,6 +1080,7 @@ def prepare_chart_person_sex_age(
 ##########
 # Counts of persons per major tissue type
 # Status: working
+
 
 def read_source_persons_per_tissue(dock=None):
     """
@@ -1185,6 +1281,7 @@ def prepare_chart_tissues_per_person(dock=None):
 ##########
 # Distributions of each bimodality measure's scores across genes
 # Status: working
+
 
 def read_source_modality_gene_distribution(
     dock=None
@@ -1835,6 +1932,7 @@ def prepare_charts_gene_sets_integration(
 
 ##########
 # Distributions of genes' pan-tissue aggregate signals across persons
+# Histograms
 # Status: working
 
 
@@ -1856,16 +1954,22 @@ def read_source_genes_persons_signals_initial(
     """
 
     # Specify directories and files.
+    path_selection = os.path.join(dock, "selection")
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation.pickle"
+    )
     path_integration = os.path.join(dock, "integration")
     path_genes_integration = os.path.join(
         path_integration, "genes_integration.pickle"
     )
 
     # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     with open(path_genes_integration, "rb") as file_source:
         genes_integration = pickle.load(file_source)
     # Compile and return information.
     return {
+        "data_gene_annotation": data_gene_annotation,
         "genes_integration": genes_integration,
     }
 
@@ -1908,6 +2012,7 @@ def read_source_genes_persons_signals(
 
 def plot_chart_genes_persons_signals(
     gene=None,
+    name=None,
     values=None,
     path=None
 ):
@@ -1915,7 +2020,8 @@ def plot_chart_genes_persons_signals(
     Plots charts from the analysis process.
 
     arguments:
-        gene (str): identifier of a single gene
+        gene (str): identifier of a gene
+        name (str): name of a gene
         values (list<float>): values of a gene's pan-tissue aggregate signals
             across persons
         path (str): path for file
@@ -1943,7 +2049,7 @@ def plot_chart_genes_persons_signals(
         colors=colors,
         line=False,
         position=0,
-        text="",
+        text=name,
     )
     # Write figure.
     write_figure(
@@ -1985,6 +2091,12 @@ def prepare_charts_genes_persons_signals(
     # Iterate on genes.
     for gene in source_initial["genes_integration"]:
 
+        # Access gene's name.
+        name = integration.access_gene_name(
+            identifier=gene,
+            data_gene_annotation=source_initial["data_gene_annotation"],
+        )
+
         # Read source information from file.
         source_gene = read_source_genes_persons_signals(
             gene=gene,
@@ -1999,6 +2111,7 @@ def prepare_charts_genes_persons_signals(
         path_gene_figure = os.path.join(path_genes_persons, str(gene + ".svg"))
         plot_chart_genes_persons_signals(
             gene=gene,
+            name=name,
             values=values,
             path=path_gene_figure
         )
@@ -2276,6 +2389,10 @@ def read_source_signals_genes_persons_groups(
     path_persons_properties = os.path.join(
         path_selection, "data_persons_properties.pickle"
     )
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation.pickle"
+    )
+
     path_distribution = os.path.join(dock, "distribution")
     path_collection = os.path.join(path_distribution, "collection")
     path_data_signals_genes_persons = os.path.join(
@@ -2287,6 +2404,7 @@ def read_source_signals_genes_persons_groups(
     )
 
     # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     data_persons_properties = pandas.read_pickle(path_persons_properties)
     data_signals_genes_persons = pandas.read_pickle(
         path_data_signals_genes_persons
@@ -2295,14 +2413,17 @@ def read_source_signals_genes_persons_groups(
         genes_integration = pickle.load(file_source)
     # Compile and return information.
     return {
+        "data_gene_annotation": data_gene_annotation,
         "data_persons_properties": data_persons_properties,
         "data_signals_genes_persons": data_signals_genes_persons,
         "genes_integration": genes_integration,
     }
 
 
-def organize_signals_genes_persons(
+def organize_signals_genes_persons_groups(
     genes=None,
+    sorts=None,
+    data_gene_annotation=None,
     data_persons_properties=None,
     data_signals_genes_persons=None,
 ):
@@ -2311,6 +2432,8 @@ def organize_signals_genes_persons(
 
     arguments:
         genes (list<str>): identifiers of genes
+        sorts (list<str>): names of columns by which to sort data
+        data_gene_annotation (object): Pandas data frame of genes' annotations
         data_persons_properties (object): Pandas data frame of persons and
             their properties
         data_signals_genes_persons (object): Pandas data frame of genes'
@@ -2347,7 +2470,7 @@ def organize_signals_genes_persons(
 
     # Sort data by the aggregate, pantissue signals.
     data_hybrid.sort_values(
-        by=["sex", "age"], # ["sex", "age"]
+        by=sorts,
         axis="index",
         ascending=True,
         inplace=True,
@@ -2375,6 +2498,22 @@ def organize_signals_genes_persons(
         thresh=1,
         inplace=True,
     )
+
+    # Prepare translation of genes' identifiers to names.
+    translations = dict()
+    for identifier in genes:
+        translations[identifier] = integration.access_gene_name(
+            identifier=identifier,
+            data_gene_annotation=data_gene_annotation,
+        )
+        pass
+
+    # Rename genes in data.
+    data_hybrid.rename(
+        columns=translations,
+        inplace=True,
+    )
+
     # Return information
     return data_hybrid
 
@@ -2452,8 +2591,10 @@ def prepare_charts_signals_genes_persons_groups(
     ######
     # TODO: Might be good to include a designation of sort groups in the arguments to this function...
     ######
-    data = organize_signals_genes_persons(
+    data = organize_signals_genes_persons_groups(
         genes=source["genes_integration"],
+        sorts=["sex", "age"],
+        data_gene_annotation=source["data_gene_annotation"],
         data_persons_properties=source["data_persons_properties"],
         data_signals_genes_persons=source["data_signals_genes_persons"],
     )
@@ -2479,11 +2620,416 @@ def prepare_charts_signals_genes_persons_groups(
 
 ##########
 # Correlations in signals between pairs of genes
-# Status: in progres...
-
-# TODO: I need to move this functionality from integration procedure to here
+# Status: working
 
 
+def read_source_signals_genes_correlations(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection")
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation.pickle"
+    )
+    path_integration = os.path.join(dock, "integration")
+    path_data_genes_correlations = os.path.join(
+        path_integration, "data_genes_correlations.pickle"
+    )
+
+    # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+    data_genes_correlations = pandas.read_pickle(path_data_genes_correlations)
+    # Compile and return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+        "data_genes_correlations": data_genes_correlations,
+    }
+
+
+def organize_signals_genes_correlations(
+    data_gene_annotation=None,
+    data_genes_correlations=None,
+):
+    """
+    Organizes data for plot.
+
+    arguments:
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        data_genes_correlations (object): Pandas data frame of correlations
+            between genes
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of correlations between genes
+
+    """
+
+    # Prepare translation of genes' identifiers to names.
+    identifiers = data_genes_correlations.index.to_list()
+    translations = dict()
+    for identifier in identifiers:
+        translations[identifier] = integration.access_gene_name(
+            identifier=identifier,
+            data_gene_annotation=data_gene_annotation,
+        )
+        pass
+
+    # Rename genes in data.
+    data_genes_correlations.rename(
+        index=translations,
+        inplace=True,
+    )
+    data_genes_correlations.rename(
+        columns=translations,
+        inplace=True,
+    )
+
+    return data_genes_correlations
+
+
+def plot_chart_signals_genes_correlations(
+    data=None,
+    path_directory=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        data (object): Pandas data frame of a gene's aggregate, pantissue
+            signals across tissues and persons
+        path_directory (str): path for directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define file name.
+    path_file = os.path.join(
+        path_directory, str("genes_correlations.svg")
+    )
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_heatmap(
+        data=data,
+        label_columns=False,
+        label_rows=True,
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_signals_genes_correlations(
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_signals_genes_correlations(dock=dock)
+
+    # Organize data.
+    data = organize_signals_genes_correlations(
+        data_gene_annotation=source["data_gene_annotation"],
+        data_genes_correlations=source["data_genes_correlations"],
+    )
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_distribution = os.path.join(path_plot, "distribution")
+    path_directory = os.path.join(
+        path_distribution, "genes_correlations"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    # Create chart.
+    plot_chart_signals_genes_correlations(
+        data=data,
+        path_directory=path_directory
+    )
+
+    pass
+
+
+##########
+# Correlations in pantissue signals across persons between pairs of specific
+# genes of interest
+# Status: working
+
+
+def read_source_signals_persons_gene_pairs(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection")
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation.pickle"
+    )
+    path_distribution = os.path.join(dock, "distribution")
+    path_collection = os.path.join(path_distribution, "collection")
+    path_data_signals_genes_persons = os.path.join(
+        path_collection, "data_signals_genes_persons.pickle"
+    )
+
+    # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+    data_signals_genes_persons = pandas.read_pickle(
+        path_data_signals_genes_persons
+    )
+    # Compile and return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+        "data_signals_genes_persons": data_signals_genes_persons,
+    }
+
+
+def organize_signals_persons_gene_pairs(
+    pairs_genes=None,
+    data_gene_annotation=None,
+    data_signals_genes_persons=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        pairs_genes (list<tuple>): pairs of genes' identifiers
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        data_signals_genes_persons (object): Pandas data frame of genes'
+            pantissue signals across persons
+
+    raises:
+
+    returns:
+        (list<dict>): information about each pair of genes
+
+    """
+
+    # Collect information about pairs of genes.
+    records = list()
+    # Iterate on pairs.
+    for genes in pairs_genes:
+        # Determine genes' names.
+        names = dict()
+        names[genes[0]] = integration.access_gene_name(
+            identifier=genes[0],
+            data_gene_annotation=data_gene_annotation,
+        )
+        names[genes[1]] = integration.access_gene_name(
+            identifier=genes[1],
+            data_gene_annotation=data_gene_annotation,
+        )
+        # Organize genes' signals.
+        # Remove persons with null signals for both genes.
+        data_pair = data_signals_genes_persons.loc[:, list(genes)]
+        data_pair.dropna(
+            axis="index",
+            how="any",
+            inplace=True,
+        )
+        signals = dict()
+        signals[genes[0]] = data_pair[genes[0]].values
+        signals[genes[1]] = data_pair[genes[1]].values
+        # Collect information.
+        record = dict()
+        record["genes"] = genes
+        record["names"] = names
+        record["signals"] = signals
+        record["data"] = data_pair
+        records.append(record)
+
+        pass
+
+    # Return information.
+    return records
+
+
+def plot_chart_signals_persons_gene_pair(
+    genes=None,
+    names=None,
+    signals=None,
+    data=None,
+    path_directory=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        genes (tuple<str>): identifiers of genes
+        names (dict<str>): names of genes
+        signals (dict<array>): values of genes' pantissue signals across
+            persons
+        data (object): Pandas data frame of variables
+        path_directory (str): path for directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define file name.
+    title = str(names[genes[0]] + "_" + names[genes[1]])
+    path_file = os.path.join(
+        path_directory, str(title + ".svg")
+    )
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    # TODO: I eventually want to use function "plot_heatmap_groups"
+    figure = plot_scatter(
+        data=data,
+        abscissa=genes[0],
+        ordinate=genes[1],
+        title_abscissa=names[genes[0]],
+        title_ordinate=names[genes[1]],
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_signals_persons_gene_pairs(
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify pairs of genes of interest.
+    # PWP2: ENSG00000241945
+    # GATD3A: ENSG00000160221
+    # GATD3B: ENSG00000280071
+    # LOC102724159: ENSG00000275464
+    # SLC7A11: ENSG00000151012
+    # ADM2: ENSG00000128165
+    pairs_genes = [
+        # PWP2 X GATD3A
+        ("ENSG00000241945", "ENSG00000160221"),
+        # GATD3B X LOC102724159
+        ("ENSG00000280071", "ENSG00000275464"),
+        # PWP2 X GATD3B
+        ("ENSG00000241945", "ENSG00000280071"),
+        # GATD3A X GATD3B
+        ("ENSG00000160221", "ENSG00000280071"),
+        # PWP2 X LOC102724159
+        ("ENSG00000241945", "ENSG00000275464"),
+        # SLC7A11 X ADM2
+        ("ENSG00000151012", "ENSG00000128165"),
+    ]
+
+    # Read source information from file.
+    source = read_source_signals_persons_gene_pairs(dock=dock)
+
+    # Organize data.
+    pairs = organize_signals_persons_gene_pairs(
+        pairs_genes=pairs_genes,
+        data_gene_annotation=source["data_gene_annotation"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+    )
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_distribution = os.path.join(path_plot, "distribution")
+    path_genes_pairs = os.path.join(
+        path_distribution, "genes_pairs"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_genes_pairs)
+    utility.create_directories(path=path_genes_pairs)
+
+    # Iterate on pairs of genes.
+    for pair in pairs:
+        # Create chart.
+        plot_chart_signals_persons_gene_pair(
+            genes=pair["genes"],
+            names=pair["names"],
+            signals=pair["signals"],
+            data=pair["data"],
+            path_directory=path_genes_pairs
+        )
+
+        pass
+
+    pass
+
+
+
+###################################################################
 ################# Need to Update ###############################
 
 # Sample
@@ -3028,15 +3574,20 @@ def execute_procedure(dock=None):
     # and tissues (rows).
     prepare_charts_genes_signals_tissues_persons(dock=dock)
 
-    # TODO: plot aggregate, pantissue signals across persons for each hit gene
-    # TODO: plot these as a heatmap with genes across rows and persons across columns
-    # TODO: figure out how to sort people columns by 1. sex, 2. age
     # Plot charts, heatmaps, for each gene's aggregate, pantissue signals
     # across persons.
     # Genes will be across rows, and persons will be across columns.
     # This chart will illustrate whether the same persons are in low and high
     # groups for multiple genes.
     prepare_charts_signals_genes_persons_groups(dock=dock)
+
+    # Plot charts for correlations between pairs of all genes of interest.
+    prepare_charts_signals_genes_correlations(dock=dock)
+
+    # Plot charts for correlations in signals between pairs of genes.
+    # Charts will be scatter plots.
+    # Each point will represent a person with pantissue signals from each gene.
+    prepare_charts_signals_persons_gene_pairs(dock=dock)
 
     if False:
         # Plot charts of overlap between sets in selection of genes by bimodality.
