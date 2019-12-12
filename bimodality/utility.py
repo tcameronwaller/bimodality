@@ -1085,6 +1085,75 @@ def convert_dataframe_to_records(data=None):
     return data.to_dict(orient="records")
 
 
+def segregate_data_two_thresholds(
+    data=None,
+    abscissa=None,
+    ordinate=None,
+    threshold_abscissa=None,
+    selection_abscissa=None,
+    threshold_ordinate=None,
+    selection_ordinate=None,
+):
+    """
+    Segregates data by values against thresholds on two dimensions.
+
+    arguments:
+        data (object): Pandas data frame of groups, series, and values
+        abscissa (str): name of data column with independent variable
+        ordinate (str): name of data column with dependent variable
+        threshold_abscissa (float): threshold for abscissa
+        selection_abscissa (str): selection criterion for abscissa's values
+            against threshold
+        threshold_ordinate (float): threshold for ordinate
+        selection_ordinate (str): selection criterion for ordinate's values
+            against threshold
+
+    raises:
+
+    returns:
+        (dict): collection of data that pass and fail against thresholds
+
+    """
+
+    # Copy data.
+    data_pass = data.copy(deep=True)
+    data_fail = data.copy(deep=True)
+    # Abscissa.
+    if selection_abscissa == ">=":
+        data_pass = data_pass.loc[
+            data_pass[abscissa] >= threshold_abscissa,
+            :
+        ]
+    elif selection_abscissa == "<=":
+        data_pass = data_pass.loc[
+            data_pass[abscissa] <= threshold_abscissa,
+            :
+        ]
+    # Ordinate.
+    if selection_ordinate == ">=":
+        data_pass = data_pass.loc[
+            data_pass[ordinate] >= threshold_ordinate,
+            :
+        ]
+    elif selection_ordinate == "<=":
+        data_pass = data_pass.loc[
+            data_pass[ordinate] <= threshold_ordinate,
+            :
+        ]
+
+    # Fail.
+    data_fail = data_fail.loc[
+        ~data_fail.index.isin(data_pass.index),
+        :
+    ]
+
+    # Return information.
+    collection = dict()
+    collection["pass"] = data_pass
+    collection["fail"] = data_fail
+    return collection
+
+
 # Human Metabolome Database (HMDB).
 
 

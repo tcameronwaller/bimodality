@@ -149,6 +149,8 @@ def define_color_properties():
 
     # Black.
     black = (0.0, 0.0, 0.0, 1.0)
+    # Gray.
+    gray = (0.7, 0.7, 0.7, 1.0)
     # White.
     white = (1.0, 1.0, 1.0, 1.0)
     white_faint = (1.0, 1.0, 1.0, 0.75)
@@ -161,6 +163,7 @@ def define_color_properties():
     # Compile and return references.
     return {
         "black": black,
+        "gray": gray,
         "white": white,
         "white_faint": white_faint,
         "blue": blue,
@@ -851,6 +854,145 @@ def plot_scatter(
     return figure
 
 
+def plot_scatter_threshold(
+    data=None,
+    abscissa=None,
+    ordinate=None,
+    threshold_abscissa=None,
+    selection_abscissa=None,
+    threshold_ordinate=None,
+    selection_ordinate=None,
+    title_abscissa=None,
+    title_ordinate=None,
+    fonts=None,
+    colors=None,
+):
+    """
+    Creates a figure of a chart of type scatter with thresholds on each
+        dimension.
+
+    arguments:
+        data (object): Pandas data frame of groups, series, and values
+        abscissa (str): name of data column with independent variable
+        ordinate (str): name of data column with dependent variable
+        threshold_abscissa (float): threshold for abscissa
+        selection_abscissa (str): selection criterion for abscissa's values
+            against threshold
+        threshold_ordinate (float): threshold for ordinate
+        selection_ordinate (str): selection criterion for ordinate's values
+            against threshold
+        title_abscissa (str): title for abscissa on horizontal axis
+        title_ordinate (str): title for ordinate on vertical axis
+        factor (str): name of data column with groups or factors of samples
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+
+    raises:
+
+    returns:
+        (object): figure object
+
+    """
+
+    # Organize data.
+    data = data.copy(deep=True)
+    data = data.loc[:, [abscissa, ordinate]]
+    data.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+    # Divide values by whether they pass thresholds on both dimensions.
+    collection = utility.segregate_data_two_thresholds(
+        data=data,
+        abscissa=abscissa,
+        ordinate=ordinate,
+        threshold_abscissa=threshold_abscissa,
+        selection_abscissa=selection_abscissa,
+        threshold_ordinate=threshold_ordinate,
+        selection_ordinate=selection_ordinate,
+    )
+
+    ##########
+    # Create figure.
+    figure = matplotlib.pyplot.figure(
+        figsize=(15.748, 11.811),
+        tight_layout=True
+    )
+    # Create axes.
+    axes = matplotlib.pyplot.axes()
+    axes.set_xlabel(
+        xlabel=title_abscissa,
+        labelpad=20,
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["one"]
+    )
+    axes.set_ylabel(
+        ylabel=title_ordinate,
+        labelpad=20,
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["one"]
+    )
+    axes.tick_params(
+        axis="both",
+        which="both",
+        direction="out",
+        length=5.0,
+        width=3.0,
+        color=colors["black"],
+        pad=5,
+        labelsize=fonts["values"]["one"]["size"],
+        labelcolor=colors["black"]
+    )
+    # Plot points for values from each group.
+    handle = axes.plot(
+        collection["fail"][abscissa].values,
+        collection["fail"][ordinate].values,
+        linestyle="",
+        marker="o",
+        markersize=2.5,
+        markeredgecolor=colors["gray"],
+        markerfacecolor=colors["gray"]
+    )
+    handle = axes.plot(
+        collection["pass"][abscissa].values,
+        collection["pass"][ordinate].values,
+        linestyle="",
+        marker="o",
+        markersize=5,
+        markeredgecolor=colors["blue"],
+        markerfacecolor=colors["blue"]
+    )
+
+    # Plot lines for each threshold value...
+    # Create lines for thresholds.
+    axes.axvline(
+        x=threshold_abscissa,
+        ymin=0,
+        ymax=1,
+        alpha=1.0,
+        color=colors["orange"],
+        linestyle="--",
+        linewidth=3.0,
+    )
+    axes.axhline(
+        y=threshold_ordinate,
+        xmin=0,
+        xmax=1,
+        alpha=1.0,
+        color=colors["orange"],
+        linestyle="--",
+        linewidth=3.0,
+    )
+
+    # Return figure.
+    return figure
+
+
 def create_legend_elements(
     colors=None,
     labels=None,
@@ -1437,6 +1579,202 @@ def prepare_charts_modality_gene_distribution(
 
 
 ##########
+# Thresholds on heritability for selection of genes
+# Status: working
+
+
+def read_source_gene_heritability(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection")
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation.pickle"
+    )
+    path_heritability = os.path.join(dock, "heritability")
+    path_collection = os.path.join(path_heritability, "collection")
+    path_data_heritabilities_complex = os.path.join(
+        path_collection, "data_genes_heritabilities_complex.pickle"
+    )
+
+    # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+    data_genes_heritabilities_complex = pandas.read_pickle(
+        path_data_heritabilities_complex
+    )
+    # Compile and return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+        "data_genes_heritabilities_complex": data_genes_heritabilities_complex,
+    }
+
+
+def organize_gene_heritability(
+    data_gene_annotation=None,
+    data_genes_heritabilities=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        data_genes_heritabilities (object): Pandas data frame of genes'
+            heritabilities
+
+    raises:
+
+    returns:
+        (dict): information about genes' heritabilities
+
+    """
+
+    # Organize data.
+    data = data_genes_heritabilities.copy(deep=True)
+    # Calculate percentages.
+    data["percentage"] = data["proportion"].apply(
+        lambda value: (value * 100)
+    )
+    data = data.loc[
+        :, data.columns.isin([
+            "percentage", "discovery_log",
+        ])
+    ]
+    data.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+    # Prepare translation of genes' identifiers to names.
+    identifiers = data.index.to_list()
+    translations = dict()
+    for identifier in identifiers:
+        translations[identifier] = integration.access_gene_name(
+            identifier=identifier,
+            data_gene_annotation=data_gene_annotation,
+        )
+        pass
+    # Rename genes in data.
+    data.rename(
+        index=translations,
+        inplace=True,
+    )
+    # Return information.
+    return data
+
+
+def plot_chart_gene_heritability(
+    data=None,
+    path_directory=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        data (object): Pandas data frame of variables
+        path_directory (str): path for directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define file name.
+    title = "heritability_thresholds"
+    path_file = os.path.join(
+        path_directory, str(title + ".svg")
+    )
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_scatter_threshold(
+        data=data,
+        abscissa="discovery_log",
+        ordinate="percentage",
+        title_abscissa="-1 * log10(FDR)",
+        title_ordinate="% heritability",
+        threshold_abscissa=1.12,
+        selection_abscissa=">=",
+        threshold_ordinate=50,
+        selection_ordinate=">=",
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_gene_heritability(
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_gene_heritability(dock=dock)
+
+    # Organize data.
+    data = organize_gene_heritability(
+        data_gene_annotation=source["data_gene_annotation"],
+        data_genes_heritabilities=(
+            source["data_genes_heritabilities_complex"]
+        ),
+    )
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_heritability = os.path.join(path_plot, "heritability")
+    path_directory = os.path.join(
+        path_heritability, "thresholds"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    # Create chart.
+    plot_chart_gene_heritability(
+        data=data,
+        path_directory=path_directory
+    )
+
+    pass
+
+
+##########
 # Overlap between sets in selection of genes by bimodality
 # Status: working
 
@@ -1670,7 +2008,7 @@ def prepare_charts_gene_sets_probability(
 # Status: working
 
 
-def read_source_gene_heritability(
+def read_source_sets_gene_heritability(
     dock=None
 ):
     """
@@ -1711,7 +2049,7 @@ def read_source_gene_heritability(
     }
 
 
-def plot_chart_gene_heritability(
+def plot_chart_sets_gene_heritability(
     sets=None,
     path=None
 ):
@@ -1749,7 +2087,7 @@ def plot_chart_gene_heritability(
     pass
 
 
-def prepare_charts_gene_heritability(
+def prepare_charts_sets_gene_heritability(
     dock=None
 ):
     """
@@ -1768,7 +2106,7 @@ def prepare_charts_gene_heritability(
     print("going to plot overlap between sets of genes by heritability")
 
     # Read source information from file.
-    source = read_source_gene_heritability(dock=dock)
+    source = read_source_sets_gene_heritability(dock=dock)
 
     # Organize information.
     sets = dict()
@@ -1785,7 +2123,7 @@ def prepare_charts_gene_heritability(
     utility.create_directory(path=path_heritability)
     path_sets = os.path.join(path_heritability, "sets.svg")
 
-    plot_chart_gene_heritability(
+    plot_chart_sets_gene_heritability(
         sets=sets,
         path=path_sets,
     )
@@ -2976,6 +3314,10 @@ def prepare_charts_signals_persons_gene_pairs(
     # LOC102724159: ENSG00000275464
     # SLC7A11: ENSG00000151012
     # ADM2: ENSG00000128165
+    # TBC1D3D: ENSG00000274419
+    # TBC1D3L: ENSG00000274512
+    # NPIPB2: ENSG00000234719
+    # NPIPB15: ENSG00000196436
     pairs_genes = [
         # PWP2 X GATD3A
         ("ENSG00000241945", "ENSG00000160221"),
@@ -2989,6 +3331,10 @@ def prepare_charts_signals_persons_gene_pairs(
         ("ENSG00000241945", "ENSG00000275464"),
         # SLC7A11 X ADM2
         ("ENSG00000151012", "ENSG00000128165"),
+        # TBC1D3D X TBC1D3L
+        ("ENSG00000274419", "ENSG00000274512"),
+        # NPIPB2 X NPIPB15
+        ("ENSG00000234719", "ENSG00000196436"),
     ]
 
     # Read source information from file.
@@ -3599,12 +3945,15 @@ def execute_procedure(dock=None):
 
         # Plot charts of overlap between sets in selection of genes by
         # heritability.
-        prepare_charts_gene_heritability(dock=dock)
+        prepare_charts_sets_gene_heritability(dock=dock)
 
         # Plot charts of overlap between sets in selection of genes by
         # integration.
         prepare_charts_gene_sets_integration(dock=dock)
 
+    # Plot charts for heritability of genes' pantissue signals.
+    # Charts will be scatter plots.
+    prepare_charts_gene_heritability(dock=dock)
 
 
     #plot_charts_analysis(dock=dock)

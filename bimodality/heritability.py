@@ -63,6 +63,7 @@ def read_source(dock=None):
     path_split = os.path.join(dock, "split")
     path_genes = os.path.join(path_split, "genes.txt")
     path_heritability = os.path.join(dock, "heritability")
+    path_heritability_genes = os.path.join(path_heritability, "genes")
 
     # Read information from file.
     genes_split = utility.read_file_text_list(
@@ -70,7 +71,7 @@ def read_source(dock=None):
         path_file=path_genes,
     )
     genes_heritability = utility.extract_subdirectory_names(
-        path=path_heritability
+        path=path_heritability_genes
     )
 
     # Compile and return information.
@@ -109,7 +110,7 @@ def collect_successful_genes(
     # Iterate on genes.
     for gene in genes:
         # Specify directories and files.
-        path_heritability_gene = os.path.join(path_heritability, gene)
+        path_heritability_gene = os.path.join(path_heritability, "genes", gene)
         path_method = os.path.join(path_heritability_gene, method)
         path_report = os.path.join(
             path_method, "out.hsq"
@@ -225,7 +226,7 @@ def collect_organize_genes_heritabilities(
     # Iterate on genes.
     for gene in genes:
         # Specify directories and files.
-        path_heritability_gene = os.path.join(path_heritability, gene)
+        path_heritability_gene = os.path.join(path_heritability, "genes", gene)
         path_method = os.path.join(path_heritability_gene, method)
         path_report = os.path.join(
             path_method, "out.hsq"
@@ -288,6 +289,14 @@ def calculate_false_discovery_rate(
 
     """
 
+    def calculate_negative_logarithm(value=None):
+        if math.isnan(value) or (value == 0):
+            logarithm = float("nan")
+        else:
+            logarithm = (-1 * math.log(value, 10))
+        return logarithm
+
+
     # Copy data.
     data_copy = data_genes_heritabilities.copy(deep=True)
     # False discovery rate method cannot accommodate missing values.
@@ -310,12 +319,17 @@ def calculate_false_discovery_rate(
     discoveries = report[1]
     data_valid["discovery"] = discoveries
     data_null["discovery"] = float("nan")
+
     # Combine null and valid portions of data.
     data_discoveries = data_valid.append(
         data_null,
         ignore_index=True,
     )
 
+    # Calculate logarithm of false discovery rate.
+    data_discoveries["discovery_log"] = data_discoveries["discovery"].apply(
+        calculate_negative_logarithm
+    )
     return data_discoveries
 
 
@@ -447,6 +461,10 @@ def write_product(dock=None, information=None):
         pickle.dump(
             information["genes_heritability"], file_product
         )
+    with open(path_data_simple, "wb") as file_product:
+        pickle.dump(
+            information["data_genes_heritabilities_simple"], file_product
+        )
     with open(path_data_complex, "wb") as file_product:
         pickle.dump(
             information["data_genes_heritabilities_complex"], file_product
@@ -526,6 +544,15 @@ def execute_procedure(dock=None):
     print("complex method:")
     print(data_genes_heritabilities_complex)
 
+
+
+    #############################################
+    # Temporary development...
+    #############################################
+    # TODO:
+    # introduce thresholds by both proportion and fdr
+
+
     # Select genes with significant heritabilities.
     utility.print_terminal_partition(level=2)
     print("Counts of heritable genes...")
@@ -577,6 +604,7 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
+        "data_genes_heritabilities_simple": data_genes_heritabilities_simple,
         "data_genes_heritabilities_complex": data_genes_heritabilities_complex,
         "genes_heritabilities_simple": genes_heritabilities_simple,
         "genes_heritabilities_complex": genes_heritabilities_complex,
