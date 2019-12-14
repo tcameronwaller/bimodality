@@ -37,9 +37,11 @@ import heritability
 
 #import integration
 
+import structure
+
 import modality
 import plot
-#import test
+import test
 import utility
 #import expecto
 
@@ -301,6 +303,11 @@ def define_main_subparser(subparsers=None):
         )
     )
 
+    parser_main.add_argument(
+        "-structure", "--structure", dest="structure", action="store_true",
+        help="Data organization for genomic structure."
+    )
+
 
     parser_main.add_argument(
         "-analysis", "--analysis", dest="analysis", action="store_true",
@@ -504,7 +511,11 @@ def evaluate_main_parameters(arguments):
         print("... executing heritability procedure ...")
         # Execute procedure.
         heritability.execute_procedure(dock=arguments.dock)
-
+    if arguments.structure:
+        # Report status.
+        print("... executing structure procedure ...")
+        # Execute procedure.
+        structure.execute_procedure(dock=arguments.dock)
 
     if arguments.analysis:
         # Report status.

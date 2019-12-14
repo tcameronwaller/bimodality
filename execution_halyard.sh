@@ -73,7 +73,9 @@ echo "Now set to call routine and procedures."
 
 #python3 interface.py main --dock $path_dock --integration
 
-python3 interface.py main --dock $path_dock --plot
+python3 interface.py main --dock $path_dock --structure
+
+#python3 interface.py main --dock $path_dock --plot
 
 
 ##########

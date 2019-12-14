@@ -1074,21 +1074,20 @@ def organize_heritability_covariates(
     data_copy = data_persons_properties.copy(deep=True)
     data_persons_categories = data_copy.loc[
         :, data_copy.columns.isin([
-            "person", "family", "sex", "hardiness", "season"
+            "person", "family", "sex", "season"
         ])
     ]
     data_persons_categories = data_persons_categories[[
         "family",
         "person",
         "sex",
-        "hardiness",
         "season",
     ]]
     # Extract quantitative covariates.
     data_copy = data_persons_properties.copy(deep=True)
     data_persons_quantities = data_copy.loc[
         :, data_copy.columns.isin([
-            "person", "family", "age", "body", "delay"
+            "person", "family", "age", "body", "hardiness", "delay"
         ])
     ]
     data_persons_quantities = data_persons_quantities[[
@@ -1096,6 +1095,7 @@ def organize_heritability_covariates(
         "person",
         "age",
         "body",
+        "hardiness",
         "delay",
     ]]
 

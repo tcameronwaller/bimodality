@@ -113,7 +113,7 @@ def collect_successful_genes(
         path_heritability_gene = os.path.join(path_heritability, "genes", gene)
         path_method = os.path.join(path_heritability_gene, method)
         path_report = os.path.join(
-            path_method, "out.hsq"
+            path_method, "report.hsq"
         )
         # Determine whether heritability produced a successful report.
         if os.path.exists(path_report):
@@ -229,7 +229,7 @@ def collect_organize_genes_heritabilities(
         path_heritability_gene = os.path.join(path_heritability, "genes", gene)
         path_method = os.path.join(path_heritability_gene, method)
         path_report = os.path.join(
-            path_method, "out.hsq"
+            path_method, "report.hsq"
         )
         # Determine whether heritability produced a successful report.
         if os.path.exists(path_report):
@@ -335,8 +335,8 @@ def calculate_false_discovery_rate(
 
 def select_heritable_genes_by_threshold(
     data_genes_heritabilities=None,
-    property=None,
-    threshold=None,
+    threshold_proportion=None,
+    threshold_discovery=None,
 ):
     """
     Collects and organizes information about genes.
@@ -344,8 +344,9 @@ def select_heritable_genes_by_threshold(
     arguments:
         data_genes_heritabilities (object): Pandas data frame of genes'
             heritabilities
-        property (str): name of column by which to set threshold
-        threshold (float): maximal value of property for selection
+        threshold_proportion (float): threshold by proportion of phenotypic
+            variance attributable to genotype
+        threshold_discovery (float): threshold by false discovery rate
 
     raises:
 
@@ -358,10 +359,15 @@ def select_heritable_genes_by_threshold(
     data_copy = data_genes_heritabilities.copy(deep=True)
 
     # Set threshold.
-    data_threshold = data_copy.loc[data_copy[property] < threshold]
+    data_proportion = data_copy.loc[
+        data_copy["proportion"] >= threshold_proportion
+    ]
+    data_discovery = data_proportion.loc[
+        data_proportion["discovery"] <= threshold_discovery
+    ]
 
     # Extract identifiers of genes.
-    genes = data_threshold["gene"].to_list()
+    genes = data_discovery["gene"].to_list()
 
     # Return information.
     return genes
@@ -544,29 +550,20 @@ def execute_procedure(dock=None):
     print("complex method:")
     print(data_genes_heritabilities_complex)
 
-
-
-    #############################################
-    # Temporary development...
-    #############################################
-    # TODO:
-    # introduce thresholds by both proportion and fdr
-
-
     # Select genes with significant heritabilities.
     utility.print_terminal_partition(level=2)
     print("Counts of heritable genes...")
     genes_heritable_simple = select_heritable_genes_by_threshold(
         data_genes_heritabilities=data_genes_heritabilities_simple,
-        property="discovery",
-        threshold=0.05,
+        threshold_proportion=0.5,
+        threshold_discovery=0.05,
     )
     utility.print_terminal_partition(level=2)
     print("simple method: " + str(len(genes_heritable_simple)))
     genes_heritable_complex = select_heritable_genes_by_threshold(
         data_genes_heritabilities=data_genes_heritabilities_complex,
-        property="discovery",
-        threshold=0.05,
+        threshold_proportion=0.5,
+        threshold_discovery=0.05,
     )
     utility.print_terminal_partition(level=2)
     print("complex method: " + str(len(genes_heritable_complex)))

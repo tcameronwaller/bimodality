@@ -3935,21 +3935,20 @@ def execute_procedure(dock=None):
     # Each point will represent a person with pantissue signals from each gene.
     prepare_charts_signals_persons_gene_pairs(dock=dock)
 
-    if False:
-        # Plot charts of overlap between sets in selection of genes by bimodality.
-        prepare_charts_gene_sets_candidacy(dock=dock)
+    # Plot charts of overlap between sets in selection of genes by bimodality.
+    prepare_charts_gene_sets_candidacy(dock=dock)
 
-        # Plot charts of overlap between sets in selection of genes by permutation
-        # probability of bimodality.
-        prepare_charts_gene_sets_probability(dock=dock)
+    # Plot charts of overlap between sets in selection of genes by permutation
+    # probability of bimodality.
+    prepare_charts_gene_sets_probability(dock=dock)
 
-        # Plot charts of overlap between sets in selection of genes by
-        # heritability.
-        prepare_charts_sets_gene_heritability(dock=dock)
+    # Plot charts of overlap between sets in selection of genes by
+    # heritability.
+    prepare_charts_sets_gene_heritability(dock=dock)
 
-        # Plot charts of overlap between sets in selection of genes by
-        # integration.
-        prepare_charts_gene_sets_integration(dock=dock)
+    # Plot charts of overlap between sets in selection of genes by
+    # integration.
+    prepare_charts_gene_sets_integration(dock=dock)
 
     # Plot charts for heritability of genes' pantissue signals.
     # Charts will be scatter plots.
