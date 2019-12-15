@@ -64,6 +64,11 @@ def read_source(dock=None):
         path_access, "GSE95014_Hap1.validPairs.txt.gz"
     )
 
+    path_structure = os.path.join(dock, "structure")
+    path_data_pairs_sort = os.path.join(
+        path_structure, "data_pairs_sort_raw.txt.gz"
+    )
+
     # Read information from file.
     # As file is very large, read in chunks.
     reader_data_pairs = pandas.read_csv(
@@ -92,14 +97,14 @@ def read_source(dock=None):
             "quality_one": numpy.int32,
         },
         usecols=[
-            "read",
+            #"read",
             "chromosome_one",
             "position_one",
             "direction_one",
             "chromosome_two",
             "position_two",
             "direction_two",
-            "quality_one",
+            #"quality_one",
         ],
         low_memory=True,
         chunksize=10000000,
@@ -151,13 +156,14 @@ def organize_data_pairs_chunk(
     """
 
     # Organize data.
+    data_chunk = data_chunk.copy(deep=True)
     # Insert dummy values for restriction fragments.
     # Juicer will ignore these values without a fragment library.
     # Insert dummy values for mapping quality.
     # Juicer will also ignore these values without a quality threshold.
     data_chunk["fragment_one"] = 0
     data_chunk["fragment_two"] = 1
-    data_chunk["quality_two"] = data_chunk["quality_one"]
+    #data_chunk["quality_two"] = data_chunk["quality_one"]
     # Translate designations of strand direction.
     data_chunk["strand_one"] = data_chunk["direction_one"].apply(
         lambda value: translate_strand(direction=value)
@@ -167,7 +173,7 @@ def organize_data_pairs_chunk(
     )
     # Organize order of columns.
     data_chunk = data_chunk[[
-        "read",
+        #"read",
         "strand_one",
         "chromosome_one",
         "position_one",
@@ -176,8 +182,8 @@ def organize_data_pairs_chunk(
         "chromosome_two",
         "position_two",
         "fragment_two",
-        "quality_one",
-        "quality_two",
+        #"quality_one",
+        #"quality_two",
     ]]
     # Return information.
     return data_chunk
@@ -206,8 +212,12 @@ def write_product_chunk(dock=None, information=None):
     utility.create_directory(path_structure)
 
     path_data_pairs_text = os.path.join(
-        path_structure, "data_pairs.txt.gz"
+        path_structure, "data_pairs_sort_format_pandas.txt.gz"
     )
+
+    # Remove any previous version of file explicitly to avoid appending to
+    # previous file.
+    utility.remove_file(path=path_data_pairs_text)
 
     # Write information to file.
     information["data_chunk"].to_csv(
@@ -242,10 +252,6 @@ def execute_procedure(dock=None):
 
     """
 
-    # Remove previous files to avoid version or batch confusion.
-    path_structure = os.path.join(dock, "structure")
-    utility.remove_directory(path=path_structure)
-
     utility.print_terminal_partition(level=1)
 
     # Read source information from file.
@@ -253,16 +259,17 @@ def execute_procedure(dock=None):
 
     # Iterate on chunks of data.
     for data_chunk in source["reader_data_pairs"]:
-        utility.print_terminal_partition(level=2)
-        print("data before reorganization...")
-        print(data_chunk)
         # Organize data chunk.
         data_chunk_novel = organize_data_pairs_chunk(
             data_chunk=data_chunk,
         )
-        utility.print_terminal_partition(level=2)
-        print("data after reorganization...")
-        print(data_chunk_novel)
+        if False:
+            utility.print_terminal_partition(level=2)
+            print("data before reorganization...")
+            print(data_chunk)
+            utility.print_terminal_partition(level=2)
+            print("data after reorganization...")
+            print(data_chunk_novel)
         # Write data chunk to file.
         information = dict()
         information["data_chunk"] = data_chunk_novel
