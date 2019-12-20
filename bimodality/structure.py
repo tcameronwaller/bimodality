@@ -215,10 +215,6 @@ def write_product_chunk(dock=None, information=None):
         path_structure, "data_pairs_sort_format_pandas.txt.gz"
     )
 
-    # Remove any previous version of file explicitly to avoid appending to
-    # previous file.
-    utility.remove_file(path=path_data_pairs_text)
-
     # Write information to file.
     information["data_chunk"].to_csv(
         path_or_buf=path_data_pairs_text,
@@ -253,6 +249,12 @@ def execute_procedure(dock=None):
     """
 
     utility.print_terminal_partition(level=1)
+    path_data_pairs_text = os.path.join(
+        path_structure, "data_pairs_sort_format_pandas.txt.gz"
+    )
+    # Remove any previous version of file explicitly to avoid appending to
+    # previous file.
+    utility.remove_file(path=path_data_pairs_text)
 
     # Read source information from file.
     source = read_source(dock=dock)
