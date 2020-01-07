@@ -2,11 +2,14 @@
 
 #chmod u+x script.sh
 
+# Copy data attributes for samples and persons from original GTEx download.
+
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
 
 # Origin
 path_pagadalla="/nrnb/users/mpagadal"
+path_origin_ancestry="$path_pagadalla/gtex-ancestry/sklearn-gtex-ancestry"
 path_origin_gtex_8="$path_pagadalla/gtex/PhenoGenotypeFiles/RootStudyConsentSet_phs000424.GTEx.v8.p2.c1.GRU"
 path_origin_genotype="$path_origin_gtex_8/GenotypeFiles/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz"
 path_origin_attributes="$path_origin_gtex_8/PhenotypeFiles"

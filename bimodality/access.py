@@ -40,7 +40,7 @@ import utility
 # Functionality
 
 
-# TODO: update to version 8 of GTEx
+# TODO: access GTEx version 8 reference GENCODE
 
 
 def define_source():

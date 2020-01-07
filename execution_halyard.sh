@@ -43,10 +43,16 @@ echo "Now set to call routine and procedures."
 ##########
 # - Preparation Routine
 
+# -- Preparation of dock_template
+# --- execute on nrnb
+#bash access_private.sh
+#bash heritability_initial.sh
+# -- copy directory "access_private" to directory "dock" on halyard
+
 # -- essential procedures
-#python3 interface.py main --dock $path_dock --access
+python3 interface.py main --dock $path_dock --access
 #python3 interface.py main --dock $path_dock --assembly
-python3 interface.py main --dock $path_dock --selection
+#python3 interface.py main --dock $path_dock --selection
 
 ##########
 # - Batch Routine
