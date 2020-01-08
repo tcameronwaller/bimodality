@@ -32,7 +32,7 @@ path_destination_explanation_person="$path_access_private/person_explanation.xml
 
 # Organize destination directories
 rm -r $path_access_private
-mkdir $path_access_private
+mkdirs $path_access_private
 rm -r $path_destination_gtex_8
 mkdir $path_destination_gtex_8
 
