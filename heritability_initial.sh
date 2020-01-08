@@ -20,7 +20,7 @@ path_genotype_pgen="$path_gtex_pgen/gtex-8_genotype"
 
 path_plink_1="$path_user_cellar/plink"
 path_plink_2="$path_user_cellar/plink2"
-path_gcta="$path_user_cellar/gcta_1.92.4beta/gcta64"
+path_gcta="$path_user_cellar/gcta_1.93.0beta/gcta64"
 
 rm -r $path_relation_gcta
 mkdir -p $path_relation_gcta
@@ -59,9 +59,10 @@ $path_plink_2 --vcf $path_genotype_vcf --make-pgen --out $path_genotype_pgen --t
 ##########
 # Generate GRM for all autosomal chromosomes.
 #$path_gcta --bfile $path_genotype_ped --autosome --maf 0.01 --make-grm --out $path_relation/autosome_common_gcta --threads 10
-$path_gcta --pfile $path_genotype_pgen --autosome --maf 0.01 --make-grm --out $path_relation_gcta/autosome_common --threads 10
 
-$path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --make-rel --out $path_relation_plink/autosome_common --threads 10
+# run these...
+#$path_gcta --pfile $path_genotype_pgen --autosome --maf 0.01 --make-grm --out $path_relation_gcta/autosome_common --threads 10
+#$path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --make-rel --out $path_relation_plink/autosome_common --threads 10
 
 ##########
 # Calculate principal components.
@@ -72,6 +73,8 @@ $path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --make-rel --out
 # (minor allele frequence < 0.01).
 # Principal components on rare variants produces Eigenvalues near zero and
 # missing values across Eigenvectors.
-$path_gcta --grm $path_relation_gcta/autosome_common --pca 10 --out $path_relation_gcta/components
+
+# run these...
+#$path_gcta --grm $path_relation_gcta/autosome_common --pca 10 --out $path_relation_gcta/components
 #$path_plink_2 --grm $path_relation_plink/autosome_common --pca 10 --out $path_relation_plink/components
-$path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --make-rel --pca 10 --out $path_relation_plink/components
+#$path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --make-rel --pca 10 --out $path_relation_plink/components
