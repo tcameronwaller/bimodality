@@ -23,9 +23,9 @@ path_plink_2="$path_user_cellar/plink2"
 path_gcta="$path_user_cellar/gcta_1.92.4beta/gcta64"
 
 rm -r $path_relation_gcta
-mkdirs $path_relation_gcta
+mkdir -p $path_relation_gcta
 rm -r $path_relation_plink
-mkdirs $path_relation_plink
+mkdir -p $path_relation_plink
 
 rm -r $path_gtex_ped
 mkdir $path_gtex_ped
