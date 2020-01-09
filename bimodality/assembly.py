@@ -177,24 +177,31 @@ def read_source_sample(dock=None):
     """
 
     # Specify directories and files.
+
+    # Access
     path_access = os.path.join(dock, "access")
     path_attribute_sample = os.path.join(path_access, "attribute_sample.txt")
     path_attribute_person = os.path.join(path_access, "attribute_person.txt")
 
-    path_gtex = os.path.join(dock, "gtex-8")
-    path_attribute_sample_gtex = os.path.join(
-        path_gtex, "sample_attribute.txt"
+    # Private access
+    path_access_private = os.path.join(dock, "access_private_2020-01-08")
+    path_attribute_sample_private = os.path.join(
+        path_access_private, "sample_attribute.txt"
     )
-    path_attribute_person_gtex = os.path.join(
-        path_gtex, "person_attribute.txt"
+    path_attribute_person_private = os.path.join(
+        path_access_private, "person_attribute.txt"
     )
     path_person_ancestry = os.path.join(
-        path_gtex, "persons_ancestry.txt"
+        path_access_private, "persons_ancestry.txt"
     )
-    path_genotype_component = os.path.join(
-        path_gtex, "relation", "autosome_common.eigenvec"
+    path_genotype_component_gcta = os.path.join(
+        path_access_private, "relation", "gcta", "components.eigenvec"
+    )
+    path_genotype_component_plink = os.path.join(
+        path_access_private, "relation", "plink", "components.eigenvec"
     )
 
+    # Customization
     path_customization = os.path.join(dock, "customization")
     path_tissues_major = os.path.join(
         path_customization, "translation_tissues_major.tsv"
@@ -203,8 +210,7 @@ def read_source_sample(dock=None):
         path_customization, "translation_tissues_minor.tsv"
     )
 
-    # TODO: include translation for person attributes
-
+    # Signal
     path_gene_signal = os.path.join(path_access, "signal_gene.gct")
 
     # Read information from file.
@@ -219,15 +225,14 @@ def read_source_sample(dock=None):
         sep="\t",
         header=0,
     )
-
-    data_sample_attribute_gtex = pandas.read_csv(
-        path_attribute_sample_gtex,
+    data_sample_attribute_private = pandas.read_csv(
+        path_attribute_sample_private,
         sep="\t",
         header=9,
         low_memory=False,
     )
-    data_person_attribute_gtex = pandas.read_csv(
-        path_attribute_person_gtex,
+    data_person_attribute_private = pandas.read_csv(
+        path_attribute_person_private,
         sep="\t",
         header=9,
         low_memory=False,
@@ -238,8 +243,20 @@ def read_source_sample(dock=None):
         header=0,
         low_memory=False,
     )
-    data_genotype_component = pandas.read_csv(
-        path_genotype_component,
+    data_genotype_component_gcta = pandas.read_csv(
+        path_genotype_component_gcta,
+        sep="\s+",
+        header=None,
+        names=[
+            "family", "person",
+            "component_1", "component_2", "component_3", "component_4",
+            "component_5", "component_6", "component_7", "component_8",
+            "component_9", "component_10",
+        ],
+        low_memory=False,
+    )
+    data_genotype_component_plink = pandas.read_csv(
+        path_genotype_component_plink,
         sep="\s+",
         header=None,
         names=[
@@ -267,12 +284,13 @@ def read_source_sample(dock=None):
 
     # Compile and return information.
     return {
-        "data_person_attribute": data_person_attribute,
         "data_sample_attribute": data_sample_attribute,
-        "data_sample_attribute_gtex": data_sample_attribute_gtex,
-        "data_person_attribute_gtex": data_person_attribute_gtex,
+        "data_person_attribute": data_person_attribute,
+        "data_sample_attribute_private": data_sample_attribute_gtex,
+        "data_person_attribute_private": data_person_attribute_gtex,
         "data_person_ancestry": data_person_ancestry,
-        "data_genotype_component": data_genotype_component,
+        "data_genotype_component_gcta": data_genotype_component_gcta,
+        "data_genotype_component_plink": data_genotype_component_plink,
         "data_tissues_major": data_tissues_major,
         "data_tissues_minor": data_tissues_minor,
         "samples": samples,
@@ -389,6 +407,28 @@ def translate_race(value=None):
     return race
 
 
+def translate_ethnicity(value=None):
+    """
+    Translates annotations of ethnicity.
+
+    arguments:
+        value (int): annotation of ethnicity
+
+    raises:
+
+    returns:
+        (str): name of ethnicity
+
+    """
+
+    if value == 1:
+        ethnicity = "hispanic"
+    elif (value == 0 or value == 97 or value == 98 or value == 99):
+        ethnicity = "other"
+
+    return ethnicity
+
+
 def translate_hardiness(value=None):
     """
     Translates annotations of hardiness.
@@ -470,46 +510,305 @@ def translate_ancestry(value=None):
     return ancestry
 
 
-def collect_samples_tissues_persons(
-    samples=None,
-    data_person_attribute=None,
-    data_person_attribute_gtex=None,
+def determine_sample_facilities(
+    sample=None,
+    data_sample_attribute_private=None,
+):
+    """
+    Determines a sample's processing facilities.
+
+    arguments:
+        sample (str): identifier of a sample
+        data_sample_attribute_private (object): Pandas data frame of private
+            attributes for all samples
+
+    raises:
+
+    returns:
+        (dict): samples processign facilities
+
+    """
+
+    # Access string of sample's processing facilities.
+    facilities = data_sample_attribute_private.at[sample, "SMCENTER"]
+    # Collect individual facilities.
+    information = dict()
+    if "A1" in facilities:
+        information["facility_a"] = 1
+    else:
+        information["facility_a"] = 0
+    if "B1" in facilities:
+        information["facility_b"] = 1
+    else:
+        information["facility_b"] = 0
+    if "C1" in facilities:
+        information["facility_c"] = 1
+    else:
+        information["facility_c"] = 0
+    if "D1" in facilities:
+        information["facility_d"] = 1
+    else:
+        information["facility_d"] = 0
+    # Return information.
+    return information
+
+
+def determine_person_ancestry(
+    person=None,
+    data_person_attribute_private=None,
     data_person_ancestry=None,
-    data_genotype_component=None,
+):
+    """
+    Determines a person's categorical ancestry.
+
+    arguments:
+        person (str): identifier of a person
+        data_person_attribute_private (object): Pandas data frame of private
+            attributes for persons
+        data_person_ancestry (object): Pandas data frame of ancestry for
+            persons
+
+    raises:
+
+    returns:
+        (str): person's categorical ancestry
+
+    """
+
+    # Extract person's race attribute.
+    race_raw = data_person_attribute_private.at[person, "RACE"]
+    race_translation = translate_race(value=race_raw)
+
+    # Extract person's ethnicity attribute.
+    ethnicity_raw = data_person_attribute_private.at[person, "ETHNCTY"]
+    ethnicity_translation = translate_ethnicity(value=ethnicity_raw)
+
+    # Determine consensus between race and ethnicity.
+    if (ethnicity_translation == "hispanic") and (race_translation == "other"):
+        race = "america"
+    else:
+        race = race_translation
+
+    # Determine ancestry from genotype ancestral analysis by Meghana Pagadala.
+    if person in data_person_ancestry.index.values.tolist():
+        ancestry_raw = data_person_ancestry.at[person, "ethnicity"]
+        ancestry_translation = translate_ancestry(value=ancestry_raw)
+    else:
+        ancestry_translation = "other"
+    # Determine consensus between race and ancestry.
+    if race == ancestry_translation:
+        ancestry = ancestry_translation
+    elif race == "other" and ancestry_translation != "other":
+        ancestry = ancestry_translation
+    elif ancestry_translation == "other" and race != "other":
+        ancestry = race
+    else:
+        print("person: " + person)
+        print(
+            "potential discrepancy... race: " + race +
+            " ancestry: " + ancestry_translation
+        )
+        ancestry = ancestry_translation
+
+    return ancestry
+
+
+def extract_person_genotypes(
+    person=None,
+    data_genotype_component_gcta=None,
+    data_genotype_component_plink=None,
+):
+    """
+    Extracts principal components from a person's genotype.
+
+    arguments:
+        person (str): identifier of a person
+        data_genotype_component_gcta (object): Pandas data frame of principal
+            components from genotypes for persons, as calculated in GCTA
+        data_genotype_component_plink (object): Pandas data frame of principal
+            components from genotypes for persons, as calculated in PLINK2
+
+    raises:
+
+    returns:
+        (dict): principal components from a person's genotype
+
+    """
+
+    if person in data_genotype_component_gcta.index.values.tolist():
+        genotype_1 = data_genotype_component_gcta.at[person, "component_1"]
+        genotype_2 = data_genotype_component_gcta.at[person, "component_2"]
+        genotype_3 = data_genotype_component_gcta.at[person, "component_3"]
+        genotype_4 = data_genotype_component_gcta.at[person, "component_4"]
+        genotype_5 = data_genotype_component_gcta.at[person, "component_5"]
+        genotype_6 = data_genotype_component_gcta.at[person, "component_6"]
+        genotype_7 = data_genotype_component_gcta.at[person, "component_7"]
+        genotype_8 = data_genotype_component_gcta.at[person, "component_8"]
+        genotype_9 = data_genotype_component_gcta.at[person, "component_9"]
+        genotype_10 = data_genotype_component_gcta.at[person, "component_10"]
+    else:
+        genotype_1 = float("nan")
+        genotype_2 = float("nan")
+        genotype_3 = float("nan")
+        genotype_4 = float("nan")
+        genotype_5 = float("nan")
+        genotype_6 = float("nan")
+        genotype_7 = float("nan")
+        genotype_8 = float("nan")
+        genotype_9 = float("nan")
+        genotype_10 = float("nan")
+
+    # Compile and return information.
+    information = {
+        "genotype_1": genotype_1,
+        "genotype_2": genotype_2,
+        "genotype_3": genotype_3,
+        "genotype_4": genotype_4,
+        "genotype_5": genotype_5,
+        "genotype_6": genotype_6,
+        "genotype_7": genotype_7,
+        "genotype_8": genotype_8,
+        "genotype_9": genotype_9,
+        "genotype_10": genotype_10,
+    }
+    return information
+
+
+def determine_sample_associations_attributes(
+    sample=None,
     data_sample_attribute=None,
-    data_sample_attribute_gtex=None,
+    data_sample_attribute_private=None,
+    data_person_attribute=None,
+    data_person_attribute_private=None,
+    data_person_ancestry=None,
+    data_genotype_component_gcta=None,
+    data_genotype_component_plink=None,
     data_tissues_major=None,
     data_tissues_minor=None,
 ):
     """
-    Collects matches of samples, tissues, and persons.
-
-    Product data format.
-    Indices by person and tissue allow convenient access.
-    ##################################################
-    # sample   person   tissue
-    # sm_1     bob       brain
-    # sm_2     bob       heart
-    # sm_3     bob       liver
-    # sm_4     julie     brain
-    # sm_5     julie     kidney
-    # sm_6     betty     pancreas
-    ##################################################
+    Associates samples, tissues, and persons and collects their attributes.
 
     arguments:
-        samples (list<str>): identifiers of samples
-        data_person_attribute (object): Pandas data frame of attributes for
-            all persons
-        data_person_attribute_gtex (object): Pandas data frame of attributes
-            for all persons, including exclusive attributes
-        data_person_ancestry (object): Pandas data frame of ancestry for all
+        sample (str): identifier of a sample
+        data_sample_attribute (object): Pandas data frame of public attributes
+            for all samples
+        data_sample_attribute_private (object): Pandas data frame of private
+            attributes for all samples
+        data_person_attribute (object): Pandas data frame of public attributes
+            for persons
+        data_person_attribute_private (object): Pandas data frame of private
+            attributes for persons
+        data_person_ancestry (object): Pandas data frame of ancestry for
             persons
-        data_genotype_component (object): Pandas data frame of principal
-            components from genotypes for all persons
-        data_sample_attribute (object): Pandas data frame of attributes for all
-            samples
-        data_sample_attribute_gtex (object): Pandas data frame of attributes
-            for all samples, including exclusive attributes
+        data_genotype_component_gcta (object): Pandas data frame of principal
+            components from genotypes for persons, as calculated in GCTA
+        data_genotype_component_plink (object): Pandas data frame of principal
+            components from genotypes for persons, as calculated in PLINK2
+        data_tissues_major (object): Pandas data frame of translations for
+            names of major tissues
+        data_tissues_minor (object): Pandas data frame of translations for
+            names of minor tissues
+
+    raises:
+
+    returns:
+        (dict): information about a sample's associations and attributes
+
+    """
+
+    # Access tissue attributes.
+    batch = data_sample_attribute_private.at[sample, "SMNABTCH"]
+    removal = data_sample_attribute.at[sample, "SMTORMVE"]
+    facilities = determine_sample_facilities(
+        sample=sample,
+        data_sample_attribute_private=data_sample_attribute_private,
+    )
+    #autolysis = data_sample_attribute_private.at[sample, "SMATSSCR"]
+    major = data_sample_attribute.at[sample, "SMTS"]
+    minor = data_sample_attribute.at[sample, "SMTSD"]
+    tissue_major = data_tissues_major.at[major, "product"]
+    tissue_minor = data_tissues_minor.at[minor, "product"]
+
+    # Access person attributes.
+    person = extract_gtex_sample_person_identifier(sample=sample)
+    sex_raw = data_person_attribute_private.at[person, "SEX"]
+    sex = translate_sex(value=sex_raw)
+    age_decade = data_person_attribute.at[person, "AGE"]
+    age = data_person_attribute_private.at[person, "AGE"]
+    body = data_person_attribute_private.at[person, "BMI"]
+    hardiness_raw = data_person_attribute_private.at[person, "DTHHRDY"]
+    hardiness = translate_hardiness(value=hardiness_raw)
+    season_raw = data_person_attribute_private.at[person, "DTHSEASON"]
+    season = translate_season(value=season_raw)
+    delay = data_person_attribute_private.at[person, "TRDNISCH"]
+    place = data_person_attribute_private.at[person, "DTHPLCE"]
+
+    # Determine person's categorical ancestry.
+    ancestry = determine_person_ancestry(
+        person=person,
+        data_person_attribute_private=data_person_attribute_private,
+        data_person_ancestry=data_person_ancestry,
+    )
+
+    # Include principal components from persons' genotypes.
+    genotypes = extract_person_genotypes(
+        person=person,
+        data_genotype_component_gcta=data_genotype_component_gcta,
+        data_genotype_component_plink=data_genotype_component_plink,
+    )
+
+    # Compile and return information.
+    information = {
+        "sample": sample,
+        "tissue_major": tissue_major,
+        "tissue_minor": tissue_minor,
+        "person": person,
+        "sex": sex,
+        "age_decade": age_decade,
+        "age": age,
+        "ancestry": ancestry,
+        "body": body,
+        "hardiness": hardiness,
+        "season": season,
+        "delay": delay,
+    }
+    information.update(facilities)
+    information.update(genotypes)
+    return information
+
+
+def collect_samples_tissues_persons(
+    samples=None,
+    data_sample_attribute=None,
+    data_sample_attribute_private=None,
+    data_person_attribute=None,
+    data_person_attribute_private=None,
+    data_person_ancestry=None,
+    data_genotype_component_gcta=None,
+    data_genotype_component_plink=None,
+    data_tissues_major=None,
+    data_tissues_minor=None,
+):
+    """
+    Associates samples, tissues, and persons and collects their attributes.
+
+    arguments:
+        samples (list<str>): identifiers of samples with signals for genes
+        data_sample_attribute (object): Pandas data frame of public attributes
+            for all samples
+        data_sample_attribute_private (object): Pandas data frame of private
+            attributes for all samples
+        data_person_attribute (object): Pandas data frame of public attributes
+            for persons
+        data_person_attribute_private (object): Pandas data frame of private
+            attributes for persons
+        data_person_ancestry (object): Pandas data frame of ancestry for
+            persons
+        data_genotype_component_gcta (object): Pandas data frame of principal
+            components from genotypes for persons, as calculated in GCTA
+        data_genotype_component_plink (object): Pandas data frame of principal
+            components from genotypes for persons, as calculated in PLINK2
         data_tissues_major (object): Pandas data frame of translations for
             names of major tissues
         data_tissues_minor (object): Pandas data frame of translations for
@@ -529,13 +828,19 @@ def collect_samples_tissues_persons(
         drop=True,
         inplace=True
     )
+    data_sample_attribute_private.set_index(
+        ["SAMPID"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
     data_person_attribute.set_index(
         ["SUBJID"],
         append=False,
         drop=True,
         inplace=True
     )
-    data_person_attribute_gtex.set_index(
+    data_person_attribute_private.set_index(
         ["SUBJID"],
         append=False,
         drop=True,
@@ -547,7 +852,13 @@ def collect_samples_tissues_persons(
         drop=True,
         inplace=True
     )
-    data_genotype_component.set_index(
+    data_genotype_component_gcta.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data_genotype_component_plink.set_index(
         ["person"],
         append=False,
         drop=True,
@@ -568,88 +879,18 @@ def collect_samples_tissues_persons(
     # Collect tissues and persons for each sample.
     samples_tissues_persons = list()
     for sample in samples:
-        #tissue = data_sample_attribute.loc[
-        #    data_sample_attribute["SAMPID"] == identifier_sample,
-        #].at[0, "SMTS"]
-        # Access tissue attributes.
-        major = data_sample_attribute.at[sample, "SMTS"]
-        minor = data_sample_attribute.at[sample, "SMTSD"]
-        tissue_major = data_tissues_major.at[major, "product"]
-        tissue_minor = data_tissues_minor.at[minor, "product"]
-        # Access person attributes.
-        person = extract_gtex_sample_person_identifier(sample=sample)
-        sex_raw = data_person_attribute_gtex.at[person, "SEX"]
-        sex = translate_sex(value=sex_raw)
-        age_decade = data_person_attribute.at[person, "AGE"]
-        age = data_person_attribute_gtex.at[person, "AGE"]
-        race_raw = data_person_attribute_gtex.at[person, "RACE"]
-        race = translate_race(value=race_raw)
-
-        # TODO: derive ancestry from Meghana's analysis...
-        if person in data_person_ancestry.index.values.tolist():
-            ancestry_raw = data_person_ancestry.at[person, "ethnicity"]
-            ancestry = translate_ancestry(value=ancestry_raw)
-        else:
-            ancestry = "other"
-        # Determine consensus between race and ancestry.
-        if race == ancestry:
-            ancestry_race = ancestry
-        elif race == "other" and ancestry != "other":
-            ancestry_race = ancestry
-        elif ancestry == "other" and race != "other":
-            ancestry_race = race
-        else:
-            print("person: " + person)
-            print(
-                "potential discrepancy... race: " + race +
-                " ancestry: " + ancestry
-            )
-            ancestry_race = ancestry
-        # Include principal components from ancestry analysis.
-        if person in data_genotype_component.index.values.tolist():
-            genotype_1 = data_genotype_component.at[person, "component_1"]
-            genotype_2 = data_genotype_component.at[person, "component_2"]
-            genotype_3 = data_genotype_component.at[person, "component_3"]
-            genotype_4 = data_genotype_component.at[person, "component_4"]
-            genotype_5 = data_genotype_component.at[person, "component_5"]
-        else:
-            genotype_1 = float("nan")
-            genotype_2 = float("nan")
-            genotype_3 = float("nan")
-            genotype_4 = float("nan")
-            genotype_5 = float("nan")
-
-        # ...
-        body = data_person_attribute_gtex.at[person, "BMI"]
-        hardiness_raw = data_person_attribute_gtex.at[person, "DTHHRDY"]
-        hardiness = translate_hardiness(value=hardiness_raw)
-
-        season_raw = data_person_attribute_gtex.at[person, "DTHSEASON"]
-        season = translate_season(value=season_raw)
-        # Duration of time in minutes between death and procedure start.
-        #delay = data_person_attribute_private.at[person, "TRISCHD"]
-        # Duration of time in minutes between death and sample collection.
-        delay = data_person_attribute_gtex.at[person, "TRDNISCH"]
-
-        record = {
-            "sample": sample,
-            "tissue_major": tissue_major,
-            "tissue_minor": tissue_minor,
-            "person": person,
-            "sex": sex,
-            "age_decade": age_decade,
-            "age": age,
-            "ancestry": ancestry_race,
-            "genotype_1": genotype_1,
-            "genotype_2": genotype_2,
-            "genotype_3": genotype_3,
-            "genotype_4": genotype_4,
-            "genotype_5": genotype_5,
-            "body": body,
-            "hardiness": hardiness,
-            "season": season,
-            "delay": delay,
-        }
+        record = determine_sample_associations_attributes(
+            sample=sample,
+            data_sample_attribute=data_sample_attribute,
+            data_sample_attribute_private=data_sample_attribute_private,
+            data_person_attribute=data_person_attribute,
+            data_person_attribute_private=data_person_attribute_private,
+            data_person_ancestry=data_person_ancestry,
+            data_genotype_component_gcta=data_genotype_component_gcta,
+            data_genotype_component_plink=data_genotype_component_plink,
+            data_tissues_major=data_tissues_major,
+            data_tissues_minor=data_tissues_minor,
+        )
         samples_tissues_persons.append(record)
     # Return information.
     return samples_tissues_persons
@@ -709,11 +950,12 @@ def organize_samples_tissues_persons(
     samples_tissues_persons = collect_samples_tissues_persons(
         samples=source["samples"],
         data_person_attribute=source["data_person_attribute"],
-        data_person_attribute_gtex=source["data_person_attribute_gtex"],
+        data_person_attribute_private=source["data_person_attribute_private"],
         data_person_ancestry=source["data_person_ancestry"],
-        data_genotype_component=source["data_genotype_component"],
+        data_genotype_component_gcta=source["data_genotype_component_gcta"],
+        data_genotype_component_plink=source["data_genotype_component_plink"],
         data_sample_attribute=source["data_sample_attribute"],
-        data_sample_attribute_gtex=source["data_sample_attribute_gtex"],
+        data_sample_attribute_private=source["data_sample_attribute_private"],
         data_tissues_major=source["data_tissues_major"],
         data_tissues_minor=source["data_tissues_minor"],
     )

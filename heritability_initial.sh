@@ -27,10 +27,10 @@ mkdir -p $path_relation_gcta
 rm -r $path_relation_plink
 mkdir -p $path_relation_plink
 
-rm -r $path_gtex_ped
-mkdir $path_gtex_ped
-rm -r $path_gtex_pgen
-mkdir $path_gtex_pgen
+#rm -r $path_gtex_ped
+#mkdir $path_gtex_ped
+#rm -r $path_gtex_pgen
+#mkdir $path_gtex_pgen
 
 # Suppress echo each command to console.
 set +x
@@ -50,19 +50,16 @@ set -x
 # Possible to use PLINK to filter by person and minimal allelic frequency.
 #$path_plink --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/gtex-8_genotype
 # However, only use PLINK to convert and filter in GCTA.
-# GCTA requires PLINK 1 format files, .bed, .bim, and .fam.
-#$path_plink --vcf $path_genotype_vcf --no-fid --make-bed --out $path_genotype_ped
-# I think that the "no-fid" flag does not change anything when importing a VCF.
-$path_plink_2 --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped --threads 10
-$path_plink_2 --vcf $path_genotype_vcf --make-pgen --out $path_genotype_pgen --threads 10
+# PLINK 1 binary files: .bed, .bim, .fam
+#$path_plink_2 --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped --threads 10
+# PLINK 2 binary files: .pgen, .pvar, .psam
+#$path_plink_2 --vcf $path_genotype_vcf --make-pgen --out $path_genotype_pgen --threads 10
 
 ##########
 # Generate GRM for all autosomal chromosomes.
 #$path_gcta --bfile $path_genotype_ped --autosome --maf 0.01 --make-grm --out $path_relation/autosome_common_gcta --threads 10
-
-# run these...
-#$path_gcta --pfile $path_genotype_pgen --autosome --maf 0.01 --make-grm --out $path_relation_gcta/autosome_common --threads 10
-#$path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --make-rel --out $path_relation_plink/autosome_common --threads 10
+$path_gcta --pfile $path_genotype_pgen --autosome --maf 0.01 --make-grm --out $path_relation_gcta/autosome_common --threads 10
+$path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --make-rel --out $path_relation_plink/autosome_common --threads 10
 
 ##########
 # Calculate principal components.
@@ -74,7 +71,6 @@ $path_plink_2 --vcf $path_genotype_vcf --make-pgen --out $path_genotype_pgen --t
 # Principal components on rare variants produces Eigenvalues near zero and
 # missing values across Eigenvectors.
 
-# run these...
-#$path_gcta --grm $path_relation_gcta/autosome_common --pca 10 --out $path_relation_gcta/components
-#$path_plink_2 --grm $path_relation_plink/autosome_common --pca 10 --out $path_relation_plink/components
-#$path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --make-rel --pca 10 --out $path_relation_plink/components
+$path_gcta --grm $path_relation_gcta/autosome_common --pca 10 --out $path_relation_gcta/components
+# I don't think this will work... --> #$path_plink_2 --grm $path_relation_plink/autosome_common --pca 10 --out $path_relation_plink/components
+$path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --pca 10 --out $path_relation_plink/components
