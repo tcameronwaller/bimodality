@@ -14,8 +14,6 @@ subpath_repository="repository/"
 path_repository="$path_project$subpath_repository"
 subpath_program="repository/bimodality/"
 path_program="$path_project$subpath_program"
-subpath_dock="dock/"
-#path_dock="$path_project$subpath_dock"
 path_dock="/home/tcameronwaller/dock/"
 
 # Suppress echo each command to console.
@@ -33,8 +31,6 @@ echo "--------------------------------------------------"
 # Echo each command to console.
 set -x
 
-cd $path_project
-mkdir $path_dock
 cd $path_program
 
 echo "Now set to call routine and procedures."
@@ -48,11 +44,13 @@ echo "Now set to call routine and procedures."
 #bash access_private.sh # run on 8 January 2020
 #bash heritability_initial.sh # run on 8-9 January 2020
 # -- copy directory "access_private" to directory "dock" on halyard
+# cp -r dock_template_2020-01-09/ /home/tcameronwaller/
+# mv /home/tcameronwaller/dock_template_2020-01-09/ /home/tcameronwaller/dock/
 
 # -- essential procedures
-python3 interface.py main --dock $path_dock --access
+#python3 interface.py main --dock $path_dock --access
 #python3 interface.py main --dock $path_dock --assembly
-#python3 interface.py main --dock $path_dock --selection
+python3 interface.py main --dock $path_dock --selection
 
 ##########
 # - Batch Routine

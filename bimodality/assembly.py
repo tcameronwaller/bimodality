@@ -184,7 +184,7 @@ def read_source_sample(dock=None):
     path_attribute_person = os.path.join(path_access, "attribute_person.txt")
 
     # Private access
-    path_access_private = os.path.join(dock, "access_private_2020-01-08")
+    path_access_private = os.path.join(dock, "access_private")
     path_attribute_sample_private = os.path.join(
         path_access_private, "sample_attribute.txt"
     )
@@ -258,9 +258,9 @@ def read_source_sample(dock=None):
     data_genotype_component_plink = pandas.read_csv(
         path_genotype_component_plink,
         sep="\s+",
-        header=None,
+        header=0,
         names=[
-            "family", "person",
+            "person",
             "component_1", "component_2", "component_3", "component_4",
             "component_5", "component_6", "component_7", "component_8",
             "component_9", "component_10",
@@ -285,9 +285,9 @@ def read_source_sample(dock=None):
     # Compile and return information.
     return {
         "data_sample_attribute": data_sample_attribute,
-        "data_sample_attribute_private": data_sample_attribute_gtex,
+        "data_sample_attribute_private": data_sample_attribute_private,
         "data_person_attribute": data_person_attribute,
-        "data_person_attribute_private": data_person_attribute_gtex,
+        "data_person_attribute_private": data_person_attribute_private,
         "data_person_ancestry": data_person_ancestry,
         "data_genotype_component_gcta": data_genotype_component_gcta,
         "data_genotype_component_plink": data_genotype_component_plink,
@@ -510,49 +510,6 @@ def translate_ancestry(value=None):
     return ancestry
 
 
-def determine_sample_facilities(
-    sample=None,
-    data_sample_attribute_private=None,
-):
-    """
-    Determines a sample's processing facilities.
-
-    arguments:
-        sample (str): identifier of a sample
-        data_sample_attribute_private (object): Pandas data frame of private
-            attributes for all samples
-
-    raises:
-
-    returns:
-        (dict): samples processign facilities
-
-    """
-
-    # Access string of sample's processing facilities.
-    facilities = data_sample_attribute_private.at[sample, "SMCENTER"]
-    # Collect individual facilities.
-    information = dict()
-    if "A1" in facilities:
-        information["facility_a"] = 1
-    else:
-        information["facility_a"] = 0
-    if "B1" in facilities:
-        information["facility_b"] = 1
-    else:
-        information["facility_b"] = 0
-    if "C1" in facilities:
-        information["facility_c"] = 1
-    else:
-        information["facility_c"] = 0
-    if "D1" in facilities:
-        information["facility_d"] = 1
-    else:
-        information["facility_d"] = 0
-    # Return information.
-    return information
-
-
 def determine_person_ancestry(
     person=None,
     data_person_attribute_private=None,
@@ -719,15 +676,13 @@ def determine_sample_associations_attributes(
     """
 
     # Access tissue attributes.
-    removal = data_sample_attribute.at[sample, "SMTORMVE"]
-    batch = data_sample_attribute_private.at[sample, "SMNABTCH"]
-    facilities = determine_sample_facilities(
-        sample=sample,
-        data_sample_attribute_private=data_sample_attribute_private,
-    )
+    removal = data_sample_attribute_private.at[sample, "SMTORMVE"]
+    batch_isolation = data_sample_attribute_private.at[sample, "SMNABTCH"]
+    batches_analysis = data_sample_attribute_private.at[sample, "SMGEBTCH"]
+    facilities = data_sample_attribute_private.at[sample, "SMCENTER"]
     #autolysis = data_sample_attribute_private.at[sample, "SMATSSCR"]
-    major = data_sample_attribute.at[sample, "SMTS"]
-    minor = data_sample_attribute.at[sample, "SMTSD"]
+    major = data_sample_attribute_private.at[sample, "SMTS"]
+    minor = data_sample_attribute_private.at[sample, "SMTSD"]
     tissue_major = data_tissues_major.at[major, "product"]
     tissue_minor = data_tissues_minor.at[minor, "product"]
 
@@ -743,7 +698,7 @@ def determine_sample_associations_attributes(
     season_raw = data_person_attribute_private.at[person, "DTHSEASON"]
     season = translate_season(value=season_raw)
     delay = data_person_attribute_private.at[person, "TRDNISCH"]
-    place = data_person_attribute_private.at[person, "DTHPLCE"]
+    #place = data_person_attribute_private.at[person, "DTHPLCE"]
 
     # Determine person's categorical ancestry.
     ancestry = determine_person_ancestry(
@@ -763,7 +718,9 @@ def determine_sample_associations_attributes(
     information = {
         "sample": sample,
         "removal": removal,
-        "batch": batch,
+        "facilities": facilities,
+        "batch_isolation": batch_isolation,
+        "batches_analysis": batches_analysis,
         "tissue_major": tissue_major,
         "tissue_minor": tissue_minor,
         "person": person,
@@ -775,9 +732,7 @@ def determine_sample_associations_attributes(
         "hardiness": hardiness,
         "season": season,
         "delay": delay,
-        "place": place,
     }
-    information.update(facilities)
     information.update(genotypes)
     return information
 
@@ -1018,15 +973,20 @@ def read_source_gene_annotation(dock=None):
 
     # Specify directories and files.
     path_access = os.path.join(dock, "access")
-    path_gene_annotation = os.path.join(
+    path_gene_annotation_gtex = os.path.join(
+        path_access, "annotation_gene_gtex.gtf"
+    )
+    path_gene_annotation_gencode = os.path.join(
         path_access, "annotation_gene_gencode.gtf"
     )
     # Read information from file.
     #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
-    data_gene_annotation = gtfparse.read_gtf(path_gene_annotation)
+    data_gene_annotation_gtex = gtfparse.read_gtf(path_gene_annotation_gtex)
+    data_gene_annotation_gencode = gtfparse.read_gtf(path_gene_annotation_gencode)
     # Compile and return information.
     return {
-        "data_gene_annotation": data_gene_annotation,
+        "data_gene_annotation_gtex": data_gene_annotation_gtex,
+        "data_gene_annotation_gencode": data_gene_annotation_gencode,
     }
 
 
@@ -1082,29 +1042,25 @@ def extract_gene_identifier(string):
     return identifier_gene
 
 
-def organize_genes_annotations(
-    dock=None
+def organize_genes_annotations_set(
+    data_gene_annotation=None,
 ):
     """
-    Organizes genes' annotations.
+    Organizes a single set of genes' annotations.
 
     arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
+        data_gene_annotation (object): Pandas data frame of genes' annotations
 
     raises:
 
     returns:
-        (object): Pandas data frame of genes' annotations.
+        (object): Pandas data frame of genes' annotations
 
     """
 
-    # Read source information from file.
-    source = read_source_gene_annotation(dock=dock)
-
     # Summarize the structures of the raw data.
     summarize_raw_data_gene_annotation(
-        data_gene_annotation=source["data_gene_annotation"],
+        data_gene_annotation=data_gene_annotation,
     )
 
     # Organize annotations of genes.
@@ -1112,7 +1068,7 @@ def organize_genes_annotations(
     print("Organization of genes' annotations.")
 
     # Define and select relevant columns.
-    print(source["data_gene_annotation"].shape)
+    print(data_gene_annotation.shape)
     columns = [
         "gene_id",
         "gene_name",
@@ -1122,9 +1078,8 @@ def organize_genes_annotations(
         "start",
         "end",
     ]
-    #data_interest = source["data_gene_annotation"].loc[ :, columns]
-    data_gene_annotation = source["data_gene_annotation"].loc[
-        : , source["data_gene_annotation"].columns.isin(columns)
+    data_gene_annotation = data_gene_annotation.loc[
+        : , data_gene_annotation.columns.isin(columns)
     ]
 
     print(data_gene_annotation.shape)
@@ -1154,12 +1109,42 @@ def organize_genes_annotations(
         inplace=True
     )
     print(data_gene_annotation.iloc[0:10, 0:15])
-
     utility.print_terminal_partition(level=1)
+
+    return data_gene_annotation
+
+
+def organize_genes_annotations(
+    dock=None
+):
+    """
+    Organizes genes' annotations.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' annotations.
+
+    """
+
+    # Read source information from file.
+    source = read_source_gene_annotation(dock=dock)
+
+    data_gene_annotation_gtex = organize_genes_annotations_set(
+        data_gene_annotation=source["data_gene_annotation_gtex"],
+    )
+    data_gene_annotation_gencode = organize_genes_annotations_set(
+        data_gene_annotation=source["data_gene_annotation_gencode"],
+    )
 
     # Compile information.
     information = {
-        "data_gene_annotation": data_gene_annotation,
+        "data_gene_annotation_gtex": data_gene_annotation_gtex,
+        "data_gene_annotation_gencode": data_gene_annotation_gencode,
     }
 
     # Collect garbage to clear memory.
@@ -1410,7 +1395,6 @@ def organize_genes_counts(
 
     #Write product information to file.
     write_product_gene_count(dock=dock, information=information)
-
 
 
 ##########
@@ -1861,15 +1845,41 @@ def write_product_gene_annotation(dock=None, information=None):
     # Specify directories and files.
     path_assembly = os.path.join(dock, "assembly")
     utility.create_directory(path_assembly)
-    path_gene_annotation = os.path.join(
-        path_assembly, "data_gene_annotation.pickle"
+    path_gene_annotation_gtex = os.path.join(
+        path_assembly, "data_gene_annotation_gtex.pickle"
+    )
+    path_gene_annotation_gtex_text = os.path.join(
+        path_assembly, "data_gene_annotation_gtex.tsv"
+    )
+    path_gene_annotation_gencode = os.path.join(
+        path_assembly, "data_gene_annotation_gencode.pickle"
+    )
+    path_gene_annotation_gencode_text = os.path.join(
+        path_assembly, "data_gene_annotation_gencode.tsv"
     )
 
     # Write information to file.
     pandas.to_pickle(
-        information["data_gene_annotation"],
-        path_gene_annotation
+        information["data_gene_annotation_gtex"],
+        path_gene_annotation_gtex
     )
+    pandas.to_pickle(
+        information["data_gene_annotation_gencode"],
+        path_gene_annotation_gencode
+    )
+    information["data_gene_annotation_gtex"].to_csv(
+        path_or_buf=path_gene_annotation_gtex_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+    information["data_gene_annotation_gencode"].to_csv(
+        path_or_buf=path_gene_annotation_gencode_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+
     pass
 
 

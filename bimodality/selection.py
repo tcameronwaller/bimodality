@@ -52,8 +52,11 @@ def read_source(dock=None):
 
     # Specify directories and files.
     path_assembly = os.path.join(dock, "assembly")
-    path_gene_annotation = os.path.join(
-        path_assembly, "data_gene_annotation.pickle"
+    path_gene_annotation_gtex = os.path.join(
+        path_assembly, "data_gene_annotation_gtex.pickle"
+    )
+    path_gene_annotation_gencode = os.path.join(
+        path_assembly, "data_gene_annotation_gencode.pickle"
     )
     path_samples_tissues_persons = os.path.join(
         path_assembly, "data_samples_tissues_persons.pickle"
@@ -63,8 +66,11 @@ def read_source(dock=None):
     )
 
     # Read information from file.
-    data_gene_annotation = pandas.read_pickle(
-        path_gene_annotation
+    data_gene_annotation_gtex = pandas.read_pickle(
+        path_gene_annotation_gtex
+    )
+    data_gene_annotation_gencode = pandas.read_pickle(
+        path_gene_annotation_gencode
     )
     data_samples_tissues_persons = pandas.read_pickle(
         path_samples_tissues_persons
@@ -74,7 +80,8 @@ def read_source(dock=None):
     )
     # Compile and return information.
     return {
-        "data_gene_annotation": data_gene_annotation,
+        "data_gene_annotation_gtex": data_gene_annotation_gtex,
+        "data_gene_annotation_gencode": data_gene_annotation_gencode,
         "data_samples_tissues_persons": data_samples_tissues_persons,
         "data_gene_signal": data_gene_signal,
     }
@@ -812,6 +819,11 @@ def count_tissues_persons_groups(
 
 # Extract persons' properties.
 
+# TODO: aggregation to persons needs to be more sophisticated...
+# - consider aggregating the sample dataframe by persons
+# - consider using groupby?
+
+
 
 def extract_persons_properties(
     data_samples_tissues_persons=None,
@@ -862,6 +874,62 @@ def extract_persons_properties(
     return data_persons_properties
 
 
+# TODO: collect clinical facilities for each person
+#facilities = determine_sample_facilities(
+#    sample=sample,
+#    data_sample_attribute_private=data_sample_attribute_private,
+#)
+def determine_sample_facilities(
+    sample=None,
+    data_sample_attribute_private=None,
+):
+    """
+    Determines a sample's processing facilities.
+
+    arguments:
+        sample (str): identifier of a sample
+        data_sample_attribute_private (object): Pandas data frame of private
+            attributes for all samples
+
+    raises:
+
+    returns:
+        (dict): samples processign facilities
+
+    """
+
+    # Access string of sample's processing facilities.
+    facilities = data_sample_attribute_private.at[sample, "SMCENTER"]
+    # Collect individual facilities.
+    information = dict()
+    if "A1" in facilities:
+        information["facility_a"] = 1
+    else:
+        information["facility_a"] = 0
+    if "B1" in facilities:
+        information["facility_b"] = 1
+    else:
+        information["facility_b"] = 0
+    if "C1" in facilities:
+        information["facility_c"] = 1
+    else:
+        information["facility_c"] = 0
+    if "D1" in facilities:
+        information["facility_d"] = 1
+    else:
+        information["facility_d"] = 0
+    # Return information.
+    return information
+
+
+# TODO: collect sample batches for each person...
+
+
+
+
+
+
+
 # Count persons' by categories of sex and age.
 
 
@@ -890,7 +958,7 @@ def count_persons_sex_age(
     )
     data_persons_properties = data_persons_properties.loc[
         :, data_persons_properties.columns.isin([
-            "person", "sex", "age_decade",
+            "person", "sex", "decade",
         ])
     ]
     data_persons_properties.drop_duplicates(
@@ -900,21 +968,21 @@ def count_persons_sex_age(
     )
     data_persons_properties.reindex()
     data_persons_properties.set_index(
-        ["sex", "age_decade"],
+        ["sex", "decade"],
         append=False,
         drop=True,
         inplace=True
     )
 
     data_persons_sex_age_counts = data_persons_properties.groupby(
-        level=["sex", "age_decade"],
+        level=["sex", "decade"],
         sort=True,
         as_index=False
     ).size().to_frame(
         name="count"
     )
     data_persons_sex_age_counts.reset_index(
-        level=["sex", "age_decade"], inplace=True
+        level=["sex", "decade"], inplace=True
     )
 
     # Return information.
@@ -1085,7 +1153,8 @@ def extract_organize_information(
 
 
 def select_organize_samples_genes_signals(
-    data_gene_annotation=None,
+    data_gene_annotation_gtex=None,
+    data_gene_annotation_gencode=None,
     data_samples_tissues_persons=None,
     data_gene_signal=None,
     stringency=None,
@@ -1096,7 +1165,10 @@ def select_organize_samples_genes_signals(
     Data format should have genes across rows and samples across columns.
 
     arguments:
-        data_gene_annotation (object): Pandas data frame of genes' annotations
+        data_gene_annotation_gtex (object): Pandas data frame of genes'
+            annotations from GTEx
+        data_gene_annotation_gencode (object): Pandas data frame of genes'
+            annotations from GENCODE
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples
         data_gene_signal (object): Pandas data frame of genes' signals across
@@ -1110,7 +1182,8 @@ def select_organize_samples_genes_signals(
     """
 
     # Copy data.
-    data_gene_annotation = data_gene_annotation.copy(deep=True)
+    data_gene_annotation_gtex = data_gene_annotation_gtex.copy(deep=True)
+    data_gene_annotation_gencode = data_gene_annotation_gencode.copy(deep=True)
     data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
     data_gene_signal = data_gene_signal.copy(deep=True)
 
@@ -1122,11 +1195,15 @@ def select_organize_samples_genes_signals(
 
     # Select genes that encode proteins and are on autosomes.
     # Count of genes: 18353
-    data_gene_annotation = select_gene_annotation(
-        data_gene_annotation=data_gene_annotation,
+    data_gene_annotation_gtex = select_gene_annotation(
+        data_gene_annotation=data_gene_annotation_gtex,
     )
+    data_gene_annotation_gencode = select_gene_annotation(
+        data_gene_annotation=data_gene_annotation_gencode,
+    )
+    # Use genes' annotations from GTEx.
     data_gene_signal_gene = select_genes(
-        data_gene_annotation=data_gene_annotation,
+        data_gene_annotation=data_gene_annotation_gtex,
         data_gene_signal=data_gene_signal,
     )
 
@@ -1207,7 +1284,8 @@ def select_organize_samples_genes_signals(
         data_gene_signal=data_gene_signal_selection,
     )
     # Compile information.
-    information["data_gene_annotation"] = data_gene_annotation
+    information["data_gene_annotation_gtex"] = data_gene_annotation_gtex
+    information["data_gene_annotation_gencode"] = data_gene_annotation_gencode
     information["data_samples_tissues_persons"] = (
         data_samples_tissues_persons_selection
     )
@@ -1244,9 +1322,19 @@ def write_product(
     path_selection = os.path.join(dock, "selection", str(stringency))
     utility.create_directories(path_selection)
 
-    path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation.pickle"
+    path_gene_annotation_gtex = os.path.join(
+        path_selection, "data_gene_annotation_gtex.pickle"
     )
+    path_gene_annotation_gtex_text = os.path.join(
+        path_selection, "data_gene_annotation_gtex.tsv"
+    )
+    path_gene_annotation_gencode = os.path.join(
+        path_selection, "data_gene_annotation_gencode.pickle"
+    )
+    path_gene_annotation_gencode_text = os.path.join(
+        path_selection, "data_gene_annotation_gencode.tsv"
+    )
+
     path_gene_signal = os.path.join(
         path_selection, "data_gene_signal.pickle"
     )
@@ -1307,10 +1395,28 @@ def write_product(
     )
 
     # Write information to file.
+
     pandas.to_pickle(
-        information["data_gene_annotation"],
-        path_gene_annotation
+        information["data_gene_annotation_gtex"],
+        path_gene_annotation_gtex
     )
+    pandas.to_pickle(
+        information["data_gene_annotation_gencode"],
+        path_gene_annotation_gencode
+    )
+    information["data_gene_annotation_gtex"].to_csv(
+        path_or_buf=path_gene_annotation_gtex_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+    information["data_gene_annotation_gencode"].to_csv(
+        path_or_buf=path_gene_annotation_gencode_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+
     pandas.to_pickle(
         information["data_gene_signal"],
         path_gene_signal
@@ -1443,7 +1549,8 @@ def execute_procedure(dock=None):
     # 4. select genes with signal in >=1% of samples
     # 5. select samples with signal in >=10% of genes
     loose = select_organize_samples_genes_signals(
-        data_gene_annotation=source["data_gene_annotation"],
+        data_gene_annotation_gtex=source["data_gene_annotation_gtex"],
+        data_gene_annotation_gencode=source["data_gene_annotation_gencode"],
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_signal=data_gene_signal,
         stringency="loose",
@@ -1459,7 +1566,8 @@ def execute_procedure(dock=None):
     # 5. select genes with signal in >=10% of samples
     # 6. select samples with signal in >=50% of genes
     tight = select_organize_samples_genes_signals(
-        data_gene_annotation=source["data_gene_annotation"],
+        data_gene_annotation_gtex=source["data_gene_annotation_gtex"],
+        data_gene_annotation_gencode=source["data_gene_annotation_gencode"],
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_signal=data_gene_signal,
         stringency="tight",
