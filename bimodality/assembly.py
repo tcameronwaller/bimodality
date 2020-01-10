@@ -215,11 +215,6 @@ def read_source_sample(dock=None):
 
     # Read information from file.
     #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
-    data_person_attribute = pandas.read_csv(
-        path_attribute_person,
-        sep="\t",
-        header=0,
-    )
     data_sample_attribute = pandas.read_csv(
         path_attribute_sample,
         sep="\t",
@@ -230,6 +225,11 @@ def read_source_sample(dock=None):
         sep="\t",
         header=9,
         low_memory=False,
+    )
+    data_person_attribute = pandas.read_csv(
+        path_attribute_person,
+        sep="\t",
+        header=0,
     )
     data_person_attribute_private = pandas.read_csv(
         path_attribute_person_private,
@@ -285,8 +285,8 @@ def read_source_sample(dock=None):
     # Compile and return information.
     return {
         "data_sample_attribute": data_sample_attribute,
-        "data_person_attribute": data_person_attribute,
         "data_sample_attribute_private": data_sample_attribute_gtex,
+        "data_person_attribute": data_person_attribute,
         "data_person_attribute_private": data_person_attribute_gtex,
         "data_person_ancestry": data_person_ancestry,
         "data_genotype_component_gcta": data_genotype_component_gcta,
@@ -635,6 +635,7 @@ def extract_person_genotypes(
 
     """
 
+    # Use principal components from genotype analysis in GCTA.
     if person in data_genotype_component_gcta.index.values.tolist():
         genotype_1 = data_genotype_component_gcta.at[person, "component_1"]
         genotype_2 = data_genotype_component_gcta.at[person, "component_2"]
@@ -718,8 +719,8 @@ def determine_sample_associations_attributes(
     """
 
     # Access tissue attributes.
-    batch = data_sample_attribute_private.at[sample, "SMNABTCH"]
     removal = data_sample_attribute.at[sample, "SMTORMVE"]
+    batch = data_sample_attribute_private.at[sample, "SMNABTCH"]
     facilities = determine_sample_facilities(
         sample=sample,
         data_sample_attribute_private=data_sample_attribute_private,
@@ -734,7 +735,7 @@ def determine_sample_associations_attributes(
     person = extract_gtex_sample_person_identifier(sample=sample)
     sex_raw = data_person_attribute_private.at[person, "SEX"]
     sex = translate_sex(value=sex_raw)
-    age_decade = data_person_attribute.at[person, "AGE"]
+    decade = data_person_attribute.at[person, "AGE"]
     age = data_person_attribute_private.at[person, "AGE"]
     body = data_person_attribute_private.at[person, "BMI"]
     hardiness_raw = data_person_attribute_private.at[person, "DTHHRDY"]
@@ -761,17 +762,20 @@ def determine_sample_associations_attributes(
     # Compile and return information.
     information = {
         "sample": sample,
+        "removal": removal,
+        "batch": batch,
         "tissue_major": tissue_major,
         "tissue_minor": tissue_minor,
         "person": person,
         "sex": sex,
-        "age_decade": age_decade,
+        "decade": decade,
         "age": age,
         "ancestry": ancestry,
         "body": body,
         "hardiness": hardiness,
         "season": season,
         "delay": delay,
+        "place": place,
     }
     information.update(facilities)
     information.update(genotypes)

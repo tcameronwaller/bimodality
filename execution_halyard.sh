@@ -45,8 +45,8 @@ echo "Now set to call routine and procedures."
 
 # -- Preparation of dock_template
 # --- execute on nrnb
-#bash access_private.sh
-#bash heritability_initial.sh
+#bash access_private.sh # run on 8 January 2020
+#bash heritability_initial.sh # run on 8-9 January 2020
 # -- copy directory "access_private" to directory "dock" on halyard
 
 # -- essential procedures

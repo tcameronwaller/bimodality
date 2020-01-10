@@ -27,10 +27,10 @@ mkdir -p $path_relation_gcta
 rm -r $path_relation_plink
 mkdir -p $path_relation_plink
 
-#rm -r $path_gtex_ped
-#mkdir $path_gtex_ped
-#rm -r $path_gtex_pgen
-#mkdir $path_gtex_pgen
+rm -r $path_gtex_ped
+mkdir $path_gtex_ped
+rm -r $path_gtex_pgen
+mkdir $path_gtex_pgen
 
 # Suppress echo each command to console.
 set +x
@@ -51,9 +51,9 @@ set -x
 #$path_plink --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/gtex-8_genotype
 # However, only use PLINK to convert and filter in GCTA.
 # PLINK 1 binary files: .bed, .bim, .fam
-#$path_plink_2 --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped --threads 10
+$path_plink_2 --vcf $path_genotype_vcf --make-bed --out $path_genotype_ped --threads 10
 # PLINK 2 binary files: .pgen, .pvar, .psam
-#$path_plink_2 --vcf $path_genotype_vcf --make-pgen --out $path_genotype_pgen --threads 10
+$path_plink_2 --vcf $path_genotype_vcf --make-pgen --out $path_genotype_pgen --threads 10
 
 ##########
 # Generate GRM for all autosomal chromosomes.
@@ -70,7 +70,5 @@ $path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --make-rel --out
 # (minor allele frequence < 0.01).
 # Principal components on rare variants produces Eigenvalues near zero and
 # missing values across Eigenvectors.
-
 $path_gcta --grm $path_relation_gcta/autosome_common --pca 10 --out $path_relation_gcta/components
-# I don't think this will work... --> #$path_plink_2 --grm $path_relation_plink/autosome_common --pca 10 --out $path_relation_plink/components
 $path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --pca 10 --out $path_relation_plink/components

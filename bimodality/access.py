@@ -58,6 +58,7 @@ def define_source():
 
     # Compile and return information.
     return {
+        # Update on 9 January 2020
         "description_sample": {
             "path": (
                 "https://storage.googleapis.com/gtex_analysis_v8/annotations/"
@@ -125,10 +126,10 @@ def define_source():
         "annotation_gene_gencode": {
             "path": (
                 "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/" +
-                "release_31/"
+                "release_32/"
             ),
             "name": (
-                "gencode.v31.annotation.gtf.gz"
+                "gencode.v32.annotation.gtf.gz"
             ),
             "suffix": "gtf.gz",
             "compression": True,
