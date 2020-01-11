@@ -676,7 +676,7 @@ def determine_sample_associations_attributes(
     """
 
     # Access tissue attributes.
-    removal = data_sample_attribute_private.at[sample, "SMTORMVE"]
+    #removal = data_sample_attribute_private.at[sample, "SMTORMVE"]
     batch_isolation = data_sample_attribute_private.at[sample, "SMNABTCH"]
     batches_analysis = data_sample_attribute_private.at[sample, "SMGEBTCH"]
     facilities = data_sample_attribute_private.at[sample, "SMCENTER"]
@@ -717,7 +717,6 @@ def determine_sample_associations_attributes(
     # Compile and return information.
     information = {
         "sample": sample,
-        "removal": removal,
         "facilities": facilities,
         "batch_isolation": batch_isolation,
         "batches_analysis": batches_analysis,

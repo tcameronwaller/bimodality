@@ -819,10 +819,36 @@ def count_tissues_persons_groups(
 
 # Extract persons' properties.
 
-# TODO: aggregation to persons needs to be more sophisticated...
-# - consider aggregating the sample dataframe by persons
-# - consider using groupby?
 
+def collect_unique_sample_values(
+    values=None,
+    delimiter=None,
+):
+    """
+    Collects unique values from a person's samples.
+
+    arguments:
+        values (list<str>): values from a person's samples
+        delimiter (str): character for separation of values
+
+    raises:
+
+    returns:
+        (str): values
+
+    """
+
+    #values_valid = list(filter(lambda value: not math.isnan(value), values))
+    #values_type = list(map(lambda value: str(value), values_valid))
+    delimiter = ","
+    values_combination = delimiter.join(values)
+    values_split = values_combination.split(delimiter)
+    values_strip = list(map(lambda value: value.strip(), values_split))
+    values_unique = utility.collect_unique_elements(
+        elements_original=values_strip
+    )
+    values_string = delimiter.join(values_unique)
+    return values_string
 
 
 def extract_persons_properties(
@@ -839,39 +865,167 @@ def extract_persons_properties(
 
     returns:
         (object): Pandas data frame of information about persons
+
     """
 
     # Organize data.
-    data_persons_properties = data_samples_tissues_persons.copy(deep=True)
-    data_persons_properties.reset_index(
-        level=None,
-        inplace=True
-    )
-    data_persons_properties.rename_axis(
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    data_samples.rename_axis(
         "",
         axis="columns",
         inplace=True,
     )
-    data_persons_properties.drop(
-        labels=["sample", "tissue_major", "tissue_minor"],
-        axis="columns",
+    data_samples.reset_index(
+        level=None,
         inplace=True
     )
-    data_persons_properties.drop_duplicates(
-        subset=None,
-        keep="first",
-        inplace=True,
-    )
-    data_persons_properties.reindex()
-    data_persons_properties.set_index(
+    data_samples.set_index(
         ["person"],
         append=False,
         drop=True,
         inplace=True
     )
 
+    # Split data by person.
+    groups = data_samples.groupby(
+        level=["person"],
+    )
+    data_collection = pandas.DataFrame()
+    for name, data_original in groups:
+        data_original.reset_index(
+            level=None,
+            inplace=True
+        )
+        data_novel = data_original.copy(deep=True)
+        data_novel.drop(
+            labels=[
+                "sample",
+                "tissue_major",
+                "tissue_minor",
+                "facilities",
+                "batch_isolation",
+                "batches_analysis",
+            ],
+            axis="columns",
+            inplace=True
+        )
+        data_novel.drop_duplicates(
+            subset=None,
+            keep="first",
+            inplace=True,
+        )
+        data_novel["facilities"] = collect_unique_sample_values(
+            values=data_original["facilities"].dropna().to_list(),
+            delimiter=",",
+        )
+        data_novel["batches_isolation"] = collect_unique_sample_values(
+            values=data_original["batch_isolation"].dropna().to_list(),
+            delimiter=",",
+        )
+        data_novel["batches_analysis"] = collect_unique_sample_values(
+            values=data_original["batches_analysis"].dropna().to_list(),
+            delimiter=",",
+        )
+        data_collection = data_collection.append(
+            data_novel,
+            ignore_index=True,
+        )
+
+    # Organize data.
+    data_collection.reindex()
+    data_collection.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
     # Return information.
-    return data_persons_properties
+    return data_collection
+
+
+# TODO: start here...
+def expand_person_category_matrix(
+    category=None,
+    data=None,
+):
+    """
+    Expands a person's categorical properties to a binary matrix.
+
+    arguments:
+        category (str): name of a categorical property
+        data (object): Pandas data frame of persons' properties
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a binary matrix
+
+    """
+
+    # 1. collect all categorical values of the property across all persons.
+
+
+    # 2. create empty matrix of 0's for all persons across all categorical values.
+
+
+    # 3. iterate on persons... iterate on person's categorical values and replace those with 1's
+
+    pass
+
+
+def organize_persons_properties(
+    data_persons_properties_raw=None,
+):
+    """
+    Organizes information about persons.
+
+    arguments:
+        data_persons_properties_raw (object): Pandas data frame of persons'
+            properties
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of information about persons
+
+    """
+
+    # Organize data.
+    data_copy = data_persons_properties_raw.copy(deep=True)
+
+    # Facilities.
+    facilities_matrix = expand_person_category_matrix(
+        property="facilities",
+        data=data_copy,
+    )
+    facility_components = reduce_property_dimensions(
+        matrix=facilities_matrix,
+    )
+
+    # Batches.
+    batches_isolation_matrix = = expand_person_category_matrix(
+        property="batches_isolation",
+        data=data_copy,
+    )
+    batches_analysis_matrix = = expand_person_category_matrix(
+        property="batches_analysis",
+        data=data_copy,
+    )
+    # TODO: batches_matrix = join both batch matrices on the person identifier...
+    batch_components = reduce_property_dimensions(
+        matrix=batches_matrix,
+    )
+
+    # Return information.
+    pass
+
+
+
+
+# TODO: aggregation to persons needs to be more sophisticated...
+# - consider aggregating the sample dataframe by persons
+# - consider using groupby?
+
 
 
 # TODO: collect clinical facilities for each person
@@ -1112,16 +1266,25 @@ def extract_organize_information(
     )
 
     # Extract information about persons' properties.
-    data_persons_properties = extract_persons_properties(
+    data_persons_properties_raw = extract_persons_properties(
         data_samples_tissues_persons=data_samples_tissues_persons,
     )
+
+    # Expand covariates.
+    utility.print_terminal_partition(level=1)
+    print(data_persons_properties_raw)
+    data_persons_properties = organize_persons_properties(
+        data_persons_properties_raw=data_persons_properties_raw,
+    )
+
+
     # Count persons in groups by sex and age.
     data_persons_sex_age_counts = count_persons_sex_age(
-        data_persons_properties=data_persons_properties,
+        data_persons_properties=data_persons_properties_raw,
     )
     # Organize information for heritability analysis.
     heritability = organize_heritability_covariates(
-        data_persons_properties=data_persons_properties,
+        data_persons_properties=data_persons_properties_raw,
     )
 
     # Compile information.
