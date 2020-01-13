@@ -820,7 +820,7 @@ def count_tissues_persons_groups(
 # Extract persons' properties.
 
 
-def collect_unique_sample_values(
+def collect_person_unique_sample_values(
     values=None,
     delimiter=None,
 ):
@@ -840,7 +840,6 @@ def collect_unique_sample_values(
 
     #values_valid = list(filter(lambda value: not math.isnan(value), values))
     #values_type = list(map(lambda value: str(value), values_valid))
-    delimiter = ","
     values_combination = delimiter.join(values)
     values_split = values_combination.split(delimiter)
     values_strip = list(map(lambda value: value.strip(), values_split))
@@ -914,15 +913,15 @@ def extract_persons_properties(
             keep="first",
             inplace=True,
         )
-        data_novel["facilities"] = collect_unique_sample_values(
+        data_novel["facilities"] = collect_person_unique_sample_values(
             values=data_original["facilities"].dropna().to_list(),
             delimiter=",",
         )
-        data_novel["batches_isolation"] = collect_unique_sample_values(
+        data_novel["batches_isolation"] = collect_person_unique_sample_values(
             values=data_original["batch_isolation"].dropna().to_list(),
             delimiter=",",
         )
-        data_novel["batches_analysis"] = collect_unique_sample_values(
+        data_novel["batches_analysis"] = collect_person_unique_sample_values(
             values=data_original["batches_analysis"].dropna().to_list(),
             delimiter=",",
         )
@@ -943,9 +942,42 @@ def extract_persons_properties(
     return data_collection
 
 
-# TODO: start here...
-def expand_person_category_matrix(
+# Organize persons' properties as covariates.
+
+
+def collect_persons_unique_values(
+    values=None,
+    delimiter=None,
+):
+    """
+    Collects unique values from a person's samples.
+
+    arguments:
+        values (list<str>): values from a person's samples
+        delimiter (str): character for separation of values
+
+    raises:
+
+    returns:
+        (str): values
+
+    """
+
+    #values_valid = list(filter(lambda value: not math.isnan(value), values))
+    #values_type = list(map(lambda value: str(value), values_valid))
+    values_combination = delimiter.join(values)
+    values_split = values_combination.split(delimiter)
+    values_strip = list(map(lambda value: value.strip(), values_split))
+    values_unique = utility.collect_unique_elements(
+        elements_original=values_strip
+    )
+    return values_unique
+
+
+def expand_persons_categories_matrix(
     category=None,
+    values=None,
+    delimiter=None,
     data=None,
 ):
     """
@@ -953,6 +985,9 @@ def expand_person_category_matrix(
 
     arguments:
         category (str): name of a categorical property
+        values (list<str>): all unique values of the categorical property
+            across persons
+        delimiter (str): character for separation of values
         data (object): Pandas data frame of persons' properties
 
     raises:
@@ -962,15 +997,199 @@ def expand_person_category_matrix(
 
     """
 
-    # 1. collect all categorical values of the property across all persons.
+    # Iterate on persons.
+    persons = data.index.to_list()
+    data_collection = pandas.DataFrame()
+    for person in persons:
+        # Create an empty matrix with values of zero for all facilities or
+        # batches.
+        data_empty = pandas.DataFrame(
+            numpy.int(0),
+            index=[0],
+            columns=values
+        )
+        # Adjust matrix to match person's values of the categorical property.
+        data_person = data_empty.copy(deep=True)
+        data_person["person"] = person
+        # Iterate on the person's values of the categorical property.
+        values_person_raw = data.at[person, category]
+        values_person = values_person_raw.split(delimiter)
+        for value in values_person:
+            data_person[value] = 1
+
+        # Collect person's values.
+        data_collection = data_collection.append(
+            data_person,
+            ignore_index=True,
+        )
+
+    # Organize data.
+    data_collection.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_collection.drop(
+        labels="index",
+        axis="columns",
+        inplace=True
+    )
+    data_collection.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    # Return information.
+    return data_collection
 
 
-    # 2. create empty matrix of 0's for all persons across all categorical values.
+def organize_persons_properties_categories(
+    data_persons_properties_raw=None,
+):
+    """
+    Organizes information about persons' categorical properties.
+
+    arguments:
+        data_persons_properties_raw (object): Pandas data frame of persons'
+            properties
+
+    raises:
+
+    returns:
+        (dict): information about persons' categorical properties
+
+    """
+
+    # Organize data.
+    data_copy = data_persons_properties_raw.copy(deep=True)
+
+    # Extract and collect all unique values of facilities and batches across
+    # all persons.
+    facilities = collect_persons_unique_values(
+        values=data_copy["facilities"].dropna().to_list(),
+        delimiter=",",
+    )
+    batches_isolation = collect_persons_unique_values(
+        values=data_copy["batches_isolation"].dropna().to_list(),
+        delimiter=",",
+    )
+    batches_analysis = collect_persons_unique_values(
+        values=data_copy["batches_analysis"].dropna().to_list(),
+        delimiter=",",
+    )
+
+    # Summarize facilities and batches.
+    utility.print_terminal_partition(level=2)
+    print("Count of unique facilities: " + str(len(facilities)))
+    print("Count of unique isolation batches: " + str(len(batches_isolation)))
+    print("Count of unique analysis batches: " + str(len(batches_analysis)))
+    utility.print_terminal_partition(level=2)
+
+    # Create two-dimensional matrices to represent persons' categories.
+    # Persons have values of zero (False) or one (True) to indicate whether
+    # they had a sample in each facility or batch.
+    data_facilities = expand_persons_categories_matrix(
+        category="facilities",
+        values=facilities,
+        delimiter=",",
+        data=data_copy,
+    )
+    data_batches_isolation = expand_persons_categories_matrix(
+        category="batches_isolation",
+        values=batches_isolation,
+        delimiter=",",
+        data=data_copy,
+    )
+    data_batches_analysis = expand_persons_categories_matrix(
+        category="batches_analysis",
+        values=batches_analysis,
+        delimiter=",",
+        data=data_copy,
+    )
+    # Merge batches to a single matrix.
+    data_batches = data_batches_isolation.join(
+        data_batches_analysis,
+        how="left",
+        on="person"
+    )
+
+    # Reduce dimensionality.
+    report_facilities = utility.calculate_principal_components(
+        data=data_facilities,
+        components=3,
+        report=True,
+    )
+    report_batches_isolation = utility.calculate_principal_components(
+        data=data_batches_isolation,
+        components=10,
+        report=True,
+    )
+    report_batches_analysis = utility.calculate_principal_components(
+        data=data_batches_analysis,
+        components=5,
+        report=True,
+    )
+    report_batches = utility.calculate_principal_components(
+        data=data_batches,
+        components=10,
+        report=True,
+    )
+
+    # Compile information.
+    information = dict()
+    information["facilities"] = report_facilities
+    information["batches_isolation"] = report_batches_isolation
+    information["batches_analysis"] = report_batches_analysis
+    information["batches"] = report_batches
+    # Return information.
+    return information
 
 
-    # 3. iterate on persons... iterate on person's categorical values and replace those with 1's
+def insert_components(
+    prefix=None,
+    data_components=None,
+    data_collection=None,
+):
+    """
+    Inserts principal components of a property into a data frame.
 
-    pass
+    arguments:
+        prefix (str): name to use as a prefix for components
+        data_components (object): Pandas data frame of a property's principal
+            components across observations
+        data_collection (object): Pandas data frame in which to insert the
+            property's principal components
+
+    raises:
+
+    returns:
+        (object): Pandas data frame including property's principal components
+
+    """
+
+    # Copy data.
+    data_components = data_components.copy(deep=True)
+    data_collection = data_collection.copy(deep=True)
+
+    # Change names of columns for property's principal components.
+    components = data_components.shape[1]
+    translations = dict()
+    for count in range(components):
+        original = ("component_" + str(count + 1))
+        novel = (prefix + "_" + str(count + 1))
+        translations[original] = novel
+    data_components.rename(
+        columns=translations,
+        inplace=True,
+    )
+
+    # Insert components.
+    data_combination = data_collection.join(
+        data_components,
+        how="left",
+    )
+
+    return data_combination
 
 
 def organize_persons_properties(
@@ -991,97 +1210,46 @@ def organize_persons_properties(
     """
 
     # Organize data.
-    data_copy = data_persons_properties_raw.copy(deep=True)
-
-    # Facilities.
-    facilities_matrix = expand_person_category_matrix(
-        property="facilities",
-        data=data_copy,
+    data_persons_properties = data_persons_properties_raw.copy(deep=True)
+    # Transform and reduce dimensionality on persons' categorical properties.
+    bin = organize_persons_properties_categories(
+        data_persons_properties_raw=data_persons_properties_raw,
     )
-    facility_components = reduce_property_dimensions(
-        matrix=facilities_matrix,
+    data_facilities = bin["facilities"]["data_observations_components"]
+    data_batches_isolation = bin["batches_isolation"][
+        "data_observations_components"
+    ]
+    data_batches_analysis = bin["batches_analysis"][
+        "data_observations_components"
+    ]
+    # Replace persons' raw properties.
+    data_persons_properties.drop(
+        labels=[
+            "facilities",
+            "batches_isolation",
+            "batches_analysis",
+        ],
+        axis="columns",
+        inplace=True
     )
-
-    # Batches.
-    batches_isolation_matrix = = expand_person_category_matrix(
-        property="batches_isolation",
-        data=data_copy,
+    data_persons_properties = insert_components(
+        prefix="facilities",
+        data_components=data_facilities,
+        data_collection=data_persons_properties,
     )
-    batches_analysis_matrix = = expand_person_category_matrix(
-        property="batches_analysis",
-        data=data_copy,
+    data_persons_properties = insert_components(
+        prefix="batches_isolation",
+        data_components=data_batches_isolation,
+        data_collection=data_persons_properties,
     )
-    # TODO: batches_matrix = join both batch matrices on the person identifier...
-    batch_components = reduce_property_dimensions(
-        matrix=batches_matrix,
+    data_persons_properties = insert_components(
+        prefix="batches_analysis",
+        data_components=data_batches_analysis,
+        data_collection=data_persons_properties,
     )
 
     # Return information.
-    pass
-
-
-
-
-# TODO: aggregation to persons needs to be more sophisticated...
-# - consider aggregating the sample dataframe by persons
-# - consider using groupby?
-
-
-
-# TODO: collect clinical facilities for each person
-#facilities = determine_sample_facilities(
-#    sample=sample,
-#    data_sample_attribute_private=data_sample_attribute_private,
-#)
-def determine_sample_facilities(
-    sample=None,
-    data_sample_attribute_private=None,
-):
-    """
-    Determines a sample's processing facilities.
-
-    arguments:
-        sample (str): identifier of a sample
-        data_sample_attribute_private (object): Pandas data frame of private
-            attributes for all samples
-
-    raises:
-
-    returns:
-        (dict): samples processign facilities
-
-    """
-
-    # Access string of sample's processing facilities.
-    facilities = data_sample_attribute_private.at[sample, "SMCENTER"]
-    # Collect individual facilities.
-    information = dict()
-    if "A1" in facilities:
-        information["facility_a"] = 1
-    else:
-        information["facility_a"] = 0
-    if "B1" in facilities:
-        information["facility_b"] = 1
-    else:
-        information["facility_b"] = 0
-    if "C1" in facilities:
-        information["facility_c"] = 1
-    else:
-        information["facility_c"] = 0
-    if "D1" in facilities:
-        information["facility_d"] = 1
-    else:
-        information["facility_d"] = 0
-    # Return information.
-    return information
-
-
-# TODO: collect sample batches for each person...
-
-
-
-
-
+    return data_persons_properties
 
 
 # Count persons' by categories of sex and age.
@@ -1271,12 +1439,9 @@ def extract_organize_information(
     )
 
     # Expand covariates.
-    utility.print_terminal_partition(level=1)
-    print(data_persons_properties_raw)
     data_persons_properties = organize_persons_properties(
         data_persons_properties_raw=data_persons_properties_raw,
     )
-
 
     # Count persons in groups by sex and age.
     data_persons_sex_age_counts = count_persons_sex_age(
@@ -1302,6 +1467,7 @@ def extract_organize_information(
 
         "data_persons_sex_age_counts": data_persons_sex_age_counts,
 
+        "data_persons_properties_raw": data_persons_properties_raw,
         "data_persons_properties": data_persons_properties,
         "data_families_persons": heritability["data_families_persons"],
         "data_persons_categories": heritability["data_persons_categories"],
@@ -1538,12 +1704,19 @@ def write_product(
         path_selection, "data_persons_sex_age_counts.pickle"
     )
 
+    path_persons_properties_raw = os.path.join(
+        path_selection, "data_persons_properties_raw.pickle"
+    )
+    path_persons_properties_raw_text = os.path.join(
+        path_selection, "data_persons_properties_raw.tsv"
+    )
     path_persons_properties = os.path.join(
         path_selection, "data_persons_properties.pickle"
     )
     path_persons_properties_text = os.path.join(
         path_selection, "data_persons_properties.tsv"
     )
+
     path_families_persons = os.path.join(
         path_selection, "data_families_persons.pickle"
     )
@@ -1638,6 +1811,16 @@ def write_product(
     )
 
     pandas.to_pickle(
+        information["data_persons_properties_raw"],
+        path_persons_properties_raw
+    )
+    information["data_persons_properties_raw"].to_csv(
+        path_or_buf=path_persons_properties_raw_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+    pandas.to_pickle(
         information["data_persons_properties"],
         path_persons_properties
     )
@@ -1647,6 +1830,7 @@ def write_product(
         header=True,
         index=True,
     )
+
     pandas.to_pickle(
         information["data_families_persons"],
         path_families_persons

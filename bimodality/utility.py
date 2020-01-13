@@ -19,6 +19,7 @@ import gzip
 import shutil
 import textwrap
 import itertools
+import sklearn
 
 # Relevant
 
@@ -1152,6 +1153,91 @@ def segregate_data_two_thresholds(
     collection["pass"] = data_pass
     collection["fail"] = data_fail
     return collection
+
+
+def calculate_principal_components(
+    data=None,
+    components=None,
+    report=None,
+):
+    """
+    Calculates the principal components.
+
+    Format of data should have features across columns and observations across
+    rows.
+
+    This function then transforms the data frame to a matrix.
+
+    This matrix has observations across dimension zero and features across
+    dimension one.
+
+    arguments:
+        data (object): Pandas data frame of signals with features across rows
+            and observations across columns
+        components (int): count of principle components
+        report (bool): whether to print reports to terminal
+
+    raises:
+
+    returns:
+        (dict): information about data's principal components
+
+    """
+
+    # Organize data.
+    data_copy = data.copy(deep=True)
+
+    # Organize data for principle component analysis.
+    # Organize data as an array of arrays.
+    matrix = data_copy.to_numpy()
+    # Execute principle component analysis.
+    pca = sklearn.decomposition.PCA(n_components=components)
+    #report = pca.fit_transform(matrix)
+    pca.fit(matrix)
+    # Report extent of variance that each principal component explains.
+    variance_ratios = pca.explained_variance_ratio_
+    component_numbers = range(len(variance_ratios) + 1)
+    variance_series = {
+        "component": component_numbers[1:],
+        "variance": variance_ratios
+    }
+    data_component_variance = pandas.DataFrame(data=variance_series)
+    # Transform data by principal components.
+    matrix_component = pca.transform(matrix)
+    # Match components to samples.
+    observations = data_copy.index.to_list()
+    records = []
+    for index, row in enumerate(matrix_component):
+        record = {}
+        record["observation"] = observations[index]
+        for count in range(components):
+            name = "component_" + str(count + 1)
+            record[name] = row[count]
+        records.append(record)
+    data_component = (
+        convert_records_to_dataframe(records=records)
+    )
+    data_component.set_index(
+        ["observation"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    # Report
+    if report:
+        print_terminal_partition(level=3)
+        print("dimensions of original data: " + str(data.shape))
+        print("dimensions of novel data: " + str(data_component.shape))
+        print("proportional variance:")
+        print(data_component_variance)
+        print_terminal_partition(level=3)
+    # Compile information.
+    information = {
+        "data_observations_components": data_component,
+        "data_components_variances": data_component_variance,
+    }
+    # Return information.
+    return information
 
 
 # Human Metabolome Database (HMDB).
