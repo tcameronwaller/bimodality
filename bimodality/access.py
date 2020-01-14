@@ -121,8 +121,8 @@ def define_source():
             "suffix": "gtf",
             "compression": False,
         },
-        # Update on 19 September 2019
-        # Gencode Release 31 (GRCh38.p12)
+        # Update on 8 January 2020
+        # Gencode Release 32 (GRCh38.p13)
         "annotation_gene_gencode": {
             "path": (
                 "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/" +

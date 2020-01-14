@@ -261,7 +261,7 @@ def select_gene_annotation(
     # There are 37 genes on the mitochondrial chromosome, of which 13 encode
     # proteins.
     print(
-        "count of genes in GENCODE annotations: " +
+        "count of genes in reference annotations: " +
         str(data_gene_annotation.shape[0])
     )
     data_gene_annotation = (
@@ -280,7 +280,7 @@ def select_gene_annotation(
         ]
     )
     print(
-        "count of GENCODE genes on nuclear (not mito) autosomes: " +
+        "count of reference genes on nuclear (not mito) autosomes: " +
         str(data_gene_annotation.shape[0])
     )
     # Select entries for genes that encode proteins.
@@ -290,7 +290,7 @@ def select_gene_annotation(
         ]
     )
     print(
-        "count of GENCODE genes that encode proteins: " +
+        "count of reference genes that encode proteins: " +
         str(data_gene_annotation.shape[0])
     )
 
@@ -319,6 +319,10 @@ def select_genes(
 
     """
 
+    # Copy data.
+    data_gene_annotation = data_gene_annotation.copy(deep=True)
+    data_gene_signal = data_gene_signal.copy(deep=True)
+
     # Select protein-coding genes from signal data.
     # Signal matrix has genes on the index dimension.
     utility.print_terminal_partition(level=2)
@@ -333,18 +337,21 @@ def select_genes(
     # Extract identifiers of protein-coding genes.
     genes_protein = data_gene_annotation.index.to_list()
     print(
-        "count of GENCODE genes of type 'protein_coding': " +
+        "count of reference genes of type 'protein_coding': " +
         str(len(genes_protein))
     )
 
     # Filter gene signals.
     # Remove indices.
-    data_gene_signal.reset_index(
-        level=None,
-        inplace=True
-    )
+    #data_gene_signal.reset_index(
+    #    level=None,
+    #    inplace=True
+    #)
+    #data_gene_signal_protein = data_gene_signal.loc[
+    #    data_gene_signal["gene"].isin(genes_protein), :
+    #]
     data_gene_signal_protein = data_gene_signal.loc[
-        data_gene_signal["gene"].isin(genes_protein), :
+        genes_protein, :
     ]
     genes = data_gene_signal_protein.index.to_list()
 
@@ -364,11 +371,7 @@ def select_genes(
 
     utility.print_terminal_partition(level=2)
 
-    # Organize data.
-    data_gene_signal_protein = organize_data_axes_indices(
-        data=data_gene_signal_protein
-    )
-
+    # Return information.
     return data_gene_signal_protein
 
 
@@ -565,8 +568,8 @@ def select_samples_genes_signals_coverage(
     """
 
     # Filter genes by their signals across samples.
-    # Filter to keep only genes with signals beyond threshold in at least one
-    # sample.
+    # Filter to keep only genes with signals beyond threshold in proportion of
+    # samples.
     data_row = filter_rows_columns_by_threshold_proportion(
         data=data_gene_signal,
         dimension="row",
@@ -576,8 +579,8 @@ def select_samples_genes_signals_coverage(
     print("shape of data after signal filter on genes...")
     print(data_row.shape)
     # Filter samples by their signals across genes.
-    # Filter to keep only samples with signals beyond threshold in at least one
-    # gene.
+    # Filter to keep only samples with signals beyond threshold in proportion
+    # of genes.
     data_column = filter_rows_columns_by_threshold_proportion(
         data=data_row,
         dimension="column",
@@ -1510,6 +1513,10 @@ def select_organize_samples_genes_signals(
         (dict): information about samples, genes, and signals
     """
 
+    utility.print_terminal_partition(level=1)
+    print("Sample selection criteria: " + stringency)
+    utility.print_terminal_partition(level=1)
+
     # Copy data.
     data_gene_annotation_gtex = data_gene_annotation_gtex.copy(deep=True)
     data_gene_annotation_gencode = data_gene_annotation_gencode.copy(deep=True)
@@ -1524,17 +1531,40 @@ def select_organize_samples_genes_signals(
 
     # Select genes that encode proteins and are on autosomes.
     # Count of genes: 18353
+    utility.print_terminal_partition(level=1)
+    print("Selection of genes.")
+    utility.print_terminal_partition(level=2)
+    print("GTEx reference gene annotations.")
+    # GTEx reference: 18380 genes on autosomes that encode proteins.
     data_gene_annotation_gtex = select_gene_annotation(
         data_gene_annotation=data_gene_annotation_gtex,
     )
+    utility.print_terminal_partition(level=2)
+    print("GENCODE reference gene annotations.")
+    # GENCODE reference: 19035 genes on autosomes that encode proteins.
     data_gene_annotation_gencode = select_gene_annotation(
         data_gene_annotation=data_gene_annotation_gencode,
     )
     # Use genes' annotations from GTEx.
-    data_gene_signal_gene = select_genes(
+    utility.print_terminal_partition(level=2)
+    print("Select signal genes by GTEx reference.")
+    # GTEx signal genes on autosomes that encode proteins: 18380
+    data_gene_signal_gene_gtex = select_genes(
         data_gene_annotation=data_gene_annotation_gtex,
         data_gene_signal=data_gene_signal,
     )
+
+    # Use genes' annotations from GENCODE.
+    utility.print_terminal_partition(level=2)
+    print("Select signal genes by GENCODE reference.")
+    # GTEx signal genes on autosomes that encode proteins: 19035
+    data_gene_signal_gene_gencode = select_genes(
+        data_gene_annotation=data_gene_annotation_gencode,
+        data_gene_signal=data_gene_signal,
+    )
+
+    # Continue analyses with selection of genes by GENCODE.
+    data_gene_signal_gene = data_gene_signal_gene_gencode.copy(deep=True)
 
     # Select samples by tissues of interest.
     # Exclude samples for cell lines that are not whole tissues.
@@ -1570,23 +1600,36 @@ def select_organize_samples_genes_signals(
         samples=samples_preliminary,
         data_gene_signal=data_gene_signal_gene,
     )
+
     # Summarize original counts of samples and genes.
     summarize_samples_genes(
         data_samples_tissues_persons=data_samples_inclusion,
         data_gene_signal=data_gene_signal_sample,
     )
 
+    utility.print_terminal_partition(level=1)
+    print("Selection of genes and samples by signal coverage.")
+    utility.print_terminal_partition(level=1)
+
     # Select genes and samples by signals and coverage.
     if stringency == "loose":
+        # Each gene must have signal greater than or equal to 0.1 in at least
+        # 1% of samples.
+        # Each sample must have signal greater than or equal to 0.1 in at least
+        # 10% of genes.
         data_gene_signal_selection = select_samples_genes_signals_coverage(
-            threshold=1.0,
+            threshold=0.1,
             proportion_gene=0.01, # 0.01
             proportion_sample=0.1, # 0.1
             data_gene_signal=data_gene_signal_sample,
         )
     elif stringency == "tight":
+        # Each gene must have signal greater than or equal to 0.1 TPM in at
+        # least 10% of samples.
+        # Each sample must have signal greater than or equal to 0.1 TPM in at
+        # least 50% of genes.
         data_gene_signal_selection = select_samples_genes_signals_coverage(
-            threshold=1.0,
+            threshold=0.1,
             proportion_gene=0.1, # 0.1
             proportion_sample=0.5, # 0.5
             data_gene_signal=data_gene_signal_sample,
@@ -1895,13 +1938,21 @@ def execute_procedure(dock=None):
     # 3. select samples from tissues with coverage of >=100 samples
     # 4. select genes with signal in >=1% of samples
     # 5. select samples with signal in >=10% of genes
-    loose = select_organize_samples_genes_signals(
-        data_gene_annotation_gtex=source["data_gene_annotation_gtex"],
-        data_gene_annotation_gencode=source["data_gene_annotation_gencode"],
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_signal=data_gene_signal,
-        stringency="loose",
-    )
+    if False:
+        loose = select_organize_samples_genes_signals(
+            data_gene_annotation_gtex=source["data_gene_annotation_gtex"],
+            data_gene_annotation_gencode=source["data_gene_annotation_gencode"],
+            data_samples_tissues_persons=source["data_samples_tissues_persons"],
+            data_gene_signal=data_gene_signal,
+            stringency="loose",
+        )
+    # Write product information to file.
+    if False:
+        write_product(
+            dock=dock,
+            stringency="loose",
+            information=loose,
+        )
 
     # Selection 2: tight.
     # Select data for pantissue aggregate analysis.
@@ -1919,13 +1970,7 @@ def execute_procedure(dock=None):
         data_gene_signal=data_gene_signal,
         stringency="tight",
     )
-
     # Write product information to file.
-    write_product(
-        dock=dock,
-        stringency="loose",
-        information=loose,
-    )
     write_product(
         dock=dock,
         stringency="tight",

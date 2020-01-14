@@ -1109,6 +1109,105 @@ def write_figure(path=None, figure=None):
 
 
 ##########
+# Counts of batches per person, histogram with bins by counts
+# Status: in progress
+
+
+def read_source_batches_per_person(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", "tight")
+    path_data_persons_properties_raw = os.path.join(
+        path_selection, "data_persons_properties_raw.pickle"
+    )
+    # Read information from file.
+    with open(path_data_persons_properties_raw, "rb") as file_source:
+        data_persons_properties_raw = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "data_persons_properties_raw": data_persons_properties_raw,
+    }
+
+
+def prepare_chart_batches_per_person(dock=None):
+    """
+    Plots charts from the sample process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    def split_batches(characters):
+        values_split = characters.split(",")
+        count = len(values_split)
+        return count
+
+    # Read source information from file.
+    source = read_source_batches_per_person(dock=dock)
+    print(source["data_persons_properties_raw"])
+
+    # Organize data.
+    data = source["data_persons_properties_raw"].copy(deep=True)
+    data["count_batches_isolation"] = data["batches_isolation"].map(split_batches)
+    counts = data["count_batches_isolation"].to_list()
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    path_persons = os.path.join(path_plot, "persons")
+    utility.create_directory(path_persons)
+
+    # Create figures.
+    figure = plot_distribution_histogram(
+        series=counts,
+        name="",
+        bin_method="count",
+        bin_count=20,
+        label_bins="Bins by count of batches per person",
+        label_counts="Counts of persons in each bin",
+        fonts=fonts,
+        colors=colors,
+        line=False,
+        position=11,
+        text="",
+    )
+    # Specify directories and files.
+    file = ("batches_per_person.svg")
+    path_file = os.path.join(path_persons, file)
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+
+
+##########
 # Sex and age of persons in GTEx
 # Status: working
 
@@ -3894,6 +3993,9 @@ def execute_procedure(dock=None):
     utility.remove_directory(path=path_plot)
     utility.create_directory(path_plot)
 
+    # Plot chart for batches per person.
+    prepare_chart_batches_per_person(dock=dock)
+
     if False:
         # Plot chart for sex and age of persons in GTEx consortium.
         prepare_chart_person_sex_age(dock=dock)
@@ -3912,47 +4014,47 @@ def execute_procedure(dock=None):
         #-- count of genes in each bin
         prepare_charts_modality_gene_distribution(dock=dock)
 
-    # Plot charts of distributions of genes' pan-tissue aggregate signals
-    # across persons.
-    prepare_charts_genes_persons_signals(dock=dock)
+        # Plot charts of distributions of genes' pan-tissue aggregate signals
+        # across persons.
+        prepare_charts_genes_persons_signals(dock=dock)
 
-    # Plot charts, heatmaps, for each gene's signals across persons (columns)
-    # and tissues (rows).
-    prepare_charts_genes_signals_tissues_persons(dock=dock)
+        # Plot charts, heatmaps, for each gene's signals across persons (columns)
+        # and tissues (rows).
+        prepare_charts_genes_signals_tissues_persons(dock=dock)
 
-    # Plot charts, heatmaps, for each gene's aggregate, pantissue signals
-    # across persons.
-    # Genes will be across rows, and persons will be across columns.
-    # This chart will illustrate whether the same persons are in low and high
-    # groups for multiple genes.
-    prepare_charts_signals_genes_persons_groups(dock=dock)
+        # Plot charts, heatmaps, for each gene's aggregate, pantissue signals
+        # across persons.
+        # Genes will be across rows, and persons will be across columns.
+        # This chart will illustrate whether the same persons are in low and high
+        # groups for multiple genes.
+        prepare_charts_signals_genes_persons_groups(dock=dock)
 
-    # Plot charts for correlations between pairs of all genes of interest.
-    prepare_charts_signals_genes_correlations(dock=dock)
+        # Plot charts for correlations between pairs of all genes of interest.
+        prepare_charts_signals_genes_correlations(dock=dock)
 
-    # Plot charts for correlations in signals between pairs of genes.
-    # Charts will be scatter plots.
-    # Each point will represent a person with pantissue signals from each gene.
-    prepare_charts_signals_persons_gene_pairs(dock=dock)
+        # Plot charts for correlations in signals between pairs of genes.
+        # Charts will be scatter plots.
+        # Each point will represent a person with pantissue signals from each gene.
+        prepare_charts_signals_persons_gene_pairs(dock=dock)
 
-    # Plot charts of overlap between sets in selection of genes by bimodality.
-    prepare_charts_gene_sets_candidacy(dock=dock)
+        # Plot charts of overlap between sets in selection of genes by bimodality.
+        prepare_charts_gene_sets_candidacy(dock=dock)
 
-    # Plot charts of overlap between sets in selection of genes by permutation
-    # probability of bimodality.
-    prepare_charts_gene_sets_probability(dock=dock)
+        # Plot charts of overlap between sets in selection of genes by permutation
+        # probability of bimodality.
+        prepare_charts_gene_sets_probability(dock=dock)
 
-    # Plot charts of overlap between sets in selection of genes by
-    # heritability.
-    prepare_charts_sets_gene_heritability(dock=dock)
+        # Plot charts of overlap between sets in selection of genes by
+        # heritability.
+        prepare_charts_sets_gene_heritability(dock=dock)
 
-    # Plot charts of overlap between sets in selection of genes by
-    # integration.
-    prepare_charts_gene_sets_integration(dock=dock)
+        # Plot charts of overlap between sets in selection of genes by
+        # integration.
+        prepare_charts_gene_sets_integration(dock=dock)
 
-    # Plot charts for heritability of genes' pantissue signals.
-    # Charts will be scatter plots.
-    prepare_charts_gene_heritability(dock=dock)
+        # Plot charts for heritability of genes' pantissue signals.
+        # Charts will be scatter plots.
+        prepare_charts_gene_heritability(dock=dock)
 
 
     #plot_charts_analysis(dock=dock)
