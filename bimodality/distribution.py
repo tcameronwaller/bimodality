@@ -1710,34 +1710,12 @@ def prepare_describe_distribution(
     # This selection includes all non-sexual tissues with coverage of samples
     # from at least 100 persons.
     method = "availability" # "availability" or "imputation"
-    count = 11
+    count = 10
     tissues = [
-        "adipose", # 797
-        "adrenal", # 258
-        "artery", # 786
-        "blood", # 767
-        "brain", # 382
-        #"breast", # 459
-        "colon", # 555
-        "esophagus", # 710
-        "heart", # 561
-        "intestine", # 187
-        "liver", # 226
-        "lung", # 578
-        "muscle", # 803
-        "nerve", # 619
-        #"ovary", # 180
-        "pancreas", # 328
-        "pituitary", # 283
-        #"prostate", # 245
-        "salivary", # 162
-        "skin", # 912
-        "spleen", # 241
-        "stomach", # 359
-        #"testis", # 361
-        "thyroid", # 653
-        #"uterus", # 142
-        #"vagina", # 156
+        "adipose", "adrenal", "artery", "blood", "brain", "colon",
+        "esophagus", "heart", "intestine", "liver", "lung", "muscle",
+        "nerve", "pancreas", "pituitary", "salivary", "skin", "spleen",
+        "stomach", "thyroid",
     ]
     # 18 September 2019
     # count   persons
@@ -2832,18 +2810,6 @@ def execute_procedure_local(dock=None):
     if False:
         report = execute_procedure_local_sub(
             gene="ENSG00000231925", # TAPBP
-            data_persons_families=source["data_persons_families"],
-            data_gene_annotation=source["data_gene_annotation"],
-            dock=dock,
-        )
-        report = execute_procedure_local_sub(
-            gene="ENSG00000000419", #
-            data_persons_families=source["data_persons_families"],
-            data_gene_annotation=source["data_gene_annotation"],
-            dock=dock,
-        )
-        report = execute_procedure_local_sub(
-            gene="ENSG00000001167", #
             data_persons_families=source["data_persons_families"],
             data_gene_annotation=source["data_gene_annotation"],
             dock=dock,
