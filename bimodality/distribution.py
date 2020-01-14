@@ -108,9 +108,9 @@ def read_source_initial(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation.pickle"
+        path_selection, "data_gene_annotation_gencode.pickle"
     )
     path_persons_families = os.path.join(
         path_selection, "data_families_persons.pickle"
@@ -120,15 +120,17 @@ def read_source_initial(
     elif source_genes == "combination":
         path_source = os.path.join(dock, "combination")
     path_genes = os.path.join(
-        path_source, "genes.txt"
+        path_source, "genes.pickle"
     )
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     data_persons_families = pandas.read_pickle(path_persons_families)
-    genes = utility.read_file_text_list(
-        delimiter="\n",
-        path_file=path_genes,
-    )
+    with open(path_genes, "rb") as file_source:
+        genes = pickle.load(file_source)
+    #genes = utility.read_file_text_list(
+    #    delimiter="\n",
+    #    path_file=path_genes,
+    #)
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,

@@ -54,11 +54,10 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_samples_tissues_persons = os.path.join(
-        path_assembly, "data_samples_tissues_persons.pickle"
+        path_selection, "data_samples_tissues_persons.pickle"
     )
-    path_selection = os.path.join(dock, "selection")
     path_gene_signal = os.path.join(
         path_selection, "data_gene_signal.pickle"
     )
@@ -263,7 +262,11 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_split = os.path.join(dock, "split")
     utility.create_directory(path_split)
+
     path_genes = os.path.join(
+        path_split, "genes.pickle"
+    )
+    path_genes_text = os.path.join(
         path_split, "genes.txt"
     )
     path_persons = os.path.join(
@@ -287,8 +290,10 @@ def write_product(dock=None, information=None):
     utility.write_file_text_list(
         elements=information["genes"],
         delimiter="\n",
-        path_file=path_genes
+        path_file=path_genes_text
     )
+    with open(path_genes, "wb") as file_product:
+        pickle.dump(information["genes"], file_product)
     with open(path_persons, "wb") as file_product:
         pickle.dump(information["persons"], file_product)
     with open(path_tissues, "wb") as file_product:
@@ -298,7 +303,6 @@ def write_product(dock=None, information=None):
 
     #with open(path_signal_test, "wb") as file_product:
     #    json.dump(information["genes_samples_signals"], file_product)
-
 
     pandas.to_pickle(
         information["data_gene_samples_signals"],
