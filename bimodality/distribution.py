@@ -2222,7 +2222,7 @@ def read_collection_initial(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_persons_properties = os.path.join(
         path_selection, "data_persons_properties.pickle"
     )
@@ -2358,7 +2358,7 @@ def read_collect_organize_signals_genes_persons(
         keep="first",
         inplace=True,
     )
-    data_collection.reindex()
+    #data_collection.reindex()
     data_collection.set_index(
         ["person"],
         append=False,
@@ -2564,10 +2564,10 @@ def read_collect_gene_report(
             ascending=False,
             inplace=True,
         )
-        data_report.reset_index(
-            level=None,
-            inplace=True
-        )
+        #data_report.reset_index(
+        #    level=None,
+        #    inplace=True
+        #)
 
     else:
         data_report = data
@@ -2805,8 +2805,10 @@ def execute_procedure_local(dock=None):
     print("count of genes: " + str(len(source["genes"])))
 
     # Specify genes on which to iterate.
+    #genes_iteration = random.sample(source["genes"], 1000)
     genes_iteration = source["genes"]#[0:100]
 
+    # Execute procedure for a single gene.
     if False:
         report = execute_procedure_local_sub(
             gene="ENSG00000231925", # TAPBP
@@ -2814,35 +2816,24 @@ def execute_procedure_local(dock=None):
             data_gene_annotation=source["data_gene_annotation"],
             dock=dock,
         )
-    if True:
-        # Set up partial function for iterative execution.
-        # Each iteration uses a different sequential value of the "gene" variable
-        # with the same value of the "dock" variable.
-        execute_procedure_gene = functools.partial(
-            execute_procedure_local_sub,
-            data_persons_families=source["data_persons_families"],
-            data_gene_annotation=source["data_gene_annotation"],
-            paths=paths,
-            dock=dock,
-        )
-        # Initialize multiprocessing pool.
-        #pool = multiprocessing.Pool(processes=os.cpu_count())
-        pool = multiprocessing.Pool(processes=8)
-        # Iterate on genes.
-        check_genes=[
-            "ENSG00000231925", # TAPBP
-        ]
-        #report = pool.map(execute_procedure_gene, check_genes)
-        #report = pool.map(execute_procedure_gene, source["genes"][0:1000])
-        #report = pool.map(
-        #    execute_procedure_gene,
-        #    random.sample(source["genes"], 1000)
-        #)
-        report = pool.map(
-            execute_procedure_gene,
-            genes_iteration,
-        )
-
+    # Set up partial function for iterative execution.
+    # Each iteration uses a different sequential value of the "gene" variable
+    # with the same value of the "dock" variable.
+    execute_procedure_gene = functools.partial(
+        execute_procedure_local_sub,
+        data_persons_families=source["data_persons_families"],
+        data_gene_annotation=source["data_gene_annotation"],
+        paths=paths,
+        dock=dock,
+    )
+    # Initialize multiprocessing pool.
+    #pool = multiprocessing.Pool(processes=os.cpu_count())
+    pool = multiprocessing.Pool(processes=8)
+    # Iterate on genes.
+    report = pool.map(
+        execute_procedure_gene,
+        genes_iteration,
+    )
 
     # Pause procedure.
     time.sleep(10.0)

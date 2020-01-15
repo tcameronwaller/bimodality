@@ -200,19 +200,21 @@ def calculate_mixture_model_score(series=None):
     )
     model_one.fit(array_shape)
     model_two.fit(array_shape)
-    # In general, the model with the greater likelihood is a better
+    # In general, the model with the greater log likelihood is a better
     # representation of the data.
     # Determine log likelihood scores for fits to models.
-    # Calculate likelihood ratio of the bimodal model relative to the unimodal
-    # model.
-    # Do not use the value of the likelihood ratio test.
-    # Rather use the value of the ratio itself.
     likelihood_log_one = model_one.score(array_shape)
     likelihood_log_two = model_two.score(array_shape)
-    ratio = likelihood_log_two - likelihood_log_one
+    # Calculate log likelihood ratio of the bimodal model relative to the
+    # unimodal model.
+    # Null hypothesis is that the unimodal model (more restrictive) is better.
+    # Do not use the value of the likelihood ratio test.
+    # Rather use the value of the ratio itself, which is the statistic.
+    # Per standard, multiply log likelihood ratio by 2 to adjust distribution.
     #likelihood_one = math.exp(likelihood_log_one)
     #likelihood_two = math.exp(likelihood_log_two)
-    #ratio = math.log(likelihood_two / likelihood_one)
+    #ratio = -2*math.log(likelihood_one / likelihood_two)
+    ratio = 2*(likelihood_log_two - likelihood_log_one)
     return ratio
 
 
