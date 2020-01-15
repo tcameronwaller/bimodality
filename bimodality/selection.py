@@ -1226,15 +1226,6 @@ def organize_persons_properties(
         "data_observations_components"
     ]
     # Replace persons' raw properties.
-    data_persons_properties.drop(
-        labels=[
-            "facilities",
-            "batches_isolation",
-            "batches_analysis",
-        ],
-        axis="columns",
-        inplace=True
-    )
     data_persons_properties = insert_components(
         prefix="facilities",
         data_components=data_facilities,
@@ -1249,6 +1240,37 @@ def organize_persons_properties(
         prefix="batches_analysis",
         data_components=data_batches_analysis,
         data_collection=data_persons_properties,
+    )
+
+    # Organize variables for regression.
+    data_persons_properties["female"] = data_persons_properties.apply(
+        lambda row: 1 if (row["sex"] == "female") else 0,
+        axis="columns",
+    )
+    data_persons_properties["season_sequence"] = data_persons_properties.apply(
+        lambda row:
+            1 if (row["season"] == "spring") else
+            (2 if (row["season"] == "summer") else
+            (3 if (row["season"] == "fall") else
+            (4 if (row["season"] == "winter") else
+            float("nan")))),
+        axis="columns",
+    )
+    data_persons_properties["spring"] = data_persons_properties.apply(
+        lambda row: 1 if (row["season"] == "spring") else 0,
+        axis="columns",
+    )
+    data_persons_properties["summer"] = data_persons_properties.apply(
+        lambda row: 1 if (row["season"] == "summer") else 0,
+        axis="columns",
+    )
+    data_persons_properties["fall"] = data_persons_properties.apply(
+        lambda row: 1 if (row["season"] == "fall") else 0,
+        axis="columns",
+    )
+    data_persons_properties["winter"] = data_persons_properties.apply(
+        lambda row: 1 if (row["season"] == "winter") else 0,
+        axis="columns",
     )
 
     # Return information.
@@ -1442,6 +1464,7 @@ def extract_organize_information(
     )
 
     # Expand covariates.
+    # Prepare covariates for regression.
     data_persons_properties = organize_persons_properties(
         data_persons_properties_raw=data_persons_properties_raw,
     )

@@ -57,12 +57,12 @@ def read_source(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
         path_selection, "data_gene_annotation.pickle"
     )
     path_split = os.path.join(dock, "split")
-    path_split_genes = os.path.join(path_split, "genes.txt")
+    path_split_genes = os.path.join(path_split, "genes.pickle")
 
     # Use genes' bimodality measures from distribution procedure (not those
     # from the probability procedure) because here we want the raw values
@@ -83,10 +83,8 @@ def read_source(
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    genes_split = utility.read_file_text_list(
-        delimiter="\n",
-        path_file=path_split_genes,
-    )
+    with open(path_genes, "rb") as file_source:
+        genes_split = pickle.load(file_source)
     genes_distribution = utility.extract_subdirectory_names(
         path=path_distribution
     )

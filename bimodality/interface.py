@@ -33,6 +33,7 @@ import probability
 
 import integration
 import category
+import prediction
 import heritability
 
 #import integration
@@ -296,6 +297,12 @@ def define_main_subparser(subparsers=None):
         )
     )
     parser_main.add_argument(
+        "-prediction", "--prediction", dest="prediction", action="store_true",
+        help=(
+            "Evaluate persons' properties as covariates of gene distributions."
+        )
+    )
+    parser_main.add_argument(
         "-heritability", "--heritability", dest="heritability",
         action="store_true",
         help=(
@@ -506,6 +513,11 @@ def evaluate_main_parameters(arguments):
         print("... executing category procedure ...")
         # Execute procedure.
         category.execute_procedure_local(dock=arguments.dock)
+    if arguments.prediction:
+        # Report status.
+        print("... executing prediction procedure ...")
+        # Execute procedure.
+        prediction.execute_procedure(dock=arguments.dock)
     if arguments.heritability:
         # Report status.
         print("... executing heritability procedure ...")

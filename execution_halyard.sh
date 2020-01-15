@@ -56,7 +56,7 @@ echo "Now set to call routine and procedures."
 # - Batch Routine
 
 #python3 interface.py main --dock $path_dock --split
-python3 interface.py main --dock $path_dock --distribution --local
+#python3 interface.py main --dock $path_dock --distribution --local
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --candidacy
@@ -72,6 +72,7 @@ python3 interface.py main --dock $path_dock --distribution --local
 # Analysis Routine
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
+python3 interface.py main --dock $path_dock --prediction
 #python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --integration
@@ -82,7 +83,7 @@ python3 interface.py main --dock $path_dock --distribution --local
 
 
 ##########
-# Nonessential procedures for exploration and testing
+# Nonessential procedures for exploration and testing... several obsolete
 
 #python3 interface.py main --dock $path_dock --measurement
 #python3 interface.py main --dock $path_dock --sample
