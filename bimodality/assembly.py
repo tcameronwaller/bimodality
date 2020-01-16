@@ -572,18 +572,21 @@ def determine_person_ancestry(
 
 def extract_person_genotypes(
     person=None,
-    data_genotype_component_gcta=None,
-    data_genotype_component_plink=None,
+    source=None,
+    data_genotype_gcta=None,
+    data_genotype_plink=None,
 ):
     """
     Extracts principal components from a person's genotype.
 
     arguments:
         person (str): identifier of a person
-        data_genotype_component_gcta (object): Pandas data frame of principal
-            components from genotypes for persons, as calculated in GCTA
-        data_genotype_component_plink (object): Pandas data frame of principal
-            components from genotypes for persons, as calculated in PLINK2
+        source (str): source of genotype principal components, either gcta or
+            plink
+        data_genotype_gcta (object): Pandas data frame of principal components
+            from genotypes for persons, as calculated in GCTA
+        data_genotype_plink (object): Pandas data frame of principal components
+            from genotypes for persons, as calculated in PLINK2
 
     raises:
 
@@ -592,29 +595,57 @@ def extract_person_genotypes(
 
     """
 
-    # Use principal components from genotype analysis in GCTA.
-    if person in data_genotype_component_gcta.index.values.tolist():
-        genotype_1 = data_genotype_component_gcta.at[person, "component_1"]
-        genotype_2 = data_genotype_component_gcta.at[person, "component_2"]
-        genotype_3 = data_genotype_component_gcta.at[person, "component_3"]
-        genotype_4 = data_genotype_component_gcta.at[person, "component_4"]
-        genotype_5 = data_genotype_component_gcta.at[person, "component_5"]
-        genotype_6 = data_genotype_component_gcta.at[person, "component_6"]
-        genotype_7 = data_genotype_component_gcta.at[person, "component_7"]
-        genotype_8 = data_genotype_component_gcta.at[person, "component_8"]
-        genotype_9 = data_genotype_component_gcta.at[person, "component_9"]
-        genotype_10 = data_genotype_component_gcta.at[person, "component_10"]
-    else:
-        genotype_1 = float("nan")
-        genotype_2 = float("nan")
-        genotype_3 = float("nan")
-        genotype_4 = float("nan")
-        genotype_5 = float("nan")
-        genotype_6 = float("nan")
-        genotype_7 = float("nan")
-        genotype_8 = float("nan")
-        genotype_9 = float("nan")
-        genotype_10 = float("nan")
+    # Determine source of genotype principal components.
+    if source == "plink":
+        # Use principal components from genotype analysis in PLINK2.
+        if person in data_genotype_plink.index.values.tolist():
+            genotype_1 = data_genotype_plink.at[person, "component_1"]
+            genotype_2 = data_genotype_plink.at[person, "component_2"]
+            genotype_3 = data_genotype_plink.at[person, "component_3"]
+            genotype_4 = data_genotype_plink.at[person, "component_4"]
+            genotype_5 = data_genotype_plink.at[person, "component_5"]
+            genotype_6 = data_genotype_plink.at[person, "component_6"]
+            genotype_7 = data_genotype_plink.at[person, "component_7"]
+            genotype_8 = data_genotype_plink.at[person, "component_8"]
+            genotype_9 = data_genotype_plink.at[person, "component_9"]
+            genotype_10 = data_genotype_plink.at[person, "component_10"]
+        else:
+            genotype_1 = float("nan")
+            genotype_2 = float("nan")
+            genotype_3 = float("nan")
+            genotype_4 = float("nan")
+            genotype_5 = float("nan")
+            genotype_6 = float("nan")
+            genotype_7 = float("nan")
+            genotype_8 = float("nan")
+            genotype_9 = float("nan")
+            genotype_10 = float("nan")
+        pass
+    elif source == "gcta":
+        # Use principal components from genotype analysis in GCTA.
+        if person in data_genotype_gcta.index.values.tolist():
+            genotype_1 = data_genotype_gcta.at[person, "component_1"]
+            genotype_2 = data_genotype_gcta.at[person, "component_2"]
+            genotype_3 = data_genotype_gcta.at[person, "component_3"]
+            genotype_4 = data_genotype_gcta.at[person, "component_4"]
+            genotype_5 = data_genotype_gcta.at[person, "component_5"]
+            genotype_6 = data_genotype_gcta.at[person, "component_6"]
+            genotype_7 = data_genotype_gcta.at[person, "component_7"]
+            genotype_8 = data_genotype_gcta.at[person, "component_8"]
+            genotype_9 = data_genotype_gcta.at[person, "component_9"]
+            genotype_10 = data_genotype_gcta.at[person, "component_10"]
+        else:
+            genotype_1 = float("nan")
+            genotype_2 = float("nan")
+            genotype_3 = float("nan")
+            genotype_4 = float("nan")
+            genotype_5 = float("nan")
+            genotype_6 = float("nan")
+            genotype_7 = float("nan")
+            genotype_8 = float("nan")
+            genotype_9 = float("nan")
+            genotype_10 = float("nan")
+        pass
 
     # Compile and return information.
     information = {
@@ -710,8 +741,9 @@ def determine_sample_associations_attributes(
     # Include principal components from persons' genotypes.
     genotypes = extract_person_genotypes(
         person=person,
-        data_genotype_component_gcta=data_genotype_component_gcta,
-        data_genotype_component_plink=data_genotype_component_plink,
+        source="plink", # "plink" or "gcta"
+        data_genotype_gcta=data_genotype_component_gcta,
+        data_genotype_plink=data_genotype_component_plink,
     )
 
     # Compile and return information.

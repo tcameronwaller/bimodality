@@ -49,14 +49,16 @@ import utility
 ###############################################################################
 # Functionality
 
-# not scrap... current
+
 def read_source(
+    source_genes=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        source_genes (str): name of directory from which to obtain genes list
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -76,8 +78,16 @@ def read_source(
         path_selection, "data_persons_properties.pickle"
     )
 
-    path_split = os.path.join(dock, "split")
-    path_genes = os.path.join(path_split, "genes.pickle")
+    if source_genes == "selection":
+        path_source = os.path.join(dock, "selection")
+        path_genes = os.path.join(
+            path_source, "genes.pickle"
+        )
+    elif source_genes == "candidacy":
+        path_source = os.path.join(dock, "candidacy")
+        path_genes = os.path.join(
+            path_source, "genes.pickle"
+        )
 
     path_distribution = os.path.join(dock, "distribution")
     path_collection = os.path.join(path_distribution, "collection")
@@ -642,7 +652,7 @@ def regress_signal_ordinary_residuals(
             "r_square_adjust": report.rsquared_adj,
             "log_likelihood": report.llf,
             "akaike": report.aic,
-            "bayesian": report.bic,
+            "bayes": report.bic,
         }
         information.update(probabilities)
     else:
@@ -661,7 +671,7 @@ def regress_signal_ordinary_residuals(
             "r_square_adjust": float("nan"),
             "log_likelihood": float("nan"),
             "akaike": float("nan"),
-            "bayesian": float("nan"),
+            "bayes": float("nan"),
         }
         information.update(probabilities)
     # Return information.
@@ -669,10 +679,11 @@ def regress_signal_ordinary_residuals(
 
 
 def summarize_regression(
-    probabilities=None,
     instances=None,
     variables=None,
-    threshold=None,
+    probabilities=None,
+    type=None,
+    threshold_discovery=None,
     data=None,
 ):
     """
@@ -680,10 +691,15 @@ def summarize_regression(
     instances.
 
     arguments:
-        probabilities (bool): whether to summarize observations' probabilities
         instances (int): count of independent instances
         variables (list<str>): names of independent variables in regression
-        threshold (float): minimal probability value for observations
+        probabilities (bool): whether to summarize probabilities for variables
+            across instances
+        type (str): type of report for probabilities of variables across
+            instances, either aggregate false discovery rate or percentage of
+            instances within discovery threshold
+        threshold_discovery (float): minimal false discovery rate value for
+            instances
         data (object): Pandas data frame of information about a regression
             model across multiple independent observations
 
@@ -693,7 +709,7 @@ def summarize_regression(
 
     """
 
-    utility.print_terminal_partition(level=1)
+    utility.print_terminal_partition(level=2)
     # Organize data.
     data = data.copy(deep=True)
 
@@ -705,7 +721,7 @@ def summarize_regression(
         "r_square_adjust",
         "log_likelihood",
         "akaike",
-        "bayesian",
+        "bayes",
     ]
     data_descriptors = data.copy(deep=True)
     data_descriptors = data_descriptors.loc[
@@ -722,13 +738,34 @@ def summarize_regression(
     if probabilities:
         utility.print_terminal_partition(level=3)
         print("Independent instances with threshold probabilities...")
+
         for variable in variables:
-            count = (data[variable] <= threshold).sum()
-            percentage = round((count / instances) * 100, 1)
-            print(variable + ": " + str(percentage) + "%")
+            # Calculate false discovery rates from probabilities.
+            probabilities = data[variable].to_numpy()
+            report = statsmodels.stats.multitest.multipletests(
+                probabilities,
+                alpha=0.05,
+                method="fdr_bh",
+                is_sorted=False,
+            )
+            discoveries = report[1]
+
+            # Prepare report.
+            if type == "discovery":
+                # Aggregation of false discovery rates across independent
+                # instances probably is not reasonable.
+                discovery = scipy.stats.combine_pvalues(
+                    discoveries,
+                    method="stouffer",
+                    weights=None,
+                )[1]
+                print(variable + ": " + str(round(discovery, 1)))
+            elif type == "percentage":
+                count = (discoveries <= threshold_discovery).sum()
+                percentage = round((count / instances) * 100, 1)
+                print(variable + ": " + str(percentage) + "%")
             pass
     pass
-
 
 
 # Write.
@@ -797,48 +834,51 @@ def execute_procedure(
     utility.remove_directory(path=path_prediction)
 
     # Read source information from file.
-    source = read_source(dock=dock)
+    source = read_source(
+        source_genes="candidacy", # "selection" or "candidacy"
+        dock=dock,
+    )
 
     variables = [
         "female",
-        "age",
-        "body",
+        #"age",
+        #"body",
         "hardiness",
         "season_sequence",
 
         "genotype_1",
-        "genotype_2",
+        #"genotype_2",
         "genotype_3",
-        "genotype_4",
-        "genotype_5",
-        "genotype_6",
-        "genotype_7",
-        "genotype_8",
-        "genotype_9",
-        "genotype_10",
+        #"genotype_4",
+        #"genotype_5",
+        #"genotype_6",
+        #"genotype_7",
+        #"genotype_8",
+        #"genotype_9",
+        #"genotype_10",
 
-        "delay",
+        #"delay",
 
         "facilities_1",
         "facilities_2",
         "facilities_3",
 
         "batches_isolation_1",
-        "batches_isolation_2",
-        "batches_isolation_3",
-        "batches_isolation_4",
-        "batches_isolation_5",
-        "batches_isolation_6",
-        "batches_isolation_7",
+        #"batches_isolation_2",
+        #"batches_isolation_3",
+        #"batches_isolation_4",
+        #"batches_isolation_5",
+        #"batches_isolation_6",
+        #"batches_isolation_7",
         "batches_isolation_8",
-        "batches_isolation_9",
-        "batches_isolation_10",
+        #"batches_isolation_9",
+        #"batches_isolation_10",
 
-        "batches_analysis_1",
-        "batches_analysis_2",
-        "batches_analysis_3",
-        "batches_analysis_4",
-        "batches_analysis_5",
+        #"batches_analysis_1",
+        #"batches_analysis_2",
+        #"batches_analysis_3",
+        #"batches_analysis_4",
+        #"batches_analysis_5",
     ]
 
     # Remove all columns from persons properties except the covariates
@@ -892,10 +932,11 @@ def execute_procedure(
     # Prepare summary of regression model across all genes.
     utility.print_terminal_partition(level=2)
     summarize_regression(
-        probabilities=True,
         instances=len(genes_iteration),
         variables=variables,
-        threshold=0.05,
+        probabilities=True,
+        type="percentage", # "discovery" or "percentage"
+        threshold_discovery=0.05,
         data=data_regression,
     )
 

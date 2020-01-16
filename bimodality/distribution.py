@@ -115,10 +115,10 @@ def read_source_initial(
     path_persons_families = os.path.join(
         path_selection, "data_families_persons.pickle"
     )
-    if source_genes == "split":
+    if source_genes == "selection":
+        path_source = os.path.join(dock, "selection")
+    elif source_genes == "split":
         path_source = os.path.join(dock, "split")
-    elif source_genes == "combination":
-        path_source = os.path.join(dock, "combination")
     path_genes = os.path.join(
         path_source, "genes.pickle"
     )
@@ -2799,7 +2799,7 @@ def execute_procedure_local(dock=None):
 
     # Read source information from file.
     source = read_source_initial(
-        source_genes="split",
+        source_genes="selection",
         dock=dock
     )
     print("count of genes: " + str(len(source["genes"])))

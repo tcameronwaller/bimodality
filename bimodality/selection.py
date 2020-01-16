@@ -1673,6 +1673,9 @@ def select_organize_samples_genes_signals(
     print("selection of samples, tissues, and persons")
     print(data_samples_tissues_persons_selection)
 
+    # Extract identifiers of genes.
+    genes = data_gene_signal_selection.index.to_list()
+
     # Extract and organize information for subsequent analyses.
     information = extract_organize_information(
         data_samples_tissues_persons=data_samples_tissues_persons_selection,
@@ -1685,6 +1688,7 @@ def select_organize_samples_genes_signals(
         data_samples_tissues_persons_selection
     )
     information["data_gene_signal"] = data_gene_signal_selection
+    information["genes"] = genes
     # Return information.
     return information
 
@@ -1735,6 +1739,9 @@ def write_product(
     )
     path_gene_signal_factor = os.path.join(
         path_selection, "data_gene_signal_factor.pickle"
+    )
+    path_genes = os.path.join(
+        path_selection, "genes.pickle"
     )
 
     path_samples_tissues_persons = os.path.join(
@@ -1827,6 +1834,8 @@ def write_product(
         information["data_gene_signal_factor"],
         path_gene_signal_factor
     )
+    with open(path_genes, "wb") as file_product:
+        pickle.dump(information["genes"], file_product)
 
     pandas.to_pickle(
         information["data_samples_tissues_persons"],

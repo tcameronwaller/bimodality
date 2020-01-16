@@ -59,7 +59,7 @@ def read_source(
     # Specify directories and files.
     path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation.pickle"
+        path_selection, "data_gene_annotation_gencode.pickle"
     )
     path_split = os.path.join(dock, "split")
     path_split_genes = os.path.join(path_split, "genes.pickle")
@@ -67,7 +67,7 @@ def read_source(
     # Use genes' bimodality measures from distribution procedure (not those
     # from the probability procedure) because here we want the raw values
     # before standardization.
-    path_distribution = os.path.join(dock, "distribution")
+    path_distribution = os.path.join(dock, "distribution", "collection")
     path_genes_scores = os.path.join(
         path_distribution, "genes_scores.pickle"
     )
@@ -83,7 +83,7 @@ def read_source(
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    with open(path_genes, "rb") as file_source:
+    with open(path_split_genes, "rb") as file_source:
         genes_split = pickle.load(file_source)
     genes_distribution = utility.extract_subdirectory_names(
         path=path_distribution
@@ -406,8 +406,8 @@ def write_product(dock=None, information=None):
     path_genes_sets = os.path.join(
         path_candidacy, "sets_genes_measures.pickle"
     )
-    path_genes_candidacy = os.path.join(
-        path_candidacy, "genes_candidacy.pickle"
+    path_genes = os.path.join(
+        path_candidacy, "genes.pickle"
     )
     path_data_genes_candidacy = os.path.join(
         path_candidacy, "data_genes_candidacy.pickle"
@@ -420,9 +420,9 @@ def write_product(dock=None, information=None):
         pickle.dump(information["measures_thresholds"], file_product)
     with open(path_genes_sets, "wb") as file_product:
         pickle.dump(information["sets_genes_measures"], file_product)
-    with open(path_genes_candidacy, "wb") as file_product:
+    with open(path_genes, "wb") as file_product:
         pickle.dump(
-            information["genes_candidacy"], file_product
+            information["genes"], file_product
         )
     information["data_genes_candidacy"].to_pickle(
         path=path_data_genes_candidacy
@@ -470,12 +470,12 @@ def execute_procedure(
     # Set measures of bimodality.
     measures = ["dip", "mixture", "coefficient"]
     # Set factors for each measure of bimodality.
-    # Set factors to select 50-100 genes by each measure of bimodality.
+    # Set factors to select 200-300 genes by each measure of bimodality.
     # Values of bimodality coefficient greater than 0.555 are multimodal.
     factors = dict()
-    factors["dip"] = 2 # (mean + (3 * sigma) = 0.021): 55
-    factors["mixture"] = 3 # (mean + (5 * sigma) = 0.273): 62
-    factors["coefficient"] = 3 # (mean + (4 * sigma) = 0.574): 68
+    factors["dip"] = 2 # (mean + (2 * sigma) = 0.017): 169
+    factors["mixture"] = 3 # (mean + (3 * sigma) = 0.489): 213
+    factors["coefficient"] = 3 # (mean + (3 * sigma) = 0.556): 226
     # Calculate thresholds for each measure of bimodality.
     measures_thresholds = determine_bimodality_measures_thresholds(
         measures=measures,
@@ -496,6 +496,7 @@ def execute_procedure(
     )
 
     # Select genes that pass filters by multiple measures of bimodality.
+    # genes: 167
     genes_candidacy = utility.select_elements_by_sets(
         names=measures,
         sets=genes_measures,
@@ -521,7 +522,7 @@ def execute_procedure(
     information = {
         "measures_thresholds": measures_thresholds,
         "sets_genes_measures": genes_measures,
-        "genes_candidacy": genes_candidacy,
+        "genes": genes_candidacy,
         "data_genes_candidacy": data_genes_candidacy,
     }
     #Write product information to file.
