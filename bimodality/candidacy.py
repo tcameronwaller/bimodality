@@ -67,18 +67,25 @@ def read_source(
     # Use genes' bimodality measures from distribution procedure (not those
     # from the probability procedure) because here we want the raw values
     # before standardization.
-    path_distribution = os.path.join(dock, "distribution", "collection")
+    path_distribution = os.path.join(dock, "distribution")
+    path_distribution_genes = os.path.join(
+        path_distribution, "genes"
+    )
+
+    path_distribution_collection = os.path.join(
+        path_distribution, "collection"
+    )
     path_genes_scores = os.path.join(
-        path_distribution, "genes_scores.pickle"
+        path_distribution_collection, "genes_scores.pickle"
     )
     path_scores = os.path.join(
-        path_distribution, "scores.pickle"
+        path_distribution_collection, "scores.pickle"
     )
     path_data_report = os.path.join(
-        path_distribution, "data_gene_report.pickle"
+        path_distribution_collection, "data_gene_report.pickle"
     )
     path_data_report_text = os.path.join(
-        path_distribution, "data_gene_report.tsv"
+        path_distribution_collection, "data_gene_report.tsv"
     )
 
     # Read information from file.
@@ -86,7 +93,7 @@ def read_source(
     with open(path_split_genes, "rb") as file_source:
         genes_split = pickle.load(file_source)
     genes_distribution = utility.extract_subdirectory_names(
-        path=path_distribution
+        path=path_distribution_genes
     )
     with open(path_genes_scores, "rb") as file_source:
         genes_scores = pickle.load(file_source)
@@ -348,6 +355,7 @@ def extract_genes_modality_sets(
     bin["measures_1"] = genes_1
     bin["measures_2"] = genes_2
     bin["measures_3"] = genes_3
+    bin["sets_genes_measures"] = sets
     # Return information.
     return bin
 
@@ -425,7 +433,10 @@ def prepare_gene_report(
         ascending=False,
         inplace=True,
     )
-    data.reindex()
+    data.reset_index(
+        drop=True,
+        inplace=True,
+    )
 
     # Return information.
     return data
@@ -684,44 +695,6 @@ def filter_genes_by_bimodality_thresholds(
     return entries
 
 
-def select_genes_by_identifier_rank(
-    data_genes=None,
-    genes=None,
-    rank=None,
-):
-    """
-    Prepares ranks of genes for subsequent functional analyses.
-
-    arguments:
-        data_genes (object): Pandas data frame of information about genes
-        genes (list<str>): identifiers of genes
-        rank (str): property to use for ranks
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of information about genes
-
-    """
-
-    # Copy data.
-    data_copy = data_genes.copy(deep=True)
-    # Select data for genes of interest.
-    data = data_copy.loc[
-        data_copy["identifier"].isin(genes), :
-    ]
-    # Rank genes.
-    data.sort_values(
-        by=[rank],
-        axis="index",
-        ascending=False,
-        inplace=True,
-    )
-    # Organize information.
-    # Return information.
-    return data
-
-
 def old_execution_method():
     """
     Determines values of thresholds for genes' measures of bimodality.
@@ -821,35 +794,94 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_candidacy = os.path.join(dock, "candidacy")
     utility.create_directory(path_candidacy)
+
     path_measures_thresholds = os.path.join(
         path_candidacy, "measures_thresholds.pickle"
     )
     path_genes_sets = os.path.join(
         path_candidacy, "sets_genes_measures.pickle"
     )
-    path_genes = os.path.join(
-        path_candidacy, "genes.pickle"
+
+    path_genes_unimodal = os.path.join(
+        path_candidacy, "genes_unimodal.pickle"
     )
-    path_data_genes_candidacy = os.path.join(
-        path_candidacy, "data_genes_candidacy.pickle"
+    path_genes_unimodal_text = os.path.join(
+        path_candidacy, "genes_unimodal.txt"
     )
-    path_data_genes_candidacy_text = os.path.join(
-        path_candidacy, "data_genes_candidacy.tsv"
+    path_genes_multimodal = os.path.join(
+        path_candidacy, "genes_multimodal.pickle"
     )
+    path_genes_multimodal_text = os.path.join(
+        path_candidacy, "genes_multimodal.txt"
+    )
+    path_genes_else = os.path.join(
+        path_candidacy, "genes_else.pickle"
+    )
+    path_genes_else_text = os.path.join(
+        path_candidacy, "genes_else.txt"
+    )
+
+    path_data_genes_unimodal = os.path.join(
+        path_candidacy, "data_genes_unimodal.pickle"
+    )
+    path_data_genes_unimodal_text = os.path.join(
+        path_candidacy, "data_genes_unimodal.tsv"
+    )
+    path_data_genes_multimodal = os.path.join(
+        path_candidacy, "data_genes_multimodal.pickle"
+    )
+    path_data_genes_multimodal_text = os.path.join(
+        path_candidacy, "data_genes_multimodal.tsv"
+    )
+
     # Write information to file.
     with open(path_measures_thresholds, "wb") as file_product:
         pickle.dump(information["measures_thresholds"], file_product)
     with open(path_genes_sets, "wb") as file_product:
         pickle.dump(information["sets_genes_measures"], file_product)
-    with open(path_genes, "wb") as file_product:
+
+    with open(path_genes_unimodal, "wb") as file_product:
         pickle.dump(
-            information["genes"], file_product
+            information["genes_unimodal"], file_product
         )
-    information["data_genes_candidacy"].to_pickle(
-        path=path_data_genes_candidacy
+    utility.write_file_text_list(
+        elements=information["genes_unimodal"],
+        delimiter="\n",
+        path_file=path_genes_unimodal_text
     )
-    information["data_genes_candidacy"].to_csv(
-        path_or_buf=path_data_genes_candidacy_text,
+    with open(path_genes_multimodal, "wb") as file_product:
+        pickle.dump(
+            information["genes_multimodal"], file_product
+        )
+    utility.write_file_text_list(
+        elements=information["genes_multimodal"],
+        delimiter="\n",
+        path_file=path_genes_multimodal_text
+    )
+    with open(path_genes_else, "wb") as file_product:
+        pickle.dump(
+            information["genes_else"], file_product
+        )
+    utility.write_file_text_list(
+        elements=information["genes_else"],
+        delimiter="\n",
+        path_file=path_genes_else_text
+    )
+
+    information["data_genes_unimodal"].to_pickle(
+        path=path_data_genes_unimodal
+    )
+    information["data_genes_unimodal"].to_csv(
+        path_or_buf=path_data_genes_unimodal_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+    information["data_genes_multimodal"].to_pickle(
+        path=path_data_genes_multimodal
+    )
+    information["data_genes_multimodal"].to_csv(
+        path_or_buf=path_data_genes_multimodal_text,
         sep="\t",
         header=True,
         index=True,
@@ -899,6 +931,11 @@ def execute_procedure(
         measures=measures,
         data_distribution_report=source["data_distribution_report"],
     )
+    measures_thresholds = dict()
+    for measure in measures:
+        measures_thresholds[measure] = (
+            selection[measure]["greatest"]["threshold"]
+        )
 
     # Validate genes and thresholds.
     utility.print_terminal_partition(level=2)
@@ -941,6 +978,25 @@ def execute_procedure(
         selection=selection,
     )
 
+    # Determine all genes that are not in the multimodality set.
+    genes_else = utility.filter_unique_exclusion_elements(
+        elements_exclusion=bin_genes_multimodal["measures_1"],
+        elements_total=source["genes_distribution"],
+    )
+    utility.print_terminal_partition(level=2)
+    print(
+        "Count of all distribution genes: " +
+        str(len(source["genes_distribution"]))
+    )
+    print(
+        "Count of multimodal genes: " +
+        str(len(bin_genes_multimodal["measures_1"]))
+    )
+    print(
+        "Count of all genes not multimodal (else): " +
+        str(len(genes_else))
+    )
+
     # Rank genes by the counts of measures by which they pass thresholds.
     # Unimodal genes: Consider genes that have extreme least values by all
     # measures of modality.
@@ -960,32 +1016,25 @@ def execute_procedure(
         selection=selection,
         data_gene_annotation=source["data_gene_annotation"],
     )
+    utility.print_terminal_partition(level=2)
+    print("Summary of unimodal genes.")
     print(data_genes_unimodal)
+    utility.print_terminal_partition(level=2)
+    print("Summary of multimodal genes.")
     print(data_genes_multimodal)
 
-
-    if False:
-
-        utility.print_terminal_partition(level=2)
-
-        # Select and rank genes by probabilities.
-        data_genes_candidacy = select_genes_by_identifier_rank(
-            data_genes=source["data_distribution_report"],
-            genes=genes_candidacy,
-            rank="combination",
-        )
-        #print(data_genes_candidacy)
-        #print(data_genes_candidacy.iloc[0:10, 0:13])
-
-        # Compile information.
-        information = {
-            "measures_thresholds": measures_thresholds,
-            "sets_genes_measures": genes_measures,
-            "genes": genes_candidacy,
-            "data_genes_candidacy": data_genes_candidacy,
-        }
-        #Write product information to file.
-        write_product(dock=dock, information=information)
+    # Compile information.
+    information = {
+        "genes_unimodal": bin_genes_unimodal["measures_3"],
+        "genes_multimodal": bin_genes_multimodal["measures_1"],
+        "genes_else": genes_else,
+        "data_genes_unimodal": data_genes_unimodal,
+        "data_genes_multimodal": data_genes_multimodal,
+        "measures_thresholds": measures_thresholds,
+        "sets_genes_measures": bin_genes_multimodal["sets_genes_measures"],
+    }
+    #Write product information to file.
+    write_product(dock=dock, information=information)
 
     pass
 
