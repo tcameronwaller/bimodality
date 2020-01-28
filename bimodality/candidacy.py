@@ -105,7 +105,337 @@ def read_source(
     }
 
 
-def determine_bimodality_measures_thresholds(
+def select_genes_by_modality_measures_ranks(
+    proportion_least=None,
+    proportion_greatest=None,
+    measures=None,
+    data_distribution_report=None,
+):
+    """
+    Selects genes with least and greatest values of measures of modality.
+
+    arguments:
+        proportion_least (float): proportion of genes to select from those with
+            least values of modality measures
+        proportion_greatest (float): proportion of genes to select from those
+            with greatest values of modality measures
+        measures (list<str>): measures of modality
+        data_distribution_report (object): Pandas data frame of information
+            about genes and their measures of modality
+
+    raises:
+
+    returns:
+        (dict): information about selection of genes
+
+    """
+
+    # Organize data.
+    data = data_distribution_report.copy(deep=True)
+    data.set_index(
+        ["identifier"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    # Calculate count of genes to select from least and greatest extremes.
+    count_total = data_distribution_report.shape[0]
+    count_least = round(proportion_least * count_total)
+    count_greatest = round(proportion_greatest * count_total)
+    print(
+        "selection percentage least: " +
+        str(round((proportion_least * 100), 2))
+    )
+    print("selection count least: " + str(count_least))
+    utility.print_terminal_partition(level=3)
+    print(
+        "selection percentage greatest: " +
+        str(round((proportion_greatest * 100), 2))
+    )
+    print("selection count greatest: " + str(count_greatest))
+    # Iterate on measures of modality.
+    bin = dict()
+    for measure in measures:
+        # Copy data.
+        data_measure = data.copy(deep=True)
+        data_measure = data_measure.loc[:, ["name", measure]]
+        # Sort by values of the measure.
+        data_measure.sort_values(
+            by=[measure],
+            axis="index",
+            ascending=True,
+            inplace=True,
+        )
+        # Select least and greatest genes.
+        # Pay attention to index values.
+        # I validated the selection of threshold values.
+        threshold_least = data_measure.iat[(count_least - 1), 1]
+        data_least = data_measure.iloc[:count_least]
+        genes_least = data_least.index.to_list()
+
+        threshold_greatest = (
+            data_measure.iat[(count_total - (count_greatest)), 1]
+        )
+        data_greatest = data_measure.iloc[(count_total - count_greatest):]
+        genes_greatest = data_greatest.index.to_list()
+        # Collect information.
+        bin[measure] = dict()
+        bin[measure]["least"] = dict()
+        bin[measure]["least"]["threshold"] = threshold_least
+        bin[measure]["least"]["genes"] = genes_least
+        bin[measure]["greatest"] = dict()
+        bin[measure]["greatest"]["threshold"] = threshold_greatest
+        bin[measure]["greatest"]["genes"] = genes_greatest
+        pass
+    # Return information.
+    return bin
+
+
+def validate_selection_thresholds(
+    measures=None,
+    selection=None,
+    genes_scores=None,
+):
+    """
+    Validates thresholds from selection of genes with least and greatest values
+        of measures of modality.
+
+    arguments:
+        measures (list<str>): measures of modality
+        selection (dict): selections of genes
+        genes_scores (dict): information about genes' measures of modality
+
+    raises:
+
+    returns:
+        (dict): information about selection of genes
+
+    """
+
+    # Iterate on measures of modality.
+    for measure in measures:
+        for direction in ["least", "greatest"]:
+            # Collect values of measure for selection of genes.
+            values = list()
+            for gene in selection[measure][direction]["genes"]:
+                value = genes_scores[gene][measure]
+                values.append(value)
+            if direction == "least":
+                validation = max(values)
+            elif direction == "greatest":
+                validation = min(values)
+            selection[measure][direction]["threshold_validation"] = validation
+            threshold = selection[measure][direction]["threshold"]
+            utility.print_terminal_partition(level=3)
+            print("measure: " + measure)
+            print("direction: " + direction)
+            print("threshold: " + str(round(threshold, 5)))
+            print("validation: " + str(round(validation, 5)))
+    # Return information.
+    return selection
+
+
+def calculate_threshold_deviation_factors(
+    measures=None,
+    selection=None,
+    scores=None,
+):
+    """
+    Calculates how many standard deviations by which each threshold diverges
+    from mean.
+
+    arguments:
+        measures (list<str>): measures of modality
+        selection (dict): selections of genes
+        scores (dict<dict>): information about genes' measures of bimodality
+
+    raises:
+
+    returns:
+        (dict): information about selection of genes
+
+    """
+
+    # Iterate on measures of modality.
+    factors = dict()
+    for measure in measures:
+        factors[measure] = dict()
+        for direction in ["least", "greatest"]:
+            # Calculate factor.
+            if direction == "least":
+                # Least:
+                # threshold = mean - (factor * deviation)
+                # (factor * deviation) = (mean - threshold)
+                # factor = (mean - threshold) / deviation
+                threshold = selection[measure][direction]["threshold"]
+                mean = scores[measure]["mean"]
+                deviation = scores[measure]["deviation"]
+                factor = (mean - threshold) / deviation
+                factors[measure][direction] = factor
+            elif direction == "greatest":
+                # Greatest:
+                # threshold = mean + (factor * deviation)
+                # (factor * deviation) = (threshold - mean)
+                # factor = (threshold - mean) / deviation
+                threshold = selection[measure][direction]["threshold"]
+                mean = scores[measure]["mean"]
+                deviation = scores[measure]["deviation"]
+                factor = (threshold - mean) / deviation
+                factors[measure][direction] = factor
+            utility.print_terminal_partition(level=3)
+            print("measure: " + measure)
+            print("direction: " + direction)
+            print("mean: " + str(round(mean, 5)))
+            print("deviation: " + str(round(deviation, 5)))
+            print("threshold: " + str(round(threshold, 5)))
+            print("factor: " + str(round(factor, 2)))
+    # Return information.
+    return factors
+
+
+def extract_genes_modality_sets(
+    direction=None,
+    measures=None,
+    selection=None,
+):
+    """
+    Extracts identifiers of unique genes from selection by modality measures.
+
+    arguments:
+        direction (str): direction of distribution from which to select, lesser
+            or greater
+        measures (list<str>): measures of modality
+        selection (dict): selections of genes
+
+    raises:
+
+    returns:
+        (dict<list<str>>): identifiers of genes
+
+    """
+
+    # Organize sets of genes.
+    sets = dict()
+    for measure in measures:
+        sets[measure] = selection[measure][direction]["genes"]
+
+    # Select genes that pass filters by multiple measures of bimodality.
+    genes_1 = utility.select_elements_by_sets(
+        names=measures,
+        sets=sets,
+        count=1,
+    )
+    genes_2 = utility.select_elements_by_sets(
+        names=measures,
+        sets=sets,
+        count=2,
+    )
+    genes_3 = utility.select_elements_by_sets(
+        names=measures,
+        sets=sets,
+        count=3,
+    )
+
+    # Summarize information.
+    utility.print_terminal_partition(level=2)
+    print("Selection of genes by: " + direction)
+    print("... any 1 sets: " + str(len(genes_1)))
+    print("... any 2 sets: " + str(len(genes_2)))
+    print("... any 3 sets: " + str(len(genes_3)))
+
+    # Collect information.
+    bin = dict()
+    bin["measures_1"] = genes_1
+    bin["measures_2"] = genes_2
+    bin["measures_3"] = genes_3
+    # Return information.
+    return bin
+
+
+def prepare_gene_report(
+    genes=None,
+    direction=None,
+    measures=None,
+    selection=None,
+    data_gene_annotation=None,
+):
+    """
+    Prepares a report of genes that have unimodal or multimodal distributions.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        direction (str): direction of distribution from which to select, lesser
+            or greater
+        measures (list<str>): measures of modality
+        selection (dict): selections of genes
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of information about genes
+
+    """
+
+    # Iterate on genes.
+    # Collect information.
+    records = list()
+    for gene in genes:
+        record = dict()
+
+        # Organize gene's properties.
+        record["identifier"] = gene
+        record["name"] = data_gene_annotation.loc[gene, "gene_name"]
+        record["chromosome"] = data_gene_annotation.loc[gene, "seqname"]
+        record["start"] = data_gene_annotation.loc[gene, "start"]
+        record["end"] = data_gene_annotation.loc[gene, "end"]
+
+        # Iterate on measures of modality.
+        # Collect information about each measure.
+        matches = 0
+        for measure in measures:
+            # Determine whether gene passes threshold by measure of modality.
+            name = (measure + "_pass")
+            match = (gene in selection[measure][direction]["genes"])
+            record[name] = match
+            if match:
+                matches += 1
+        record["passes"] = matches
+        records.append(record)
+
+    # Organize data.
+    data = utility.convert_records_to_dataframe(
+        records=records,
+    )
+    data = data[[
+        "identifier",
+        "name",
+        "chromosome",
+        "start",
+        "end",
+        "dip_pass",
+        "mixture_pass",
+        "coefficient_pass",
+        "passes",
+    ]]
+    # Sort by values of the measure.
+    data.sort_values(
+        by=["passes"],
+        axis="index",
+        ascending=False,
+        inplace=True,
+    )
+    data.reindex()
+
+    # Return information.
+    return data
+
+
+# Previous method
+# Selection of genes strictly by mean and standard deviations
+
+
+def determine_measures_thresholds(
     measures=None,
     scores=None,
     factors=None,
@@ -127,17 +457,22 @@ def determine_bimodality_measures_thresholds(
 
     # Collect thresholds for measures of bimodality.
     thresholds = dict()
+    thresholds["lesser"] = dict()
+    thresholds["greater"] = dict()
     for measure in measures:
-        # Calculate selection threshold.
-        thresholds[measure] = (
+        # Calculate selection thresholds.
+        thresholds["lesser"][measure] = (
+            scores[measure]["mean"] -
+            (factors[measure] * scores[measure]["deviation"])
+        )
+        thresholds["greater"][measure] = (
             scores[measure]["mean"] +
             (factors[measure] * scores[measure]["deviation"])
         )
-    pass
     return thresholds
 
 
-def summarize_bimodality_measures_thresholds(
+def summarize_measures_thresholds(
     measures=None,
     scores=None,
     thresholds=None,
@@ -164,12 +499,10 @@ def summarize_bimodality_measures_thresholds(
         print("measure: " + str(measure))
         print("mean: " + str(scores[measure]["mean"]))
         print("deviation: " + str(scores[measure]["deviation"]))
-        print("threshold: " + str(thresholds[measure]))
+        print("threshold lesser: " + str(thresholds["lesser"][measure]))
+        print("threshold greater: " + str(thresholds["greater"][measure]))
     pass
     utility.print_terminal_partition(level=2)
-
-
-# Filtration
 
 
 def copy_split_minimal_gene_data(
@@ -208,6 +541,7 @@ def filter_genes_by_bimodality_threshold(
     data=None,
     measure=None,
     threshold=None,
+    direction=None,
 ):
     """
     Filters genes to keep only those with scores from at least two of the three
@@ -218,6 +552,8 @@ def filter_genes_by_bimodality_threshold(
             measures of bimodality
         measure (str): name of a measure of bimodality
         threshold (float): value of a threshold for a measure of bimodality
+        direction (str): direction of distribution from which to select, lesser
+            or greater
 
     raises:
 
@@ -227,14 +563,18 @@ def filter_genes_by_bimodality_threshold(
 
     """
 
+    # Copy data.
+    data = data.copy(deep=True)
     # Determine whether values pass threshold.
     # Only consider the original modality measures for this threshold.
-    data_threshold = data.loc[(data[measure] > threshold), :]
+    if direction == "greater":
+        data_threshold = data.loc[(data[measure] > threshold), :]
+    elif direction == "lesser":
+        data_threshold = data.loc[(data[measure] < threshold), :]
     # Return information.
     return data_threshold
 
 
-# TODO: this function is useful...
 def filter_genes_probabilities_threshold_old(
     data=None,
     threshold=None,
@@ -287,6 +627,7 @@ def filter_genes_by_bimodality_thresholds(
     measures=None,
     thresholds=None,
     data_genes_distributions=None,
+    direction=None,
 ):
     """
     Copy and split information about genes.
@@ -297,6 +638,8 @@ def filter_genes_by_bimodality_thresholds(
             bimodality
         data_genes_distributions (object): Pandas data frame of information
             about genes and their measures of bimodality
+        direction (str): direction of distribution from which to select, lesser
+            or greater
 
     raises:
 
@@ -325,7 +668,8 @@ def filter_genes_by_bimodality_thresholds(
         data_filter = filter_genes_by_bimodality_threshold(
             data=data_measure,
             measure=measure,
-            threshold=thresholds[measure],
+            threshold=thresholds[direction][measure],
+            direction=direction,
         )
 
         # Extract genes' identifiers.
@@ -376,6 +720,83 @@ def select_genes_by_identifier_rank(
     # Organize information.
     # Return information.
     return data
+
+
+def old_execution_method():
+    """
+    Determines values of thresholds for genes' measures of bimodality.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Set measures of modality.
+    measures = ["dip", "mixture", "coefficient"]
+    # Set factors for each measure of bimodality.
+    # Set factors to select 200-300 genes by each measure of bimodality.
+    # Values of bimodality coefficient greater than 0.555 are multimodal.
+    factors = dict()
+    factors["dip"] = 2 # (mean + (2 * sigma) = 0.017): 169
+    factors["mixture"] = 3 # (mean + (3 * sigma) = 0.489): 213
+    factors["coefficient"] = 3 # (mean + (3 * sigma) = 0.556): 226
+    # Calculate thresholds for each measure of bimodality.
+    thresholds = determine_measures_thresholds(
+        measures=measures,
+        scores=source["scores"],
+        factors=factors,
+    )
+    utility.print_terminal_partition(level=2)
+    print("thresholds for unimodal and multimodal genes")
+    summarize_measures_thresholds(
+        measures=measures,
+        scores=source["scores"],
+        thresholds=thresholds,
+    )
+
+    # Filter genes by thresholds on measures of bimodality.
+    genes_measures_unimodal = filter_genes_by_bimodality_thresholds(
+        measures=measures,
+        thresholds=thresholds,
+        data_genes_distributions=source["data_distribution_report"],
+        direction="lesser",
+    )
+    genes_measures_multimodal = filter_genes_by_bimodality_thresholds(
+        measures=measures,
+        thresholds=thresholds,
+        data_genes_distributions=source["data_distribution_report"],
+        direction="greater",
+    )
+
+    #############################
+    # TODO:
+    # select nonunimodal genes by 1, 2, or 3 measures
+    # select unimodal genes
+
+    ############################
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "genes_unimodal_1: " + str(len(genes_unimodal_1))
+    )
+    print(
+        "genes_unimodal_2: " + str(len(genes_unimodal_2))
+    )
+    print(
+        "genes_unimodal_3: " + str(len(genes_unimodal_3))
+    )
+    print(
+        "genes_multimodal_1: " + str(len(genes_multimodal_1))
+    )
+    print(
+        "genes_multimodal_2: " + str(len(genes_multimodal_2))
+    )
+    print(
+        "genes_multimodal_3: " + str(len(genes_multimodal_3))
+    )
+
+    pass
 
 
 ##########
@@ -464,69 +885,107 @@ def execute_procedure(
 
     # Read source information from file.
     source = read_source(dock=dock)
+    # Set measures of modality.
+    measures = list(source["scores"].keys())
 
-    print(source["data_distribution_report"])
-
-    # Set measures of bimodality.
-    measures = ["dip", "mixture", "coefficient"]
-    # Set factors for each measure of bimodality.
-    # Set factors to select 200-300 genes by each measure of bimodality.
-    # Values of bimodality coefficient greater than 0.555 are multimodal.
-    factors = dict()
-    factors["dip"] = 2 # (mean + (2 * sigma) = 0.017): 169
-    factors["mixture"] = 3 # (mean + (3 * sigma) = 0.489): 213
-    factors["coefficient"] = 3 # (mean + (3 * sigma) = 0.556): 226
-    # Calculate thresholds for each measure of bimodality.
-    measures_thresholds = determine_bimodality_measures_thresholds(
+    # Select genes with least and greatest values of each measure of modality.
+    # Use less stringency for unimodal genes in order to select those that are
+    # not multimodal by any measures.
+    # Select same count of unimodal genes and multimodal genes.
+    utility.print_terminal_partition(level=2)
+    selection = select_genes_by_modality_measures_ranks(
+        proportion_least=0.2025,
+        proportion_greatest=0.01,
         measures=measures,
-        scores=source["scores"],
-        factors=factors,
-    )
-    summarize_bimodality_measures_thresholds(
-        measures=measures,
-        scores=source["scores"],
-        thresholds=measures_thresholds,
+        data_distribution_report=source["data_distribution_report"],
     )
 
-    # Filter genes by thresholds on measures of bimodality.
-    genes_measures = filter_genes_by_bimodality_thresholds(
-        measures=measures,
-        thresholds=measures_thresholds,
-        data_genes_distributions=source["data_distribution_report"],
-    )
-
-    # Select genes that pass filters by multiple measures of bimodality.
-    # genes: 167
-    genes_candidacy = utility.select_elements_by_sets(
-        names=measures,
-        sets=genes_measures,
-        count=2,
-    )
+    # Validate genes and thresholds.
     utility.print_terminal_partition(level=2)
     print(
-        "selection of genes by multiple measurements: " +
-        str(len(genes_candidacy))
+        "Validation of thresholds for selection of unimodal and multimodal " +
+        "genes."
     )
+    validation = validate_selection_thresholds(
+        measures=measures,
+        selection=selection,
+        genes_scores=source["genes_scores"],
+    )
+
+    # Calculate how many standard deviations by which each threshold diverges
+    # from mean.
     utility.print_terminal_partition(level=2)
-
-    # Select and rank genes by probabilities.
-    data_genes_candidacy = select_genes_by_identifier_rank(
-        data_genes=source["data_distribution_report"],
-        genes=genes_candidacy,
-        rank="combination",
+    print(
+        "By how many standard deviations do these thresholds differ from " +
+        "means?"
     )
-    #print(data_genes_candidacy)
-    #print(data_genes_candidacy.iloc[0:10, 0:13])
+    factors = calculate_threshold_deviation_factors(
+        measures=measures,
+        selection=selection,
+        scores=source["scores"],
+    )
 
-    # Compile information.
-    information = {
-        "measures_thresholds": measures_thresholds,
-        "sets_genes_measures": genes_measures,
-        "genes": genes_candidacy,
-        "data_genes_candidacy": data_genes_candidacy,
-    }
-    #Write product information to file.
-    write_product(dock=dock, information=information)
+    # Extract genes that pass thresholds by measures of modality.
+    utility.print_terminal_partition(level=2)
+    print(
+        "Extract identifiers of genes by counts of thresholds they pass."
+    )
+    bin_genes_unimodal = extract_genes_modality_sets(
+        direction="least",
+        measures=measures,
+        selection=selection,
+    )
+    bin_genes_multimodal = extract_genes_modality_sets(
+        direction="greatest",
+        measures=measures,
+        selection=selection,
+    )
+
+    # Rank genes by the counts of measures by which they pass thresholds.
+    # Unimodal genes: Consider genes that have extreme least values by all
+    # measures of modality.
+    # Multimodal genes: Consider genes that have extreme greatest values by any
+    # measure of modality.
+    data_genes_unimodal = prepare_gene_report(
+        genes=bin_genes_unimodal["measures_3"],
+        direction="least",
+        measures=measures,
+        selection=selection,
+        data_gene_annotation=source["data_gene_annotation"],
+    )
+    data_genes_multimodal = prepare_gene_report(
+        genes=bin_genes_multimodal["measures_1"],
+        direction="greatest",
+        measures=measures,
+        selection=selection,
+        data_gene_annotation=source["data_gene_annotation"],
+    )
+    print(data_genes_unimodal)
+    print(data_genes_multimodal)
+
+
+    if False:
+
+        utility.print_terminal_partition(level=2)
+
+        # Select and rank genes by probabilities.
+        data_genes_candidacy = select_genes_by_identifier_rank(
+            data_genes=source["data_distribution_report"],
+            genes=genes_candidacy,
+            rank="combination",
+        )
+        #print(data_genes_candidacy)
+        #print(data_genes_candidacy.iloc[0:10, 0:13])
+
+        # Compile information.
+        information = {
+            "measures_thresholds": measures_thresholds,
+            "sets_genes_measures": genes_measures,
+            "genes": genes_candidacy,
+            "data_genes_candidacy": data_genes_candidacy,
+        }
+        #Write product information to file.
+        write_product(dock=dock, information=information)
 
     pass
 
