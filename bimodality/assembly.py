@@ -1185,6 +1185,29 @@ def organize_genes_annotations(
     write_product_gene_annotation(dock=dock, information=information)
 
 
+def access_gene_name(
+    identifier=None,
+    data_gene_annotation=None,
+):
+    """
+    Combines elements in ordered pairs.
+
+    arguments:
+        identifier (str): identifier of gene
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+
+    returns:
+        (str): name of gene
+
+    raises:
+
+    """
+
+    name = data_gene_annotation.at[identifier, "gene_name"].replace(".", "-")
+    return name
+
+
 ##########
 # Organization of genes' counts.
 

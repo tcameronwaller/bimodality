@@ -18,6 +18,7 @@ import statistics
 # Relevant
 import pandas
 import numpy
+import scipy
 import matplotlib
 matplotlib.use("agg")
 matplotlib.rcParams.update({'figure.max_open_warning': 0})
@@ -28,6 +29,7 @@ import seaborn
 
 # Custom
 
+import assembly
 import integration
 import utility
 
@@ -84,6 +86,14 @@ def define_font_properties():
         "weight": 500,
         "size": 15
     }
+    values_five = {
+        "family": "sans-serif",
+        "style": "normal",
+        "variant": "normal",
+        "stretch": 300,
+        "weight": 300,
+        "size": 10
+    }
     # Define font properties.
     properties_one = matplotlib.font_manager.FontProperties(
         family=values_one["family"],
@@ -117,19 +127,29 @@ def define_font_properties():
         weight=values_four["weight"],
         size=values_four["size"]
     )
+    properties_five = matplotlib.font_manager.FontProperties(
+        family=values_five["family"],
+        style=values_five["style"],
+        variant=values_five["variant"],
+        stretch=values_five["stretch"],
+        weight=values_five["weight"],
+        size=values_five["size"]
+    )
     # Compile and return references.
     return {
         "values": {
             "one": values_one,
             "two": values_two,
             "three": values_three,
-            "four": values_four
+            "four": values_four,
+            "five": values_five,
         },
         "properties": {
             "one": properties_one,
             "two": properties_two,
             "three": properties_three,
-            "four": properties_four
+            "four": properties_four,
+            "five": properties_five,
         }
     }
 
@@ -173,7 +193,108 @@ def define_color_properties():
     }
 
 
-def plot_heatmap(
+def plot_heatmap_cluster(
+    data=None,
+    label_rows=None,
+    label_columns=None,
+    fonts=None,
+    colors=None,
+):
+    """
+    Creates a figure of a chart of type heatmap.
+
+    arguments:
+        data (object): Pandas data frame of quantitative values with mappings
+            to columns and rows that will be transposed in heatmap
+        label_rows (bool): whether to include explicit labels on heatmap's rows
+        label_columns (bool): whether to include explicit labels on heatmap's
+            columns
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+
+    raises:
+
+    returns:
+        (object): figure object
+
+    """
+
+    # Organize data.
+    # Map data's columns to heatmap's rows.
+    # Map data's rows to heatmap's columns.
+    labels_rows = data.columns.to_list()
+    labels_columns = data.index.to_list()
+    matrix = numpy.transpose(data.values)
+
+    # Create figure.
+    figure = matplotlib.pyplot.figure(
+        figsize=(15.748, 11.811),
+        tight_layout=True
+    )
+    axes = matplotlib.pyplot.axes()
+
+    # Represent data as a color grid.
+    image = axes.imshow(
+        matrix,
+        #cmap= ,
+        aspect="auto",
+    )
+
+    # Create legend for color map.
+    label_bar = "legend"
+    bar = axes.figure.colorbar(image, ax=axes)
+    bar.ax.set_ylabel(label_bar, rotation=-90, va="bottom")
+
+    # Create ticks and labels for each grid.
+    # Let the horizontal axes labeling appear on top.
+    axes.tick_params(
+        axis="both",
+        which="both",
+        direction="out",
+        length=5.0,
+        width=3.0,
+        color=colors["black"],
+        pad=5,
+        labelsize=fonts["values"]["two"]["size"],
+        labelcolor=colors["black"],
+        top=True,
+        bottom=False,
+        labeltop=True,
+        labelbottom=False
+    )
+    # Rotate the tick labels and set their alignment.
+    matplotlib.pyplot.setp(
+        axes.get_xticklabels(),
+        rotation=-30,
+        ha="right",
+        rotation_mode="anchor"
+    )
+
+    if (label_columns and (data.shape[0] < 75)):
+        axes.set_xticks(numpy.arange(matrix.shape[1]))
+        axes.set_xticklabels(
+            labels_columns,
+            minor=False,
+            alpha=1.0,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"]["five"]
+        )
+    if (label_rows and (data.shape[0] < 75)):
+        axes.set_yticks(numpy.arange(matrix.shape[0]))
+        axes.set_yticklabels(
+            labels_rows,
+            minor=False,
+            alpha=1.0,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"]["five"]
+        )
+
+    return figure
+
+
+def plot_heatmap_no_cluster(
     data=None,
     label_rows=None,
     label_columns=None,
@@ -261,10 +382,13 @@ def plot_heatmap(
             alpha=1.0,
             backgroundcolor=colors["white"],
             color=colors["black"],
-            fontproperties=fonts["properties"]["four"]
+            fontproperties=fonts["properties"]["five"]
         )
 
     return figure
+
+
+
 
 # TODO: This function is in progress...
 # TODO: I'm trying to include a bar or bars to designate groups of persons
@@ -1228,7 +1352,7 @@ def read_source_person_sex_age(dock=None):
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_data_persons_sex_age_counts = os.path.join(
         path_selection, "data_persons_sex_age_counts.pickle"
     )
@@ -1339,7 +1463,7 @@ def read_source_persons_per_tissue(dock=None):
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_data_persons_per_tissue = os.path.join(
         path_selection, "data_persons_per_tissue.pickle"
     )
@@ -1444,7 +1568,7 @@ def read_source_tissues_per_person(dock=None):
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_data_tissues_per_person = os.path.join(
         path_selection, "data_tissues_per_person.pickle"
     )
@@ -1649,8 +1773,8 @@ def prepare_charts_modality_gene_distribution(
     utility.remove_directory(path=path_measure)
     utility.create_directories(path=path_measure)
 
-    # Specify bimodality measures.
-    measures = ["dip", "mixture", "coefficient"]
+    # Set measures of modality.
+    measures = list(source["scores"].keys())
     # Iterate on bimodality measures.
     for measure in measures:
 
@@ -1700,10 +1824,11 @@ def read_source_gene_heritability(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation.pickle"
+        path_selection, "data_gene_annotation_gencode.pickle"
     )
+
     path_heritability = os.path.join(dock, "heritability")
     path_collection = os.path.join(path_heritability, "collection")
     path_data_heritabilities_complex = os.path.join(
@@ -1898,15 +2023,23 @@ def read_source_gene_sets_candidacy(
 
     # Specify directories and files.
     path_candidacy = os.path.join(dock, "candidacy")
-    path_sets_genes_measures = os.path.join(
-        path_candidacy, "sets_genes_measures.pickle"
+    path_sets_unimodal = os.path.join(
+        path_candidacy, "sets_unimodal.pickle"
     )
+    path_sets_multimodal = os.path.join(
+        path_candidacy, "sets_multimodal.pickle"
+    )
+
     # Read information from file.
-    with open(path_sets_genes_measures, "rb") as file_source:
-        sets_genes_measures = pickle.load(file_source)
+    with open(path_sets_unimodal, "rb") as file_source:
+        sets_unimodal = pickle.load(file_source)
+    with open(path_sets_multimodal, "rb") as file_source:
+        sets_multimodal = pickle.load(file_source)
+
     # Compile and return information.
     return {
-        "sets_genes_measures": sets_genes_measures,
+        "sets_unimodal": sets_unimodal,
+        "sets_multimodal": sets_multimodal,
     }
 
 
@@ -1977,11 +2110,16 @@ def prepare_charts_gene_sets_candidacy(
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=path_set)
     utility.create_directories(path=path_set)
-    path_set_figure = os.path.join(path_set, "sets.svg")
+    path_figure_unimodal = os.path.join(path_set, "sets_unimodal.svg")
+    path_figure_multimodal = os.path.join(path_set, "sets_multimodal.svg")
 
     plot_chart_gene_sets_candidacy(
-        sets=source["sets_genes_measures"],
-        path=path_set_figure,
+        sets=source["sets_unimodal"],
+        path=path_figure_unimodal,
+    )
+    plot_chart_gene_sets_candidacy(
+        sets=source["sets_multimodal"],
+        path=path_figure_multimodal,
     )
 
     pass
@@ -2391,23 +2529,31 @@ def read_source_genes_persons_signals_initial(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation.pickle"
+        path_selection, "data_gene_annotation_gencode.pickle"
     )
-    path_integration = os.path.join(dock, "integration")
-    path_genes_integration = os.path.join(
-        path_integration, "genes_integration.pickle"
+
+    path_candidacy = os.path.join(dock, "candidacy")
+    path_genes_unimodal = os.path.join(
+        path_candidacy, "genes_unimodal.pickle"
+    )
+    path_genes_multimodal = os.path.join(
+        path_candidacy, "genes_multimodal.pickle"
     )
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    with open(path_genes_integration, "rb") as file_source:
-        genes_integration = pickle.load(file_source)
+    with open(path_genes_unimodal, "rb") as file_source:
+        genes_unimodal = pickle.load(file_source)
+    with open(path_genes_multimodal, "rb") as file_source:
+        genes_multimodal = pickle.load(file_source)
+
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
-        "genes_integration": genes_integration,
+        "genes_unimodal": genes_unimodal,
+        "genes_multimodal": genes_multimodal,
     }
 
 
@@ -2521,19 +2667,20 @@ def prepare_charts_genes_persons_signals(
     utility.create_directory(path_plot)
     path_distribution = os.path.join(path_plot, "distribution")
     path_genes_persons = os.path.join(path_distribution, "genes_persons")
+    path_unimodal = os.path.join(path_genes_persons, "unimodal")
+    path_multimodal = os.path.join(path_genes_persons, "multimodal")
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=path_genes_persons)
-    utility.create_directories(path=path_genes_persons)
+    utility.create_directories(path=path_unimodal)
+    utility.create_directories(path=path_multimodal)
 
     # Iterate on genes.
-    for gene in source_initial["genes_integration"]:
-
+    for gene in source_initial["genes_unimodal"]:
         # Access gene's name.
-        name = integration.access_gene_name(
+        name = assembly.access_gene_name(
             identifier=gene,
             data_gene_annotation=source_initial["data_gene_annotation"],
         )
-
         # Read source information from file.
         source_gene = read_source_genes_persons_signals(
             gene=gene,
@@ -2543,16 +2690,39 @@ def prepare_charts_genes_persons_signals(
         data_gene_persons_signals = source_gene["data_gene_persons_signals"]
         # Distribution of gene's signals across persons.
         values = data_gene_persons_signals["value"].to_list()
-
         # Create charts for the gene.
-        path_gene_figure = os.path.join(path_genes_persons, str(gene + ".svg"))
+        path_gene_figure = os.path.join(path_unimodal, str(gene + ".svg"))
         plot_chart_genes_persons_signals(
             gene=gene,
             name=name,
             values=values,
             path=path_gene_figure
         )
+        pass
 
+    for gene in source_initial["genes_multimodal"]:
+        # Access gene's name.
+        name = assembly.access_gene_name(
+            identifier=gene,
+            data_gene_annotation=source_initial["data_gene_annotation"],
+        )
+        # Read source information from file.
+        source_gene = read_source_genes_persons_signals(
+            gene=gene,
+            dock=dock
+        )
+        # Access information.
+        data_gene_persons_signals = source_gene["data_gene_persons_signals"]
+        # Distribution of gene's signals across persons.
+        values = data_gene_persons_signals["value"].to_list()
+        # Create charts for the gene.
+        path_gene_figure = os.path.join(path_multimodal, str(gene + ".svg"))
+        plot_chart_genes_persons_signals(
+            gene=gene,
+            name=name,
+            values=values,
+            path=path_gene_figure
+        )
         pass
 
     pass
@@ -2822,12 +2992,12 @@ def read_source_signals_genes_persons_groups(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_persons_properties = os.path.join(
         path_selection, "data_persons_properties.pickle"
     )
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation.pickle"
+        path_selection, "data_gene_annotation_gencode.pickle"
     )
 
     path_distribution = os.path.join(dock, "distribution")
@@ -3078,22 +3248,32 @@ def read_source_signals_genes_correlations(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation.pickle"
+        path_selection, "data_gene_annotation_gencode.pickle"
     )
     path_integration = os.path.join(dock, "integration")
-    path_data_genes_correlations = os.path.join(
-        path_integration, "data_genes_correlations.pickle"
+    path_data_correlation_genes_unimodal = os.path.join(
+        path_integration, "data_correlation_genes_unimodal.pickle"
+    )
+    path_data_correlation_genes_multimodal = os.path.join(
+        path_integration, "data_correlation_genes_multimodal.pickle"
     )
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_genes_correlations = pandas.read_pickle(path_data_genes_correlations)
+    data_correlation_genes_unimodal = pandas.read_pickle(
+        path_data_correlation_genes_unimodal
+    )
+    data_correlation_genes_multimodal = pandas.read_pickle(
+        path_data_correlation_genes_multimodal
+    )
+
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
-        "data_genes_correlations": data_genes_correlations,
+        "data_correlation_genes_unimodal": data_correlation_genes_unimodal,
+        "data_correlation_genes_multimodal": data_correlation_genes_multimodal,
     }
 
 
@@ -3120,7 +3300,7 @@ def organize_signals_genes_correlations(
     identifiers = data_genes_correlations.index.to_list()
     translations = dict()
     for identifier in identifiers:
-        translations[identifier] = integration.access_gene_name(
+        translations[identifier] = assembly.access_gene_name(
             identifier=identifier,
             data_gene_annotation=data_gene_annotation,
         )
@@ -3141,7 +3321,7 @@ def organize_signals_genes_correlations(
 
 def plot_chart_signals_genes_correlations(
     data=None,
-    path_directory=None
+    path_file=None
 ):
     """
     Plots charts from the analysis process.
@@ -3149,7 +3329,7 @@ def plot_chart_signals_genes_correlations(
     arguments:
         data (object): Pandas data frame of a gene's aggregate, pantissue
             signals across tissues and persons
-        path_directory (str): path for directory
+        path_file (str): path for file
 
     raises:
 
@@ -3157,20 +3337,15 @@ def plot_chart_signals_genes_correlations(
 
     """
 
-    # Define file name.
-    path_file = os.path.join(
-        path_directory, str("genes_correlations.svg")
-    )
-
     # Define fonts.
     fonts = define_font_properties()
     # Define colors.
     colors = define_color_properties()
 
     # Create figure.
-    figure = plot_heatmap(
+    figure = plot_heatmap_cluster(
         data=data,
-        label_columns=False,
+        label_columns=True,
         label_rows=True,
         fonts=fonts,
         colors=colors,
@@ -3204,26 +3379,42 @@ def prepare_charts_signals_genes_correlations(
     source = read_source_signals_genes_correlations(dock=dock)
 
     # Organize data.
-    data = organize_signals_genes_correlations(
+    data_unimodal = organize_signals_genes_correlations(
         data_gene_annotation=source["data_gene_annotation"],
-        data_genes_correlations=source["data_genes_correlations"],
+        data_genes_correlations=source["data_correlation_genes_unimodal"],
+    )
+    data_multimodal = organize_signals_genes_correlations(
+        data_gene_annotation=source["data_gene_annotation"],
+        data_genes_correlations=source["data_correlation_genes_multimodal"],
     )
 
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
-    path_distribution = os.path.join(path_plot, "distribution")
+    path_integration = os.path.join(path_plot, "integration")
     path_directory = os.path.join(
-        path_distribution, "genes_correlations"
+        path_integration, "correlations_genes"
     )
+    # Define file name.
+    path_unimodal = os.path.join(
+        path_directory, str("genes_unimodal.svg")
+    )
+    path_multimodal = os.path.join(
+        path_directory, str("genes_multimodal.svg")
+    )
+
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=path_directory)
     utility.create_directories(path=path_directory)
 
     # Create chart.
     plot_chart_signals_genes_correlations(
-        data=data,
-        path_directory=path_directory
+        data=data_unimodal,
+        path_file=path_unimodal
+    )
+    plot_chart_signals_genes_correlations(
+        data=data_multimodal,
+        path_file=path_multimodal
     )
 
     pass
@@ -3253,9 +3444,9 @@ def read_source_signals_persons_gene_pairs(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation.pickle"
+        path_selection, "data_gene_annotation_gencode.pickle"
     )
     path_distribution = os.path.join(dock, "distribution")
     path_collection = os.path.join(path_distribution, "collection")
@@ -3996,6 +4187,26 @@ def execute_procedure(dock=None):
     # Plot chart for batches per person.
     prepare_chart_batches_per_person(dock=dock)
 
+    # Plot charts of distributions of each modality measure's scores across
+    # genes.
+    #- distribution of a single bimodality measure's scores across all genes
+    #-- histogram
+    #-- bins by bimodality measure's score (z-score first?)
+    #-- count of genes in each bin
+    prepare_charts_modality_gene_distribution(dock=dock)
+
+    # Plot charts of distributions of genes' pan-tissue aggregate signals
+    # across persons.
+    #prepare_charts_genes_persons_signals(dock=dock)
+
+    # Plot charts of overlap between sets in selection of genes by bimodality.
+    prepare_charts_gene_sets_candidacy(dock=dock)
+
+    # Plot charts for correlations between pairs of all genes of interest.
+    prepare_charts_signals_genes_correlations(dock=dock)
+
+
+
     if False:
         # Plot chart for sex and age of persons in GTEx consortium.
         prepare_chart_person_sex_age(dock=dock)
@@ -4005,18 +4216,6 @@ def execute_procedure(dock=None):
 
         # Plot chart for counts of major tissue type per person, a histogram.
         prepare_chart_tissues_per_person(dock=dock)
-
-        # Plot charts of distributions of each bimodality measure's scores across
-        # genes.
-        #- distribution of a single bimodality measure's scores across all genes
-        #-- histogram
-        #-- bins by bimodality measure's score (z-score first?)
-        #-- count of genes in each bin
-        prepare_charts_modality_gene_distribution(dock=dock)
-
-        # Plot charts of distributions of genes' pan-tissue aggregate signals
-        # across persons.
-        prepare_charts_genes_persons_signals(dock=dock)
 
         # Plot charts, heatmaps, for each gene's signals across persons (columns)
         # and tissues (rows).
@@ -4029,16 +4228,10 @@ def execute_procedure(dock=None):
         # groups for multiple genes.
         prepare_charts_signals_genes_persons_groups(dock=dock)
 
-        # Plot charts for correlations between pairs of all genes of interest.
-        prepare_charts_signals_genes_correlations(dock=dock)
-
         # Plot charts for correlations in signals between pairs of genes.
         # Charts will be scatter plots.
         # Each point will represent a person with pantissue signals from each gene.
         prepare_charts_signals_persons_gene_pairs(dock=dock)
-
-        # Plot charts of overlap between sets in selection of genes by bimodality.
-        prepare_charts_gene_sets_candidacy(dock=dock)
 
         # Plot charts of overlap between sets in selection of genes by permutation
         # probability of bimodality.

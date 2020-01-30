@@ -31,6 +31,7 @@ import scipy.stats
 # Custom
 
 import utility
+import assembly
 
 #dir()
 #importlib.reload()
@@ -61,8 +62,7 @@ def read_source(
     path_gene_annotation = os.path.join(
         path_selection, "data_gene_annotation_gencode.pickle"
     )
-    path_split = os.path.join(dock, "split")
-    path_split_genes = os.path.join(path_split, "genes.pickle")
+    path_selection_genes = os.path.join(path_selection, "genes.pickle")
 
     # Use genes' bimodality measures from distribution procedure (not those
     # from the probability procedure) because here we want the raw values
@@ -90,8 +90,8 @@ def read_source(
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    with open(path_split_genes, "rb") as file_source:
-        genes_split = pickle.load(file_source)
+    with open(path_selection_genes, "rb") as file_source:
+        genes_selection = pickle.load(file_source)
     genes_distribution = utility.extract_subdirectory_names(
         path=path_distribution_genes
     )
@@ -104,12 +104,63 @@ def read_source(
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
-        "genes_split": genes_split,
+        "genes_selection": genes_selection,
         "genes_distribution": genes_distribution,
         "genes_scores": genes_scores,
         "scores": scores,
         "data_distribution_report": data_distribution_report,
     }
+
+
+def report_modality_measure_correlations(
+    measures=None,
+    data_distribution_report=None,
+):
+    """
+    Reports the pairwise correlation coefficients between measures of modality.
+
+    arguments:
+        measures (list<str>): measures of modality
+        data_distribution_report (object): Pandas data frame of information
+            about genes and their measures of modality
+
+    raises:
+
+    returns:
+
+    """
+
+    # Organize data.
+    data = data_distribution_report.copy(deep=True)
+
+    # Calculate correlations between gene pairs of their pantissue signals
+    # across persons.
+    correlations = utility.calculate_pairwise_correlations(
+        method="spearman",
+        features=measures,
+        data=data_distribution_report,
+    )
+    # Organize data matrix.
+    data_correlations = utility.organize_correlations_matrix(
+        features=measures,
+        correlations=correlations,
+        key="correlation"
+    )
+    utility.print_terminal_partition(level=2)
+    print("Spearman correlation coefficients between pairs of measures.")
+    utility.print_terminal_partition(level=3)
+    print(data_correlations)
+    data_probabilities = utility.organize_correlations_matrix(
+        features=measures,
+        correlations=correlations,
+        key="probability"
+    )
+    utility.print_terminal_partition(level=2)
+    print("Probabilities of correlations between pairs of measures.")
+    utility.print_terminal_partition(level=3)
+    print(data_probabilities)
+
+    pass
 
 
 def select_genes_by_modality_measures_ranks(
@@ -393,7 +444,10 @@ def prepare_gene_report(
 
         # Organize gene's properties.
         record["identifier"] = gene
-        record["name"] = data_gene_annotation.loc[gene, "gene_name"]
+        record["name"] = assembly.access_gene_name(
+            identifier=gene,
+            data_gene_annotation=data_gene_annotation,
+        )
         record["chromosome"] = data_gene_annotation.loc[gene, "seqname"]
         record["start"] = data_gene_annotation.loc[gene, "start"]
         record["end"] = data_gene_annotation.loc[gene, "end"]
@@ -798,8 +852,11 @@ def write_product(dock=None, information=None):
     path_measures_thresholds = os.path.join(
         path_candidacy, "measures_thresholds.pickle"
     )
-    path_genes_sets = os.path.join(
-        path_candidacy, "sets_genes_measures.pickle"
+    path_sets_unimodal = os.path.join(
+        path_candidacy, "sets_unimodal.pickle"
+    )
+    path_sets_multimodal = os.path.join(
+        path_candidacy, "sets_multimodal.pickle"
     )
 
     path_genes_unimodal = os.path.join(
@@ -837,8 +894,10 @@ def write_product(dock=None, information=None):
     # Write information to file.
     with open(path_measures_thresholds, "wb") as file_product:
         pickle.dump(information["measures_thresholds"], file_product)
-    with open(path_genes_sets, "wb") as file_product:
-        pickle.dump(information["sets_genes_measures"], file_product)
+    with open(path_sets_unimodal, "wb") as file_product:
+        pickle.dump(information["sets_unimodal"], file_product)
+    with open(path_sets_multimodal, "wb") as file_product:
+        pickle.dump(information["sets_multimodal"], file_product)
 
     with open(path_genes_unimodal, "wb") as file_product:
         pickle.dump(
@@ -919,6 +978,12 @@ def execute_procedure(
     source = read_source(dock=dock)
     # Set measures of modality.
     measures = list(source["scores"].keys())
+
+    # Describe correlations between pairs of modality measures.
+    report_modality_measure_correlations(
+        measures=measures,
+        data_distribution_report=source["data_distribution_report"],
+    )
 
     # Select genes with least and greatest values of each measure of modality.
     # Use less stringency for unimodal genes in order to select those that are
@@ -1031,7 +1096,8 @@ def execute_procedure(
         "data_genes_unimodal": data_genes_unimodal,
         "data_genes_multimodal": data_genes_multimodal,
         "measures_thresholds": measures_thresholds,
-        "sets_genes_measures": bin_genes_multimodal["sets_genes_measures"],
+        "sets_unimodal": bin_genes_unimodal["sets_genes_measures"],
+        "sets_multimodal": bin_genes_multimodal["sets_genes_measures"],
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

@@ -58,19 +58,17 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection")
+    path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation.pickle"
+        path_selection, "data_gene_annotation_gencode.pickle"
     )
+    path_selection_genes = os.path.join(path_selection, "genes.pickle")
     path_samples_properties = os.path.join(
         path_selection, "data_samples_tissues_persons.pickle"
     )
     path_persons_properties = os.path.join(
         path_selection, "data_persons_properties.pickle"
     )
-
-    path_split = os.path.join(dock, "split")
-    path_genes_split = os.path.join(path_split, "genes.txt")
 
     path_distribution = os.path.join(dock, "distribution")
     path_collection = os.path.join(path_distribution, "collection")
@@ -82,41 +80,44 @@ def read_source(dock=None):
     )
 
     path_candidacy = os.path.join(dock, "candidacy")
-    path_genes_candidacy = os.path.join(
-        path_candidacy, "genes_candidacy.pickle"
+    path_genes_unimodal = os.path.join(
+        path_candidacy, "genes_unimodal.pickle"
+    )
+    path_genes_multimodal = os.path.join(
+        path_candidacy, "genes_multimodal.pickle"
     )
 
-    path_probability = os.path.join(dock, "probability")
-    path_genes_scores = os.path.join(
-        path_probability, "genes_scores.pickle"
-    )
-    path_genes_probabilities = os.path.join(
-        path_probability, "genes_probabilities.pickle"
-    )
-    path_genes_probability = os.path.join(
-        path_probability, "genes_probability.pickle"
-    )
+    if False:
 
-    path_heritability = os.path.join(dock, "heritability")
-    path_collection = os.path.join(path_heritability, "collection")
-    path_genes_heritabilities_simple = os.path.join(
-        path_collection, "genes_heritabilities_simple.pickle"
-    )
-    path_genes_heritabilities_complex = os.path.join(
-        path_collection, "genes_heritabilities_complex.pickle"
-    )
-    path_genes_heritability = os.path.join(
-        path_collection, "genes_heritability.pickle"
-    )
+        path_probability = os.path.join(dock, "probability")
+        path_genes_scores = os.path.join(
+            path_probability, "genes_scores.pickle"
+        )
+        path_genes_probabilities = os.path.join(
+            path_probability, "genes_probabilities.pickle"
+        )
+        path_genes_probability = os.path.join(
+            path_probability, "genes_probability.pickle"
+        )
+
+        path_heritability = os.path.join(dock, "heritability")
+        path_collection = os.path.join(path_heritability, "collection")
+        path_genes_heritabilities_simple = os.path.join(
+            path_collection, "genes_heritabilities_simple.pickle"
+        )
+        path_genes_heritabilities_complex = os.path.join(
+            path_collection, "genes_heritabilities_complex.pickle"
+        )
+        path_genes_heritability = os.path.join(
+            path_collection, "genes_heritability.pickle"
+        )
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_samples_tissues_persons = pandas.read_pickle(path_samples_properties)
+    data_samples_properties = pandas.read_pickle(path_samples_properties)
     data_persons_properties = pandas.read_pickle(path_persons_properties)
-    genes_split = utility.read_file_text_list(
-        delimiter="\n",
-        path_file=path_genes_split,
-    )
+    with open(path_selection_genes, "rb") as file_source:
+        genes_selection = pickle.load(file_source)
 
     data_signals_genes_persons = pandas.read_pickle(
         path_data_signals_genes_persons
@@ -124,67 +125,127 @@ def read_source(dock=None):
     data_gene_distribution_report = pandas.read_pickle(
         path_distribution_report
     )
-    with open(path_genes_candidacy, "rb") as file_source:
-        genes_candidacy = pickle.load(file_source)
 
-    with open(path_genes_scores, "rb") as file_source:
-        genes_scores = pickle.load(file_source)
-    with open(path_genes_probabilities, "rb") as file_source:
-        genes_probabilities = pickle.load(file_source)
-    with open(path_genes_probability, "rb") as file_source:
-        genes_probability = pickle.load(file_source)
+    with open(path_genes_unimodal, "rb") as file_source:
+        genes_unimodal = pickle.load(file_source)
+    with open(path_genes_multimodal, "rb") as file_source:
+        genes_multimodal = pickle.load(file_source)
 
-    with open(path_genes_heritabilities_simple, "rb") as file_source:
-        genes_heritabilities_simple = pickle.load(file_source)
-    with open(path_genes_heritabilities_complex, "rb") as file_source:
-        genes_heritabilities_complex = pickle.load(file_source)
-    with open(path_genes_heritability, "rb") as file_source:
-        genes_heritability = pickle.load(file_source)
+    if False:
+        with open(path_genes_scores, "rb") as file_source:
+            genes_scores = pickle.load(file_source)
+        with open(path_genes_probabilities, "rb") as file_source:
+            genes_probabilities = pickle.load(file_source)
+        with open(path_genes_probability, "rb") as file_source:
+            genes_probability = pickle.load(file_source)
+
+        with open(path_genes_heritabilities_simple, "rb") as file_source:
+            genes_heritabilities_simple = pickle.load(file_source)
+        with open(path_genes_heritabilities_complex, "rb") as file_source:
+            genes_heritabilities_complex = pickle.load(file_source)
+        with open(path_genes_heritability, "rb") as file_source:
+            genes_heritability = pickle.load(file_source)
 
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
-        "data_samples_tissues_persons": data_samples_tissues_persons,
+        "data_samples_properties": data_samples_properties,
         "data_persons_properties": data_persons_properties,
-        "genes_split": genes_split,
+        "genes_selection": genes_selection,
+
         "data_signals_genes_persons": data_signals_genes_persons,
         "data_gene_distribution_report": data_gene_distribution_report,
-        "genes_candidacy": genes_candidacy,
+        "genes_unimodal": genes_unimodal,
+        "genes_multimodal": genes_multimodal,
 
-        "genes_scores": genes_scores,
-        "genes_probabilities": genes_probabilities,
-        "genes_probability": genes_probability,
+        #"genes_scores": genes_scores,
+        #"genes_probabilities": genes_probabilities,
+        #"genes_probability": genes_probability,
 
-        "genes_heritabilities_simple": genes_heritabilities_simple,
-        "genes_heritabilities_complex": genes_heritabilities_complex,
-        "genes_heritability": genes_heritability,
+        #"genes_heritabilities_simple": genes_heritabilities_simple,
+        #"genes_heritabilities_complex": genes_heritabilities_complex,
+        #"genes_heritability": genes_heritability,
     }
 
 
-# Summary
+# Correlations between pairs of genes
 
 
-def access_gene_name(
-    identifier=None,
-    data_gene_annotation=None,
+def calculate_organize_gene_correlations(
+    method=None,
+    threshold_high=None,
+    threshold_low=None,
+    count=None,
+    genes=None,
+    data_signals_genes_persons=None,
 ):
     """
-    Combines elements in ordered pairs.
+    Calculates Pearson correlation coefficients between pairs of genes.
 
     arguments:
-        identifier (str): identifier of gene
-        data_gene_annotation (object): Pandas data frame of genes' annotations
-
-
-    returns:
-        (str): name of gene
+        method (str): method for correlation, pearson, spearman, or kendall
+        threshold_high (float): value must be greater than this threshold
+        threshold_low (float): value must be less than this threshold
+        count (int): minimal count of rows or columns that must
+            pass threshold
+        genes (list<str>): identifiers of genes
+        data_signals_genes_persons (object): Pandas data frame of genes'
+            pan-tissue signals across persons
 
     raises:
 
+    returns:
+        (object): Pandas data frame of genes' pairwise correlations
+
     """
 
-    name = data_gene_annotation.loc[identifier, "gene_name"].replace(".", "-")
-    return name
+    # Organize data.
+    data_signal = data_signals_genes_persons.copy(deep=True)
+
+    # Calculate correlations between gene pairs of their pantissue signals
+    # across persons.
+    # Only collect genes with correlations beyond thresholds.
+    correlations = utility.calculate_pairwise_correlations(
+        method=method,
+        features=genes,
+        data=data_signal,
+    )
+    # Organize data matrix.
+    data_correlation = utility.organize_correlations_matrix(
+        features=genes,
+        correlations=correlations,
+        key="correlation",
+    )
+
+    # Filter genes by their pairwise correlations.
+    data_row = utility.filter_rows_columns_by_threshold_outer_count(
+        data=data_correlation,
+        dimension="row",
+        threshold_high=threshold_high,
+        threshold_low=threshold_low,
+        count=count,
+    )
+    data_column = utility.filter_rows_columns_by_threshold_outer_count(
+        data=data_row,
+        dimension="column",
+        threshold_high=threshold_high,
+        threshold_low=threshold_low,
+        count=count,
+    )
+    print("shape of data after signal filter on samples...")
+    print(data_column.shape)
+
+    # Cluster data.
+    data_cluster = utility.cluster_adjacency_matrix(
+        data=data_column,
+    )
+
+    # Return information.
+    return data_cluster
+
+
+
+# Summary
 
 
 def organize_genes_integration(
@@ -241,7 +302,7 @@ def organize_genes_integration(
     for gene in genes:
         # Access information about gene.
 
-        name = access_gene_name(
+        name = assembly.access_gene_name(
             identifier=gene,
             data_gene_annotation=data_gene_annotation,
         )
@@ -378,142 +439,6 @@ def organize_genes_integration(
     return data
 
 
-# Correlations
-
-
-def calculate_pairwise_signal_correlations(
-    entities=None,
-    data_signals=None,
-):
-    """
-    Collects genes' pantissue signals across persons.
-
-    arguments:
-        entities (list<str>): identifiers of entities
-        data_signals (object): Pandas data frame of entities' signals across
-            observations
-
-    raises:
-
-    returns:
-        (dict): correlation coefficients for pairs of entities
-
-    """
-
-    # Determine orderless, pairwise combinations of genes.
-    pairs = utility.combine_unique_elements_pairwise_order(
-        elements=entities,
-    )
-    print("count of orderless pairs of unique entities:" + str(len(pairs)))
-    utility.print_terminal_partition(level=1)
-
-    # Collect counts and correlations across pairs of features.
-    correlations = dict()
-    # Iterate on pairs of features.
-    for pair in pairs:
-        # Select data for pair of features.
-        data_pair = data_signals.loc[:, list(pair)]
-        # Remove observations with missing values for either feature.
-        data_pair.dropna(
-            axis="index",
-            how="any",
-            inplace=True,
-        )
-        # Determine observations for which pair of features has matching
-        # values.
-        count = data_pair.shape[0]
-        # Calculate correlation.
-        if count > 1:
-            correlation = scipy.stats.pearsonr(
-                data_pair[pair[0]].values,
-                data_pair[pair[1]].values,
-            )[0]
-            pass
-        else:
-            correlation = float("nan")
-            pass
-
-        # Collect information.
-        if not pair[0] in correlations:
-            correlations[pair[0]] = dict()
-            pass
-        correlations[pair[0]][pair[1]] = dict()
-        correlations[pair[0]][pair[1]]["count"] = count
-        correlations[pair[0]][pair[1]]["correlation"] = correlation
-
-        pass
-
-    # Return information.
-    return correlations
-
-
-def organize_correlations_matrix(
-    entities=None,
-    correlations=None,
-):
-    """
-    Collects genes' pantissue signals across persons.
-
-    arguments:
-        entities (list<str>): identifiers of entities
-        (dict): correlation coefficients for pairs of entities
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of correlations between entities
-
-    """
-
-    # Collect counts and correlations across pairs of features.
-    records = list()
-    # Iterate on dimension one of entities.
-    for entity_one in entities:
-        # Collect information.
-        record = dict()
-        record["gene"] = entity_one
-
-        # Iterate on dimension two of entities.
-        for entity_two in entities:
-            # Access value.
-            if entity_two in correlations[entity_one]:
-                correlation = (
-                    correlations[entity_one][entity_two]["correlation"]
-                )
-            else:
-                correlation = float("nan")
-            pass
-            # Collect information.
-            record[entity_two] = correlation
-
-        # Collect information.
-        records.append(record)
-        pass
-
-    # Organize data.
-    data = utility.convert_records_to_dataframe(records=records)
-    data.sort_values(
-        by=["gene"],
-        axis="index",
-        ascending=True,
-        inplace=True,
-    )
-    data.set_index(
-        ["gene"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data.rename_axis(
-        columns="genes",
-        axis="columns",
-        copy=False,
-        inplace=True
-    )
-    # Return information.
-    return data
-
-
 # Rank
 
 def select_rank_genes(
@@ -625,41 +550,47 @@ def write_product(dock=None, information=None):
     path_integration = os.path.join(dock, "integration")
     utility.create_directory(path_integration)
 
-    path_genes_integration = os.path.join(
-        path_integration, "genes_integration.pickle"
+    path_data_correlation_unimodal = os.path.join(
+        path_integration, "data_correlation_genes_unimodal.pickle"
     )
-    path_data_genes_integration = os.path.join(
-        path_integration, "data_genes_integration.pickle"
-    )
-    path_data_genes_correlations = os.path.join(
-        path_integration, "data_genes_correlations.pickle"
-    )
-
-    path_data_genes_selection = os.path.join(
-        path_integration, "data_genes_selection.pickle"
-    )
-    path_data_genes_selection_text = os.path.join(
-        path_integration, "data_genes_selection.tsv"
-    )
-
-    path_export_genes_selection = os.path.join(
-        path_integration, "export_genes_selection.tsv"
-    )
-    path_export_genes_total = os.path.join(
-        path_integration, "export_genes_total.tsv"
-    )
-
-    # Write information to file.
-    with open(path_genes_integration, "wb") as file_product:
-        pickle.dump(
-            information["genes_integration"], file_product
-        )
-    information["data_genes_correlations"].to_pickle(
-        path_data_genes_correlations
+    path_data_correlation_multimodal = os.path.join(
+        path_integration, "data_correlation_genes_multimodal.pickle"
     )
 
     if False:
+        path_genes_integration = os.path.join(
+            path_integration, "genes_integration.pickle"
+        )
+        path_data_genes_integration = os.path.join(
+            path_integration, "data_genes_integration.pickle"
+        )
+        path_data_genes_selection = os.path.join(
+            path_integration, "data_genes_selection.pickle"
+        )
+        path_data_genes_selection_text = os.path.join(
+            path_integration, "data_genes_selection.tsv"
+        )
 
+        path_export_genes_selection = os.path.join(
+            path_integration, "export_genes_selection.tsv"
+        )
+        path_export_genes_total = os.path.join(
+            path_integration, "export_genes_total.tsv"
+        )
+
+    # Write information to file.
+    information["data_correlation_genes_unimodal"].to_pickle(
+        path_data_correlation_unimodal
+    )
+    information["data_correlation_genes_multimodal"].to_pickle(
+        path_data_correlation_multimodal
+    )
+
+    if False:
+        with open(path_genes_integration, "wb") as file_product:
+            pickle.dump(
+                information["genes_integration"], file_product
+            )
         information["data_genes_integration"].to_pickle(
             path_data_genes_integration
         )
@@ -698,8 +629,6 @@ def write_product(dock=None, information=None):
 
 
 ##########################Scrap#########################3
-
-
 
 
 ###########################
@@ -1126,39 +1055,46 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
-    # Select genes integration of methods from candidacy, probability, and
-    # heritability procedures.
-    sets_genes_integration = dict()
-    sets_genes_integration["candidacy"] = source["genes_candidacy"]
-    sets_genes_integration["probability"] = source["genes_probability"]
-    sets_genes_integration["heritability"] = source["genes_heritability"]
-    genes_integration = utility.select_elements_by_sets(
-        names=["candidacy", "probability", "heritability"],
-        sets=sets_genes_integration,
-        count=3,
+    # Calculate correlations between pairs of genes.
+    data_correlation_genes_unimodal = calculate_organize_gene_correlations(
+        method="pearson",
+        threshold_high=0.75, # 1.0, 0.75, 0.5
+        threshold_low=-0.75, # -1.0, -0.75, -0.5
+        count=2, # accommodate the value 1.0 for self pairs (A, A)
+        genes=source["genes_unimodal"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
     )
-    utility.print_terminal_partition(level=2)
-    print(
-        "selection of genes by candidacy, probability, and heritability: " +
-        str(len(genes_integration))
+    print(data_correlation_genes_unimodal)
+    data_correlation_genes_multimodal = calculate_organize_gene_correlations(
+        method="spearman",
+        threshold_high=0.75, # 1.0, 0.75, 0.5
+        threshold_low=-0.75, # -1.0, -0.75, -0.5
+        count=2, # accommodate the value 1.0 for self pairs (A, A)
+        genes=source["genes_multimodal"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
     )
-    utility.print_terminal_partition(level=2)
+    print(data_correlation_genes_multimodal)
 
-    # Calculate correlations between gene pairs of their pantissue signals
-    # across persons.
-    correlations_genes = calculate_pairwise_signal_correlations(
-        entities=genes_integration,
-        data_signals=source["data_signals_genes_persons"],
-    )
-    print("count of genes: " + str(len(correlations_genes.keys())))
-    # Organize data matrix.
-    data_genes_correlations = organize_correlations_matrix(
-        entities=genes_integration,
-        correlations=correlations_genes,
-    )
-    print(data_genes_correlations)
 
     if False:
+
+        # Select genes integration of methods from candidacy, probability, and
+        # heritability procedures.
+        sets_genes_integration = dict()
+        sets_genes_integration["candidacy"] = source["genes_candidacy"]
+        sets_genes_integration["probability"] = source["genes_probability"]
+        sets_genes_integration["heritability"] = source["genes_heritability"]
+        genes_integration = utility.select_elements_by_sets(
+            names=["candidacy", "probability", "heritability"],
+            sets=sets_genes_integration,
+            count=3,
+        )
+        utility.print_terminal_partition(level=2)
+        print(
+            "selection of genes by candidacy, probability, and heritability: " +
+            str(len(genes_integration))
+        )
+        utility.print_terminal_partition(level=2)
 
         # Integrate and organize information about all genes.
         data_genes_integration = organize_genes_integration(
@@ -1195,21 +1131,6 @@ def execute_procedure(dock=None):
         )
         print(data_export_genes_total)
 
-    # Compile information.
-    information = {
-        "genes_integration": genes_integration,
-        #"data_genes_integration": data_genes_integration,
-        "data_genes_correlations": data_genes_correlations,
-        #"data_genes_selection": data_genes_selection,
-        #"data_export_genes_selection": data_export_genes_selection,
-        #"data_export_genes_total": data_export_genes_total,
-    }
-    #Write product information to file.
-    write_product(dock=dock, information=information)
-
-
-    if False:
-
         # Define genes of interest.
         # Genes of interest are few for thorough summary.
         genes_report = define_report_genes(
@@ -1227,6 +1148,19 @@ def execute_procedure(dock=None):
             shuffles=source["shuffles"][0:500],
             genes_scores_distributions=source["genes_scores_distributions"],
         )
+
+    # Compile information.
+    information = {
+        #"genes_integration": genes_integration,
+        #"data_genes_integration": data_genes_integration,
+        "data_correlation_genes_unimodal": data_correlation_genes_unimodal,
+        "data_correlation_genes_multimodal": data_correlation_genes_multimodal,
+        #"data_genes_selection": data_genes_selection,
+        #"data_export_genes_selection": data_export_genes_selection,
+        #"data_export_genes_total": data_export_genes_total,
+    }
+    #Write product information to file.
+    write_product(dock=dock, information=information)
 
     pass
 

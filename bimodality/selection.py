@@ -442,71 +442,6 @@ def include_samples_by_tissues(
 # Signal.
 
 
-def filter_rows_columns_by_threshold_proportion(
-    data=None,
-    dimension=None,
-    threshold=None,
-    proportion=None,
-):
-    """
-    Filters either rows or columns.
-
-    Persistence of a row or column requires at least a specific count of values
-    beyond a specific threshold.
-
-    Filter rows by consideration of values across columns in each row.
-    Filter columns by consideration of values across rows in each column.
-
-    arguments:
-        data (object): Pandas data frame of genes' signals across samples
-        dimension (str): dimension to filter, either "row" or "column"
-        threshold (float): minimal signal
-        proportion (float): minimal proportion of rows or columns that must
-            pass threshold
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals across samples
-
-    """
-
-    def count_true(slice=None, count=None):
-        values = slice.values.tolist()
-        values_true = list(itertools.compress(values, values))
-        return (len(values_true) >= count)
-
-    # Determine count from proportion.
-    if dimension == "row":
-        # Filter rows by consideration of columns for each row.
-        columns = data.shape[1]
-        count = round(proportion * columns)
-    elif dimension == "column":
-        # Filter columns by consideration of rows for each columns.
-        rows = data.shape[0]
-        count = round(proportion * rows)
-
-    # Determine whether values exceed threshold.
-    data_threshold = (data >= threshold)
-    # Determine whether count of values exceed threshold.
-    if dimension == "row":
-        axis = "columns"
-    elif dimension == "column":
-        axis = "index"
-    # This aggregation operation produces a series.
-    data_count = data_threshold.aggregate(
-        lambda slice: count_true(slice=slice, count=count),
-        axis=axis,
-    )
-
-    # Select rows and columns with appropriate values.
-    if dimension == "row":
-        data_pass = data.loc[data_count, : ]
-    elif dimension == "column":
-        data_pass = data.loc[:, data_count]
-    return data_pass
-
-
 def select_samples_genes_signals(
     samples=None,
     data_gene_signal=None
@@ -570,7 +505,7 @@ def select_samples_genes_signals_coverage(
     # Filter genes by their signals across samples.
     # Filter to keep only genes with signals beyond threshold in proportion of
     # samples.
-    data_row = filter_rows_columns_by_threshold_proportion(
+    data_row = utility.filter_rows_columns_by_threshold_proportion(
         data=data_gene_signal,
         dimension="row",
         threshold=threshold,
@@ -581,7 +516,7 @@ def select_samples_genes_signals_coverage(
     # Filter samples by their signals across genes.
     # Filter to keep only samples with signals beyond threshold in proportion
     # of genes.
-    data_column = filter_rows_columns_by_threshold_proportion(
+    data_column = utility.filter_rows_columns_by_threshold_proportion(
         data=data_row,
         dimension="column",
         threshold=threshold,

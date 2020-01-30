@@ -51,14 +51,12 @@ import utility
 
 
 def read_source(
-    source_genes=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        source_genes (str): name of directory from which to obtain genes list
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -77,17 +75,17 @@ def read_source(
     path_persons_properties = os.path.join(
         path_selection, "data_persons_properties.pickle"
     )
+    path_genes_selection = os.path.join(
+        path_selection, "genes.pickle"
+    )
 
-    if source_genes == "selection":
-        path_source = os.path.join(dock, "selection")
-        path_genes = os.path.join(
-            path_source, "genes.pickle"
-        )
-    elif source_genes == "candidacy":
-        path_source = os.path.join(dock, "candidacy")
-        path_genes = os.path.join(
-            path_source, "genes.pickle"
-        )
+    path_candidacy = os.path.join(dock, "candidacy")
+    path_genes_unimodal = os.path.join(
+        path_candidacy, "genes_unimodal.pickle"
+    )
+    path_genes_multimodal = os.path.join(
+        path_candidacy, "genes_multimodal.pickle"
+    )
 
     path_distribution = os.path.join(dock, "distribution")
     path_collection = os.path.join(path_distribution, "collection")
@@ -98,8 +96,13 @@ def read_source(
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     data_persons_properties = pandas.read_pickle(path_persons_properties)
-    with open(path_genes, "rb") as file_source:
-        genes = pickle.load(file_source)
+    with open(path_genes_selection, "rb") as file_source:
+        genes_selection = pickle.load(file_source)
+    with open(path_genes_unimodal, "rb") as file_source:
+        genes_unimodal = pickle.load(file_source)
+    with open(path_genes_multimodal, "rb") as file_source:
+        genes_multimodal = pickle.load(file_source)
+
     data_signals_genes_persons = pandas.read_pickle(
         path_data_signals_genes_persons
     )
@@ -108,7 +111,9 @@ def read_source(
     return {
         "data_gene_annotation": data_gene_annotation,
         "data_persons_properties": data_persons_properties,
-        "genes": genes,
+        "genes_selection": genes_selection,
+        "genes_unimodal": genes_unimodal,
+        "genes_multimodal": genes_multimodal,
         "data_signals_genes_persons": data_signals_genes_persons,
     }
 
@@ -633,8 +638,10 @@ def regress_signal_ordinary_residuals(
             missing="drop",
         )
         report = model.fit()
-        #print(report.summary())
-        #print(dir(report))
+        print(report.summary())
+        utility.print_terminal_partition(level=3)
+        print(dir(report))
+        print(report.params)
         #print(report.pvalues)
 
         # Compile information.
@@ -835,21 +842,20 @@ def execute_procedure(
 
     # Read source information from file.
     source = read_source(
-        source_genes="candidacy", # "selection" or "candidacy"
         dock=dock,
     )
 
     variables = [
-        "female",
-        #"age",
-        #"body",
+        #"female",
+        "age",
+        "body",
         "hardiness",
-        "season_sequence",
+        #"season_sequence",
 
         "genotype_1",
-        #"genotype_2",
-        "genotype_3",
-        #"genotype_4",
+        "genotype_2",
+        #"genotype_3",
+        "genotype_4",
         #"genotype_5",
         #"genotype_6",
         #"genotype_7",
@@ -857,28 +863,28 @@ def execute_procedure(
         #"genotype_9",
         #"genotype_10",
 
-        #"delay",
+        "delay",
 
         "facilities_1",
         "facilities_2",
         "facilities_3",
 
         "batches_isolation_1",
-        #"batches_isolation_2",
-        #"batches_isolation_3",
-        #"batches_isolation_4",
+        "batches_isolation_2",
+        "batches_isolation_3",
+        "batches_isolation_4",
         #"batches_isolation_5",
         #"batches_isolation_6",
         #"batches_isolation_7",
-        "batches_isolation_8",
+        #"batches_isolation_8",
         #"batches_isolation_9",
-        #"batches_isolation_10",
+        "batches_isolation_10",
 
-        #"batches_analysis_1",
+        "batches_analysis_1",
         #"batches_analysis_2",
-        #"batches_analysis_3",
+        "batches_analysis_3",
         #"batches_analysis_4",
-        #"batches_analysis_5",
+        "batches_analysis_5",
     ]
 
     # Remove all columns from persons properties except the covariates
@@ -906,7 +912,7 @@ def execute_procedure(
     # Regress.
     # Iterate on genes.
     #genes_iteration = random.sample(source["genes"], 1000)
-    genes_iteration = source["genes"]#[0:100]
+    genes_iteration = source["genes_unimodal"]#[0:100]
     records = list()
     for gene in genes_iteration:
         report = regress_signal_ordinary_residuals(

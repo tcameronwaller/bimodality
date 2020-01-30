@@ -19,11 +19,13 @@ import gzip
 import shutil
 import textwrap
 import itertools
-import sklearn
 
 # Relevant
 
 import pandas
+import sklearn
+import scipy
+import numpy
 
 # Custom
 
@@ -1238,6 +1240,425 @@ def calculate_principal_components(
     }
     # Return information.
     return information
+
+
+def calculate_pairwise_correlations(
+    method=None,
+    features=None,
+    data=None,
+):
+    """
+    Calculates correlation coefficients and probabilities across observations
+        between pairs of features.
+
+    arguments:
+        method (str): method for correlation, pearson, spearman, or kendall
+        features (list<str>): names of features
+        data (object): Pandas data frame of features (columns) across
+            observations (rows)
+
+    raises:
+
+    returns:
+        (dict): correlation coefficients and probabilities for pairs of
+            features
+
+    """
+
+    # Organize data.
+    data_copy = data.copy(deep=True)
+
+    # Determine ordered, pairwise combinations of genes.
+    pairs = combine_unique_elements_pairwise_order(
+        elements=features,
+    )
+    #print("count of orderless pairs of unique entities:" + str(len(pairs)))
+    #utility.print_terminal_partition(level=1)
+
+    # Collect counts and correlations across pairs of features.
+    correlations = dict()
+    # Iterate on features.
+    for feature in features:
+        correlations[feature] = dict()
+        correlations[feature][feature] = dict()
+        correlations[feature][feature]["count"] = float("nan")
+        correlations[feature][feature]["correlation"] = 1.0
+        correlations[feature][feature]["probability"] = float("nan")
+
+    # Iterate on pairs of features.
+    for pair in pairs:
+        # Select data for pair of features.
+        data_pair = data_copy.loc[:, list(pair)]
+        # Remove observations with missing values for either feature.
+        data_pair.dropna(
+            axis="index",
+            how="any",
+            inplace=True,
+        )
+        # Determine observations for which pair of features has matching
+        # values.
+        count = data_pair.shape[0]
+        # Calculate correlation.
+        if count > 1:
+            if method == "pearson":
+                correlation, probability = scipy.stats.pearsonr(
+                    data_pair[pair[0]].values,
+                    data_pair[pair[1]].values,
+                )
+            elif method == "spearman":
+                correlation, probability = scipy.stats.spearmanr(
+                    data_pair[pair[0]].values,
+                    data_pair[pair[1]].values,
+                )
+            elif method == "kendall":
+                correlation, probability = scipy.stats.kendalltau(
+                    data_pair[pair[0]].values,
+                    data_pair[pair[1]].values,
+                )
+            pass
+        else:
+            correlation = float("nan")
+            probability = float("nan")
+            pass
+
+        # Collect information.
+        if not pair[0] in correlations:
+            correlations[pair[0]] = dict()
+            pass
+        correlations[pair[0]][pair[1]] = dict()
+        correlations[pair[0]][pair[1]]["count"] = count
+        correlations[pair[0]][pair[1]]["correlation"] = correlation
+        correlations[pair[0]][pair[1]]["probability"] = probability
+
+        pass
+
+    # Return information.
+    return correlations
+
+
+def organize_correlations_matrix(
+    features=None,
+    correlations=None,
+    key=None,
+):
+    """
+    Organizes a matrix of correlation coefficients.
+
+    arguments:
+        features (list<str>): names of features
+        correlations (dict): correlation coefficients and probabilities for
+            pairs of features
+        key (str): key to extract values, either correlation or probability
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of correlation coefficients
+
+    """
+
+    # Collect counts and correlations across pairs of features.
+    records = list()
+    # Iterate on dimension one of entities.
+    for feature_one in features:
+        # Collect information.
+        record = dict()
+        record["feature"] = feature_one
+
+        # Iterate on dimension two of entities.
+        for feature_two in features:
+            # Access value.
+            if feature_two in correlations[feature_one]:
+                value = (
+                    correlations[feature_one][feature_two][key]
+                )
+            else:
+                value = float("nan")
+            pass
+            # Collect information.
+            record[feature_two] = value
+
+        # Collect information.
+        records.append(record)
+        pass
+
+    # Organize data.
+    data = convert_records_to_dataframe(records=records)
+    data.sort_values(
+        by=["feature"],
+        axis="index",
+        ascending=True,
+        inplace=True,
+    )
+    data.set_index(
+        ["feature"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data.rename_axis(
+        columns="features",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    # Return information.
+    return data
+
+
+def cluster_adjacency_matrix(
+    data=None,
+):
+    """
+    Organizes a matrix of correlation coefficients.
+
+    arguments:
+        data (object): Pandas data frame of values
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of values
+
+    """
+
+    data = data.copy(deep=True)
+    # Cluster.
+    columns = data.columns.to_list()
+    rows = data.index.to_list()
+    matrix = numpy.transpose(data.values)
+    linkage = scipy.cluster.hierarchy.linkage(
+        matrix,
+        method="average", # "single", "average"
+        metric="euclidean",
+        optimal_ordering=False,
+    )
+    dendrogram = scipy.cluster.hierarchy.dendrogram(
+        linkage,
+    )
+    dimension = len(matrix)
+    # Access seriation from dendrogram leaves.
+    leaves = dendrogram["leaves"]
+    # Generate new matrix with values of 1.0 that will persist on the diagonal.
+    #matrix_order = numpy.zeros((dimension, dimension))
+    matrix_cluster = numpy.full(
+        (dimension, dimension),
+        fill_value=1.0,
+    )
+    a,b = numpy.triu_indices(dimension, k=1)
+    matrix_cluster[a,b] = (
+        matrix[[leaves[i] for i in a], [leaves[j] for j in b]]
+    )
+    matrix_cluster[b,a] = matrix_cluster[a,b]
+    data_cluster = pandas.DataFrame(
+        data=matrix_cluster,
+        index=rows,
+        columns=columns,
+    )
+    # Return information.
+    return data_cluster
+
+
+def filter_rows_columns_by_threshold_proportion(
+    data=None,
+    dimension=None,
+    threshold=None,
+    proportion=None,
+):
+    """
+    Filters either rows or columns by whether a certain proportion of values
+    are greater than a minimal thresholds.
+
+    Persistence of a row or column requires at least a specific proportion of
+    values beyond a specific threshold.
+
+    Filter rows by consideration of values across columns in each row.
+    Filter columns by consideration of values across rows in each column.
+
+    arguments:
+        data (object): Pandas data frame of values
+        dimension (str): dimension to filter, either "row" or "column"
+        threshold (float): minimal signal
+        proportion (float): minimal proportion of rows or columns that must
+            pass threshold
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of values
+
+    """
+
+    def count_true(slice=None, count=None):
+        values = slice.values.tolist()
+        values_true = list(itertools.compress(values, values))
+        return (len(values_true) >= count)
+
+    # Determine count from proportion.
+    if dimension == "row":
+        # Filter rows by consideration of columns for each row.
+        columns = data.shape[1]
+        count = round(proportion * columns)
+    elif dimension == "column":
+        # Filter columns by consideration of rows for each columns.
+        rows = data.shape[0]
+        count = round(proportion * rows)
+
+    # Determine whether values exceed threshold.
+    data_threshold = (data >= threshold)
+    # Determine whether count of values exceed threshold.
+    if dimension == "row":
+        axis = "columns"
+    elif dimension == "column":
+        axis = "index"
+    # This aggregation operation produces a series.
+    data_count = data_threshold.aggregate(
+        lambda slice: count_true(slice=slice, count=count),
+        axis=axis,
+    )
+
+    # Select rows and columns with appropriate values.
+    if dimension == "row":
+        data_pass = data.loc[data_count, : ]
+    elif dimension == "column":
+        data_pass = data.loc[:, data_count]
+    return data_pass
+
+
+def filter_rows_columns_by_threshold_outer_proportion(
+    data=None,
+    dimension=None,
+    threshold_high=None,
+    threshold_low=None,
+    proportion=None,
+):
+    """
+    Filters either rows or columns by whether a certain proportion of values
+    are outside of low and high thresholds.
+
+    Persistence of a row or column requires at least a specific proportion of
+    values beyond a specific threshold.
+
+    Filter rows by consideration of values across columns in each row.
+    Filter columns by consideration of values across rows in each column.
+
+    arguments:
+        data (object): Pandas data frame of values
+        dimension (str): dimension to filter, either "row" or "column"
+        threshold_high (float): value must be greater than this threshold
+        threshold_low (float): value must be less than this threshold
+        proportion (float): minimal proportion of rows or columns that must
+            pass threshold
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of values
+
+    """
+
+    def count_true(slice=None, count=None):
+        values = slice.values.tolist()
+        values_true = list(itertools.compress(values, values))
+        return (len(values_true) >= count)
+
+    # Copy data.
+    data = data.copy(deep=True)
+
+    # Determine count from proportion.
+    if dimension == "row":
+        # Filter rows by consideration of columns for each row.
+        columns = data.shape[1]
+        count = round(proportion * columns)
+    elif dimension == "column":
+        # Filter columns by consideration of rows for each columns.
+        rows = data.shape[0]
+        count = round(proportion * rows)
+
+    # Determine whether values exceed threshold.
+    data_threshold = data.applymap(
+        lambda value: ((value <= threshold_low) or (threshold_high <= value))
+    )
+    # Determine whether count of values exceed threshold.
+    if dimension == "row":
+        axis = "columns"
+    elif dimension == "column":
+        axis = "index"
+    # This aggregation operation produces a series.
+    data_count = data_threshold.aggregate(
+        lambda slice: count_true(slice=slice, count=count),
+        axis=axis,
+    )
+
+    # Select rows and columns with appropriate values.
+    if dimension == "row":
+        data_pass = data.loc[data_count, : ]
+    elif dimension == "column":
+        data_pass = data.loc[:, data_count]
+    return data_pass
+
+
+def filter_rows_columns_by_threshold_outer_count(
+    data=None,
+    dimension=None,
+    threshold_high=None,
+    threshold_low=None,
+    count=None,
+):
+    """
+    Filters either rows or columns by whether a certain count of values
+    are outside of low and high thresholds.
+
+    Persistence of a row or column requires at least a specific count of
+    values beyond a specific threshold.
+
+    Filter rows by consideration of values across columns in each row.
+    Filter columns by consideration of values across rows in each column.
+
+    arguments:
+        data (object): Pandas data frame of values
+        dimension (str): dimension to filter, either "row" or "column"
+        threshold_high (float): value must be greater than this threshold
+        threshold_low (float): value must be less than this threshold
+        count (int): minimal count of rows or columns that must
+            pass threshold
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of values
+
+    """
+
+    def count_true(slice=None, count=None):
+        values = slice.values.tolist()
+        values_true = list(itertools.compress(values, values))
+        return (len(values_true) >= count)
+
+    # Copy data.
+    data = data.copy(deep=True)
+
+    # Determine whether values exceed threshold.
+    data_threshold = data.applymap(
+        lambda value: ((value <= threshold_low) or (threshold_high <= value))
+    )
+    # Determine whether count of values exceed threshold.
+    if dimension == "row":
+        axis = "columns"
+    elif dimension == "column":
+        axis = "index"
+    # This aggregation operation produces a series.
+    data_count = data_threshold.aggregate(
+        lambda slice: count_true(slice=slice, count=count),
+        axis=axis,
+    )
+
+    # Select rows and columns with appropriate values.
+    if dimension == "row":
+        data_pass = data.loc[data_count, : ]
+    elif dimension == "column":
+        data_pass = data.loc[:, data_count]
+    return data_pass
 
 
 # Human Metabolome Database (HMDB).
