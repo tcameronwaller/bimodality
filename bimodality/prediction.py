@@ -845,6 +845,9 @@ def execute_procedure(
         dock=dock,
     )
 
+    utility.print_terminal_partition(level=1)
+    print(source["data_persons_properties"])
+
     variables = [
         "female",
         "age",
@@ -857,11 +860,13 @@ def execute_procedure(
         "genotype_3",
         "genotype_4",
         "genotype_5",
-        "genotype_6",
-        "genotype_7",
-        "genotype_8",
-        "genotype_9",
-        "genotype_10",
+        #"genotype_6", # <- omit
+        #"genotype_7", # <- omit
+        #"genotype_8", # <- omit
+        #"genotype_9", # <- omit
+        #"genotype_10", # <- omit
+
+        "delay",
 
         "tissues_1",
         "tissues_2",
@@ -873,8 +878,6 @@ def execute_procedure(
         #"tissues_8", # <- omit
         #"tissues_9", # <- omit
         #"tissues_10", # <- omit
-
-        "delay",
 
         "facilities_1",
         "facilities_2",

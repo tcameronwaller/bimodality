@@ -1607,9 +1607,6 @@ def organize_heritability_covariates(
     return information
 
 
-# TODO: This function is not done yet...
-# TODO: I need to calculate principal components only on 631 persons for regression...
-
 def extract_organize_persons_properties(
     persons=None,
     data_samples_tissues_persons=None,
@@ -1651,12 +1648,20 @@ def extract_organize_persons_properties(
         data_samples_tissues_persons=data_samples_tissues_persons,
     )
 
-    # TODO: Important...
-    # Calculate principal components only on the 631 persons for regression...
+    # Select persons for further analysis.
+    # Calculation of principal components on categorical variables will only
+    # consider persons relevant to regression.
+    # 11775 samples
+    data_samples_persons_selection = data_samples_genotypes.loc[
+        data_samples_genotypes["person"].isin(persons), :
+    ]
+    utility.print_terminal_partition(level=2)
+    print("data_samples_persons_selection")
+    print(data_samples_persons_selection)
 
     # Extract information about persons' properties.
     data_persons_properties_raw = extract_persons_properties(
-        data_samples_tissues_persons=data_samples_genotypes,
+        data_samples_tissues_persons=data_samples_persons_selection,
     )
     utility.print_terminal_partition(level=2)
     print("data_persons_properties_raw")
@@ -1700,7 +1705,7 @@ def extract_organize_persons_properties(
 
     # Extract information about samples, tissues, and persons.
     collection = extract_persons_tissues_samples(
-        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_samples_tissues_persons=data_samples_persons_selection,
     )
     # Count tissues per person and persons per tissue.
     counts = count_tissues_persons_groups(
