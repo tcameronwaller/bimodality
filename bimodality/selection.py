@@ -16,6 +16,7 @@ import math
 import statistics
 import pickle
 import itertools
+import copy
 
 # Relevant
 
@@ -216,7 +217,7 @@ def summarize_samples_genes(
 
 
 ##########
-# Select genes and samples.
+# Select genes, samples, and persons.
 
 # Genes.
 
@@ -566,8 +567,226 @@ def select_samples_tissues_persons(
     return data_samples_selection
 
 
+# Select persons.
+
+
+def select_persons_by_tissues(
+    count=None,
+    data_samples_tissues_persons=None,
+):
+    """
+    Select persons for whom samples are available for a minimal count of
+        tissues.
+
+    arguments:
+        count (int): Minimal count of major tissues for which each person must
+            have samples
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+
+    raises:
+
+    returns:
+        (list<str>): identifiers of persons
+    """
+
+    # Organize data.
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    data_samples.rename_axis(
+        "",
+        axis="columns",
+        inplace=True,
+    )
+    data_samples.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_samples = data_samples.loc[
+        :, data_samples.columns.isin(["person", "tissue_major"])
+    ]
+    data_samples.drop_duplicates(
+        subset=None,
+        keep="first",
+        inplace=True,
+    )
+    # At this point, data represent unique pairs of persons and major tissues
+    # for which they have samples.
+    # Count tissues per person and persons per tissue.
+    data_persons_tissues = count_factor_group_elements(
+        factor="person",
+        name_factor="person",
+        name_elements="tissues",
+        data=data_samples,
+    )
+    # Select persons by counts of tissues for which they have samples.
+    data_selection = data_persons_tissues.loc[
+        (data_persons_tissues["tissues"] >= 10), :
+    ]
+    # Extract identifiers of persons.
+    persons = utility.collect_unique_elements(
+        elements_original=data_selection["person"].to_list()
+    )
+    # Return information.
+    return persons
+
+
 ##########
-# Organize information for further analyses.
+# Organize information for regression and other analysis.
+
+
+def report_genotype_imputation(
+    columns=None,
+    data_original=None,
+    data_novel=None,
+):
+    """
+    Reports on extent of imputation.
+
+    arguments:
+        columns (list<str>): names of relevant columns
+        data_original (object): Pandas data frame of persons and tissues for
+            all samples
+        data_novel (object): Pandas data frame of persons and tissues for all
+            samples
+
+    raises:
+
+    returns:
+    """
+
+    valid = dict()
+    for type in ["original", "novel"]:
+        if type == "original":
+            data = data_original.copy(deep=True)
+        elif type == "novel":
+            data = data_novel.copy(deep=True)
+        data.reset_index(
+            level=None,
+            inplace=True
+        )
+        data = data.loc[
+            :, data.columns.isin(columns)
+        ]
+        data.drop_duplicates(
+            subset=None,
+            keep="first",
+            inplace=True,
+        )
+        data.set_index(
+            ["person"],
+            append=False,
+            drop=True,
+            inplace=True
+        )
+        data.dropna(
+            subset=None,
+            axis="index",
+            how="any",
+            thresh=1,
+            inplace=True,
+        )
+        if type == "original":
+            valid["original"] = data.shape[0]
+        elif type == "novel":
+            valid["novel"] = data.shape[0]
+        pass
+    utility.print_terminal_partition(level=3)
+    print("Before imputation...")
+    print("Persons with valid genotypes: " + str(valid["original"]))
+    utility.print_terminal_partition(level=3)
+    print("After imputation...")
+    print("Persons with valid genotypes: " + str(valid["novel"]))
+
+    pass
+
+
+def impute_persons_genotypes(
+    persons=None,
+    data_samples_tissues_persons=None,
+):
+    """
+    Extracts and organizes information about samples and genes for further
+    analysis.
+
+    arguments:
+        persons (list<str>): identifiers of persons
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues for all samples
+
+    """
+
+    # Organize data.
+    data = data_samples_tissues_persons.copy(deep=True)
+    data_genotypes = data_samples_tissues_persons.copy(deep=True)
+    data_genotypes.reset_index(
+        level=None,
+        inplace=True
+    )
+    genotypes = [
+        "genotype_1",
+        "genotype_2",
+        "genotype_3",
+        "genotype_4",
+        "genotype_5",
+        "genotype_6",
+        "genotype_7",
+        "genotype_8",
+        "genotype_9",
+        "genotype_10",
+    ]
+    columns = copy.deepcopy(genotypes)
+    columns.append("person")
+    data_genotypes = data_genotypes.loc[
+        :, data_genotypes.columns.isin(columns)
+    ]
+    data_genotypes.drop_duplicates(
+        subset=None,
+        keep="first",
+        inplace=True,
+    )
+    data_genotypes.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
+    # Calculate values for imputation.
+    # Calculate values for imputation from all available persons' genotypes.
+    imputations = data_genotypes.aggregate(
+        lambda x: x.mean()
+    )
+    #imputations = series_imputation.to_dict()
+    # Insert imputations to selections of persons and tissues.
+    # This step should only fill missing values in genotype columns.
+    # "Values not in the dict/Series/DataFrame will not be filled."
+    if False:
+        data_copy.apply(
+            lambda x: x.fillna(
+                imputations[x.name],
+                inplace=True,
+            ),
+            axis="index",
+        )
+    data.fillna(
+        value=imputations,
+        #axis="columns",
+        inplace=True,
+    )
+    # Report on extent of imputation.
+    report_genotype_imputation(
+        columns=columns,
+        data_original=data_samples_tissues_persons,
+        data_novel=data,
+    )
+
+    # Return information.
+    return data
 
 
 # Extract information about samples, tissues, and persons.
@@ -851,6 +1070,10 @@ def extract_persons_properties(
             keep="first",
             inplace=True,
         )
+        data_novel["tissues"] = collect_person_unique_sample_values(
+            values=data_original["tissue_major"].dropna().to_list(),
+            delimiter=",",
+        )
         data_novel["facilities"] = collect_person_unique_sample_values(
             values=data_original["facilities"].dropna().to_list(),
             delimiter=",",
@@ -869,7 +1092,7 @@ def extract_persons_properties(
         )
 
     # Organize data.
-    data_collection.reindex()
+    #data_collection.reindex()
     data_collection.set_index(
         ["person"],
         append=False,
@@ -1003,6 +1226,10 @@ def organize_persons_properties_categories(
 
     # Extract and collect all unique values of facilities and batches across
     # all persons.
+    tissues = collect_persons_unique_values(
+        values=data_copy["tissues"].dropna().to_list(),
+        delimiter=",",
+    )
     facilities = collect_persons_unique_values(
         values=data_copy["facilities"].dropna().to_list(),
         delimiter=",",
@@ -1018,6 +1245,7 @@ def organize_persons_properties_categories(
 
     # Summarize facilities and batches.
     utility.print_terminal_partition(level=2)
+    print("Count of unique tissues: " + str(len(tissues)))
     print("Count of unique facilities: " + str(len(facilities)))
     print("Count of unique isolation batches: " + str(len(batches_isolation)))
     print("Count of unique analysis batches: " + str(len(batches_analysis)))
@@ -1026,6 +1254,12 @@ def organize_persons_properties_categories(
     # Create two-dimensional matrices to represent persons' categories.
     # Persons have values of zero (False) or one (True) to indicate whether
     # they had a sample in each facility or batch.
+    data_tissues = expand_persons_categories_matrix(
+        category="tissues",
+        values=tissues,
+        delimiter=",",
+        data=data_copy,
+    )
     data_facilities = expand_persons_categories_matrix(
         category="facilities",
         values=facilities,
@@ -1052,21 +1286,36 @@ def organize_persons_properties_categories(
     )
 
     # Reduce dimensionality.
-    report_facilities = utility.calculate_principal_components(
-        data=data_facilities,
-        components=3,
+    utility.print_terminal_partition(level=2)
+    print("tissues")
+    report_tissues = utility.calculate_principal_components(
+        data=data_tissues,
+        components=10,
         report=True,
     )
+    utility.print_terminal_partition(level=2)
+    print("facilities")
+    report_facilities = utility.calculate_principal_components(
+        data=data_facilities,
+        components=4,
+        report=True,
+    )
+    utility.print_terminal_partition(level=2)
+    print("batches_isolation")
     report_batches_isolation = utility.calculate_principal_components(
         data=data_batches_isolation,
         components=10,
         report=True,
     )
+    utility.print_terminal_partition(level=2)
+    print("batches_analysis")
     report_batches_analysis = utility.calculate_principal_components(
         data=data_batches_analysis,
-        components=5,
+        components=10,
         report=True,
     )
+    utility.print_terminal_partition(level=2)
+    print("batches")
     report_batches = utility.calculate_principal_components(
         data=data_batches,
         components=10,
@@ -1075,6 +1324,7 @@ def organize_persons_properties_categories(
 
     # Compile information.
     information = dict()
+    information["tissues"] = report_tissues
     information["facilities"] = report_facilities
     information["batches_isolation"] = report_batches_isolation
     information["batches_analysis"] = report_batches_analysis
@@ -1153,6 +1403,7 @@ def organize_persons_properties(
     bin = organize_persons_properties_categories(
         data_persons_properties_raw=data_persons_properties_raw,
     )
+    data_tissues = bin["tissues"]["data_observations_components"]
     data_facilities = bin["facilities"]["data_observations_components"]
     data_batches_isolation = bin["batches_isolation"][
         "data_observations_components"
@@ -1161,6 +1412,11 @@ def organize_persons_properties(
         "data_observations_components"
     ]
     # Replace persons' raw properties.
+    data_persons_properties = insert_components(
+        prefix="tissues",
+        data_components=data_tissues,
+        data_collection=data_persons_properties,
+    )
     data_persons_properties = insert_components(
         prefix="facilities",
         data_components=data_facilities,
@@ -1179,7 +1435,10 @@ def organize_persons_properties(
 
     # Organize variables for regression.
     data_persons_properties["female"] = data_persons_properties.apply(
-        lambda row: 1 if (row["sex"] == "female") else 0,
+        lambda row:
+            1 if (row["sex"] == "female") else
+            (0 if (row["sex"] == "male") else
+            float("nan")),
         axis="columns",
     )
     data_persons_properties["season_sequence"] = data_persons_properties.apply(
@@ -1275,6 +1534,7 @@ def count_persons_sex_age(
 
 
 def organize_heritability_covariates(
+    variables=None,
     data_persons_properties=None,
 ):
     """
@@ -1284,6 +1544,7 @@ def organize_heritability_covariates(
     for each person for use in heritability analysis in GCTA.
 
     arguments:
+        variables (list<str>): names of variables for regression
         data_persons_properties (object): Pandas data frame of persons their
             properties
 
@@ -1312,10 +1573,12 @@ def organize_heritability_covariates(
         "person",
     ]]
     # Extract categorical covariates.
+    # Do not use these categorical covariates.
+    # Instead, use the quantitative adaptations.
     data_copy = data_persons_properties.copy(deep=True)
     data_persons_categories = data_copy.loc[
         :, data_copy.columns.isin([
-            "person", "family", "sex", "season"
+            "family", "person", "sex", "season"
         ])
     ]
     data_persons_categories = data_persons_categories[[
@@ -1325,20 +1588,14 @@ def organize_heritability_covariates(
         "season",
     ]]
     # Extract quantitative covariates.
+    columns = copy.deepcopy(variables)
+    columns.insert(0, "person")
+    columns.insert(0, "family")
     data_copy = data_persons_properties.copy(deep=True)
     data_persons_quantities = data_copy.loc[
-        :, data_copy.columns.isin([
-            "person", "family", "age", "body", "hardiness", "delay"
-        ])
+        :, data_copy.columns.isin(columns)
     ]
-    data_persons_quantities = data_persons_quantities[[
-        "family",
-        "person",
-        "age",
-        "body",
-        "hardiness",
-        "delay",
-    ]]
+    data_persons_quantities = data_persons_quantities[[*columns]]
 
     # Compile information.
     information = {
@@ -1346,12 +1603,15 @@ def organize_heritability_covariates(
         "data_persons_categories": data_persons_categories,
         "data_persons_quantities": data_persons_quantities,
     }
-
     # Return information.
     return information
 
 
-def extract_organize_information(
+# TODO: This function is not done yet...
+# TODO: I need to calculate principal components only on 631 persons for regression...
+
+def extract_organize_persons_properties(
+    persons=None,
     data_samples_tissues_persons=None,
     data_gene_signal=None,
 ):
@@ -1360,6 +1620,7 @@ def extract_organize_information(
     analysis.
 
     arguments:
+        persons (list<str>): identifiers of persons
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples
         data_gene_signal (object): Pandas data frame of genes' signals across
@@ -1384,6 +1645,59 @@ def extract_organize_information(
         data_gene_sample=data_transposition,
     )
 
+    # Impute missing genotypes.
+    data_samples_genotypes = impute_persons_genotypes(
+        persons=persons,
+        data_samples_tissues_persons=data_samples_tissues_persons,
+    )
+
+    # TODO: Important...
+    # Calculate principal components only on the 631 persons for regression...
+
+    # Extract information about persons' properties.
+    data_persons_properties_raw = extract_persons_properties(
+        data_samples_tissues_persons=data_samples_genotypes,
+    )
+    utility.print_terminal_partition(level=2)
+    print("data_persons_properties_raw")
+    print(data_persons_properties_raw)
+
+    # Expand covariates.
+    # Prepare covariates for regression.
+    data_persons_properties = organize_persons_properties(
+        data_persons_properties_raw=data_persons_properties_raw,
+    )
+    utility.print_terminal_partition(level=2)
+    print("data_persons_properties")
+    print(data_persons_properties)
+
+    # Define variables for regression.
+    variables = [
+        "female",
+        "age",
+        "body",
+        "hardiness",
+        "season_sequence",
+
+        "delay",
+
+        "tissues_1",
+        "tissues_2",
+        "tissues_3",
+
+        "facilities_1",
+        "facilities_2",
+        "facilities_3",
+
+        "batches_isolation_1",
+        "batches_isolation_2",
+        "batches_isolation_3",
+
+        "batches_analysis_1",
+        "batches_analysis_2",
+        "batches_analysis_3",
+    ]
+
     # Extract information about samples, tissues, and persons.
     collection = extract_persons_tissues_samples(
         data_samples_tissues_persons=data_samples_tissues_persons,
@@ -1392,25 +1706,14 @@ def extract_organize_information(
     counts = count_tissues_persons_groups(
         data_samples_tissues_persons=data_samples_tissues_persons,
     )
-
-    # Extract information about persons' properties.
-    data_persons_properties_raw = extract_persons_properties(
-        data_samples_tissues_persons=data_samples_tissues_persons,
-    )
-
-    # Expand covariates.
-    # Prepare covariates for regression.
-    data_persons_properties = organize_persons_properties(
-        data_persons_properties_raw=data_persons_properties_raw,
-    )
-
     # Count persons in groups by sex and age.
     data_persons_sex_age_counts = count_persons_sex_age(
         data_persons_properties=data_persons_properties_raw,
     )
     # Organize information for heritability analysis.
     heritability = organize_heritability_covariates(
-        data_persons_properties=data_persons_properties_raw,
+        variables=variables,
+        data_persons_properties=data_persons_properties,
     )
 
     # Compile information.
@@ -1430,6 +1733,9 @@ def extract_organize_information(
 
         "data_persons_properties_raw": data_persons_properties_raw,
         "data_persons_properties": data_persons_properties,
+
+        "variables": variables,
+
         "data_families_persons": heritability["data_families_persons"],
         "data_persons_categories": heritability["data_persons_categories"],
         "data_persons_quantities": heritability["data_persons_quantities"],
@@ -1611,11 +1917,26 @@ def select_organize_samples_genes_signals(
     # Extract identifiers of genes.
     genes = data_gene_signal_selection.index.to_list()
 
+    # Select persons with adequate sample coverage of multiple tissues.
+    persons_selection = select_persons_by_tissues(
+        count=10,
+        data_samples_tissues_persons=data_samples_tissues_persons_selection,
+    )
+    utility.print_terminal_partition(level=2)
+    utility.print_terminal_partition(level=3)
+    print("count of persons: " + str(len(persons_selection)))
+    utility.print_terminal_partition(level=3)
+
     # Extract and organize information for subsequent analyses.
-    information = extract_organize_information(
+    # Calculate mean principal components on genotype and introduce for persons
+    # with missing values of these genotypes.
+    # Organize information about persons for regression analysis.
+    information = extract_organize_persons_properties(
+        persons=persons_selection,
         data_samples_tissues_persons=data_samples_tissues_persons_selection,
         data_gene_signal=data_gene_signal_selection,
     )
+
     # Compile information.
     information["data_gene_annotation_gtex"] = data_gene_annotation_gtex
     information["data_gene_annotation_gencode"] = data_gene_annotation_gencode

@@ -638,10 +638,10 @@ def regress_signal_ordinary_residuals(
             missing="drop",
         )
         report = model.fit()
-        print(report.summary())
-        utility.print_terminal_partition(level=3)
-        print(dir(report))
-        print(report.params)
+        #print(report.summary())
+        #utility.print_terminal_partition(level=3)
+        #print(dir(report))
+        #print(report.params)
         #print(report.pvalues)
 
         # Compile information.
@@ -846,45 +846,61 @@ def execute_procedure(
     )
 
     variables = [
-        #"female",
+        "female",
         "age",
         "body",
         "hardiness",
-        #"season_sequence",
+        "season_sequence",
 
         "genotype_1",
         "genotype_2",
-        #"genotype_3",
+        "genotype_3",
         "genotype_4",
-        #"genotype_5",
-        #"genotype_6",
-        #"genotype_7",
-        #"genotype_8",
-        #"genotype_9",
-        #"genotype_10",
+        "genotype_5",
+        "genotype_6",
+        "genotype_7",
+        "genotype_8",
+        "genotype_9",
+        "genotype_10",
+
+        "tissues_1",
+        "tissues_2",
+        "tissues_3",
+        #"tissues_4", # <- omit
+        #"tissues_5", # <- omit
+        #"tissues_6", # <- omit
+        #"tissues_7", # <- omit
+        #"tissues_8", # <- omit
+        #"tissues_9", # <- omit
+        #"tissues_10", # <- omit
 
         "delay",
 
         "facilities_1",
         "facilities_2",
-        "facilities_3",
+        #"facilities_3", # <- omit
 
         "batches_isolation_1",
         "batches_isolation_2",
         "batches_isolation_3",
-        "batches_isolation_4",
-        #"batches_isolation_5",
-        #"batches_isolation_6",
-        #"batches_isolation_7",
-        #"batches_isolation_8",
-        #"batches_isolation_9",
-        "batches_isolation_10",
+        #"batches_isolation_4", # <- omit
+        #"batches_isolation_5", # <- omit
+        #"batches_isolation_6", # <- omit
+        #"batches_isolation_7", # <- omit
+        #"batches_isolation_8", # <- omit
+        #"batches_isolation_9", # <- omit
+        #"batches_isolation_10", # <- omit
 
         "batches_analysis_1",
-        #"batches_analysis_2",
+        "batches_analysis_2",
         "batches_analysis_3",
-        #"batches_analysis_4",
-        "batches_analysis_5",
+        #"batches_analysis_4", # <- omit
+        #"batches_analysis_5", # <- omit
+        #"batches_analysis_6", # <- omit
+        #"batches_analysis_7", # <- omit
+        #"batches_analysis_8", # <- omit
+        #"batches_analysis_9", # <- omit
+        #"batches_analysis_10", # <- omit
     ]
 
     # Remove all columns from persons properties except the covariates
@@ -912,7 +928,7 @@ def execute_procedure(
     # Regress.
     # Iterate on genes.
     #genes_iteration = random.sample(source["genes"], 1000)
-    genes_iteration = source["genes_unimodal"]#[0:100]
+    genes_iteration = source["genes_multimodal"]#[0:100]
     records = list()
     for gene in genes_iteration:
         report = regress_signal_ordinary_residuals(
