@@ -131,11 +131,11 @@ def define_regression_variables():
     raises:
 
     returns:
-        (list<str>): names of independent variables for regression
+        (dict<list<str>>): names of independent variables for regression
 
     """
 
-    variables = [
+    independence = [
         "female",
         "age",
         "body",
@@ -192,8 +192,21 @@ def define_regression_variables():
         #"batches_analysis_9", # <- omit
         #"batches_analysis_10", # <- omit
     ]
+    hypothesis = [
+        "female",
+        "age",
+        "body",
+        "hardiness",
+        "season_sequence",
+    ]
 
-    return variables
+    # Compile information.
+    information = dict()
+    information["independence"] = independence
+    information["hypothesis"] = hypothesis
+
+    # Return information.
+    return information
 
 
 def organize_dependent_independent_variables(
@@ -340,8 +353,8 @@ def regress_signal_ordinary_residuals(
     # Determine whether data have sufficient observations for regression.
     if data.shape[0] > threshold:
         # Extract values of dependent and independent variables.
-        values_dependence = data[dependence].values
-        values_independence = data.loc[ :, independence].values
+        values_dependence = data[dependence].to_numpy()
+        values_independence = data.loc[ :, independence].to_numpy()
         # Introduce constant value for intercept.
         values_independence_intercept = statsmodels.api.add_constant(
             values_independence,
@@ -484,6 +497,151 @@ def regress_cases(
     return data_regression
 
 
+def calculate_regression_discoveries(
+    variables=None,
+    threshold=None,
+    data=None,
+):
+    """
+    Selects and scales regression parameters.
+
+    arguments:
+        variables (list<str>): names of independent regression variables for
+            which to calculate false discovery rates
+        threshold (float): value of alpha, or family-wise error rate of false
+            discoveries
+        data_regression_genes (object): Pandas data frame of parameters and
+            statistics from regressions across cases
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of parameters and statistics from
+            regressions across cases
+
+    """
+
+    def calculate_discoveries(
+        values=None,
+        threshold=None,
+        ):
+        report = statsmodels.stats.multitest.multipletests(
+            values,
+            alpha=threshold,
+            method="fdr_bh",
+            is_sorted=False,
+        )
+        discoveries = report[1]
+        return discoveries
+
+
+    # Copy data.
+    data_discovery = data.copy(deep=True)
+    # Iterate on relevant variables.
+    for variable in variables:
+        probability = str(variable + ("_probability"))
+        discovery = str(variable + ("_discovery"))
+        # Calculate false discovery rate from probability.
+        data_discovery[discovery] = calculate_discoveries(
+                values=data_discovery[probability].to_numpy(),
+                threshold=threshold,
+        )
+        pass
+    # Return information.
+    return data_discovery
+
+
+def scale_data_columns(
+    columns=None,
+    data=None,
+):
+    """
+    Calculates the standard (z-score) of values within specific columns.
+
+    arguments:
+        columns (list<str>): names of columns for which to scale values
+        data (object): Pandas data frame
+
+    raises:
+
+    returns:
+        (object): Pandas data frame
+
+    """
+
+    # Calculate standard score.
+    # This method inserts missing values if the standard deviation is zero.
+    data = data.copy(deep=True)
+    data_scale = data.apply(
+        lambda column: (
+            ((column - column.mean()) / column.std())
+        ) if column.name in columns else column,
+        axis="index",
+    )
+    return data_scale
+
+
+def select_scale_regression_parameters(
+    variables=None,
+    data_regression_genes=None,
+):
+    """
+    Selects and scales regression parameters.
+
+    arguments:
+        variables (list<str>): names of independent regression variables to
+            select and scale
+        data_regression_genes (object): Pandas data frame of parameters and
+            statistics from regressions across cases
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of parameters and statistics from
+            regressions across cases
+
+    """
+
+    # Select relevant variables.
+    columns = list()
+    for variable in variables:
+        columns.append(str(variable + ("_parameter")))
+        columns.append(str(variable + ("_probability")))
+        columns.append(str(variable + ("_discovery")))
+        pass
+    data_selection = data_regression_genes.copy(deep=True)
+    data_selection = data_selection.loc[
+        :, data_selection.columns.isin(columns)
+    ]
+    # Scale regression parameters across genes.
+    parameters = list()
+    for variable in variables:
+        parameters.append(str(variable + ("_parameter")))
+        pass
+    data_scale = scale_data_columns(
+        columns=parameters,
+        data=data_selection,
+    )
+    # Summarize standardization.
+    data_mean = data_scale.aggregate(
+        lambda x: x.mean(),
+        axis="index"
+    )
+    utility.print_terminal_partition(level=2)
+    print("Mean")
+    print(data_mean)
+    data_deviation = data_scale.aggregate(
+        lambda x: x.std(),
+        axis="index"
+    )
+    utility.print_terminal_partition(level=2)
+    print("Standard deviation")
+    print(data_deviation)
+
+    # Return information.
+    return data_scale
+
+
 def separate_regression_gene_sets(
     genes_selection=None,
     genes_unimodal=None,
@@ -528,100 +686,6 @@ def separate_regression_gene_sets(
     information["data_regression_genes_multimodal_scale"] = data_multimodal
     # Return information.
     return information
-
-
-def scale_data_columns(
-    columns=None,
-    data=None,
-):
-    """
-    Calculates the standard (z-score) of values within specific columns.
-
-    arguments:
-        columns (list<str>): names of columns for which to scale values
-        data (object): Pandas data frame
-
-    raises:
-
-    returns:
-        (object): Pandas data frame
-
-    """
-
-    # Calculate standard score.
-    # This method inserts missing values if the standard deviation is zero.
-    data = data.copy(deep=True)
-    data_scale = data.apply(
-        lambda column: (
-            ((column - column.mean()) / column.std())
-        ) if column.name in columns else column,
-        axis="index",
-    )
-    return data_scale
-
-
-def select_scale_regression_parameters(
-    data_regression_genes=None,
-):
-    """
-    Selects and scales regression parameters.
-
-    arguments:
-        data_regression_genes (object): Pandas data frame of parameters and
-            statistics from regressions across cases
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of parameters and statistics from
-            regressions across cases
-
-    """
-
-    # Select relevant variables.
-    variables = [
-        "female",
-        "age",
-        "body",
-        "hardiness",
-        "season_sequence",
-    ]
-    columns = list()
-    for variable in variables:
-        columns.append(str(variable + ("_parameter")))
-        columns.append(str(variable + ("_probability")))
-        pass
-    data_selection = data_regression_genes.copy(deep=True)
-    data_selection = data_selection.loc[
-        :, data_selection.columns.isin(columns)
-    ]
-    # Scale regression parameters across genes.
-    parameters = list()
-    for variable in variables:
-        parameters.append(str(variable + ("_parameter")))
-        pass
-    data_scale = scale_data_columns(
-        columns=parameters,
-        data=data_selection,
-    )
-    # Summarize standardization.
-    data_mean = data_scale.aggregate(
-        lambda x: x.mean(),
-        axis="index"
-    )
-    utility.print_terminal_partition(level=2)
-    print("Mean")
-    print(data_mean)
-    data_deviation = data_scale.aggregate(
-        lambda x: x.std(),
-        axis="index"
-    )
-    utility.print_terminal_partition(level=2)
-    print("Standard deviation")
-    print(data_deviation)
-
-    # Return information.
-    return data_scale
 
 
 def summarize_regression(
@@ -1223,25 +1287,33 @@ def execute_procedure(
     # Define variables for regression.
     variables = define_regression_variables()
     utility.print_terminal_partition(level=3)
-    print("Count of variables: " + str(len(variables)))
+    print(
+        "Count of independent variables: " +
+        str(len(variables["independence"]))
+    )
+    print(
+        "Count of hypothesis (non technical) variables: " +
+        str(len(variables["hypothesis"]))
+    )
 
     # Organize dependent and independent variables for regression analysis.
     data_variables = organize_dependent_independent_variables(
-        variables=variables,
+        variables=variables["independence"],
         data_persons_properties=source["data_persons_properties"],
         data_signals_genes_persons=source["data_signals_genes_persons"],
     )
 
     # Regress each gene's signal across persons.
     # Iterate on genes.
-    genes_iteration = random.sample(source["genes_selection"], 1000)
-    #genes_iteration = source["genes_selection"]#[0:10]
+    #genes_iteration = random.sample(source["genes_selection"], 1000)
+    genes_iteration = source["genes_selection"]#[0:10]
     data_regression_genes = regress_cases(
         cases=genes_iteration,
-        variables=variables,
+        variables=variables["independence"],
         data_variables=data_variables,
     )
     utility.print_terminal_partition(level=2)
+    print("data_regression_genes")
     print(data_regression_genes)
 
     # Review.
@@ -1252,14 +1324,22 @@ def execute_procedure(
     # individual regression's summary and in the compilation across cases.
 
     # Adjust probabilities for multiple hypothesis tests.
-
-    
+    # Calculate false discovery rate by Benjamini-Hochberg's method.
+    data_regression_genes_discovery = calculate_regression_discoveries(
+        variables=variables["independence"],
+        threshold=0.05,
+        data=data_regression_genes,
+    )
+    utility.print_terminal_partition(level=2)
+    print("data_regression_genes_discovery")
+    print(data_regression_genes_discovery)
 
     # Select regression parameters and probabilities that are biologically
     # relevant.
     # Scale regression parameters across genes.
     # The purpose of this scaling is to simplify comparison in chart.
     data_regression_genes_scale = select_scale_regression_parameters(
+        variables=variables["hypothesis"],
         data_regression_genes=data_regression_genes,
     )
     utility.print_terminal_partition(level=2)
@@ -1303,7 +1383,7 @@ def execute_procedure(
 
     # Compile information.
     information = dict()
-    information["data_regression_genes"] = data_regression_genes
+    information["data_regression_genes"] = data_regression_genes_discovery
     information["data_regression_genes_selection_scale"] = (
         bin["data_regression_genes_selection_scale"]
     )
