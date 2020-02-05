@@ -118,7 +118,604 @@ def read_source(
     }
 
 
-########## Keep these functions...
+##########
+# Regression
+
+
+def define_regression_variables():
+    """
+    Defines a list of variables' names for regression analysis.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (list<str>): names of independent variables for regression
+
+    """
+
+    variables = [
+        "female",
+        "age",
+        "body",
+        "hardiness",
+        "season_sequence",
+
+        "genotype_1",
+        "genotype_2",
+        "genotype_3",
+        "genotype_4",
+        "genotype_5",
+        "genotype_6",
+        "genotype_7",
+        "genotype_8",
+        "genotype_9",
+        "genotype_10",
+
+        "delay",
+
+        "tissues_1",
+        "tissues_2",
+        "tissues_3",
+        #"tissues_4", # <- omit
+        #"tissues_5", # <- omit
+        #"tissues_6", # <- omit
+        #"tissues_7", # <- omit
+        #"tissues_8", # <- omit
+        #"tissues_9", # <- omit
+        #"tissues_10", # <- omit
+
+        "facilities_1",
+        "facilities_2",
+        #"facilities_3", # <- omit
+
+        "batches_isolation_1",
+        "batches_isolation_2",
+        "batches_isolation_3",
+        #"batches_isolation_4", # <- omit
+        #"batches_isolation_5", # <- omit
+        #"batches_isolation_6", # <- omit
+        #"batches_isolation_7", # <- omit
+        #"batches_isolation_8", # <- omit
+        #"batches_isolation_9", # <- omit
+        #"batches_isolation_10", # <- omit
+
+        "batches_analysis_1",
+        "batches_analysis_2",
+        "batches_analysis_3",
+        #"batches_analysis_4", # <- omit
+        #"batches_analysis_5", # <- omit
+        #"batches_analysis_6", # <- omit
+        #"batches_analysis_7", # <- omit
+        #"batches_analysis_8", # <- omit
+        #"batches_analysis_9", # <- omit
+        #"batches_analysis_10", # <- omit
+    ]
+
+    return variables
+
+
+def organize_dependent_independent_variables(
+    variables=None,
+    data_persons_properties=None,
+    data_signals_genes_persons=None,
+):
+    """
+    Organizes and combines information about dependent and independent
+    variables for regression.
+
+    arguments:
+        variables (list<str>): names of independent variables for regression
+        data_persons_properties (object): Pandas data frame of persons and
+            their relevant properties
+        data_signals_genes_persons (object): Pandas data frame of pan-tissue
+            signals across genes and persons
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of dependent and independent variables
+
+    """
+
+    # Remove all columns from persons properties except the covariates
+    # Copy data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+    data_signals_genes_persons = data_signals_genes_persons.copy(
+        deep=True
+    )
+    # Organize data.
+    data_persons_properties = data_persons_properties.loc[
+        :, data_persons_properties.columns.isin(variables)
+    ]
+
+    # Join signals on persons' properties.
+    data_variables = data_persons_properties.join(
+        data_signals_genes_persons,
+        how="left",
+        on="person"
+    )
+
+    # Return information.
+    return data_variables
+
+
+def regress_signal_ordinary_residuals(
+    dependence=None,
+    independence=None,
+    proportion=None,
+    data=None,
+):
+    """
+    Regresses a quantitative continuous dependent variable against multiple
+    independent variables and returns relevant parameters and statistics.
+
+    Data format must have observations across rows and dependent and
+    independent variables (features) across columns.
+
+    Description of formats for StatsModels...
+
+    Format of dependent variable is a vector of scalar values.
+    [1.3, 1.5, 1.2, 1.0, 1.7, 1.5, 1.9, 1.1, 1.3, 1.4]
+
+    Format of independent variable(s) is a matrix: a first dimension vector of
+    observations and for each observation a second dimension vector of scalar
+    values.
+    StatsModels also requires a constant for the intercept.
+    [
+        [1.3, 5.2, 1.0],
+        [1.5, 5.1, 1.0],
+        [1.2, 5.5, 1.0],
+        ...
+    ]
+
+    Description of formats for SKLearn...
+
+    Format of dependent variable is an array of observations, and each
+    observation is an array of features.
+    [
+        [1.3],
+        [1.5],
+        [1.2],
+        ...
+    ]
+
+    arguments:
+        dependence (str): name of dependent variable
+        independence (list<str>): names of independent variables
+        proportion (float): minimal proportion of total observations that must
+            have nonmissing values
+        data (object): Pandas data frame of values and associations between
+            dependent and independent variables
+
+    raises:
+
+    returns:
+        (dict): information about regression
+
+    """
+
+    if False:
+        # Regress by SciKit Learn.
+        regression = LinearRegression(
+            fit_intercept=True,
+            normalize=False,
+            copy_X=True,
+            n_jobs=None
+        ).fit(
+            values_independence,
+            values_dependence,
+            sample_weight=None
+        )
+        score = regression.score(
+            values_independence,
+            values_dependence,
+            sample_weight=None
+        )
+
+    # Organize data.
+    data = data.copy(deep=True)
+    # Determine minimal count of observations.
+    count = data.shape[0]
+    threshold = proportion * count
+    # Remove observations with any missing values.
+    columns = copy.deepcopy(independence)
+    columns.insert(0, dependence)
+    data = data.loc[
+        :, data.columns.isin(columns)
+    ]
+    data.dropna(
+        axis="index",
+        how="any",
+        #subset=[dependence],
+        inplace=True,
+    )
+    data = data[[*columns]]
+
+    # Note
+    # It is very important to keep track of the order of independent variables
+    # in order to match parameters and probabilities to the correct variables.
+
+    # Determine whether data have sufficient observations for regression.
+    if data.shape[0] > threshold:
+        # Extract values of dependent and independent variables.
+        values_dependence = data[dependence].values
+        values_independence = data.loc[ :, independence].values
+        # Introduce constant value for intercept.
+        values_independence_intercept = statsmodels.api.add_constant(
+            values_independence,
+            prepend=True,
+        )
+        # Define model.
+        model = statsmodels.api.OLS(
+            values_dependence,
+            values_independence_intercept,
+            missing="drop",
+        )
+        report = model.fit()
+        #utility.print_terminal_partition(level=2)
+        #print(data)
+        #print(independence)
+        #print(values_independence)
+        #print(report.summary())
+        #utility.print_terminal_partition(level=3)
+        #print(dir(report))
+        #print(report.params)
+        #print(report.pvalues)
+
+        # Compile information.
+        counter = 1
+        parameters = dict()
+        probabilities = dict()
+        parameters["intercept_parameter"] = report.params[0]
+        probabilities["intercept_probability"] = report.pvalues[0]
+        for variable in independence:
+            parameter = str(variable + ("_parameter"))
+            parameters[parameter] = report.params[counter]
+            probability = str(variable + ("_probability"))
+            probabilities[probability] = report.pvalues[counter]
+            counter += 1
+            pass
+        information = {
+            "freedom": report.df_model,
+            "observations": report.nobs,
+            "r_square": report.rsquared,
+            "r_square_adjust": report.rsquared_adj,
+            "log_likelihood": report.llf,
+            "akaike": report.aic,
+            "bayes": report.bic,
+        }
+        information.update(parameters)
+        information.update(probabilities)
+    else:
+        # Compile information.
+        #probabilities = list(
+        #    itertools.repeat(float("nan"), len(values_independence_intercept))
+        #)
+        parameters = dict()
+        probabilities = dict()
+        parameters["intercept_parameter"] = float("nan")
+        probabilities["intercept_probability"] = float("nan")
+        for variable in independence:
+            parameter = str(variable + ("_parameter"))
+            parameters[parameter] = float("nan")
+            probability = str(variable + ("_probability"))
+            probabilities[probability] = float("nan")
+            pass
+        information = {
+            "freedom": float("nan"),
+            "observations": float("nan"),
+            "r_square": float("nan"),
+            "r_square_adjust": float("nan"),
+            "log_likelihood": float("nan"),
+            "akaike": float("nan"),
+            "bayes": float("nan"),
+        }
+        information.update(parameters)
+        information.update(probabilities)
+    # Return information.
+    return information
+
+
+def regress_cases(
+    cases=None,
+    variables=None,
+    data_variables=None,
+):
+    """
+    Drives iterative regression across cases.
+
+    arguments:
+        cases (list<str>): names of independent cases for which to regress
+            variables
+        variables (list<str>): names of independent variables for regression
+        data_variables (object): Pandas data frame of dependent and independent
+            variables
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of parameters and statistics from
+            regressions across cases
+
+    """
+
+    # Regress.
+    records = list()
+    for case in cases:
+        #utility.print_terminal_partition(level=1)
+        #print(case)
+        report = regress_signal_ordinary_residuals(
+            dependence=case,
+            independence=variables,
+            proportion=0.5,
+            data=data_variables,
+        )
+        report["case"] = case
+        records.append(report)
+        pass
+    # Organize data.
+    data_regression = utility.convert_records_to_dataframe(
+        records=records
+    )
+    data_regression.set_index(
+        ["case"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    columns = list()
+    columns.append("observations")
+    columns.append("freedom")
+    columns.append("r_square")
+    columns.append("r_square_adjust")
+    columns.append("log_likelihood")
+    columns.append("akaike")
+    columns.append("bayes")
+    columns.append("intercept_parameter")
+    columns.append("intercept_probability")
+    for variable in variables:
+        columns.append(str(variable + ("_parameter")))
+        columns.append(str(variable + ("_probability")))
+        pass
+    data_regression = data_regression[[*columns]]
+    # Return information.
+    return data_regression
+
+
+def separate_regression_gene_sets(
+    genes_selection=None,
+    genes_unimodal=None,
+    genes_multimodal=None,
+    data_regression_genes=None,
+):
+    """
+    Drives iterative regression across cases.
+
+    arguments:
+        genes_selection (list<str>): identifiers of genes
+        genes_unimodal (list<str>): identifiers of genes
+        genes_multimodal (list<str>): identifiers of genes
+        data_regression_genes (object): Pandas data frame of parameters and
+            statistics from regressions across cases
+
+    raises:
+
+    returns:
+        (dict): regression information across sets of genes
+
+    """
+
+    # Select regression data for specific genes.
+    data_selection = data_regression_genes.copy(deep=True)
+    data_selection = data_selection.loc[
+        data_selection.index.isin(genes_selection), :
+    ]
+    data_unimodal = data_regression_genes.copy(deep=True)
+    data_unimodal = data_unimodal.loc[
+        data_unimodal.index.isin(genes_unimodal), :
+    ]
+    data_multimodal = data_regression_genes.copy(deep=True)
+    data_multimodal = data_multimodal.loc[
+        data_multimodal.index.isin(genes_multimodal), :
+    ]
+
+    # Compile information.
+    information = dict()
+    information["data_regression_genes_selection_scale"] = data_selection
+    information["data_regression_genes_unimodal_scale"] = data_unimodal
+    information["data_regression_genes_multimodal_scale"] = data_multimodal
+    # Return information.
+    return information
+
+
+def scale_data_columns(
+    columns=None,
+    data=None,
+):
+    """
+    Calculates the standard (z-score) of values within specific columns.
+
+    arguments:
+        columns (list<str>): names of columns for which to scale values
+        data (object): Pandas data frame
+
+    raises:
+
+    returns:
+        (object): Pandas data frame
+
+    """
+
+    # Calculate standard score.
+    # This method inserts missing values if the standard deviation is zero.
+    data = data.copy(deep=True)
+    data_scale = data.apply(
+        lambda column: (
+            ((column - column.mean()) / column.std())
+        ) if column.name in columns else column,
+        axis="index",
+    )
+    return data_scale
+
+
+def select_scale_regression_parameters(
+    data_regression_genes=None,
+):
+    """
+    Selects and scales regression parameters.
+
+    arguments:
+        data_regression_genes (object): Pandas data frame of parameters and
+            statistics from regressions across cases
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of parameters and statistics from
+            regressions across cases
+
+    """
+
+    # Select relevant variables.
+    variables = [
+        "female",
+        "age",
+        "body",
+        "hardiness",
+        "season_sequence",
+    ]
+    columns = list()
+    for variable in variables:
+        columns.append(str(variable + ("_parameter")))
+        columns.append(str(variable + ("_probability")))
+        pass
+    data_selection = data_regression_genes.copy(deep=True)
+    data_selection = data_selection.loc[
+        :, data_selection.columns.isin(columns)
+    ]
+    # Scale regression parameters across genes.
+    parameters = list()
+    for variable in variables:
+        parameters.append(str(variable + ("_parameter")))
+        pass
+    data_scale = scale_data_columns(
+        columns=parameters,
+        data=data_selection,
+    )
+    # Summarize standardization.
+    data_mean = data_scale.aggregate(
+        lambda x: x.mean(),
+        axis="index"
+    )
+    utility.print_terminal_partition(level=2)
+    print("Mean")
+    print(data_mean)
+    data_deviation = data_scale.aggregate(
+        lambda x: x.std(),
+        axis="index"
+    )
+    utility.print_terminal_partition(level=2)
+    print("Standard deviation")
+    print(data_deviation)
+
+    # Return information.
+    return data_scale
+
+
+def summarize_regression(
+    instances=None,
+    variables=None,
+    probabilities=None,
+    type=None,
+    threshold_discovery=None,
+    data=None,
+):
+    """
+    Summarizes a regression model's parameters across multiple independent
+    instances.
+
+    arguments:
+        instances (int): count of independent instances
+        variables (list<str>): names of independent variables in regression
+        probabilities (bool): whether to summarize probabilities for variables
+            across instances
+        type (str): type of report for probabilities of variables across
+            instances, either aggregate false discovery rate or percentage of
+            instances within discovery threshold
+        threshold_discovery (float): minimal false discovery rate value for
+            instances
+        data (object): Pandas data frame of information about a regression
+            model across multiple independent observations
+
+    raises:
+
+    returns:
+
+    """
+
+    utility.print_terminal_partition(level=2)
+    # Organize data.
+    data = data.copy(deep=True)
+
+    # Report mean model descriptors.
+    descriptors = [
+        "freedom",
+        "observations",
+        "r_square",
+        "r_square_adjust",
+        "log_likelihood",
+        "akaike",
+        "bayes",
+    ]
+    data_descriptors = data.copy(deep=True)
+    data_descriptors = data_descriptors.loc[
+        :, data_descriptors.columns.isin(descriptors)
+    ]
+    data_descriptors = data_descriptors[[*descriptors]]
+    data_descriptors_mean = data_descriptors.aggregate(statistics.mean)
+    utility.print_terminal_partition(level=3)
+    print("Model descriptors...")
+    print(data_descriptors_mean)
+
+    # Report counts of observations with probabilities below threshold for each
+    # covariate.
+    if probabilities:
+        utility.print_terminal_partition(level=3)
+        print("Independent instances with threshold probabilities...")
+
+        for variable in variables:
+            # Calculate false discovery rates from probabilities.
+            probabilities = data[variable].to_numpy()
+            report = statsmodels.stats.multitest.multipletests(
+                probabilities,
+                alpha=0.05,
+                method="fdr_bh",
+                is_sorted=False,
+            )
+            discoveries = report[1]
+
+            # Prepare report.
+            if type == "discovery":
+                # Aggregation of false discovery rates across independent
+                # instances probably is not reasonable.
+                discovery = scipy.stats.combine_pvalues(
+                    discoveries,
+                    method="stouffer",
+                    weights=None,
+                )[1]
+                print(variable + ": " + str(round(discovery, 1)))
+            elif type == "percentage":
+                count = (discoveries <= threshold_discovery).sum()
+                percentage = round((count / instances) * 100, 1)
+                print(variable + ": " + str(percentage) + "%")
+            pass
+    pass
+
+
+
+##########
 # Tissue-tissue correlation
 
 
@@ -524,262 +1121,10 @@ def evaluate_variance_by_binary_groups(
     return information
 
 
-##########
-# Regression
-
-
-# This is a new function as of 14 January 2020!!!
-def regress_signal_ordinary_residuals(
-    dependence=None,
-    independence=None,
-    proportion=None,
-    data=None,
-):
-    """
-    Regresses a quantitative continuous dependent variable against multiple
-    independent variables and returns relevant information.
-
-    Data format must have observations across rows and dependent and
-    independent variables across columns.
-
-    Description of formats for StatsModels...
-
-    Format of dependent variable is a vector of scalar values.
-    [1.3, 1.5, 1.2, 1.0, 1.7, 1.5, 1.9, 1.1, 1.3, 1.4]
-
-    Format of independent variable(s) is a matrix: a first dimension vector of
-    observations and for each observation a second dimension vector of scalar
-    values.
-    StatsModels also requires an intercept.
-    [
-        [1.3, 5.2, 1.0],
-        [1.5, 5.1, 1.0],
-        [1.2, 5.5, 1.0],
-        ...
-    ]
-
-    Description of formats for SKLearn...
-
-    Format of dependent variable is an array of observations, and each
-    observation is an array of features.
-    [
-        [1.3],
-        [1.5],
-        [1.2],
-        ...
-    ]
-
-    arguments:
-        dependence (str): name of dependent variable
-        independence (list<str>): names of independent variables
-        proportion (float): minimal proportion of total observations that must
-            have nonmissing values
-        data (object): Pandas data frame of values and associations between
-            dependent and independent variables
-
-    raises:
-
-    returns:
-        (dict): information about regression
-
-    """
-
-    if False:
-        # Regress by SciKit Learn.
-        regression = LinearRegression(
-            fit_intercept=True,
-            normalize=False,
-            copy_X=True,
-            n_jobs=None
-        ).fit(
-            values_independence,
-            values_dependence,
-            sample_weight=None
-        )
-        score = regression.score(
-            values_independence,
-            values_dependence,
-            sample_weight=None
-        )
-
-    # Organize data.
-    data = data.copy(deep=True)
-    # Determine minimal count of observations.
-    count = data.shape[0]
-    threshold = proportion * count
-    # Remove observations with any missing values.
-    columns = copy.deepcopy(independence)
-    columns.append(dependence)
-    data = data.loc[
-        :, data.columns.isin(columns)
-    ]
-    data.dropna(
-        axis="index",
-        how="any",
-        #subset=[dependence],
-        inplace=True,
-    )
-    data = data[[*columns]]
-
-    # Determine whether data have sufficient observations for regression.
-    if data.shape[0] > threshold:
-        # Extract values of dependent and independent variables.
-        values_dependence = data[dependence].values
-        values_independence = data.loc[ :, independence].values
-        # Introduce constant value for intercept.
-        values_independence_intercept = statsmodels.api.add_constant(
-            values_independence,
-            prepend=True,
-        )
-        # Define model.
-        model = statsmodels.api.OLS(
-            values_dependence,
-            values_independence_intercept,
-            missing="drop",
-        )
-        report = model.fit()
-        #print(report.summary())
-        #utility.print_terminal_partition(level=3)
-        #print(dir(report))
-        #print(report.params)
-        #print(report.pvalues)
-
-        # Compile information.
-        counter = 1
-        probabilities = dict()
-        probabilities["intercept"] = report.pvalues[0]
-        for variable in independence:
-            probabilities[variable] = report.pvalues[counter]
-            counter += 1
-            pass
-        information = {
-            "freedom": report.df_model,
-            "observations": report.nobs,
-            "r_square": report.rsquared,
-            "r_square_adjust": report.rsquared_adj,
-            "log_likelihood": report.llf,
-            "akaike": report.aic,
-            "bayes": report.bic,
-        }
-        information.update(probabilities)
-    else:
-        # Compile information.
-        #probabilities = list(
-        #    itertools.repeat(float("nan"), len(values_independence_intercept))
-        #)
-        probabilities = dict()
-        for variable in independence:
-            probabilities[variable] = float("nan")
-            pass
-        information = {
-            "freedom": float("nan"),
-            "observations": float("nan"),
-            "r_square": float("nan"),
-            "r_square_adjust": float("nan"),
-            "log_likelihood": float("nan"),
-            "akaike": float("nan"),
-            "bayes": float("nan"),
-        }
-        information.update(probabilities)
-    # Return information.
-    return information
-
-
-def summarize_regression(
-    instances=None,
-    variables=None,
-    probabilities=None,
-    type=None,
-    threshold_discovery=None,
-    data=None,
-):
-    """
-    Summarizes a regression model's parameters across multiple independent
-    instances.
-
-    arguments:
-        instances (int): count of independent instances
-        variables (list<str>): names of independent variables in regression
-        probabilities (bool): whether to summarize probabilities for variables
-            across instances
-        type (str): type of report for probabilities of variables across
-            instances, either aggregate false discovery rate or percentage of
-            instances within discovery threshold
-        threshold_discovery (float): minimal false discovery rate value for
-            instances
-        data (object): Pandas data frame of information about a regression
-            model across multiple independent observations
-
-    raises:
-
-    returns:
-
-    """
-
-    utility.print_terminal_partition(level=2)
-    # Organize data.
-    data = data.copy(deep=True)
-
-    # Report mean model descriptors.
-    descriptors = [
-        "freedom",
-        "observations",
-        "r_square",
-        "r_square_adjust",
-        "log_likelihood",
-        "akaike",
-        "bayes",
-    ]
-    data_descriptors = data.copy(deep=True)
-    data_descriptors = data_descriptors.loc[
-        :, data_descriptors.columns.isin(descriptors)
-    ]
-    data_descriptors = data_descriptors[[*descriptors]]
-    data_descriptors_mean = data_descriptors.aggregate(statistics.mean)
-    utility.print_terminal_partition(level=3)
-    print("Model descriptors...")
-    print(data_descriptors_mean)
-
-    # Report counts of observations with probabilities below threshold for each
-    # covariate.
-    if probabilities:
-        utility.print_terminal_partition(level=3)
-        print("Independent instances with threshold probabilities...")
-
-        for variable in variables:
-            # Calculate false discovery rates from probabilities.
-            probabilities = data[variable].to_numpy()
-            report = statsmodels.stats.multitest.multipletests(
-                probabilities,
-                alpha=0.05,
-                method="fdr_bh",
-                is_sorted=False,
-            )
-            discoveries = report[1]
-
-            # Prepare report.
-            if type == "discovery":
-                # Aggregation of false discovery rates across independent
-                # instances probably is not reasonable.
-                discovery = scipy.stats.combine_pvalues(
-                    discoveries,
-                    method="stouffer",
-                    weights=None,
-                )[1]
-                print(variable + ": " + str(round(discovery, 1)))
-            elif type == "percentage":
-                count = (discoveries <= threshold_discovery).sum()
-                percentage = round((count / instances) * 100, 1)
-                print(variable + ": " + str(percentage) + "%")
-            pass
-    pass
-
-
 # Write.
 
 
 def write_product(
-    gene=None,
     dock=None,
     information=None
 ):
@@ -799,19 +1144,50 @@ def write_product(
     """
 
     # Specify directories and files.
-    path_category = os.path.join(dock, "category")
-    path_collection = os.path.join(path_category, "collection")
-    path_gene = os.path.join(path_collection, gene)
-    utility.create_directory(path_gene)
+    path_prediction = os.path.join(dock, "prediction")
+    utility.create_directory(path_prediction)
 
-    path_imputation = os.path.join(path_gene, "report_imputation.pickle")
-    path_availability = os.path.join(path_gene, "report_availability.pickle")
+    path_data_regression_genes = os.path.join(
+        path_prediction, "data_regression_genes.pickle"
+    )
+    path_data_regression_genes_text = os.path.join(
+        path_prediction, "data_regression_genes.tsv"
+    )
+
+    path_data_regression_genes_selection_scale = os.path.join(
+        path_prediction, "data_regression_genes_selection_scale.pickle"
+    )
+    path_data_regression_genes_unimodal_scale = os.path.join(
+        path_prediction, "data_regression_genes_unimodal_scale.pickle"
+    )
+    path_data_regression_genes_multimodal_scale = os.path.join(
+        path_prediction, "data_regression_genes_multimodal_scale.pickle"
+    )
 
     # Write information to file.
-    with open(path_imputation, "wb") as file_product:
-        pickle.dump(information["report_imputation"], file_product)
-    with open(path_availability, "wb") as file_product:
-        pickle.dump(information["report_availability"], file_product)
+    pandas.to_pickle(
+        information["data_regression_genes"],
+        path_data_regression_genes
+    )
+    information["data_regression_genes"].to_csv(
+        path_or_buf=path_data_regression_genes_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+
+    pandas.to_pickle(
+        information["data_regression_genes_selection_scale"],
+        path_data_regression_genes_selection_scale
+    )
+    pandas.to_pickle(
+        information["data_regression_genes_unimodal_scale"],
+        path_data_regression_genes_unimodal_scale
+    )
+    pandas.to_pickle(
+        information["data_regression_genes_multimodal_scale"],
+        path_data_regression_genes_multimodal_scale
+    )
 
     pass
 
@@ -844,143 +1220,101 @@ def execute_procedure(
     source = read_source(
         dock=dock,
     )
+    # Define variables for regression.
+    variables = define_regression_variables()
+    utility.print_terminal_partition(level=3)
+    print("Count of variables: " + str(len(variables)))
 
-    utility.print_terminal_partition(level=1)
-    print(source["data_persons_properties"])
-
-    variables = [
-        "female",
-        "age",
-        "body",
-        "hardiness",
-        "season_sequence",
-
-        "genotype_1",
-        "genotype_2",
-        "genotype_3",
-        "genotype_4",
-        "genotype_5",
-        #"genotype_6", # <- omit
-        #"genotype_7", # <- omit
-        #"genotype_8", # <- omit
-        #"genotype_9", # <- omit
-        #"genotype_10", # <- omit
-
-        "delay",
-
-        "tissues_1",
-        "tissues_2",
-        "tissues_3",
-        #"tissues_4", # <- omit
-        #"tissues_5", # <- omit
-        #"tissues_6", # <- omit
-        #"tissues_7", # <- omit
-        #"tissues_8", # <- omit
-        #"tissues_9", # <- omit
-        #"tissues_10", # <- omit
-
-        "facilities_1",
-        "facilities_2",
-        #"facilities_3", # <- omit
-
-        "batches_isolation_1",
-        "batches_isolation_2",
-        "batches_isolation_3",
-        #"batches_isolation_4", # <- omit
-        #"batches_isolation_5", # <- omit
-        #"batches_isolation_6", # <- omit
-        #"batches_isolation_7", # <- omit
-        #"batches_isolation_8", # <- omit
-        #"batches_isolation_9", # <- omit
-        #"batches_isolation_10", # <- omit
-
-        "batches_analysis_1",
-        "batches_analysis_2",
-        "batches_analysis_3",
-        #"batches_analysis_4", # <- omit
-        #"batches_analysis_5", # <- omit
-        #"batches_analysis_6", # <- omit
-        #"batches_analysis_7", # <- omit
-        #"batches_analysis_8", # <- omit
-        #"batches_analysis_9", # <- omit
-        #"batches_analysis_10", # <- omit
-    ]
-
-    # Remove all columns from persons properties except the covariates
-    # Copy data.
-    data_signals_genes_persons = source["data_signals_genes_persons"].copy(
-        deep=True
-    )
-    data_persons_properties = source["data_persons_properties"].copy(deep=True)
-    # Organize data.
-    data_persons_properties = data_persons_properties.loc[
-        :, data_persons_properties.columns.isin(variables)
-    ]
-
-    # Join properties on signals dataframe to keep only the 631 persons
-    data_variables = data_signals_genes_persons.join(
-        data_persons_properties,
-        how="left",
-        on="person"
-    )
-
-    ##############################
-    ##############################
-    #############################
-
-    # Regress.
-    # Iterate on genes.
-    #genes_iteration = random.sample(source["genes"], 1000)
-    genes_iteration = source["genes_multimodal"]#[0:100]
-    records = list()
-    for gene in genes_iteration:
-        report = regress_signal_ordinary_residuals(
-            dependence=gene,
-            independence=variables,
-            proportion=0.5,
-            data=data_variables,
-        )
-        report["gene"] = gene
-        records.append(report)
-        pass
-    data_regression = utility.convert_records_to_dataframe(
-        records=records
-    )
-    data_regression.set_index(
-        ["gene"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    #print(data_regression)
-
-    # Prepare summary of regression model across all genes.
-    utility.print_terminal_partition(level=2)
-    summarize_regression(
-        instances=len(genes_iteration),
+    # Organize dependent and independent variables for regression analysis.
+    data_variables = organize_dependent_independent_variables(
         variables=variables,
-        probabilities=True,
-        type="percentage", # "discovery" or "percentage"
-        threshold_discovery=0.05,
-        data=data_regression,
+        data_persons_properties=source["data_persons_properties"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
     )
 
+    # Regress each gene's signal across persons.
+    # Iterate on genes.
+    genes_iteration = random.sample(source["genes_selection"], 1000)
+    #genes_iteration = source["genes_selection"]#[0:10]
+    data_regression_genes = regress_cases(
+        cases=genes_iteration,
+        variables=variables,
+        data_variables=data_variables,
+    )
+    utility.print_terminal_partition(level=2)
+    print(data_regression_genes)
 
-    # TODO: now I need to know % of genes with p-values beyond threshold (0.05) in each covariate
-    # TODO: I also need summaries of AIC, BIC, adjusted-R^2, etc...
+    # Review.
+    # 4 February 2020
+    # Model statistics match in the individual regression's summary and in the
+    # compilation across cases.
+    # Independent variables' parameters and probabilities match in the
+    # individual regression's summary and in the compilation across cases.
 
+    # Adjust probabilities for multiple hypothesis tests.
 
+    
 
+    # Select regression parameters and probabilities that are biologically
+    # relevant.
+    # Scale regression parameters across genes.
+    # The purpose of this scaling is to simplify comparison in chart.
+    data_regression_genes_scale = select_scale_regression_parameters(
+        data_regression_genes=data_regression_genes,
+    )
+    utility.print_terminal_partition(level=2)
+    print("data_regression_genes_scale")
+    print(data_regression_genes_scale)
 
+    # Separate regression information by sets of genes.
+    bin = separate_regression_gene_sets(
+        genes_selection=source["genes_selection"],
+        genes_unimodal=source["genes_unimodal"],
+        genes_multimodal=source["genes_multimodal"],
+        data_regression_genes=data_regression_genes_scale,
+    )
+    utility.print_terminal_partition(level=2)
+    print("Regression genes, original: " + str(data_regression_genes.shape[0]))
+    print(
+        "Regression genes, selection: " +
+        str(bin["data_regression_genes_selection_scale"].shape[0])
+    )
+    print(
+        "Regression genes, unimodal: " +
+        str(bin["data_regression_genes_unimodal_scale"].shape[0])
+    )
+    print(
+        "Regression genes, multimodal: " +
+        str(bin["data_regression_genes_multimodal_scale"].shape[0])
+    )
 
     if False:
-        # Compile information.
-        information = {
-            "report_imputation": collection["imputation"]["report"],
-            "report_availability": collection["availability"]["report"],
-        }
-        #Write product information to file.
-        write_product(gene=gene, dock=dock, information=information)
+
+        # Prepare summary of regression model across all genes.
+        utility.print_terminal_partition(level=2)
+        summarize_regression(
+            instances=len(genes_iteration),
+            variables=variables,
+            probabilities=True,
+            type="percentage", # "discovery" or "percentage"
+            threshold_discovery=0.05,
+            data=data_regression,
+        )
+
+    # Compile information.
+    information = dict()
+    information["data_regression_genes"] = data_regression_genes
+    information["data_regression_genes_selection_scale"] = (
+        bin["data_regression_genes_selection_scale"]
+    )
+    information["data_regression_genes_unimodal_scale"] = (
+        bin["data_regression_genes_unimodal_scale"]
+    )
+    information["data_regression_genes_multimodal_scale"] = (
+        bin["data_regression_genes_multimodal_scale"]
+    )
+    # Write product information to file.
+    write_product(dock=dock, information=information)
 
     pass
 

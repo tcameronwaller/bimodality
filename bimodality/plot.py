@@ -3664,6 +3664,196 @@ def prepare_charts_signals_persons_gene_pairs(
     pass
 
 
+##########
+# Regressions on genes' pan-tissue signals across persons
+# Status: in progress
+
+
+def read_source_regressions_genes(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", "tight")
+    path_genes_selection = os.path.join(
+        path_selection, "genes.pickle"
+    )
+
+    path_candidacy = os.path.join(dock, "candidacy")
+    path_genes_unimodal = os.path.join(
+        path_candidacy, "genes_unimodal.pickle"
+    )
+    path_genes_multimodal = os.path.join(
+        path_candidacy, "genes_multimodal.pickle"
+    )
+
+    path_prediction = os.path.join(dock, "prediction")
+    path_data_regression_genes = os.path.join(
+        path_prediction, "data_regression_genes.pickle"
+    )
+
+    # Read information from file.
+    with open(path_genes_selection, "rb") as file_source:
+        genes_selection = pickle.load(file_source)
+    with open(path_genes_unimodal, "rb") as file_source:
+        genes_unimodal = pickle.load(file_source)
+    with open(path_genes_multimodal, "rb") as file_source:
+        genes_multimodal = pickle.load(file_source)
+    data_regression_genes = pandas.read_pickle(path_data_regression_genes)
+
+    # Compile and return information.
+    return {
+        "genes_selection": genes_selection,
+        "genes_unimodal": genes_unimodal,
+        "genes_multimodal": genes_multimodal,
+        "data_regression_genes": data_regression_genes,
+    }
+
+
+def plot_charts_regressions_genes(
+    values=None,
+    threshold=None,
+    path=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        values (list<float>): values
+        threshold (float): value of threshold for which to draw line
+        path (str): path to directory and file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Specify directories and files.
+    path_measure_figure = os.path.join(
+        path_measure, str(measure + ".svg")
+    )
+
+
+    # Create figure.
+    figure = plot_distribution_histogram(
+        series=values,
+        name="",
+        bin_method="count",
+        bin_count=50,
+        label_bins="Bins",
+        label_counts="Counts",
+        fonts=fonts,
+        colors=colors,
+        line=True,
+        position=threshold,
+        text="",
+    )
+    # Write figure.
+    write_figure(
+        path=path,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_regressions_genes(
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    print("going to plot charts for regressions on genes")
+
+    # Read source information from file.
+    source = read_source_regressions_genes(dock=dock)
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_prediction = os.path.join(path_plot, "prediction")
+    path_selection = os.path.join(path_prediction, "selection")
+    path_unimodal = os.path.join(path_prediction, "unimodal")
+    path_multimodal = os.path.join(path_prediction, "multimodal")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_prediction)
+    utility.create_directories(path=path_selection)
+    utility.create_directories(path=path_unimodal)
+    utility.create_directories(path=path_multimodal)
+
+    # Create sets of charts from regressions on
+    # 1. selection genes (all)
+    # 2. unimodal genes
+    # 3. multimodal genes
+
+    # Charts for each set of genes...
+    # 1. distribution of R-square adjust
+    # 2. swarm plots for each biological covariate
+    # 3. violin plots?
+
+    # Iterate on sets of genes.
+    sets = list()
+    sets.append({
+        "genes": source["genes_selection"],
+        "path": path_selection,
+    })
+    sets.append({
+        "genes": source["genes_unimodal"],
+        "path": path_unimodal,
+    })
+    sets.append({
+        "genes": source["genes_multimodal"],
+        "path": path_multimodal,
+    })
+    for set in sets:
+        # Select regression data for specific genes.
+        data_regression = source["data_regression_genes"].copy(deep=True)
+        data_regression = data_regression.loc[
+            data_regression.index.isin(set["genes"]), :
+        ]
+        print(data_regression)
+        # Prepare charts.
+        if False:
+            plot_charts_regressions_genes(
+                path_directory=set["path"],
+                data=source["data_regression_genes"],
+            )
+        pass
+    pass
+
+
+
+
 
 ###################################################################
 ################# Need to Update ###############################
@@ -4204,6 +4394,9 @@ def execute_procedure(dock=None):
 
     # Plot charts for correlations between pairs of all genes of interest.
     prepare_charts_signals_genes_correlations(dock=dock)
+
+    # Plot charts for regressions on genes.
+    prepare_charts_regressions_genes(dock=dock)
 
 
 
