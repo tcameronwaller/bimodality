@@ -3688,54 +3688,52 @@ def read_source_regressions_genes(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_genes_selection = os.path.join(
-        path_selection, "genes.pickle"
-    )
-
-    path_candidacy = os.path.join(dock, "candidacy")
-    path_genes_unimodal = os.path.join(
-        path_candidacy, "genes_unimodal.pickle"
-    )
-    path_genes_multimodal = os.path.join(
-        path_candidacy, "genes_multimodal.pickle"
-    )
-
     path_prediction = os.path.join(dock, "prediction")
-    path_data_regression_genes = os.path.join(
-        path_prediction, "data_regression_genes.pickle"
+    path_data_regression_genes_selection_scale = os.path.join(
+        path_prediction, "data_regression_genes_selection_scale.pickle"
+    )
+    path_data_regression_genes_unimodal_scale = os.path.join(
+        path_prediction, "data_regression_genes_unimodal_scale.pickle"
+    )
+    path_data_regression_genes_multimodal_scale = os.path.join(
+        path_prediction, "data_regression_genes_multimodal_scale.pickle"
     )
 
     # Read information from file.
-    with open(path_genes_selection, "rb") as file_source:
-        genes_selection = pickle.load(file_source)
-    with open(path_genes_unimodal, "rb") as file_source:
-        genes_unimodal = pickle.load(file_source)
-    with open(path_genes_multimodal, "rb") as file_source:
-        genes_multimodal = pickle.load(file_source)
-    data_regression_genes = pandas.read_pickle(path_data_regression_genes)
+    data_regression_genes_selection_scale = pandas.read_pickle(
+        path_data_regression_genes_selection_scale
+    )
+    data_regression_genes_unimodal_scale = pandas.read_pickle(
+        path_data_regression_genes_unimodal_scale
+    )
+    data_regression_genes_multimodal_scale = pandas.read_pickle(
+        path_data_regression_genes_multimodal_scale
+    )
 
     # Compile and return information.
     return {
-        "genes_selection": genes_selection,
-        "genes_unimodal": genes_unimodal,
-        "genes_multimodal": genes_multimodal,
-        "data_regression_genes": data_regression_genes,
+        "data_regression_genes_selection_scale": (
+            data_regression_genes_selection_scale
+        ),
+        "data_regression_genes_unimodal_scale": (
+            data_regression_genes_unimodal_scale
+        ),
+        "data_regression_genes_multimodal_scale": (
+            data_regression_genes_multimodal_scale
+        ),
     }
 
 
 def plot_charts_regressions_genes(
-    values=None,
-    threshold=None,
-    path=None
+    path=None,
+    data=None,
 ):
     """
     Plots charts from the analysis process.
 
     arguments:
-        values (list<float>): values
-        threshold (float): value of threshold for which to draw line
         path (str): path to directory and file
+        data (object): Pandas data frame
 
     raises:
 
@@ -3748,11 +3746,15 @@ def plot_charts_regressions_genes(
     # Define colors.
     colors = define_color_properties()
 
-    # Specify directories and files.
-    path_measure_figure = os.path.join(
-        path_measure, str(measure + ".svg")
-    )
+    # Charts for each set of genes...
+    # 1. distribution of R-square adjust
+    # 2. swarm plots for each biological covariate
+    # 3. violin plots?
 
+    # Specify directories and files.
+    path_figure_swarm = os.path.join(
+        path, "swarm.svg"
+    )
 
     # Create figure.
     figure = plot_distribution_histogram(
@@ -3811,44 +3813,19 @@ def prepare_charts_regressions_genes(
     utility.create_directories(path=path_unimodal)
     utility.create_directories(path=path_multimodal)
 
-    # Create sets of charts from regressions on
-    # 1. selection genes (all)
-    # 2. unimodal genes
-    # 3. multimodal genes
-
-    # Charts for each set of genes...
-    # 1. distribution of R-square adjust
-    # 2. swarm plots for each biological covariate
-    # 3. violin plots?
-
-    # Iterate on sets of genes.
-    sets = list()
-    sets.append({
-        "genes": source["genes_selection"],
-        "path": path_selection,
-    })
-    sets.append({
-        "genes": source["genes_unimodal"],
-        "path": path_unimodal,
-    })
-    sets.append({
-        "genes": source["genes_multimodal"],
-        "path": path_multimodal,
-    })
-    for set in sets:
-        # Select regression data for specific genes.
-        data_regression = source["data_regression_genes"].copy(deep=True)
-        data_regression = data_regression.loc[
-            data_regression.index.isin(set["genes"]), :
-        ]
-        print(data_regression)
-        # Prepare charts.
-        if False:
-            plot_charts_regressions_genes(
-                path_directory=set["path"],
-                data=source["data_regression_genes"],
-            )
-        pass
+    # Prepare charts.
+    plot_charts_regressions_genes(
+        path_directory=path_selection,
+        data=source["data_regression_genes_selection_scale"],
+    )
+    plot_charts_regressions_genes(
+        path_directory=path_unimodal,
+        data=source["data_regression_genes_unimodal_scale"],
+    )
+    plot_charts_regressions_genes(
+        path_directory=path_multimodal,
+        data=source["data_regression_genes_multimodal_scale"],
+    )
     pass
 
 
@@ -4387,7 +4364,7 @@ def execute_procedure(dock=None):
 
     # Plot charts of distributions of genes' pan-tissue aggregate signals
     # across persons.
-    #prepare_charts_genes_persons_signals(dock=dock)
+    prepare_charts_genes_persons_signals(dock=dock)
 
     # Plot charts of overlap between sets in selection of genes by bimodality.
     prepare_charts_gene_sets_candidacy(dock=dock)
@@ -4396,7 +4373,12 @@ def execute_procedure(dock=None):
     prepare_charts_signals_genes_correlations(dock=dock)
 
     # Plot charts for regressions on genes.
-    prepare_charts_regressions_genes(dock=dock)
+    #prepare_charts_regressions_genes(dock=dock)
+
+    # Plot charts of distributions of genes' bimodality measurement scores and
+    # permutations.
+    #plot_charts_distribution(dock=dock)
+
 
 
 
@@ -4447,10 +4429,6 @@ def execute_procedure(dock=None):
     #plot_charts_tissue(dock=dock)
     #plot_charts_restriction(dock=dock)
     #plot_chart_tissues_persons(dock=dock)
-
-    # Plot charts of distributions of genes' bimodality measurement scores and
-    # permutations.
-    #plot_charts_distribution(dock=dock)
 
     pass
 

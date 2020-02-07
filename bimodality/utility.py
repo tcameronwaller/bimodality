@@ -375,9 +375,10 @@ def read_file_text_list(
     # Read information from file
     content = read_file_text(path_file=path_file)
     # Split content by line delimiters.
-    information = content.split(delimiter)
+    values_split = content.split(delimiter)
+    values_strip = list(map(lambda value: value.strip(), values_split))
     # Return information
-    return information
+    return values_strip
 
 
 def read_file_text_lines(

@@ -200,6 +200,9 @@ def read_source_sample(dock=None):
     path_genotype_component_plink = os.path.join(
         path_access_private, "relation", "plink", "components.eigenvec"
     )
+    path_genotype_variance_plink = os.path.join(
+        path_access_private, "relation", "plink", "components.eigenval"
+    )
 
     # Customization
     path_customization = os.path.join(dock, "customization")
@@ -267,6 +270,10 @@ def read_source_sample(dock=None):
         ],
         low_memory=False,
     )
+    genotype_variances_plink = utility.read_file_text_list(
+        delimiter="\n",
+        path_file=path_genotype_variance_plink
+    )
 
     data_tissues_major = pandas.read_csv(
         path_tissues_major,
@@ -291,6 +298,7 @@ def read_source_sample(dock=None):
         "data_person_ancestry": data_person_ancestry,
         "data_genotype_component_gcta": data_genotype_component_gcta,
         "data_genotype_component_plink": data_genotype_component_plink,
+        "genotype_variances_plink": genotype_variances_plink,
         "data_tissues_major": data_tissues_major,
         "data_tissues_minor": data_tissues_minor,
         "samples": samples,
@@ -609,6 +617,16 @@ def extract_person_genotypes(
             genotype_8 = data_genotype_plink.at[person, "component_8"]
             genotype_9 = data_genotype_plink.at[person, "component_9"]
             genotype_10 = data_genotype_plink.at[person, "component_10"]
+            genotype_11 = data_genotype_plink.at[person, "component_11"]
+            genotype_12 = data_genotype_plink.at[person, "component_12"]
+            genotype_13 = data_genotype_plink.at[person, "component_13"]
+            genotype_14 = data_genotype_plink.at[person, "component_14"]
+            genotype_15 = data_genotype_plink.at[person, "component_15"]
+            genotype_16 = data_genotype_plink.at[person, "component_16"]
+            genotype_17 = data_genotype_plink.at[person, "component_17"]
+            genotype_18 = data_genotype_plink.at[person, "component_18"]
+            genotype_19 = data_genotype_plink.at[person, "component_19"]
+            genotype_20 = data_genotype_plink.at[person, "component_20"]
         else:
             genotype_1 = float("nan")
             genotype_2 = float("nan")
@@ -620,6 +638,16 @@ def extract_person_genotypes(
             genotype_8 = float("nan")
             genotype_9 = float("nan")
             genotype_10 = float("nan")
+            genotype_11 = float("nan")
+            genotype_12 = float("nan")
+            genotype_13 = float("nan")
+            genotype_14 = float("nan")
+            genotype_15 = float("nan")
+            genotype_16 = float("nan")
+            genotype_17 = float("nan")
+            genotype_18 = float("nan")
+            genotype_19 = float("nan")
+            genotype_20 = float("nan")
         pass
     elif source == "gcta":
         # Use principal components from genotype analysis in GCTA.
@@ -659,6 +687,16 @@ def extract_person_genotypes(
         "genotype_8": genotype_8,
         "genotype_9": genotype_9,
         "genotype_10": genotype_10,
+        "genotype_11": genotype_11,
+        "genotype_12": genotype_12,
+        "genotype_13": genotype_13,
+        "genotype_14": genotype_14,
+        "genotype_15": genotype_15,
+        "genotype_16": genotype_16,
+        "genotype_17": genotype_17,
+        "genotype_18": genotype_18,
+        "genotype_19": genotype_19,
+        "genotype_20": genotype_20,
     }
     return information
 
@@ -886,6 +924,37 @@ def collect_samples_tissues_persons(
     return samples_tissues_persons
 
 
+def organize_genotype_variance(
+    genotype_variances_plink=None,
+):
+    """
+    Associates samples, tissues, and persons and collects their attributes.
+
+    arguments:
+        genotype_variances_plink (object): variances of genotypes' principal
+            components, as calculated in PLINK2
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of variance of each principal component
+
+    """
+
+    count = 1
+    records = list()
+    for variance in genotype_variances_plink:
+        record = dict()
+        record["variance"] = variance
+        record["component"] = count
+        count += 1
+        pass
+    data = utility.convert_records_to_dataframe(
+        records=records
+    )
+    return data
+
+
 def organize_samples_tissues_persons(
     dock=None,
 ):
@@ -974,9 +1043,15 @@ def organize_samples_tissues_persons(
     print(data_samples_tissues_persons.iloc[0:10, :])
     print(data_samples_tissues_persons.shape)
 
+    # Organize variance of principal components on genotype.
+    data_genotype_variance_plink = organize_genotype_variance(
+        genotype_variances_plink=source["genotype_variances_plink"],
+    )
+
     # Compile information.
     information = {
         "data_samples_tissues_persons": data_samples_tissues_persons,
+        "data_genotype_variance_plink": data_genotype_variance_plink,
     }
 
     #Write product information to file.

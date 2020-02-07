@@ -534,6 +534,20 @@ def calculate_regression_discoveries(
         discoveries = report[1]
         return discoveries
 
+    def calculate_significances(
+        values=None,
+        threshold=None,
+        ):
+        report = statsmodels.stats.multitest.multipletests(
+            values,
+            alpha=threshold,
+            method="fdr_bh",
+            is_sorted=False,
+        )
+        #significances = numpy.logical_not(report[0])
+        significances = report[0]
+        return significances
+
 
     # Copy data.
     data_discovery = data.copy(deep=True)
@@ -541,14 +555,86 @@ def calculate_regression_discoveries(
     for variable in variables:
         probability = str(variable + ("_probability"))
         discovery = str(variable + ("_discovery"))
+        significance = str(variable + ("_significance"))
         # Calculate false discovery rate from probability.
         data_discovery[discovery] = calculate_discoveries(
-                values=data_discovery[probability].to_numpy(),
-                threshold=threshold,
+            values=data_discovery[probability].to_numpy(),
+            threshold=threshold,
+        )
+        data_discovery[significance] = calculate_significances(
+            values=data_discovery[probability].to_numpy(),
+            threshold=threshold,
         )
         pass
     # Return information.
     return data_discovery
+
+
+def select_genes_by_association_regression_variables(
+    variables=None,
+    genes_selection=None,
+    genes_unimodal=None,
+    genes_multimodal=None,
+    data_regression_genes=None,
+):
+    """
+    Selects and scales regression parameters.
+
+    arguments:
+        variables (list<str>): names of independent regression variables for
+            which to select genes by significant association
+        genes_selection (list<str>): identifiers of all genes that pass filters
+            in selection procedure
+        genes_unimodal (list<str>): identifiers of genes with pan-tissue
+            signals that have unimodal distribution across persons
+        genes_multimodal (list<str>): identifiers of genes with pan-tissue
+            signals that have nonunimodal distribution across persons
+        data_regression_genes (object): Pandas data frame of parameters and
+            statistics from regressions across cases
+
+    raises:
+
+    returns:
+        (dict<list<str>>): sets of genes that associate significantly to
+            variables in regression
+
+    """
+
+    # Select regression data for specific genes.
+    data_selection = data_regression_genes.copy(deep=True)
+    data_selection = data_selection.loc[
+        data_selection.index.isin(genes_selection), :
+    ]
+    data_unimodal = data_regression_genes.copy(deep=True)
+    data_unimodal = data_unimodal.loc[
+        data_unimodal.index.isin(genes_unimodal), :
+    ]
+    data_multimodal = data_regression_genes.copy(deep=True)
+    data_multimodal = data_multimodal.loc[
+        data_multimodal.index.isin(genes_multimodal), :
+    ]
+    # Select genes that associate significantly with variables.
+    sets = dict()
+    sets["selection"] = dict()
+    sets["unimodal"] = dict()
+    sets["multimodal"] = dict()
+    for variable in variables:
+        significance = str(variable + ("_significance"))
+        data_selection = data_selection.loc[
+            data_selection[significance], :
+        ]
+        data_unimodal = data_unimodal.loc[
+            data_unimodal[significance], :
+        ]
+        data_multimodal = data_multimodal.loc[
+            data_multimodal[significance], :
+        ]
+        sets["selection"][variable] = data_selection.index.to_list()
+        sets["unimodal"][variable] = data_unimodal.index.to_list()
+        sets["multimodal"][variable] = data_multimodal.index.to_list()
+        pass
+    # Return information.
+    return sets
 
 
 def scale_data_columns(
@@ -608,6 +694,7 @@ def select_scale_regression_parameters(
         columns.append(str(variable + ("_parameter")))
         columns.append(str(variable + ("_probability")))
         columns.append(str(variable + ("_discovery")))
+        columns.append(str(variable + ("_significance")))
         pass
     data_selection = data_regression_genes.copy(deep=True)
     data_selection = data_selection.loc[
@@ -1218,6 +1305,10 @@ def write_product(
         path_prediction, "data_regression_genes.tsv"
     )
 
+    path_sets = os.path.join(
+        path_prediction, "sets.pickle"
+    )
+
     path_data_regression_genes_selection_scale = os.path.join(
         path_prediction, "data_regression_genes_selection_scale.pickle"
     )
@@ -1239,6 +1330,8 @@ def write_product(
         header=True,
         index=True,
     )
+    with open(path_sets, "wb") as file_product:
+        pickle.dump(information["sets"], file_product)
 
     pandas.to_pickle(
         information["data_regression_genes_selection_scale"],
@@ -1306,7 +1399,7 @@ def execute_procedure(
     # Regress each gene's signal across persons.
     # Iterate on genes.
     #genes_iteration = random.sample(source["genes_selection"], 1000)
-    genes_iteration = source["genes_selection"]#[0:10]
+    genes_iteration = source["genes_selection"]#[0:1000]
     data_regression_genes = regress_cases(
         cases=genes_iteration,
         variables=variables["independence"],
@@ -1327,12 +1420,36 @@ def execute_procedure(
     # Calculate false discovery rate by Benjamini-Hochberg's method.
     data_regression_genes_discovery = calculate_regression_discoveries(
         variables=variables["independence"],
-        threshold=0.05,
+        threshold=0.1,
         data=data_regression_genes,
     )
     utility.print_terminal_partition(level=2)
     print("data_regression_genes_discovery")
     print(data_regression_genes_discovery)
+
+    # Select genes with significant association with each hypothetical
+    # variable of interest.
+    sets = select_genes_by_association_regression_variables(
+        variables=variables["hypothesis"],
+        genes_selection=source["genes_selection"],
+        genes_unimodal=source["genes_unimodal"],
+        genes_multimodal=source["genes_multimodal"],
+        data_regression_genes=data_regression_genes_discovery,
+    )
+    utility.print_terminal_partition(level=2)
+    print("Counts of genes.")
+    print("selection genes: " + str(len(source["genes_selection"])))
+    print("unimodal genes: " + str(len(source["genes_unimodal"])))
+    print("multimodal genes: " + str(len(source["genes_multimodal"])))
+    utility.print_terminal_partition(level=3)
+    print("Counts of genes that associate significantly with each variable.")
+    for variable in variables["hypothesis"]:
+        utility.print_terminal_partition(level=3)
+        print(variable)
+        print("selection genes: " + str(len(sets["selection"][variable])))
+        print("unimodal genes: " + str(len(sets["unimodal"][variable])))
+        print("multimodal genes: " + str(len(sets["multimodal"][variable])))
+        pass
 
     # Select regression parameters and probabilities that are biologically
     # relevant.
@@ -1384,6 +1501,7 @@ def execute_procedure(
     # Compile information.
     information = dict()
     information["data_regression_genes"] = data_regression_genes_discovery
+    information["sets"] = sets
     information["data_regression_genes_selection_scale"] = (
         bin["data_regression_genes_selection_scale"]
     )

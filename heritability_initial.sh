@@ -70,5 +70,5 @@ $path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --make-rel --out
 # (minor allele frequence < 0.01).
 # Principal components on rare variants produces Eigenvalues near zero and
 # missing values across Eigenvectors.
-$path_gcta --grm $path_relation_gcta/autosome_common --pca 10 --out $path_relation_gcta/components
-$path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --pca 10 --out $path_relation_plink/components
+$path_gcta --grm $path_relation_gcta/autosome_common --pca 25 --out $path_relation_gcta/components
+$path_plink_2 --pfile $path_genotype_pgen --autosome --maf 0.01 --pca 25 --out $path_relation_plink/components
