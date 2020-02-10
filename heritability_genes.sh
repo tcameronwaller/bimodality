@@ -13,15 +13,15 @@ echo "--------------------------------------------------"
 set -x
 
 # Organize paths.
-path_gcta="/home/tcameronwaller/gcta_1.92.4beta/gcta64"
+path_gcta="/home/tcameronwaller/gcta_1.93.0beta/gcta64"
 
 path_dock="/home/tcameronwaller/dock"
-path_gtex="$path_dock/gtex-8"
-path_relation="$path_gtex/relation/autosome_common"
-path_genes="$path_dock/split/genes.txt"
-path_persons="$path_dock/selection/families_persons.tsv"
-path_category="$path_dock/selection/persons_categories.tsv"
-path_quantity="$path_dock/selection/persons_quantities.tsv"
+path_gtex="$path_dock/access_private/relation/gcta"
+path_relation="$path_gtex/autosome_common"
+path_genes="$path_dock/selection/tight/genes_selection.txt"
+path_persons="$path_dock/selection/tight/families_persons.tsv"
+path_category="$path_dock/selection/tight/persons_categories.tsv"
+path_quantity="$path_dock/selection/tight/persons_quantities.tsv"
 path_distribution="$path_dock/distribution/genes"
 path_heritability="$path_dock/heritability/genes"
 
@@ -61,6 +61,6 @@ do
 
     # Execute heritability analysis.
     $path_gcta --grm $path_relation --keep $path_persons --pheno $path_phenotype --reml --out $path_simple/report --threads 5
-    $path_gcta --grm $path_relation --keep $path_persons --pheno $path_phenotype --covar $path_category --qcovar $path_quantity --reml --out $path_complex/report --threads 5
-
+    #$path_gcta --grm $path_relation --keep $path_persons --pheno $path_phenotype --covar $path_category --qcovar $path_quantity --reml --out $path_complex/report --threads 5
+    $path_gcta --grm $path_relation --keep $path_persons --pheno $path_phenotype --qcovar $path_quantity --reml --out $path_complex/report --threads 5
 done

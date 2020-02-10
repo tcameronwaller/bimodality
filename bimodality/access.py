@@ -40,9 +40,6 @@ import utility
 # Functionality
 
 
-# TODO: access GTEx version 8 reference GENCODE
-
-
 def define_source():
     """
     Defines and translates names of files for source data
@@ -58,7 +55,7 @@ def define_source():
 
     # Compile and return information.
     return {
-        # Update on 9 January 2020
+        # Update on 7 February 2020
         "description_sample": {
             "path": (
                 "https://storage.googleapis.com/gtex_analysis_v8/annotations/"
@@ -121,15 +118,15 @@ def define_source():
             "suffix": "gtf",
             "compression": False,
         },
-        # Update on 8 January 2020
-        # Gencode Release 32 (GRCh38.p13)
+        # Update on 7 February 2020
+        # Gencode Release 33 (GRCh38.p13)
         "annotation_gene_gencode": {
             "path": (
                 "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/" +
-                "release_32/"
+                "release_33/"
             ),
             "name": (
-                "gencode.v32.annotation.gtf.gz"
+                "gencode.v33.annotation.gtf.gz"
             ),
             "suffix": "gtf.gz",
             "compression": True,

@@ -60,23 +60,24 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_split = os.path.join(dock, "split")
-    path_genes = os.path.join(path_split, "genes.txt")
+    path_selection = os.path.join(dock, "selection", "tight")
+    path_genes_selection = os.path.join(
+        path_selection, "genes_selection.pickle"
+    )
+
     path_heritability = os.path.join(dock, "heritability")
     path_heritability_genes = os.path.join(path_heritability, "genes")
 
     # Read information from file.
-    genes_split = utility.read_file_text_list(
-        delimiter="\n",
-        path_file=path_genes,
-    )
+    with open(path_genes_selection, "rb") as file_source:
+        genes_selection = pickle.load(file_source)
     genes_heritability = utility.extract_subdirectory_names(
         path=path_heritability_genes
     )
 
     # Compile and return information.
     return {
-        "genes_split": genes_split,
+        "genes_selection": genes_selection,
         "genes_heritability": genes_heritability,
     }
 
@@ -517,7 +518,7 @@ def execute_procedure(dock=None):
     # complex method unavailable: ENSG00000214860, ENSG00000180354
     path_heritability = os.path.join(dock, "heritability")
     check_genes(
-        genes_split=source["genes_split"],
+        genes_split=source["genes_selection"],
         genes_heritability=source["genes_heritability"],
         path_heritability=path_heritability,
     )

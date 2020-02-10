@@ -9,7 +9,7 @@
 # Execution
 # $ bash execution_halyard.sh
 
-path_project="/media/tcameronwaller/primary/data/local/work/project/2019_bimodality/"
+path_project="/media/tcameronwaller/primary/data/local/work/project/2020_bimodality/"
 subpath_repository="repository/"
 path_repository="$path_project$subpath_repository"
 subpath_program="repository/bimodality/"
@@ -41,16 +41,23 @@ echo "Now set to call routine and procedures."
 
 # -- Preparation of dock_template
 # --- execute on nrnb
-#bash access_private.sh # run on 8 January 2020
-#bash heritability_initial.sh # run on 8-9 January 2020
-# -- copy directory "access_private" to directory "dock" on halyard
-# cp -r dock_template_2020-01-09/ /home/tcameronwaller/
-# mv /home/tcameronwaller/dock_template_2020-01-09/ /home/tcameronwaller/dock/
+#bash access_private.sh # run on 6 February 2020
+#bash heritability_initial.sh # run on 6 February 2020
+# cd /cellar/users/tcwaller/Data/dock/
+#tar -czvf access_private.tar.gz access_private/
+# --- execute on halyard
+#cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-02-06/
+#scp tcwaller@grenache.ucsd.edu:/cellar/users/tcwaller/Data/dock/access_private.tar.gz access_private.tar.gz
+#tar -xzvf access_private.tar.gz
+#cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/
+#cp -r dock_template_2020-02-06 /home/tcameronwaller/dock_template_2020-02-06
+#cd /home/tcameronwaller/
+# mv /home/tcameronwaller/dock_template_2020-02-06/ /home/tcameronwaller/dock/
 
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access
 #python3 interface.py main --dock $path_dock --assembly
-#python3 interface.py main --dock $path_dock --selection
+python3 interface.py main --dock $path_dock --selection
 
 ##########
 # - Batch Routine
@@ -72,7 +79,7 @@ echo "Now set to call routine and procedures."
 # Analysis Routine
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
-python3 interface.py main --dock $path_dock --prediction
+#python3 interface.py main --dock $path_dock --prediction
 #python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --integration

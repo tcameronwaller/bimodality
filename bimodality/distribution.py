@@ -89,14 +89,12 @@ def initialize_directories(dock=None):
 
 
 def read_source_initial(
-    source_genes=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        source_genes (str): name of directory from which to obtain genes list
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -115,12 +113,8 @@ def read_source_initial(
     path_persons_families = os.path.join(
         path_selection, "data_families_persons.pickle"
     )
-    if source_genes == "selection":
-        path_source = os.path.join(dock, "selection")
-    elif source_genes == "split":
-        path_source = os.path.join(dock, "split")
     path_genes = os.path.join(
-        path_source, "genes.pickle"
+        path_selection, "genes_selection.pickle"
     )
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
@@ -2799,7 +2793,6 @@ def execute_procedure_local(dock=None):
 
     # Read source information from file.
     source = read_source_initial(
-        source_genes="selection",
         dock=dock
     )
     print("count of genes: " + str(len(source["genes"])))
@@ -2828,7 +2821,7 @@ def execute_procedure_local(dock=None):
     )
     # Initialize multiprocessing pool.
     #pool = multiprocessing.Pool(processes=os.cpu_count())
-    pool = multiprocessing.Pool(processes=8)
+    pool = multiprocessing.Pool(processes=7)
     # Iterate on genes.
     report = pool.map(
         execute_procedure_gene,

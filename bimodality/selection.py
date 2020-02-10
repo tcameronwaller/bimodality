@@ -27,6 +27,7 @@ import pandas
 
 import assembly
 import measurement
+import prediction
 import utility
 
 #dir()
@@ -331,9 +332,11 @@ def select_genes(
         "Selection of signal genes that encode proteins."
     )
     # Describe original count of genes.
-    print("signal total genes: " + str(data_gene_signal.shape[0]))
-    genes_signal = data_gene_signal.index.to_list()
-    print("signal total genes: " + str(len(genes_signal)))
+    print("GTEx signal total genes: " + str(data_gene_signal.shape[0]))
+    genes_gtex = utility.collect_unique_elements(
+        elements_original=data_gene_signal.index.to_list()
+    )
+    print("GTEx signal total genes: " + str(len(genes_gtex)))
 
     # Extract identifiers of protein-coding genes.
     genes_protein = data_gene_annotation.index.to_list()
@@ -354,7 +357,9 @@ def select_genes(
     data_gene_signal_protein = data_gene_signal.loc[
         genes_protein, :
     ]
-    genes = data_gene_signal_protein.index.to_list()
+    genes_selection_protein = utility.collect_unique_elements(
+        elements_original=data_gene_signal_protein.index.to_list()
+    )
 
     utility.print_terminal_partition(level=2)
     print(
@@ -363,17 +368,19 @@ def select_genes(
     )
     print(
         "signal genes that encode proteins and on autosomes: " +
-        str(len(genes))
-    )
-    print(
-        "unique signal genes that encode proteins and on autosomes: " +
-        str(len(utility.collect_unique_elements(elements_original=genes)))
+        str(len(genes_selection_protein))
     )
 
     utility.print_terminal_partition(level=2)
 
+    # Compile information.
+    information = dict()
+    information["genes_gtex"] = genes_gtex
+    information["genes_selection_protein"] = genes_selection_protein
+    information["data_gene_signal_protein"] = data_gene_signal_protein
+
     # Return information.
-    return data_gene_signal_protein
+    return information
 
 
 # Samples.
@@ -441,6 +448,53 @@ def include_samples_by_tissues(
 
 
 # Signal.
+
+
+
+def normalize_collect_report_gene_signals(
+    data_gene_signal=None,
+    threshold=None,
+):
+    """
+    Normalizes genes' signals by logarithmic transformation and collects
+    values.
+
+    arguments:
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+        threshold (float): value for threshold on genes' signals
+
+    raises:
+
+    returns:
+        (array): values of genes' signals
+    """
+
+    data = data_gene_signal.copy(deep=True)
+    # Transform genes' signals to logarithmic space.
+    # Transform values of genes' signals to base-2 logarithmic space.
+    base = 2
+    pseudo_count = 1.0
+    data_log = data.applymap(
+        lambda value: math.log((value + pseudo_count), base)
+    )
+    # Flatten signals to one dimensional array.
+    signals = data_log.to_numpy().flatten()
+
+    # Report.
+    utility.print_terminal_partition(level=1)
+    print("Normalize and collect distribution of genes' signals.")
+    print("Threshold: " + str(threshold) + " = log2(1.0 pseudo + 0.1 TPM)")
+    array_threshold = signals[signals >= threshold]
+    totals = signals.size
+    passes = array_threshold.size
+    print(
+        "Percent signals >= threshold: " +
+        str(round((passes / totals) * 100)) + "%"
+    )
+
+    # Return information.
+    return signals
 
 
 def select_samples_genes_signals(
@@ -534,18 +588,17 @@ def select_samples_genes_signals_coverage(
 
 
 def select_samples_tissues_persons(
+    samples=None,
     data_samples_tissues_persons=None,
-    data_gene_signal=None
 ):
     """
     Selects samples, tissues, persons, and their properties from the selection
     of samples on the basis of genes' signals.
 
     arguments:
+        samples (list<str>): identifiers of samples to select
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples
-        data_gene_signal (object): Pandas data frame of genes' signals across
-            samples
 
     raises:
 
@@ -553,14 +606,10 @@ def select_samples_tissues_persons(
         (object): Pandas data frame of persons and tissues for all samples
     """
 
-    # Extract selection samples.
-    samples = utility.collect_unique_elements(
-        elements_original=data_gene_signal.columns.tolist()
-    )
     # Select information about samples.
-    data_samples_copy = data_samples_tissues_persons.copy(deep=True)
-    data_samples_selection = data_samples_copy.loc[
-        data_samples_copy.index.isin(samples), :
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    data_samples_selection = data_samples.loc[
+        data_samples.index.isin(samples), :
     ]
 
     # Return information.
@@ -570,7 +619,7 @@ def select_samples_tissues_persons(
 # Select persons.
 
 
-def select_persons_by_tissues(
+def select_samples_persons_by_tissues(
     count=None,
     data_samples_tissues_persons=None,
 ):
@@ -587,24 +636,24 @@ def select_persons_by_tissues(
     raises:
 
     returns:
-        (list<str>): identifiers of persons
+        (dict<list<str>>): identifiers of persons and samples
     """
 
-    # Organize data.
-    data_samples = data_samples_tissues_persons.copy(deep=True)
-    data_samples.rename_axis(
+    # Select persons by tissues.
+    data_persons = data_samples_tissues_persons.copy(deep=True)
+    data_persons.rename_axis(
         "",
         axis="columns",
         inplace=True,
     )
-    data_samples.reset_index(
+    data_persons.reset_index(
         level=None,
         inplace=True
     )
-    data_samples = data_samples.loc[
-        :, data_samples.columns.isin(["person", "tissue_major"])
+    data_persons = data_persons.loc[
+        :, data_persons.columns.isin(["person", "tissue_major"])
     ]
-    data_samples.drop_duplicates(
+    data_persons.drop_duplicates(
         subset=None,
         keep="first",
         inplace=True,
@@ -616,18 +665,35 @@ def select_persons_by_tissues(
         factor="person",
         name_factor="person",
         name_elements="tissues",
-        data=data_samples,
+        data=data_persons,
     )
     # Select persons by counts of tissues for which they have samples.
-    data_selection = data_persons_tissues.loc[
-        (data_persons_tissues["tissues"] >= 10), :
+    data_persons_selection = data_persons_tissues.loc[
+        (data_persons_tissues["tissues"] >= count), :
     ]
     # Extract identifiers of persons.
     persons = utility.collect_unique_elements(
-        elements_original=data_selection["person"].to_list()
+        elements_original=data_persons_selection["person"].to_list()
+    )
+
+    # Select samples by persons.
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    data_samples_selection = data_samples.loc[
+        data_samples["person"].isin(persons), :
+    ]
+    samples = utility.collect_unique_elements(
+        elements_original=data_samples_selection.index.to_list()
+    )
+
+    # Compile information.
+    information = dict()
+    information["persons"] = persons
+    information["samples"] = samples
+    information["data_samples_tissues_persons"] = (
+        data_samples_selection
     )
     # Return information.
-    return persons
+    return information
 
 
 ##########
@@ -703,6 +769,7 @@ def report_genotype_imputation(
 def impute_persons_genotypes(
     persons=None,
     data_samples_tissues_persons=None,
+    data_samples_tissues_persons_selection=None,
 ):
     """
     Extracts and organizes information about samples and genes for further
@@ -712,6 +779,8 @@ def impute_persons_genotypes(
         persons (list<str>): identifiers of persons
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues for all samples
 
     raises:
 
@@ -721,7 +790,7 @@ def impute_persons_genotypes(
     """
 
     # Organize data.
-    data = data_samples_tissues_persons.copy(deep=True)
+    data_selection = data_samples_tissues_persons_selection.copy(deep=True)
     data_genotypes = data_samples_tissues_persons.copy(deep=True)
     data_genotypes.reset_index(
         level=None,
@@ -738,6 +807,21 @@ def impute_persons_genotypes(
         "genotype_8",
         "genotype_9",
         "genotype_10",
+        "genotype_11",
+        "genotype_12",
+        "genotype_13",
+        "genotype_14",
+        "genotype_15",
+        "genotype_16",
+        "genotype_17",
+        "genotype_18",
+        "genotype_19",
+        "genotype_20",
+        "genotype_21",
+        "genotype_22",
+        "genotype_23",
+        "genotype_24",
+        "genotype_25",
     ]
     columns = copy.deepcopy(genotypes)
     columns.append("person")
@@ -773,7 +857,7 @@ def impute_persons_genotypes(
             ),
             axis="index",
         )
-    data.fillna(
+    data_selection.fillna(
         value=imputations,
         #axis="columns",
         inplace=True,
@@ -782,11 +866,11 @@ def impute_persons_genotypes(
     report_genotype_imputation(
         columns=columns,
         data_original=data_samples_tissues_persons,
-        data_novel=data,
+        data_novel=data_selection,
     )
 
     # Return information.
-    return data
+    return data_selection
 
 
 # Extract information about samples, tissues, and persons.
@@ -1060,7 +1144,7 @@ def extract_persons_properties(
                 "tissue_minor",
                 "facilities",
                 "batch_isolation",
-                "batches_analysis",
+                "batches_sequence",
             ],
             axis="columns",
             inplace=True
@@ -1082,8 +1166,8 @@ def extract_persons_properties(
             values=data_original["batch_isolation"].dropna().to_list(),
             delimiter=",",
         )
-        data_novel["batches_analysis"] = collect_person_unique_sample_values(
-            values=data_original["batches_analysis"].dropna().to_list(),
+        data_novel["batches_sequence"] = collect_person_unique_sample_values(
+            values=data_original["batches_sequence"].dropna().to_list(),
             delimiter=",",
         )
         data_collection = data_collection.append(
@@ -1238,8 +1322,8 @@ def organize_persons_properties_categories(
         values=data_copy["batches_isolation"].dropna().to_list(),
         delimiter=",",
     )
-    batches_analysis = collect_persons_unique_values(
-        values=data_copy["batches_analysis"].dropna().to_list(),
+    batches_sequence = collect_persons_unique_values(
+        values=data_copy["batches_sequence"].dropna().to_list(),
         delimiter=",",
     )
 
@@ -1248,7 +1332,7 @@ def organize_persons_properties_categories(
     print("Count of unique tissues: " + str(len(tissues)))
     print("Count of unique facilities: " + str(len(facilities)))
     print("Count of unique isolation batches: " + str(len(batches_isolation)))
-    print("Count of unique analysis batches: " + str(len(batches_analysis)))
+    print("Count of unique read batches: " + str(len(batches_sequence)))
     utility.print_terminal_partition(level=2)
 
     # Create two-dimensional matrices to represent persons' categories.
@@ -1272,15 +1356,15 @@ def organize_persons_properties_categories(
         delimiter=",",
         data=data_copy,
     )
-    data_batches_analysis = expand_persons_categories_matrix(
-        category="batches_analysis",
-        values=batches_analysis,
+    data_batches_sequence = expand_persons_categories_matrix(
+        category="batches_sequence",
+        values=batches_sequence,
         delimiter=",",
         data=data_copy,
     )
     # Merge batches to a single matrix.
     data_batches = data_batches_isolation.join(
-        data_batches_analysis,
+        data_batches_sequence,
         how="left",
         on="person"
     )
@@ -1290,7 +1374,7 @@ def organize_persons_properties_categories(
     print("tissues")
     report_tissues = utility.calculate_principal_components(
         data=data_tissues,
-        components=10,
+        components=20,
         report=True,
     )
     utility.print_terminal_partition(level=2)
@@ -1304,21 +1388,21 @@ def organize_persons_properties_categories(
     print("batches_isolation")
     report_batches_isolation = utility.calculate_principal_components(
         data=data_batches_isolation,
-        components=10,
+        components=20,
         report=True,
     )
     utility.print_terminal_partition(level=2)
-    print("batches_analysis")
-    report_batches_analysis = utility.calculate_principal_components(
-        data=data_batches_analysis,
-        components=10,
+    print("batches_sequence")
+    report_batches_sequence = utility.calculate_principal_components(
+        data=data_batches_sequence,
+        components=20,
         report=True,
     )
     utility.print_terminal_partition(level=2)
     print("batches")
     report_batches = utility.calculate_principal_components(
         data=data_batches,
-        components=10,
+        components=20,
         report=True,
     )
 
@@ -1327,7 +1411,7 @@ def organize_persons_properties_categories(
     information["tissues"] = report_tissues
     information["facilities"] = report_facilities
     information["batches_isolation"] = report_batches_isolation
-    information["batches_analysis"] = report_batches_analysis
+    information["batches_sequence"] = report_batches_sequence
     information["batches"] = report_batches
     # Return information.
     return information
@@ -1404,12 +1488,20 @@ def organize_persons_properties(
         data_persons_properties_raw=data_persons_properties_raw,
     )
     data_tissues = bin["tissues"]["data_observations_components"]
+    data_tissues_variance = bin["tissues"]["data_components_variances"]
     data_facilities = bin["facilities"]["data_observations_components"]
+    data_facilities_variance = bin["facilities"]["data_components_variances"]
     data_batches_isolation = bin["batches_isolation"][
         "data_observations_components"
     ]
-    data_batches_analysis = bin["batches_analysis"][
+    data_batches_isolation_variance = bin["batches_isolation"][
+        "data_components_variances"
+    ]
+    data_batches_sequence = bin["batches_sequence"][
         "data_observations_components"
+    ]
+    data_batches_sequence_variance = bin["batches_sequence"][
+        "data_components_variances"
     ]
     # Replace persons' raw properties.
     data_persons_properties = insert_components(
@@ -1428,8 +1520,8 @@ def organize_persons_properties(
         data_collection=data_persons_properties,
     )
     data_persons_properties = insert_components(
-        prefix="batches_analysis",
-        data_components=data_batches_analysis,
+        prefix="batches_sequence",
+        data_components=data_batches_sequence,
         data_collection=data_persons_properties,
     )
 
@@ -1467,8 +1559,20 @@ def organize_persons_properties(
         axis="columns",
     )
 
+    # Compile information.
+    information = dict()
+    information["data_persons_properties"] = data_persons_properties
+    information["data_tissues_variance"] = data_tissues_variance
+    information["data_facilities_variance"] = data_facilities_variance
+    information["data_batches_isolation_variance"] = (
+        data_batches_isolation_variance
+    )
+    information["data_batches_sequence_variance"] = (
+        data_batches_sequence_variance
+    )
+
     # Return information.
-    return data_persons_properties
+    return information
 
 
 # Count persons' by categories of sex and age.
@@ -1610,6 +1714,7 @@ def organize_heritability_covariates(
 def extract_organize_persons_properties(
     persons=None,
     data_samples_tissues_persons=None,
+    data_samples_tissues_persons_selection=None,
     data_gene_signal=None,
 ):
     """
@@ -1620,6 +1725,8 @@ def extract_organize_persons_properties(
         persons (list<str>): identifiers of persons
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues for all samples
         data_gene_signal (object): Pandas data frame of genes' signals across
             samples
 
@@ -1631,37 +1738,33 @@ def extract_organize_persons_properties(
 
     # Copy data.
     data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
+    data_samples_tissues_persons_selection = (
+        data_samples_tissues_persons_selection.copy(deep=True)
+    )
     data_gene_signal = data_gene_signal.copy(deep=True)
 
-    # Transpose data structure.
-    # Organize genes across columns and samples across rows.
-    data_transposition = data_gene_signal.transpose(copy=True)
-    # Associate samples to persons and tissues.
-    data_gene_signal_factor = assembly.associate_samples_persons_tissues(
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        data_gene_sample=data_transposition,
-    )
+    if False:
+        # Transpose data structure.
+        # Organize genes across columns and samples across rows.
+        data_transposition = data_gene_signal.transpose(copy=True)
+        # Associate samples to persons and tissues.
+        data_gene_signal_factor = assembly.associate_samples_persons_tissues(
+            data_samples_tissues_persons=data_samples_tissues_persons,
+            data_gene_sample=data_transposition,
+        )
 
     # Impute missing genotypes.
     data_samples_genotypes = impute_persons_genotypes(
         persons=persons,
         data_samples_tissues_persons=data_samples_tissues_persons,
+        data_samples_tissues_persons_selection=(
+            data_samples_tissues_persons_selection
+        ),
     )
-
-    # Select persons for further analysis.
-    # Calculation of principal components on categorical variables will only
-    # consider persons relevant to regression.
-    # 11775 samples
-    data_samples_persons_selection = data_samples_genotypes.loc[
-        data_samples_genotypes["person"].isin(persons), :
-    ]
-    utility.print_terminal_partition(level=2)
-    print("data_samples_persons_selection")
-    print(data_samples_persons_selection)
 
     # Extract information about persons' properties.
     data_persons_properties_raw = extract_persons_properties(
-        data_samples_tissues_persons=data_samples_persons_selection,
+        data_samples_tissues_persons=data_samples_genotypes,
     )
     utility.print_terminal_partition(level=2)
     print("data_persons_properties_raw")
@@ -1669,66 +1772,35 @@ def extract_organize_persons_properties(
 
     # Expand covariates.
     # Prepare covariates for regression.
-    data_persons_properties = organize_persons_properties(
+    bin = organize_persons_properties(
         data_persons_properties_raw=data_persons_properties_raw,
     )
     utility.print_terminal_partition(level=2)
     print("data_persons_properties")
-    print(data_persons_properties)
-
-    # Define variables for regression.
-    variables = [
-        "female",
-        "age",
-        "body",
-        "hardiness",
-        "season_sequence",
-
-        "delay",
-
-        "tissues_1",
-        "tissues_2",
-        "tissues_3",
-
-        "facilities_1",
-        "facilities_2",
-        "facilities_3",
-
-        "batches_isolation_1",
-        "batches_isolation_2",
-        "batches_isolation_3",
-
-        "batches_analysis_1",
-        "batches_analysis_2",
-        "batches_analysis_3",
-    ]
+    print(bin["data_persons_properties"])
 
     # Extract information about samples, tissues, and persons.
-    collection = extract_persons_tissues_samples(
-        data_samples_tissues_persons=data_samples_persons_selection,
-    )
+    if False:
+        collection = extract_persons_tissues_samples(
+            data_samples_tissues_persons=data_samples_persons_selection,
+        )
     # Count tissues per person and persons per tissue.
     counts = count_tissues_persons_groups(
-        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_samples_tissues_persons=data_samples_tissues_persons_selection,
     )
     # Count persons in groups by sex and age.
     data_persons_sex_age_counts = count_persons_sex_age(
         data_persons_properties=data_persons_properties_raw,
     )
     # Organize information for heritability analysis.
+    variables = prediction.define_regression_variables()
     heritability = organize_heritability_covariates(
-        variables=variables,
-        data_persons_properties=data_persons_properties,
+        variables=variables["heritability"],
+        data_persons_properties=bin["data_persons_properties"],
     )
 
     # Compile information.
     information = {
-        "data_gene_signal_factor": data_gene_signal_factor,
-
-        "persons": collection["persons"],
-        "tissues": collection["tissues"],
-        "samples": collection["samples"],
-
         "data_tissues_per_person": counts["data_tissues_per_person"],
         "tissues_per_person": counts["tissues_per_person"],
         "data_persons_per_tissue": counts["data_persons_per_tissue"],
@@ -1737,9 +1809,16 @@ def extract_organize_persons_properties(
         "data_persons_sex_age_counts": data_persons_sex_age_counts,
 
         "data_persons_properties_raw": data_persons_properties_raw,
-        "data_persons_properties": data_persons_properties,
+        "data_persons_properties": bin["data_persons_properties"],
 
-        "variables": variables,
+        "data_tissues_variance": bin["data_tissues_variance"],
+        "data_facilities_variance": bin["data_facilities_variance"],
+        "data_batches_isolation_variance": bin[
+            "data_batches_isolation_variance"
+        ],
+        "data_batches_sequence_variance": bin[
+            "data_batches_sequence_variance"
+        ],
 
         "data_families_persons": heritability["data_families_persons"],
         "data_persons_categories": heritability["data_persons_categories"],
@@ -1798,6 +1877,11 @@ def select_organize_samples_genes_signals(
         data_gene_signal=data_gene_signal,
     )
 
+    ##########
+    ##########
+    ##########
+    # Select protein-coding genes on nuclear autosomes
+
     # Select genes that encode proteins and are on autosomes.
     # Count of genes: 18353
     utility.print_terminal_partition(level=1)
@@ -1818,7 +1902,7 @@ def select_organize_samples_genes_signals(
     utility.print_terminal_partition(level=2)
     print("Select signal genes by GTEx reference.")
     # GTEx signal genes on autosomes that encode proteins: 18380
-    data_gene_signal_gene_gtex = select_genes(
+    bin_genes_gtex = select_genes(
         data_gene_annotation=data_gene_annotation_gtex,
         data_gene_signal=data_gene_signal,
     )
@@ -1827,13 +1911,27 @@ def select_organize_samples_genes_signals(
     utility.print_terminal_partition(level=2)
     print("Select signal genes by GENCODE reference.")
     # GTEx signal genes on autosomes that encode proteins: 19035
-    data_gene_signal_gene_gencode = select_genes(
+    bin_genes_gencode = select_genes(
         data_gene_annotation=data_gene_annotation_gencode,
         data_gene_signal=data_gene_signal,
     )
 
     # Continue analyses with selection of genes by GENCODE.
-    data_gene_signal_gene = data_gene_signal_gene_gencode.copy(deep=True)
+    data_gene_signal_protein = bin_genes_gencode[
+        "data_gene_signal_protein"
+    ].copy(deep=True)
+    genes_gtex = copy.deepcopy(bin_genes_gencode["genes_gtex"])
+
+    ##########
+    ##########
+    ##########
+    # Select samples from persons with at least 10 sex-neutral tissues
+
+    # Collect list of samples from GTEx.
+    utility.print_terminal_partition(level=2)
+    print("Selection of samples...")
+    samples_gtex = data_gene_signal_protein.columns.to_list()
+    print("Count of samples from GTEx: " + str(len(samples_gtex)))
 
     # Select samples by tissues of interest.
     # Exclude samples for cell lines that are not whole tissues.
@@ -1864,21 +1962,54 @@ def select_organize_samples_genes_signals(
         tissues_major=tissues_selection,
         data_samples_tissues_persons=data_samples_exclusion,
     )
-    samples_preliminary = data_samples_inclusion.index.to_list()
+
+    # Select final samples on basis of persons' eligibility.
+    utility.print_terminal_partition(level=1)
+    print("Selection of samples by persons' eligibility.")
+    print("Persons must have samples for adequate count of tissues.")
+
+    # Select persons with adequate sample coverage of multiple tissues.
+    bin_tissues = select_samples_persons_by_tissues(
+        count=10,
+        data_samples_tissues_persons=data_samples_inclusion,
+    )
+    persons_selection = bin_tissues["persons"]
+    data_samples_tissues_persons_tissues = bin_tissues[
+        "data_samples_tissues_persons"
+    ]
+
+    # Select samples in signal data.
     data_gene_signal_sample = select_samples_genes_signals(
-        samples=samples_preliminary,
-        data_gene_signal=data_gene_signal_gene,
+        samples=bin_tissues["samples"],
+        data_gene_signal=data_gene_signal_protein,
     )
 
     # Summarize original counts of samples and genes.
     summarize_samples_genes(
-        data_samples_tissues_persons=data_samples_inclusion,
+        data_samples_tissues_persons=data_samples_tissues_persons_tissues,
         data_gene_signal=data_gene_signal_sample,
     )
 
+    ##########
+    ##########
+    ##########
+    # Select genes and samples by their signal coverage.
     utility.print_terminal_partition(level=1)
     print("Selection of genes and samples by signal coverage.")
     utility.print_terminal_partition(level=1)
+
+    # Fill missing signals with values of zero.
+    data_gene_signal_fill = data_gene_signal_sample.fillna(
+        value=0.0,
+        inplace=False,
+    )
+
+    # Collect initial distribution of genes' signals for selection of signal
+    # threshold.
+    signals_initial = normalize_collect_report_gene_signals(
+        data_gene_signal=data_gene_signal_fill,
+        threshold=0.13750, #0.13750, 1.0
+    )
 
     # Select genes and samples by signals and coverage.
     if stringency == "loose":
@@ -1890,46 +2021,65 @@ def select_organize_samples_genes_signals(
             threshold=0.1,
             proportion_gene=0.01, # 0.01
             proportion_sample=0.1, # 0.1
-            data_gene_signal=data_gene_signal_sample,
+            data_gene_signal=data_gene_signal_fill,
         )
     elif stringency == "tight":
         # Each gene must have signal greater than or equal to 0.1 TPM in at
-        # least 10% of samples.
+        # least 50% of samples.
+        # This threshold removes genes that have strong specificity to a few
+        # tissues, which might introduce error in subsequent analyses.
+        # This threshold also reduces the count of genes for subsequent
+        # analyses, hence increasing statistical power.
         # Each sample must have signal greater than or equal to 0.1 TPM in at
         # least 50% of genes.
+        # TCW 8 February 2020
+        # threshold ... proportion_gene ... proportion_sample ... genes ... samples
+        # 0.0           0.5                 0.5
+        # 0.1           0.1                 0.1
+        # 0.1           0.5                 0.1
+        # 0.1           0.5                 0.5                   15130     11775 <-- Priority!
+        # 1.0           0.1                 0.1
+        # 1.0           0.5                 0.1
+        # 1.0           0.5                 0.5
+
         data_gene_signal_selection = select_samples_genes_signals_coverage(
             threshold=0.1,
-            proportion_gene=0.1, # 0.1
+            proportion_gene=0.5, # 0.5
             proportion_sample=0.5, # 0.5
-            data_gene_signal=data_gene_signal_sample,
+            data_gene_signal=data_gene_signal_fill,
         )
 
-    # Summarize original counts of samples and genes.
-    summarize_samples_genes(
-        data_samples_tissues_persons=data_samples_inclusion,
+    # Collect initial distribution of genes' signals for selection of signal
+    # threshold.
+    signals_final = normalize_collect_report_gene_signals(
         data_gene_signal=data_gene_signal_selection,
+        threshold=0.13750, #0.13750, 1.0
+    )
+
+    # Extract identifiers of genes.
+    genes_selection = utility.collect_unique_elements(
+        elements_original=data_gene_signal_selection.index.tolist()
+    )
+    # Extract identifiers of samples.
+    samples_selection = utility.collect_unique_elements(
+        elements_original=data_gene_signal_selection.columns.tolist()
     )
 
     # Select samples, tissues, and persons from filtered genes' signals.
     data_samples_tissues_persons_selection = select_samples_tissues_persons(
+        samples=samples_selection,
         data_samples_tissues_persons=data_samples_tissues_persons,
+    )
+
+    # Summarize original counts of samples and genes.
+    summarize_samples_genes(
+        data_samples_tissues_persons=data_samples_tissues_persons_selection,
         data_gene_signal=data_gene_signal_selection,
     )
-    utility.print_terminal_partition(level=2)
-    print("selection of samples, tissues, and persons")
-    print(data_samples_tissues_persons_selection)
 
-    # Extract identifiers of genes.
-    genes = data_gene_signal_selection.index.to_list()
-
-    # Select persons with adequate sample coverage of multiple tissues.
-    persons_selection = select_persons_by_tissues(
-        count=10,
-        data_samples_tissues_persons=data_samples_tissues_persons_selection,
-    )
     utility.print_terminal_partition(level=2)
-    utility.print_terminal_partition(level=3)
     print("count of persons: " + str(len(persons_selection)))
+    print("count of samples: " + str(len(samples_selection)))
     utility.print_terminal_partition(level=3)
 
     # Extract and organize information for subsequent analyses.
@@ -1938,7 +2088,10 @@ def select_organize_samples_genes_signals(
     # Organize information about persons for regression analysis.
     information = extract_organize_persons_properties(
         persons=persons_selection,
-        data_samples_tissues_persons=data_samples_tissues_persons_selection,
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_samples_tissues_persons_selection=(
+            data_samples_tissues_persons_selection
+        ),
         data_gene_signal=data_gene_signal_selection,
     )
 
@@ -1949,7 +2102,14 @@ def select_organize_samples_genes_signals(
         data_samples_tissues_persons_selection
     )
     information["data_gene_signal"] = data_gene_signal_selection
-    information["genes"] = genes
+    information["genes_gtex"] = genes_gtex
+    information["genes_selection"] = genes_selection
+    information["samples_gtex"] = samples_gtex
+    information["samples_selection"] = samples_selection
+    information["signals_initial"] = signals_initial
+    information["signals_final"] = signals_final
+    information["persons_selection"] = persons_selection
+    information["tissues_selection"] = tissues_selection
     # Return information.
     return information
 
@@ -1998,11 +2158,23 @@ def write_product(
     path_gene_signal = os.path.join(
         path_selection, "data_gene_signal.pickle"
     )
-    path_gene_signal_factor = os.path.join(
-        path_selection, "data_gene_signal_factor.pickle"
+    #path_gene_signal_factor = os.path.join(
+    #    path_selection, "data_gene_signal_factor.pickle"
+    #)
+    path_genes_gtex = os.path.join(
+        path_selection, "genes_gtex.pickle"
     )
-    path_genes = os.path.join(
-        path_selection, "genes.pickle"
+    path_genes_selection = os.path.join(
+        path_selection, "genes_selection.pickle"
+    )
+    path_genes_selection_text = os.path.join(
+        path_selection, "genes_selection.txt"
+    )
+    path_signals_initial = os.path.join(
+        path_selection, "signals_initial.pickle"
+    )
+    path_signals_final = os.path.join(
+        path_selection, "signals_final.pickle"
     )
 
     path_samples_tissues_persons = os.path.join(
@@ -2011,14 +2183,17 @@ def write_product(
     path_samples_tissues_persons_text = os.path.join(
         path_selection, "data_samples_tissues_persons.tsv"
     )
+    path_samples_gtex = os.path.join(
+        path_selection, "samples_gtex.pickle"
+    )
+    path_samples_selection = os.path.join(
+        path_selection, "samples_selection.pickle"
+    )
     path_persons = os.path.join(
-        path_selection, "persons.txt"
+        path_selection, "persons_selection.pickle"
     )
     path_tissues = os.path.join(
-        path_selection, "tissues.txt"
-    )
-    path_samples = os.path.join(
-        path_selection, "samples.txt"
+        path_selection, "tissues_selection.pickle"
     )
 
     path_data_tissues_per_person = os.path.join(
@@ -2049,6 +2224,19 @@ def write_product(
     )
     path_persons_properties_text = os.path.join(
         path_selection, "data_persons_properties.tsv"
+    )
+
+    path_data_tissues_variance = os.path.join(
+        path_selection, "data_tissues_variance.pickle"
+    )
+    path_data_facilities_variance = os.path.join(
+        path_selection, "data_facilities_variance.pickle"
+    )
+    path_data_batches_isolation_variance = os.path.join(
+        path_selection, "data_batches_isolation_variance.pickle"
+    )
+    path_data_batches_sequence_variance = os.path.join(
+        path_selection, "data_batches_sequence_variance.pickle"
     )
 
     path_families_persons = os.path.join(
@@ -2091,12 +2279,31 @@ def write_product(
         information["data_gene_signal"],
         path_gene_signal
     )
-    pandas.to_pickle(
-        information["data_gene_signal_factor"],
-        path_gene_signal_factor
+    #pandas.to_pickle(
+    #    information["data_gene_signal_factor"],
+    #    path_gene_signal_factor
+    #)
+    with open(path_genes_gtex, "wb") as file_product:
+        pickle.dump(information["genes_gtex"], file_product)
+    with open(path_genes_selection, "wb") as file_product:
+        pickle.dump(information["genes_selection"], file_product)
+    utility.write_file_text_list(
+        elements=information["genes_selection"],
+        delimiter="\n",
+        path_file=path_genes_selection_text
     )
-    with open(path_genes, "wb") as file_product:
-        pickle.dump(information["genes"], file_product)
+    with open(path_signals_initial, "wb") as file_product:
+        pickle.dump(information["signals_initial"], file_product)
+    with open(path_signals_final, "wb") as file_product:
+        pickle.dump(information["signals_final"], file_product)
+    with open(path_samples_gtex, "wb") as file_product:
+        pickle.dump(information["samples_gtex"], file_product)
+    with open(path_samples_selection, "wb") as file_product:
+        pickle.dump(information["samples_selection"], file_product)
+    with open(path_persons, "wb") as file_product:
+        pickle.dump(information["persons_selection"], file_product)
+    with open(path_tissues, "wb") as file_product:
+        pickle.dump(information["tissues_selection"], file_product)
 
     pandas.to_pickle(
         information["data_samples_tissues_persons"],
@@ -2107,21 +2314,6 @@ def write_product(
         sep="\t",
         header=True,
         index=True,
-    )
-    utility.write_file_text_list(
-        elements=information["persons"],
-        delimiter="\n",
-        path_file=path_persons
-    )
-    utility.write_file_text_list(
-        elements=information["tissues"],
-        delimiter="\n",
-        path_file=path_tissues
-    )
-    utility.write_file_text_list(
-        elements=information["samples"],
-        delimiter="\n",
-        path_file=path_samples
     )
 
     pandas.to_pickle(
@@ -2165,6 +2357,23 @@ def write_product(
         sep="\t",
         header=True,
         index=True,
+    )
+
+    pandas.to_pickle(
+        information["data_tissues_variance"],
+        path_data_tissues_variance,
+    )
+    pandas.to_pickle(
+        information["data_facilities_variance"],
+        path_data_facilities_variance,
+    )
+    pandas.to_pickle(
+        information["data_batches_isolation_variance"],
+        path_data_batches_isolation_variance,
+    )
+    pandas.to_pickle(
+        information["data_batches_sequence_variance"],
+        path_data_batches_sequence_variance,
     )
 
     pandas.to_pickle(

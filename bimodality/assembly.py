@@ -254,7 +254,11 @@ def read_source_sample(dock=None):
             "family", "person",
             "component_1", "component_2", "component_3", "component_4",
             "component_5", "component_6", "component_7", "component_8",
-            "component_9", "component_10",
+            "component_9", "component_10", "component_11", "component_12",
+            "component_13", "component_14", "component_15", "component_16",
+            "component_17", "component_18", "component_19", "component_20",
+            "component_21", "component_22", "component_23", "component_24",
+            "component_25",
         ],
         low_memory=False,
     )
@@ -266,7 +270,11 @@ def read_source_sample(dock=None):
             "person",
             "component_1", "component_2", "component_3", "component_4",
             "component_5", "component_6", "component_7", "component_8",
-            "component_9", "component_10",
+            "component_9", "component_10", "component_11", "component_12",
+            "component_13", "component_14", "component_15", "component_16",
+            "component_17", "component_18", "component_19", "component_20",
+            "component_21", "component_22", "component_23", "component_24",
+            "component_25",
         ],
         low_memory=False,
     )
@@ -627,6 +635,11 @@ def extract_person_genotypes(
             genotype_18 = data_genotype_plink.at[person, "component_18"]
             genotype_19 = data_genotype_plink.at[person, "component_19"]
             genotype_20 = data_genotype_plink.at[person, "component_20"]
+            genotype_21 = data_genotype_plink.at[person, "component_21"]
+            genotype_22 = data_genotype_plink.at[person, "component_22"]
+            genotype_23 = data_genotype_plink.at[person, "component_23"]
+            genotype_24 = data_genotype_plink.at[person, "component_24"]
+            genotype_25 = data_genotype_plink.at[person, "component_25"]
         else:
             genotype_1 = float("nan")
             genotype_2 = float("nan")
@@ -648,6 +661,11 @@ def extract_person_genotypes(
             genotype_18 = float("nan")
             genotype_19 = float("nan")
             genotype_20 = float("nan")
+            genotype_21 = float("nan")
+            genotype_22 = float("nan")
+            genotype_23 = float("nan")
+            genotype_24 = float("nan")
+            genotype_25 = float("nan")
         pass
     elif source == "gcta":
         # Use principal components from genotype analysis in GCTA.
@@ -697,6 +715,11 @@ def extract_person_genotypes(
         "genotype_18": genotype_18,
         "genotype_19": genotype_19,
         "genotype_20": genotype_20,
+        "genotype_21": genotype_21,
+        "genotype_22": genotype_22,
+        "genotype_23": genotype_23,
+        "genotype_24": genotype_24,
+        "genotype_25": genotype_25,
     }
     return information
 
@@ -747,7 +770,7 @@ def determine_sample_associations_attributes(
     # Access tissue attributes.
     #removal = data_sample_attribute_private.at[sample, "SMTORMVE"]
     batch_isolation = data_sample_attribute_private.at[sample, "SMNABTCH"]
-    batches_analysis = data_sample_attribute_private.at[sample, "SMGEBTCH"]
+    batches_sequence = data_sample_attribute_private.at[sample, "SMGEBTCH"]
     facilities = data_sample_attribute_private.at[sample, "SMCENTER"]
     #autolysis = data_sample_attribute_private.at[sample, "SMATSSCR"]
     major = data_sample_attribute_private.at[sample, "SMTS"]
@@ -789,7 +812,7 @@ def determine_sample_associations_attributes(
         "sample": sample,
         "facilities": facilities,
         "batch_isolation": batch_isolation,
-        "batches_analysis": batches_analysis,
+        "batches_sequence": batches_sequence,
         "tissue_major": tissue_major,
         "tissue_minor": tissue_minor,
         "person": person,
@@ -948,6 +971,7 @@ def organize_genotype_variance(
         record["variance"] = variance
         record["component"] = count
         count += 1
+        records.append(record)
         pass
     data = utility.convert_records_to_dataframe(
         records=records
@@ -1942,6 +1966,10 @@ def write_product_sample(dock=None, information=None):
         path_assembly, "data_samples_tissues_persons.tsv"
     )
 
+    path_genotype_variance_plink = os.path.join(
+        path_assembly, "data_genotype_variance_plink.pickle"
+    )
+
     # Write information to file.
     pandas.to_pickle(
         information["data_samples_tissues_persons"],
@@ -1953,6 +1981,12 @@ def write_product_sample(dock=None, information=None):
         header=True,
         index=True,
     )
+
+    pandas.to_pickle(
+        information["data_genotype_variance_plink"],
+        path_genotype_variance_plink
+    )
+
     pass
 
 

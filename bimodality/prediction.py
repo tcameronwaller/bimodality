@@ -76,7 +76,7 @@ def read_source(
         path_selection, "data_persons_properties.pickle"
     )
     path_genes_selection = os.path.join(
-        path_selection, "genes.pickle"
+        path_selection, "genes_selection.pickle"
     )
 
     path_candidacy = os.path.join(dock, "candidacy")
@@ -147,19 +147,19 @@ def define_regression_variables():
         "genotype_3",
         "genotype_4",
         "genotype_5",
-        "genotype_6",
-        "genotype_7",
-        "genotype_8",
-        "genotype_9",
-        "genotype_10",
+        #"genotype_6",
+        #"genotype_7",
+        #"genotype_8",
+        #"genotype_9",
+        #"genotype_10",
 
         "delay",
 
         "tissues_1",
         "tissues_2",
         "tissues_3",
-        #"tissues_4", # <- omit
-        #"tissues_5", # <- omit
+        "tissues_4",
+        "tissues_5",
         #"tissues_6", # <- omit
         #"tissues_7", # <- omit
         #"tissues_8", # <- omit
@@ -170,9 +170,9 @@ def define_regression_variables():
         "facilities_2",
         #"facilities_3", # <- omit
 
-        "batches_isolation_1",
-        "batches_isolation_2",
-        "batches_isolation_3",
+        #"batches_isolation_1",
+        #"batches_isolation_2",
+        #"batches_isolation_3",
         #"batches_isolation_4", # <- omit
         #"batches_isolation_5", # <- omit
         #"batches_isolation_6", # <- omit
@@ -181,16 +181,40 @@ def define_regression_variables():
         #"batches_isolation_9", # <- omit
         #"batches_isolation_10", # <- omit
 
-        "batches_analysis_1",
-        "batches_analysis_2",
-        "batches_analysis_3",
-        #"batches_analysis_4", # <- omit
-        #"batches_analysis_5", # <- omit
-        #"batches_analysis_6", # <- omit
-        #"batches_analysis_7", # <- omit
-        #"batches_analysis_8", # <- omit
-        #"batches_analysis_9", # <- omit
-        #"batches_analysis_10", # <- omit
+        "batches_sequence_1",
+        "batches_sequence_2",
+        "batches_sequence_3",
+        "batches_sequence_4",
+        "batches_sequence_5",
+        #"batches_sequence_6", # <- omit
+        #"batches_sequence_7", # <- omit
+        #"batches_sequence_8", # <- omit
+        #"batches_sequence_9", # <- omit
+        #"batches_sequence_10", # <- omit
+    ]
+    heritability = [
+        "female",
+        "age",
+        "body",
+        "hardiness",
+        "season_sequence",
+
+        "delay",
+
+        "tissues_1",
+        "tissues_2",
+        "tissues_3",
+        "tissues_4",
+        "tissues_5",
+
+        "facilities_1",
+        "facilities_2",
+
+        "batches_sequence_1",
+        "batches_sequence_2",
+        "batches_sequence_3",
+        "batches_sequence_4",
+        "batches_sequence_5",
     ]
     hypothesis = [
         "female",
@@ -203,6 +227,7 @@ def define_regression_variables():
     # Compile information.
     information = dict()
     information["independence"] = independence
+    information["heritability"] = heritability
     information["hypothesis"] = hypothesis
 
     # Return information.
@@ -620,18 +645,23 @@ def select_genes_by_association_regression_variables(
     sets["multimodal"] = dict()
     for variable in variables:
         significance = str(variable + ("_significance"))
-        data_selection = data_selection.loc[
-            data_selection[significance], :
+        data_selection_temporary = data_selection.copy(deep=True)
+        data_selection_temporary = data_selection_temporary.loc[
+            data_selection_temporary[significance], :
         ]
-        data_unimodal = data_unimodal.loc[
-            data_unimodal[significance], :
+        data_unimodal_temporary = data_unimodal.copy(deep=True)
+        data_unimodal_temporary = data_unimodal_temporary.loc[
+            data_unimodal_temporary[significance], :
         ]
-        data_multimodal = data_multimodal.loc[
-            data_multimodal[significance], :
+        data_multimodal_temporary = data_multimodal.copy(deep=True)
+        data_multimodal_temporary = data_multimodal_temporary.loc[
+            data_multimodal_temporary[significance], :
         ]
-        sets["selection"][variable] = data_selection.index.to_list()
-        sets["unimodal"][variable] = data_unimodal.index.to_list()
-        sets["multimodal"][variable] = data_multimodal.index.to_list()
+        sets["selection"][variable] = data_selection_temporary.index.to_list()
+        sets["unimodal"][variable] = data_unimodal_temporary.index.to_list()
+        sets["multimodal"][variable] = (
+            data_multimodal_temporary.index.to_list()
+        )
         pass
     # Return information.
     return sets
@@ -776,29 +806,27 @@ def separate_regression_gene_sets(
 
 
 def summarize_regression(
-    instances=None,
     variables=None,
-    probabilities=None,
-    type=None,
-    threshold_discovery=None,
-    data=None,
+    genes_selection=None,
+    genes_unimodal=None,
+    genes_multimodal=None,
+    data_regression_genes=None,
 ):
     """
     Summarizes a regression model's parameters across multiple independent
     instances.
 
     arguments:
-        instances (int): count of independent instances
-        variables (list<str>): names of independent variables in regression
-        probabilities (bool): whether to summarize probabilities for variables
-            across instances
-        type (str): type of report for probabilities of variables across
-            instances, either aggregate false discovery rate or percentage of
-            instances within discovery threshold
-        threshold_discovery (float): minimal false discovery rate value for
-            instances
-        data (object): Pandas data frame of information about a regression
-            model across multiple independent observations
+        variables (list<str>): names of independent regression variables for
+            which to select genes by significant association
+        genes_selection (list<str>): identifiers of all genes that pass filters
+            in selection procedure
+        genes_unimodal (list<str>): identifiers of genes with pan-tissue
+            signals that have unimodal distribution across persons
+        genes_multimodal (list<str>): identifiers of genes with pan-tissue
+            signals that have nonunimodal distribution across persons
+        data_regression_genes (object): Pandas data frame of parameters and
+            statistics from regressions across cases
 
     raises:
 
@@ -808,59 +836,54 @@ def summarize_regression(
 
     utility.print_terminal_partition(level=2)
     # Organize data.
-    data = data.copy(deep=True)
+    data = data_regression_genes.copy(deep=True)
+    sets = dict()
+    sets["genes_selection"] = genes_selection
+    sets["genes_unimodal"] = genes_unimodal
+    sets["genes_multimodal"] = genes_multimodal
 
-    # Report mean model descriptors.
-    descriptors = [
-        "freedom",
-        "observations",
-        "r_square",
-        "r_square_adjust",
-        "log_likelihood",
-        "akaike",
-        "bayes",
-    ]
-    data_descriptors = data.copy(deep=True)
-    data_descriptors = data_descriptors.loc[
-        :, data_descriptors.columns.isin(descriptors)
-    ]
-    data_descriptors = data_descriptors[[*descriptors]]
-    data_descriptors_mean = data_descriptors.aggregate(statistics.mean)
-    utility.print_terminal_partition(level=3)
-    print("Model descriptors...")
-    print(data_descriptors_mean)
+    # Iterate on sets of genes.
+    for set in sets:
+        utility.print_terminal_partition(level=1)
+        print(set)
+        genes = sets[set]
+        count_total = len(genes)
+        print("count: " + str(count_total))
+        data_set = data.copy(deep=True)
+        data_set = data_set.loc[data_set.index.isin(genes), :]
+        # Report mean model descriptors.
+        utility.print_terminal_partition(level=2)
+        descriptors = [
+            "freedom",
+            "observations",
+            "r_square",
+            "r_square_adjust",
+            "log_likelihood",
+            "akaike",
+            "bayes",
+        ]
+        data_descriptors = data_set.copy(deep=True)
+        data_descriptors = data_descriptors.loc[
+            :, data_descriptors.columns.isin(descriptors)
+        ]
+        data_descriptors = data_descriptors[[*descriptors]]
+        data_descriptors_mean = data_descriptors.aggregate(statistics.mean)
+        print("Model descriptors...")
+        print(data_descriptors_mean)
 
-    # Report counts of observations with probabilities below threshold for each
-    # covariate.
-    if probabilities:
-        utility.print_terminal_partition(level=3)
-        print("Independent instances with threshold probabilities...")
-
+        # Iterate on independent variables.
+        utility.print_terminal_partition(level=2)
         for variable in variables:
-            # Calculate false discovery rates from probabilities.
-            probabilities = data[variable].to_numpy()
-            report = statsmodels.stats.multitest.multipletests(
-                probabilities,
-                alpha=0.05,
-                method="fdr_bh",
-                is_sorted=False,
-            )
-            discoveries = report[1]
+            #utility.print_terminal_partition(level=3)
+            significance = str(variable + ("_significance"))
+            data_significant = data_set.copy(deep=True)
+            data_significant = data_significant.loc[
+                data_significant[significance], :
+            ]
+            count_significant = data_significant.shape[0]
+            percentage = round((count_significant / count_total) * 100, 1)
+            print(variable + ": " + str(percentage) + "%")
 
-            # Prepare report.
-            if type == "discovery":
-                # Aggregation of false discovery rates across independent
-                # instances probably is not reasonable.
-                discovery = scipy.stats.combine_pvalues(
-                    discoveries,
-                    method="stouffer",
-                    weights=None,
-                )[1]
-                print(variable + ": " + str(round(discovery, 1)))
-            elif type == "percentage":
-                count = (discoveries <= threshold_discovery).sum()
-                percentage = round((count / instances) * 100, 1)
-                print(variable + ": " + str(percentage) + "%")
             pass
     pass
 
@@ -1400,6 +1423,8 @@ def execute_procedure(
     # Iterate on genes.
     #genes_iteration = random.sample(source["genes_selection"], 1000)
     genes_iteration = source["genes_selection"]#[0:1000]
+    #genes_iteration = source["genes_unimodal"]#[0:1000]
+    #genes_iteration = source["genes_multimodal"]#[0:1000]
     data_regression_genes = regress_cases(
         cases=genes_iteration,
         variables=variables["independence"],
@@ -1420,7 +1445,7 @@ def execute_procedure(
     # Calculate false discovery rate by Benjamini-Hochberg's method.
     data_regression_genes_discovery = calculate_regression_discoveries(
         variables=variables["independence"],
-        threshold=0.1,
+        threshold=0.05,
         data=data_regression_genes,
     )
     utility.print_terminal_partition(level=2)
@@ -1447,8 +1472,11 @@ def execute_procedure(
         utility.print_terminal_partition(level=3)
         print(variable)
         print("selection genes: " + str(len(sets["selection"][variable])))
+        #print(sets["selection"][variable])
         print("unimodal genes: " + str(len(sets["unimodal"][variable])))
+        print(sets["unimodal"][variable])
         print("multimodal genes: " + str(len(sets["multimodal"][variable])))
+        print(sets["multimodal"][variable])
         pass
 
     # Select regression parameters and probabilities that are biologically
@@ -1485,18 +1513,15 @@ def execute_procedure(
         str(bin["data_regression_genes_multimodal_scale"].shape[0])
     )
 
-    if False:
-
-        # Prepare summary of regression model across all genes.
-        utility.print_terminal_partition(level=2)
-        summarize_regression(
-            instances=len(genes_iteration),
-            variables=variables,
-            probabilities=True,
-            type="percentage", # "discovery" or "percentage"
-            threshold_discovery=0.05,
-            data=data_regression,
-        )
+    # Prepare and report summary of regression model across all genes.
+    utility.print_terminal_partition(level=2)
+    summarize_regression(
+        genes_selection=source["genes_selection"],
+        genes_unimodal=source["genes_unimodal"],
+        genes_multimodal=source["genes_multimodal"],
+        variables=variables["independence"],
+        data_regression_genes=data_regression_genes_discovery,
+    )
 
     # Compile information.
     information = dict()

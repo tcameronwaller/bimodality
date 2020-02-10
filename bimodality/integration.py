@@ -62,7 +62,9 @@ def read_source(dock=None):
     path_gene_annotation = os.path.join(
         path_selection, "data_gene_annotation_gencode.pickle"
     )
-    path_selection_genes = os.path.join(path_selection, "genes.pickle")
+    path_genes_selection = os.path.join(
+        path_selection, "genes_selection.pickle"
+    )
     path_samples_properties = os.path.join(
         path_selection, "data_samples_tissues_persons.pickle"
     )
@@ -116,7 +118,7 @@ def read_source(dock=None):
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     data_samples_properties = pandas.read_pickle(path_samples_properties)
     data_persons_properties = pandas.read_pickle(path_persons_properties)
-    with open(path_selection_genes, "rb") as file_source:
+    with open(path_genes_selection, "rb") as file_source:
         genes_selection = pickle.load(file_source)
 
     data_signals_genes_persons = pandas.read_pickle(
@@ -232,7 +234,7 @@ def calculate_organize_gene_correlations(
         threshold_low=threshold_low,
         count=count,
     )
-    print("shape of data after signal filter on samples...")
+    print("shape of data after signal filters...")
     print(data_column.shape)
 
     # Cluster data.
@@ -1056,19 +1058,20 @@ def execute_procedure(dock=None):
     source = read_source(dock=dock)
 
     # Calculate correlations between pairs of genes.
+    # Use Spearman correlations for both unimodal and multimodal.
     data_correlation_genes_unimodal = calculate_organize_gene_correlations(
-        method="pearson",
-        threshold_high=0.75, # 1.0, 0.75, 0.5
-        threshold_low=-0.75, # -1.0, -0.75, -0.5
+        method="spearman", # pearson (normal distribution), spearman
+        threshold_high=0.7, # 1.0, 0.75, 0.5, 0.0
+        threshold_low=-0.7, # -1.0, -0.75, -0.5, -0.0
         count=2, # accommodate the value 1.0 for self pairs (A, A)
         genes=source["genes_unimodal"],
         data_signals_genes_persons=source["data_signals_genes_persons"],
     )
     print(data_correlation_genes_unimodal)
     data_correlation_genes_multimodal = calculate_organize_gene_correlations(
-        method="spearman",
-        threshold_high=0.75, # 1.0, 0.75, 0.5
-        threshold_low=-0.75, # -1.0, -0.75, -0.5
+        method="spearman", # pearson (normal distribution), spearman
+        threshold_high=0.7, # 1.0, 0.75, 0.5, 0.0
+        threshold_low=-0.7, # -1.0, -0.75, -0.5, -0.0
         count=2, # accommodate the value 1.0 for self pairs (A, A)
         genes=source["genes_multimodal"],
         data_signals_genes_persons=source["data_signals_genes_persons"],

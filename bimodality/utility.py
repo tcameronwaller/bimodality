@@ -26,6 +26,7 @@ import pandas
 import sklearn
 import scipy
 import numpy
+import statsmodels
 
 # Custom
 
@@ -1158,6 +1159,9 @@ def segregate_data_two_thresholds(
     return collection
 
 
+# TODO: switch to statsmodels PCA
+# https://www.statsmodels.org/devel/generated/statsmodels.multivariate.pca.pca.html
+
 def calculate_principal_components(
     data=None,
     components=None,
@@ -1430,9 +1434,9 @@ def cluster_adjacency_matrix(
     matrix = numpy.transpose(data.values)
     linkage = scipy.cluster.hierarchy.linkage(
         matrix,
-        method="average", # "single", "average"
+        method="average", # "single", "complete", "average"
         metric="euclidean",
-        optimal_ordering=False,
+        optimal_ordering=True,
     )
     dendrogram = scipy.cluster.hierarchy.dendrogram(
         linkage,

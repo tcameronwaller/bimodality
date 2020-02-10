@@ -62,7 +62,9 @@ def read_source(
     path_gene_annotation = os.path.join(
         path_selection, "data_gene_annotation_gencode.pickle"
     )
-    path_selection_genes = os.path.join(path_selection, "genes.pickle")
+    path_genes_selection = os.path.join(
+        path_selection, "genes_selection.pickle"
+    )
 
     # Use genes' bimodality measures from distribution procedure (not those
     # from the probability procedure) because here we want the raw values
@@ -90,7 +92,7 @@ def read_source(
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    with open(path_selection_genes, "rb") as file_source:
+    with open(path_genes_selection, "rb") as file_source:
         genes_selection = pickle.load(file_source)
     genes_distribution = utility.extract_subdirectory_names(
         path=path_distribution_genes
@@ -871,11 +873,11 @@ def write_product(dock=None, information=None):
     path_genes_multimodal_text = os.path.join(
         path_candidacy, "genes_multimodal.txt"
     )
-    path_genes_else = os.path.join(
-        path_candidacy, "genes_else.pickle"
+    path_genes_other = os.path.join(
+        path_candidacy, "genes_other.pickle"
     )
-    path_genes_else_text = os.path.join(
-        path_candidacy, "genes_else.txt"
+    path_genes_other_text = os.path.join(
+        path_candidacy, "genes_other.txt"
     )
 
     path_data_genes_unimodal = os.path.join(
@@ -917,14 +919,14 @@ def write_product(dock=None, information=None):
         delimiter="\n",
         path_file=path_genes_multimodal_text
     )
-    with open(path_genes_else, "wb") as file_product:
+    with open(path_genes_other, "wb") as file_product:
         pickle.dump(
-            information["genes_else"], file_product
+            information["genes_other"], file_product
         )
     utility.write_file_text_list(
-        elements=information["genes_else"],
+        elements=information["genes_other"],
         delimiter="\n",
-        path_file=path_genes_else_text
+        path_file=path_genes_other_text
     )
 
     information["data_genes_unimodal"].to_pickle(
@@ -976,6 +978,8 @@ def execute_procedure(
 
     # Read source information from file.
     source = read_source(dock=dock)
+    print(source["data_distribution_report"])
+
     # Set measures of modality.
     measures = list(source["scores"].keys())
 
@@ -991,8 +995,8 @@ def execute_procedure(
     # Select same count of unimodal genes and multimodal genes.
     utility.print_terminal_partition(level=2)
     selection = select_genes_by_modality_measures_ranks(
-        proportion_least=0.2025,
-        proportion_greatest=0.01,
+        proportion_least=0.15,
+        proportion_greatest=0.005,
         measures=measures,
         data_distribution_report=source["data_distribution_report"],
     )
@@ -1044,7 +1048,7 @@ def execute_procedure(
     )
 
     # Determine all genes that are not in the multimodality set.
-    genes_else = utility.filter_unique_exclusion_elements(
+    genes_other = utility.filter_unique_exclusion_elements(
         elements_exclusion=bin_genes_multimodal["measures_1"],
         elements_total=source["genes_distribution"],
     )
@@ -1058,8 +1062,8 @@ def execute_procedure(
         str(len(bin_genes_multimodal["measures_1"]))
     )
     print(
-        "Count of all genes not multimodal (else): " +
-        str(len(genes_else))
+        "Count of all genes not multimodal (other): " +
+        str(len(genes_other))
     )
 
     # Rank genes by the counts of measures by which they pass thresholds.
@@ -1092,7 +1096,7 @@ def execute_procedure(
     information = {
         "genes_unimodal": bin_genes_unimodal["measures_3"],
         "genes_multimodal": bin_genes_multimodal["measures_1"],
-        "genes_else": genes_else,
+        "genes_other": genes_other,
         "data_genes_unimodal": data_genes_unimodal,
         "data_genes_multimodal": data_genes_multimodal,
         "measures_thresholds": measures_thresholds,
