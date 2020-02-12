@@ -28,14 +28,15 @@ path_plink_2="$path_user_cellar/plink2"
 path_gcta="$path_user_cellar/gcta_1.93.0beta/gcta64"
 
 rm -r $path_gtex_bed_bim_fam
-mkdirs $path_gtex_bed_bim_fam
+mkdir -p $path_gtex_bed_bim_fam
 rm -r $path_gtex_pgen_pvar_psam
-mkdirs $path_gtex_pgen_pvar_psam
+mkdir -p $path_gtex_pgen_pvar_psam
 
 rm -r $path_relation_gcta
-mkdirs -p $path_relation_gcta_format_old
+mkdir -p $path_relation_gcta_bed_bim_fam
+mkdir -p $path_relation_gcta_pgen_pvar_psam
 rm -r $path_relation_plink
-mkdirs -p $path_relation_plink
+mkdir -p $path_relation_plink
 
 # Suppress echo each command to console.
 set +x
