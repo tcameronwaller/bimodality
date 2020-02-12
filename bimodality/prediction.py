@@ -42,6 +42,7 @@ import distribution
 import modality
 import plot
 import utility
+import assembly
 
 #dir()
 #importlib.reload()
@@ -229,6 +230,39 @@ def define_regression_variables():
     information["independence"] = independence
     information["heritability"] = heritability
     information["hypothesis"] = hypothesis
+
+    # Return information.
+    return information
+
+
+def define_focus_genes():
+    """
+    Defines a list of genes' identifiers for regression analysis.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<list<str>>): names of independent variables for regression
+
+    """
+
+    multimodal = [
+        "ENSG00000180574",
+        "ENSG00000129990",
+        "ENSG00000230667",
+        "ENSG00000172409",
+        "ENSG00000177575",
+        "ENSG00000140465",
+        "ENSG00000179593",
+        "ENSG00000163958",
+        "ENSG00000188766",
+    ]
+
+    # Compile information.
+    information = dict()
+    information["multimodal"] = multimodal
 
     # Return information.
     return information
@@ -888,6 +922,80 @@ def summarize_regression(
     pass
 
 
+def report_focus_genes_regression(
+    variables=None,
+    genes_focus=None,
+    data_regression_genes=None,
+    data_gene_annotation=None,
+):
+    """
+    Summarizes a regression model's parameters across multiple independent
+    instances.
+
+    arguments:
+        variables (list<str>): names of independent regression variables for
+            which to select genes by significant association
+        genes_focus (list<str>): identifiers of all genes that pass filters
+            in selection procedure
+        data_regression_genes (object): Pandas data frame of parameters and
+            statistics from regressions across cases
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+
+    raises:
+
+    returns:
+
+    """
+
+    print(data_gene_annotation)
+
+    def access_genes_names(
+        identifier=None,
+    ):
+        name = assembly.access_gene_name(
+            identifier=identifier,
+            data_gene_annotation=data_gene_annotation,
+        )
+        return name
+
+
+    # Organize data.
+    data = data_regression_genes.copy(deep=True)
+
+    # Introduce genes' names.
+    data.reset_index(
+        level=None,
+        drop=False,
+        inplace=True
+    )
+    data["name"] = data["case"].apply(
+        lambda identifier: access_genes_names(identifier=identifier)
+    )
+    # Select relevant information.
+    columns = list()
+    columns.append("case")
+    columns.append("name")
+    #columns.append("observations")
+    #columns.append("freedom")
+    #columns.append("r_square")
+    columns.append("r_square_adjust")
+    #columns.append("log_likelihood")
+    columns.append("akaike")
+    #columns.append("bayes")
+    #columns.append("intercept_parameter")
+    #columns.append("intercept_probability")
+    for variable in variables:
+        columns.append(str(variable + ("_parameter")))
+        columns.append(str(variable + ("_discovery")))
+        pass
+    data = data.loc[
+        :, data.columns.isin(columns)
+    ]
+    data = data[[*columns]]
+
+    return data
+
 
 ##########
 # Tissue-tissue correlation
@@ -1419,125 +1527,177 @@ def execute_procedure(
         data_signals_genes_persons=source["data_signals_genes_persons"],
     )
 
-    # Regress each gene's signal across persons.
-    # Iterate on genes.
-    #genes_iteration = random.sample(source["genes_selection"], 1000)
-    genes_iteration = source["genes_selection"]#[0:1000]
-    #genes_iteration = source["genes_unimodal"]#[0:1000]
-    #genes_iteration = source["genes_multimodal"]#[0:1000]
-    data_regression_genes = regress_cases(
-        cases=genes_iteration,
-        variables=variables["independence"],
-        data_variables=data_variables,
-    )
-    utility.print_terminal_partition(level=2)
-    print("data_regression_genes")
-    print(data_regression_genes)
+    if True:
+        # Regress only on a few focus genes.
+        genes_focus = define_focus_genes()
 
-    # Review.
-    # 4 February 2020
-    # Model statistics match in the individual regression's summary and in the
-    # compilation across cases.
-    # Independent variables' parameters and probabilities match in the
-    # individual regression's summary and in the compilation across cases.
+        # Regress each gene's signal across persons.
+        # Iterate on genes.
+        genes_iteration = genes_focus["multimodal"]
+        data_regression_genes = regress_cases(
+            cases=genes_iteration,
+            variables=variables["independence"],
+            data_variables=data_variables,
+        )
+        utility.print_terminal_partition(level=2)
+        print("data_regression_genes")
+        print(data_regression_genes)
 
-    # Adjust probabilities for multiple hypothesis tests.
-    # Calculate false discovery rate by Benjamini-Hochberg's method.
-    data_regression_genes_discovery = calculate_regression_discoveries(
-        variables=variables["independence"],
-        threshold=0.05,
-        data=data_regression_genes,
-    )
-    utility.print_terminal_partition(level=2)
-    print("data_regression_genes_discovery")
-    print(data_regression_genes_discovery)
+        # Adjust probabilities for multiple hypothesis tests.
+        # Calculate false discovery rate by Benjamini-Hochberg's method.
+        data_regression_genes_discovery = calculate_regression_discoveries(
+            variables=variables["independence"],
+            threshold=0.05,
+            data=data_regression_genes,
+        )
+        utility.print_terminal_partition(level=2)
+        print("data_regression_genes_discovery")
+        print(data_regression_genes_discovery)
 
-    # Select genes with significant association with each hypothetical
-    # variable of interest.
-    sets = select_genes_by_association_regression_variables(
-        variables=variables["hypothesis"],
-        genes_selection=source["genes_selection"],
-        genes_unimodal=source["genes_unimodal"],
-        genes_multimodal=source["genes_multimodal"],
-        data_regression_genes=data_regression_genes_discovery,
-    )
-    utility.print_terminal_partition(level=2)
-    print("Counts of genes.")
-    print("selection genes: " + str(len(source["genes_selection"])))
-    print("unimodal genes: " + str(len(source["genes_unimodal"])))
-    print("multimodal genes: " + str(len(source["genes_multimodal"])))
-    utility.print_terminal_partition(level=3)
-    print("Counts of genes that associate significantly with each variable.")
-    for variable in variables["hypothesis"]:
+        # Report focus gene regression models' statistics and parameters.
+        utility.print_terminal_partition(level=2)
+        data_report = report_focus_genes_regression(
+            genes_focus=genes_iteration,
+            variables=variables["hypothesis"],
+            data_regression_genes=data_regression_genes_discovery,
+            data_gene_annotation=source["data_gene_annotation"],
+        )
+        print(data_report)
+
+        path_prediction = os.path.join(dock, "prediction")
+        utility.create_directory(path_prediction)
+
+        path_data_report_text = os.path.join(
+            path_prediction, "data_report.tsv"
+        )
+
+        data_report.to_csv(
+            path_or_buf=path_data_report_text,
+            sep="\t",
+            header=True,
+            index=True,
+        )
+
+    if False:
+        # Regress each gene's signal across persons.
+        # Iterate on genes.
+        #genes_iteration = random.sample(source["genes_selection"], 1000)
+        genes_iteration = source["genes_selection"]#[0:1000]
+        #genes_iteration = source["genes_unimodal"]#[0:1000]
+        #genes_iteration = source["genes_multimodal"]#[0:1000]
+        data_regression_genes = regress_cases(
+            cases=genes_iteration,
+            variables=variables["independence"],
+            data_variables=data_variables,
+        )
+        utility.print_terminal_partition(level=2)
+        print("data_regression_genes")
+        print(data_regression_genes)
+
+        # Review.
+        # 4 February 2020
+        # Model statistics match in the individual regression's summary and in the
+        # compilation across cases.
+        # Independent variables' parameters and probabilities match in the
+        # individual regression's summary and in the compilation across cases.
+
+        # Adjust probabilities for multiple hypothesis tests.
+        # Calculate false discovery rate by Benjamini-Hochberg's method.
+        data_regression_genes_discovery = calculate_regression_discoveries(
+            variables=variables["independence"],
+            threshold=0.05,
+            data=data_regression_genes,
+        )
+        utility.print_terminal_partition(level=2)
+        print("data_regression_genes_discovery")
+        print(data_regression_genes_discovery)
+
+        # Select genes with significant association with each hypothetical
+        # variable of interest.
+        sets = select_genes_by_association_regression_variables(
+            variables=variables["hypothesis"],
+            genes_selection=source["genes_selection"],
+            genes_unimodal=source["genes_unimodal"],
+            genes_multimodal=source["genes_multimodal"],
+            data_regression_genes=data_regression_genes_discovery,
+        )
+        utility.print_terminal_partition(level=2)
+        print("Counts of genes.")
+        print("selection genes: " + str(len(source["genes_selection"])))
+        print("unimodal genes: " + str(len(source["genes_unimodal"])))
+        print("multimodal genes: " + str(len(source["genes_multimodal"])))
         utility.print_terminal_partition(level=3)
-        print(variable)
-        print("selection genes: " + str(len(sets["selection"][variable])))
-        #print(sets["selection"][variable])
-        print("unimodal genes: " + str(len(sets["unimodal"][variable])))
-        print(sets["unimodal"][variable])
-        print("multimodal genes: " + str(len(sets["multimodal"][variable])))
-        print(sets["multimodal"][variable])
-        pass
+        print("Counts of genes that associate significantly with each variable.")
+        for variable in variables["hypothesis"]:
+            utility.print_terminal_partition(level=3)
+            print(variable)
+            print("selection genes: " + str(len(sets["selection"][variable])))
+            #print(sets["selection"][variable])
+            print("unimodal genes: " + str(len(sets["unimodal"][variable])))
+            print(sets["unimodal"][variable])
+            print("multimodal genes: " + str(len(sets["multimodal"][variable])))
+            print(sets["multimodal"][variable])
+            pass
 
-    # Select regression parameters and probabilities that are biologically
-    # relevant.
-    # Scale regression parameters across genes.
-    # The purpose of this scaling is to simplify comparison in chart.
-    data_regression_genes_scale = select_scale_regression_parameters(
-        variables=variables["hypothesis"],
-        data_regression_genes=data_regression_genes,
-    )
-    utility.print_terminal_partition(level=2)
-    print("data_regression_genes_scale")
-    print(data_regression_genes_scale)
+        # Select regression parameters and probabilities that are biologically
+        # relevant.
+        # Scale regression parameters across genes.
+        # The purpose of this scaling is to simplify comparison in chart.
+        data_regression_genes_scale = select_scale_regression_parameters(
+            variables=variables["hypothesis"],
+            data_regression_genes=data_regression_genes,
+        )
+        utility.print_terminal_partition(level=2)
+        print("data_regression_genes_scale")
+        print(data_regression_genes_scale)
 
-    # Separate regression information by sets of genes.
-    bin = separate_regression_gene_sets(
-        genes_selection=source["genes_selection"],
-        genes_unimodal=source["genes_unimodal"],
-        genes_multimodal=source["genes_multimodal"],
-        data_regression_genes=data_regression_genes_scale,
-    )
-    utility.print_terminal_partition(level=2)
-    print("Regression genes, original: " + str(data_regression_genes.shape[0]))
-    print(
-        "Regression genes, selection: " +
-        str(bin["data_regression_genes_selection_scale"].shape[0])
-    )
-    print(
-        "Regression genes, unimodal: " +
-        str(bin["data_regression_genes_unimodal_scale"].shape[0])
-    )
-    print(
-        "Regression genes, multimodal: " +
-        str(bin["data_regression_genes_multimodal_scale"].shape[0])
-    )
+        # Separate regression information by sets of genes.
+        bin = separate_regression_gene_sets(
+            genes_selection=source["genes_selection"],
+            genes_unimodal=source["genes_unimodal"],
+            genes_multimodal=source["genes_multimodal"],
+            data_regression_genes=data_regression_genes_scale,
+        )
+        utility.print_terminal_partition(level=2)
+        print("Regression genes, original: " + str(data_regression_genes.shape[0]))
+        print(
+            "Regression genes, selection: " +
+            str(bin["data_regression_genes_selection_scale"].shape[0])
+        )
+        print(
+            "Regression genes, unimodal: " +
+            str(bin["data_regression_genes_unimodal_scale"].shape[0])
+        )
+        print(
+            "Regression genes, multimodal: " +
+            str(bin["data_regression_genes_multimodal_scale"].shape[0])
+        )
 
-    # Prepare and report summary of regression model across all genes.
-    utility.print_terminal_partition(level=2)
-    summarize_regression(
-        genes_selection=source["genes_selection"],
-        genes_unimodal=source["genes_unimodal"],
-        genes_multimodal=source["genes_multimodal"],
-        variables=variables["independence"],
-        data_regression_genes=data_regression_genes_discovery,
-    )
+        # Prepare and report summary of regression model across all genes.
+        utility.print_terminal_partition(level=2)
+        summarize_regression(
+            genes_selection=source["genes_selection"],
+            genes_unimodal=source["genes_unimodal"],
+            genes_multimodal=source["genes_multimodal"],
+            variables=variables["independence"],
+            data_regression_genes=data_regression_genes_discovery,
+        )
 
-    # Compile information.
-    information = dict()
-    information["data_regression_genes"] = data_regression_genes_discovery
-    information["sets"] = sets
-    information["data_regression_genes_selection_scale"] = (
-        bin["data_regression_genes_selection_scale"]
-    )
-    information["data_regression_genes_unimodal_scale"] = (
-        bin["data_regression_genes_unimodal_scale"]
-    )
-    information["data_regression_genes_multimodal_scale"] = (
-        bin["data_regression_genes_multimodal_scale"]
-    )
-    # Write product information to file.
-    write_product(dock=dock, information=information)
+        # Compile information.
+        information = dict()
+        information["data_regression_genes"] = data_regression_genes_discovery
+        information["sets"] = sets
+        information["data_regression_genes_selection_scale"] = (
+            bin["data_regression_genes_selection_scale"]
+        )
+        information["data_regression_genes_unimodal_scale"] = (
+            bin["data_regression_genes_unimodal_scale"]
+        )
+        information["data_regression_genes_multimodal_scale"] = (
+            bin["data_regression_genes_multimodal_scale"]
+        )
+        # Write product information to file.
+        write_product(dock=dock, information=information)
 
     pass
 
