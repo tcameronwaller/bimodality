@@ -4,17 +4,13 @@
 
 # Organize paths.
 export PATH=/cellar/users/tcwaller/anaconda3/bin:$PATH
+
 path_user_cellar="/cellar/users/tcwaller"
 path_user_nrnb="/nrnb/users/tcwaller"
 
-path_access_private="$path_user_cellar/Data/dock/access_private"
-
-
-
-path_relation_gcta="$path_access_private/relation/gcta"
-path_relation_gcta_bed_bim_fam="$path_relation_gcta/bed_bim_fam"
-path_relation_gcta_pgen_pvar_psam="$path_relation_gcta/pgen_pvar_psam"
-path_relation_plink="$path_access_private/relation/plink"
+path_plink_1="$path_user_cellar/plink"
+path_plink_2="$path_user_cellar/plink2"
+path_gcta="$path_user_cellar/gcta_1.93.0beta/gcta64"
 
 path_gtex_8="$path_user_nrnb/gtex-8"
 path_genotype_vcf="$path_gtex_8/gtex-8_genotype.vcf.gz"
@@ -23,9 +19,11 @@ path_gtex_pgen_pvar_psam="$path_gtex_8/pgen_pvar_psam"
 path_genotype_bed_bim_fam="$path_gtex_bed_bim_fam/gtex-8_genotype"
 path_genotype_pgen_pvar_psam="$path_gtex_pgen_pvar_psam/gtex-8_genotype"
 
-path_plink_1="$path_user_cellar/plink"
-path_plink_2="$path_user_cellar/plink2"
-path_gcta="$path_user_cellar/gcta_1.93.0beta/gcta64"
+path_access_private="$path_user_cellar/Data/dock/access_private"
+path_relation_gcta="$path_access_private/relation/gcta"
+path_relation_gcta_bed_bim_fam="$path_relation_gcta/bed_bim_fam"
+path_relation_gcta_pgen_pvar_psam="$path_relation_gcta/pgen_pvar_psam"
+path_relation_plink="$path_access_private/relation/plink"
 
 rm -r $path_gtex_bed_bim_fam
 mkdir -p $path_gtex_bed_bim_fam
