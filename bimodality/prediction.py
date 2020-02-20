@@ -38,6 +38,7 @@ import statsmodels
 
 # Custom
 
+import selection
 import distribution
 import modality
 import plot
@@ -121,118 +122,6 @@ def read_source(
 
 ##########
 # Regression
-
-
-def define_regression_variables():
-    """
-    Defines a list of variables' names for regression analysis.
-
-    arguments:
-
-    raises:
-
-    returns:
-        (dict<list<str>>): names of independent variables for regression
-
-    """
-
-    independence = [
-        "female",
-        "age",
-        "body",
-        "hardiness",
-        "season_sequence",
-
-        "genotype_1",
-        "genotype_2",
-        "genotype_3",
-        "genotype_4",
-        "genotype_5",
-        #"genotype_6",
-        #"genotype_7",
-        #"genotype_8",
-        #"genotype_9",
-        #"genotype_10",
-
-        "delay",
-
-        "tissues_1",
-        "tissues_2",
-        "tissues_3",
-        "tissues_4",
-        "tissues_5",
-        #"tissues_6", # <- omit
-        #"tissues_7", # <- omit
-        #"tissues_8", # <- omit
-        #"tissues_9", # <- omit
-        #"tissues_10", # <- omit
-
-        "facilities_1",
-        "facilities_2",
-        #"facilities_3", # <- omit
-
-        #"batches_isolation_1",
-        #"batches_isolation_2",
-        #"batches_isolation_3",
-        #"batches_isolation_4", # <- omit
-        #"batches_isolation_5", # <- omit
-        #"batches_isolation_6", # <- omit
-        #"batches_isolation_7", # <- omit
-        #"batches_isolation_8", # <- omit
-        #"batches_isolation_9", # <- omit
-        #"batches_isolation_10", # <- omit
-
-        "batches_sequence_1",
-        "batches_sequence_2",
-        "batches_sequence_3",
-        "batches_sequence_4",
-        "batches_sequence_5",
-        #"batches_sequence_6", # <- omit
-        #"batches_sequence_7", # <- omit
-        #"batches_sequence_8", # <- omit
-        #"batches_sequence_9", # <- omit
-        #"batches_sequence_10", # <- omit
-    ]
-    heritability = [
-        "female",
-        "age",
-        "body",
-        "hardiness",
-        "season_sequence",
-
-        "delay",
-
-        "tissues_1",
-        "tissues_2",
-        "tissues_3",
-        "tissues_4",
-        "tissues_5",
-
-        "facilities_1",
-        "facilities_2",
-
-        "batches_sequence_1",
-        "batches_sequence_2",
-        "batches_sequence_3",
-        "batches_sequence_4",
-        "batches_sequence_5",
-    ]
-    hypothesis = [
-        "female",
-        "age",
-        "body",
-        "hardiness",
-        "season_sequence",
-    ]
-
-    # Compile information.
-    information = dict()
-    information["independence"] = independence
-    information["heritability"] = heritability
-    information["hypothesis"] = hypothesis
-
-    # Return information.
-    return information
 
 
 def define_focus_genes():
@@ -1509,7 +1398,7 @@ def execute_procedure(
         dock=dock,
     )
     # Define variables for regression.
-    variables = define_regression_variables()
+    variables = selection.define_regression_variables()
     utility.print_terminal_partition(level=3)
     print(
         "Count of independent variables: " +

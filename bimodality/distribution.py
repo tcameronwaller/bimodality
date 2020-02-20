@@ -111,7 +111,8 @@ def read_source_initial(
         path_selection, "data_gene_annotation_gencode.pickle"
     )
     path_persons_families = os.path.join(
-        path_selection, "data_families_persons.pickle"
+        path_selection, "heritability", "simple",
+        "data_families_persons.pickle"
     )
     path_genes = os.path.join(
         path_selection, "genes_selection.pickle"

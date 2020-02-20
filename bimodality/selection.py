@@ -1634,200 +1634,6 @@ def count_persons_sex_age(
     return data_persons_sex_age_counts
 
 
-# Organize covariates for heritability analysis.
-
-
-def organize_heritability_covariates(
-    variables=None,
-    data_persons_properties=None,
-):
-    """
-    Organizes information about families and persons for heritability analysis.
-
-    As the data from GTEx do not include families, generate distinct families
-    for each person for use in heritability analysis in GCTA.
-
-    arguments:
-        variables (list<str>): names of variables for regression
-        data_persons_properties (object): Pandas data frame of persons their
-            properties
-
-    raises:
-
-    returns:
-        (dict): information for heritability analysis
-    """
-
-    # Introduce empty identifiers for families for compatibility with Plink and
-    # GCTA.
-    # Organize data.
-    data_persons_properties = data_persons_properties.copy(deep=True)
-    data_persons_properties["family"] = 0
-    data_persons_properties.reset_index(
-        level=None,
-        inplace=True
-    )
-    # Extract families and persons.
-    data_copy = data_persons_properties.copy(deep=True)
-    data_families_persons = data_copy.loc[
-        :, data_copy.columns.isin(["person", "family"])
-    ]
-    data_families_persons = data_families_persons[[
-        "family",
-        "person",
-    ]]
-    # Extract categorical covariates.
-    # Do not use these categorical covariates.
-    # Instead, use the quantitative adaptations.
-    data_copy = data_persons_properties.copy(deep=True)
-    data_persons_categories = data_copy.loc[
-        :, data_copy.columns.isin([
-            "family", "person", "sex", "season"
-        ])
-    ]
-    data_persons_categories = data_persons_categories[[
-        "family",
-        "person",
-        "sex",
-        "season",
-    ]]
-    # Extract quantitative covariates.
-    columns = copy.deepcopy(variables)
-    columns.insert(0, "person")
-    columns.insert(0, "family")
-    data_copy = data_persons_properties.copy(deep=True)
-    data_persons_quantities = data_copy.loc[
-        :, data_copy.columns.isin(columns)
-    ]
-    data_persons_quantities = data_persons_quantities[[*columns]]
-
-    # Compile information.
-    information = {
-        "data_families_persons": data_families_persons,
-        "data_persons_categories": data_persons_categories,
-        "data_persons_quantities": data_persons_quantities,
-    }
-    # Return information.
-    return information
-
-
-def extract_organize_persons_properties(
-    persons=None,
-    data_samples_tissues_persons=None,
-    data_samples_tissues_persons_selection=None,
-    data_gene_signal=None,
-):
-    """
-    Extracts and organizes information about samples and genes for further
-    analysis.
-
-    arguments:
-        persons (list<str>): identifiers of persons
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples
-        data_samples_tissues_persons_selection (object): Pandas data frame of
-            persons and tissues for all samples
-        data_gene_signal (object): Pandas data frame of genes' signals across
-            samples
-
-    raises:
-
-    returns:
-        (dict): information
-    """
-
-    # Copy data.
-    data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
-    data_samples_tissues_persons_selection = (
-        data_samples_tissues_persons_selection.copy(deep=True)
-    )
-    data_gene_signal = data_gene_signal.copy(deep=True)
-
-    if False:
-        # Transpose data structure.
-        # Organize genes across columns and samples across rows.
-        data_transposition = data_gene_signal.transpose(copy=True)
-        # Associate samples to persons and tissues.
-        data_gene_signal_factor = assembly.associate_samples_persons_tissues(
-            data_samples_tissues_persons=data_samples_tissues_persons,
-            data_gene_sample=data_transposition,
-        )
-
-    # Impute missing genotypes.
-    data_samples_genotypes = impute_persons_genotypes(
-        persons=persons,
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        data_samples_tissues_persons_selection=(
-            data_samples_tissues_persons_selection
-        ),
-    )
-
-    # Extract information about persons' properties.
-    data_persons_properties_raw = extract_persons_properties(
-        data_samples_tissues_persons=data_samples_genotypes,
-    )
-    utility.print_terminal_partition(level=2)
-    print("data_persons_properties_raw")
-    print(data_persons_properties_raw)
-
-    # Expand covariates.
-    # Prepare covariates for regression.
-    bin = organize_persons_properties(
-        data_persons_properties_raw=data_persons_properties_raw,
-    )
-    utility.print_terminal_partition(level=2)
-    print("data_persons_properties")
-    print(bin["data_persons_properties"])
-
-    # Extract information about samples, tissues, and persons.
-    if False:
-        collection = extract_persons_tissues_samples(
-            data_samples_tissues_persons=data_samples_persons_selection,
-        )
-    # Count tissues per person and persons per tissue.
-    counts = count_tissues_persons_groups(
-        data_samples_tissues_persons=data_samples_tissues_persons_selection,
-    )
-    # Count persons in groups by sex and age.
-    data_persons_sex_age_counts = count_persons_sex_age(
-        data_persons_properties=data_persons_properties_raw,
-    )
-    # Organize information for heritability analysis.
-    variables = prediction.define_regression_variables()
-    heritability = organize_heritability_covariates(
-        variables=variables["heritability"],
-        data_persons_properties=bin["data_persons_properties"],
-    )
-
-    # Compile information.
-    information = {
-        "data_tissues_per_person": counts["data_tissues_per_person"],
-        "tissues_per_person": counts["tissues_per_person"],
-        "data_persons_per_tissue": counts["data_persons_per_tissue"],
-        "persons_per_tissue": counts["persons_per_tissue"],
-
-        "data_persons_sex_age_counts": data_persons_sex_age_counts,
-
-        "data_persons_properties_raw": data_persons_properties_raw,
-        "data_persons_properties": bin["data_persons_properties"],
-
-        "data_tissues_variance": bin["data_tissues_variance"],
-        "data_facilities_variance": bin["data_facilities_variance"],
-        "data_batches_isolation_variance": bin[
-            "data_batches_isolation_variance"
-        ],
-        "data_batches_sequence_variance": bin[
-            "data_batches_sequence_variance"
-        ],
-
-        "data_families_persons": heritability["data_families_persons"],
-        "data_persons_categories": heritability["data_persons_categories"],
-        "data_persons_quantities": heritability["data_persons_quantities"],
-    }
-    # Return information.
-    return information
-
-
 ##########
 # Loose and tight routines.
 
@@ -2082,20 +1888,8 @@ def select_organize_samples_genes_signals(
     print("count of samples: " + str(len(samples_selection)))
     utility.print_terminal_partition(level=3)
 
-    # Extract and organize information for subsequent analyses.
-    # Calculate mean principal components on genotype and introduce for persons
-    # with missing values of these genotypes.
-    # Organize information about persons for regression analysis.
-    information = extract_organize_persons_properties(
-        persons=persons_selection,
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        data_samples_tissues_persons_selection=(
-            data_samples_tissues_persons_selection
-        ),
-        data_gene_signal=data_gene_signal_selection,
-    )
-
     # Compile information.
+    information = dict()
     information["data_gene_annotation_gtex"] = data_gene_annotation_gtex
     information["data_gene_annotation_gencode"] = data_gene_annotation_gencode
     information["data_samples_tissues_persons"] = (
@@ -2114,8 +1908,381 @@ def select_organize_samples_genes_signals(
     return information
 
 
+# Organize covariates for heritability analysis.
+
+
+def define_regression_variables():
+    """
+    Defines a list of variables' names for regression analysis.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<list<str>>): names of independent variables for regression
+
+    """
+
+    # Variables that relate to hypotheses of interest.
+    hypothesis = [
+        "female",
+        "age",
+        "body",
+        "hardiness",
+        "season_sequence",
+    ]
+    # Variables that relate to genotype.
+    genotype = [
+        "genotype_1",
+        "genotype_2",
+        "genotype_3",
+        "genotype_4",
+        "genotype_5",
+        #"genotype_6",
+        #"genotype_7",
+        #"genotype_8",
+        #"genotype_9",
+        #"genotype_10",
+    ]
+    # Variables that relate to technical methods.
+    technique = [
+        "delay",
+
+        "tissues_1",
+        "tissues_2",
+        "tissues_3",
+        "tissues_4",
+        "tissues_5",
+        #"tissues_6", # <- omit
+        #"tissues_7", # <- omit
+        #"tissues_8", # <- omit
+        #"tissues_9", # <- omit
+        #"tissues_10", # <- omit
+
+        "facilities_1",
+        "facilities_2",
+        #"facilities_3", # <- omit
+
+        #"batches_isolation_1",
+        #"batches_isolation_2",
+        #"batches_isolation_3",
+        #"batches_isolation_4", # <- omit
+        #"batches_isolation_5", # <- omit
+        #"batches_isolation_6", # <- omit
+        #"batches_isolation_7", # <- omit
+        #"batches_isolation_8", # <- omit
+        #"batches_isolation_9", # <- omit
+        #"batches_isolation_10", # <- omit
+
+        "batches_sequence_1",
+        "batches_sequence_2",
+        "batches_sequence_3",
+        "batches_sequence_4",
+        "batches_sequence_5",
+        #"batches_sequence_6", # <- omit
+        #"batches_sequence_7", # <- omit
+        #"batches_sequence_8", # <- omit
+        #"batches_sequence_9", # <- omit
+        #"batches_sequence_10", # <- omit
+    ]
+
+    independence = list()
+    independence.extend(hypothesis)
+    independence.extend(genotype)
+    independence.extend(technique)
+
+    heritability_simple = list()
+    heritability_simple.extend(technique)
+    heritability_complex = list()
+    heritability_complex.extend(hypothesis)
+    heritability_complex.extend(technique)
+
+    # Compile information.
+    information = dict()
+    information["hypothesis"] = hypothesis
+    information["genotype"] = genotype
+    information["technique"] = technique
+    information["independence"] = independence
+    information["heritability_simple"] = heritability_simple
+    information["heritability_complex"] = heritability_complex
+
+    # Return information.
+    return information
+
+
+def organize_heritability_variables(
+    variables=None,
+    data_persons_properties=None,
+):
+    """
+    Organizes information about families and persons for heritability analysis.
+
+    As the data from GTEx do not include families, generate distinct families
+    for each person for use in heritability analysis in GCTA.
+
+    arguments:
+        variables (list<str>): names of variables for regression
+        data_persons_properties (object): Pandas data frame of persons their
+            properties
+
+    raises:
+
+    returns:
+        (dict): information for heritability analysis
+    """
+
+    # Introduce empty identifiers for families for compatibility with Plink and
+    # GCTA.
+    # Organize data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+    data_persons_properties["family"] = 0
+    data_persons_properties.reset_index(
+        level=None,
+        inplace=True
+    )
+    # Extract families and persons.
+    data_copy = data_persons_properties.copy(deep=True)
+    data_families_persons = data_copy.loc[
+        :, data_copy.columns.isin(["person", "family"])
+    ]
+    data_families_persons = data_families_persons[[
+        "family",
+        "person",
+    ]]
+
+    # Do not use categorical covariates in heritability analysis.
+    # These would use GCTA's "--covar" flag.
+    # Instead, use the quantitative adaptations.
+
+    # Extract quantitative covariates.
+    columns = copy.deepcopy(variables)
+    columns.insert(0, "person")
+    columns.insert(0, "family")
+    data_copy = data_persons_properties.copy(deep=True)
+    data_persons_variables = data_copy.loc[
+        :, data_copy.columns.isin(columns)
+    ]
+    data_persons_variables = data_persons_variables[[*columns]]
+
+    # Compile information.
+    information = {
+        "data_families_persons": data_families_persons,
+        "data_persons_variables": data_persons_variables,
+    }
+    # Return information.
+    return information
+
+
+def extract_organize_persons_properties(
+    persons=None,
+    data_samples_tissues_persons=None,
+    data_samples_tissues_persons_selection=None,
+    data_gene_signal=None,
+):
+    """
+    Extracts and organizes information about samples and genes for further
+    analysis.
+
+    arguments:
+        persons (list<str>): identifiers of persons
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues for all samples
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+        (dict): information
+    """
+
+    # Copy data.
+    data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
+    data_samples_tissues_persons_selection = (
+        data_samples_tissues_persons_selection.copy(deep=True)
+    )
+    data_gene_signal = data_gene_signal.copy(deep=True)
+
+    if False:
+        # Transpose data structure.
+        # Organize genes across columns and samples across rows.
+        data_transposition = data_gene_signal.transpose(copy=True)
+        # Associate samples to persons and tissues.
+        data_gene_signal_factor = assembly.associate_samples_persons_tissues(
+            data_samples_tissues_persons=data_samples_tissues_persons,
+            data_gene_sample=data_transposition,
+        )
+
+    # Impute missing genotypes.
+    data_samples_genotypes = impute_persons_genotypes(
+        persons=persons,
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_samples_tissues_persons_selection=(
+            data_samples_tissues_persons_selection
+        ),
+    )
+
+    # Extract information about persons' properties.
+    data_persons_properties_raw = extract_persons_properties(
+        data_samples_tissues_persons=data_samples_genotypes,
+    )
+    utility.print_terminal_partition(level=2)
+    print("data_persons_properties_raw")
+    print(data_persons_properties_raw)
+
+    # Expand covariates.
+    # Prepare covariates for regression.
+    bin = organize_persons_properties(
+        data_persons_properties_raw=data_persons_properties_raw,
+    )
+    utility.print_terminal_partition(level=2)
+    print("data_persons_properties")
+    print(bin["data_persons_properties"])
+
+    # Extract information about samples, tissues, and persons.
+    if False:
+        collection = extract_persons_tissues_samples(
+            data_samples_tissues_persons=data_samples_persons_selection,
+        )
+    # Count tissues per person and persons per tissue.
+    counts = count_tissues_persons_groups(
+        data_samples_tissues_persons=data_samples_tissues_persons_selection,
+    )
+    # Count persons in groups by sex and age.
+    data_persons_sex_age_counts = count_persons_sex_age(
+        data_persons_properties=data_persons_properties_raw,
+    )
+
+    # Organize information for heritability analysis.
+    variables = define_regression_variables()
+    simple = organize_heritability_variables(
+        variables=variables["heritability_simple"],
+        data_persons_properties=bin["data_persons_properties"],
+    )
+    complex = organize_heritability_variables(
+        variables=variables["heritability_complex"],
+        data_persons_properties=bin["data_persons_properties"],
+    )
+
+    # Compile information.
+    information = {
+        "data_tissues_per_person": counts["data_tissues_per_person"],
+        "tissues_per_person": counts["tissues_per_person"],
+        "data_persons_per_tissue": counts["data_persons_per_tissue"],
+        "persons_per_tissue": counts["persons_per_tissue"],
+
+        "data_persons_sex_age_counts": data_persons_sex_age_counts,
+
+        "data_persons_properties_raw": data_persons_properties_raw,
+        "data_persons_properties": bin["data_persons_properties"],
+
+        "data_tissues_variance": bin["data_tissues_variance"],
+        "data_facilities_variance": bin["data_facilities_variance"],
+        "data_batches_isolation_variance": bin[
+            "data_batches_isolation_variance"
+        ],
+        "data_batches_sequence_variance": bin[
+            "data_batches_sequence_variance"
+        ],
+
+        "data_families_persons_simple": simple["data_families_persons"],
+        "data_persons_variables_simple": simple["data_persons_variables"],
+        "data_families_persons_complex": complex["data_families_persons"],
+        "data_persons_variables_complex": complex["data_persons_variables"],
+
+    }
+    # Return information.
+    return information
+
+
 ##########
 # Product.
+
+
+def write_product_heritability(
+    dock=None,
+    stringency=None,
+    model=None,
+    information=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+        stringency (str): category, loose or tight, of selection criteria
+        model (str): category, simple or complex, of regression model
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", str(stringency))
+    utility.create_directories(path_selection)
+
+    # Variables for heritability analysis.
+    path_heritability = os.path.join(
+        path_selection, "heritability", str(model)
+    )
+    utility.create_directories(path_heritability)
+    path_families_persons = os.path.join(
+        path_heritability, "data_families_persons.pickle"
+    )
+    path_families_persons_text = os.path.join(
+        path_heritability, "families_persons.tsv"
+    )
+    path_persons_variables = os.path.join(
+        path_heritability, "persons_variables.tsv"
+    )
+
+    # Write information to file.
+    if model == "simple":
+        pandas.to_pickle(
+            information["data_families_persons_simple"],
+            path_families_persons
+        )
+        information["data_families_persons_simple"].to_csv(
+            path_or_buf=path_families_persons_text,
+            sep="\t",
+            na_rep="NA",
+            header=False,
+            index=False,
+        )
+        information["data_persons_variables_simple"].to_csv(
+            path_or_buf=path_persons_variables,
+            sep="\t",
+            na_rep="NA",
+            header=False,
+            index=False,
+        )
+    elif model == "complex":
+        pandas.to_pickle(
+            information["data_families_persons_complex"],
+            path_families_persons
+        )
+        information["data_families_persons_complex"].to_csv(
+            path_or_buf=path_families_persons_text,
+            sep="\t",
+            na_rep="NA",
+            header=False,
+            index=False,
+        )
+        information["data_persons_variables_complex"].to_csv(
+            path_or_buf=path_persons_variables,
+            sep="\t",
+            na_rep="NA",
+            header=False,
+            index=False,
+        )
+    pass
 
 
 def write_product(
@@ -2137,6 +2304,22 @@ def write_product(
     returns:
 
     """
+
+    # Priority information for further analysis.
+
+    # Variables for heritability analysis.
+    write_product_heritability(
+        dock=dock,
+        stringency=stringency,
+        model="simple",
+        information=information,
+    )
+    write_product_heritability(
+        dock=dock,
+        stringency=stringency,
+        model="complex",
+        information=information,
+    )
 
     # Specify directories and files.
     path_selection = os.path.join(dock, "selection", str(stringency))
@@ -2237,19 +2420,6 @@ def write_product(
     )
     path_data_batches_sequence_variance = os.path.join(
         path_selection, "data_batches_sequence_variance.pickle"
-    )
-
-    path_families_persons = os.path.join(
-        path_selection, "data_families_persons.pickle"
-    )
-    path_families_persons_text = os.path.join(
-        path_selection, "families_persons.tsv"
-    )
-    path_persons_categories = os.path.join(
-        path_selection, "persons_categories.tsv"
-    )
-    path_persons_quantities = os.path.join(
-        path_selection, "persons_quantities.tsv"
     )
 
     # Write information to file.
@@ -2376,31 +2546,6 @@ def write_product(
         path_data_batches_sequence_variance,
     )
 
-    pandas.to_pickle(
-        information["data_families_persons"],
-        path_families_persons
-    )
-    information["data_families_persons"].to_csv(
-        path_or_buf=path_families_persons_text,
-        sep="\t",
-        na_rep="NA",
-        header=False,
-        index=False,
-    )
-    information["data_persons_categories"].to_csv(
-        path_or_buf=path_persons_categories,
-        sep="\t",
-        na_rep="NA",
-        header=False,
-        index=False,
-    )
-    information["data_persons_quantities"].to_csv(
-        path_or_buf=path_persons_quantities,
-        sep="\t",
-        na_rep="NA",
-        header=False,
-        index=False,
-    )
     pass
 
 
@@ -2433,50 +2578,41 @@ def execute_procedure(dock=None):
         data=source["data_gene_signal"]
     )
 
-    # Selection 1: loose.
-    # Select data for general analysis.
-    # 1. select genes on autosomes that encode proteins
-    # 2. select samples from whole tissues, not cell lines
-    # 3. select samples from tissues with coverage of >=100 samples
-    # 4. select genes with signal in >=1% of samples
-    # 5. select samples with signal in >=10% of genes
-    if False:
-        loose = select_organize_samples_genes_signals(
-            data_gene_annotation_gtex=source["data_gene_annotation_gtex"],
-            data_gene_annotation_gencode=source["data_gene_annotation_gencode"],
-            data_samples_tissues_persons=source["data_samples_tissues_persons"],
-            data_gene_signal=data_gene_signal,
-            stringency="loose",
-        )
-    # Write product information to file.
-    if False:
-        write_product(
-            dock=dock,
-            stringency="loose",
-            information=loose,
-        )
-
-    # Selection 2: tight.
+    # Selection: tight.
     # Select data for pantissue aggregate analysis.
     # Criteria:
     # 1. select genes on autosomes that encode proteins
     # 2. select samples from whole tissues, not cell lines
     # 3. select samples from tissues with coverage of >=100 samples
     # 4. select samples from sex-neutral tissues
-    # 5. select genes with signal in >=10% of samples
-    # 6. select samples with signal in >=50% of genes
-    tight = select_organize_samples_genes_signals(
+    # 5. select genes with signal (>= 0.1 TPM) in >=50% of samples
+    # 6. select samples with signal (>= 0.1 TPM) in >=50% of genes
+    bin = select_organize_samples_genes_signals(
         data_gene_annotation_gtex=source["data_gene_annotation_gtex"],
         data_gene_annotation_gencode=source["data_gene_annotation_gencode"],
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_signal=data_gene_signal,
         stringency="tight",
     )
+    # Organize information from selection of samples, genes, and signals.
+    organization = extract_organize_persons_properties(
+        persons=bin["persons_selection"],
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_samples_tissues_persons_selection=(
+            bin["data_samples_tissues_persons"]
+        ),
+        data_gene_signal=bin["data_gene_signal"],
+    )
+    # Compile information.
+    information = dict()
+    information.update(bin)
+    information.update(organization)
+
     # Write product information to file.
     write_product(
         dock=dock,
         stringency="tight",
-        information=tight,
+        information=information,
     )
 
     pass
