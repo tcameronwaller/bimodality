@@ -46,7 +46,7 @@ echo "Now set to call routine and procedures."
 # --- Execute on halyard
 #scp /home/tcameronwaller/dock/selection/tight/heritability/simple/families_persons.tsv tcwaller@grenache.ucsd.edu:/cellar/users/tcwaller/Data/dock/access_private/families_persons.tsv
 # --- execute on nrnb
-#bash access_private.sh # run on 6 February 2020
+#bash access_private.sh # run on 20 February 2020
 #bash heritability_initial.sh # run on 19 February 2020
 #cd /cellar/users/tcwaller/Data/dock/
 #tar -czvf access_private.tar.gz access_private/
