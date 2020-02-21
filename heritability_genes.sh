@@ -28,8 +28,8 @@ path_relation_gcta="$path_dock/access_private/relation/gcta"
 path_relation_gcta_bed_bim_fam="$path_relation_gcta/bed_bim_fam/autosome_common"
 path_relation_gcta_pgen_pvar_psam="$path_relation_gcta/pgen_pvar_psam/autosome_common"
 # Use either the Genetic Relationship Matrix from old or new formats.
-path_relation=$path_relation_gcta_bed_bim_fam
-#path_relation=$path_relation_gcta_pgen_pvar_psam
+path_relation=$path_relation_gcta_bed_bim_fam # <- this format works for GCTA
+#path_relation=$path_relation_gcta_pgen_pvar_psam # <- this format does not work
 
 rm -r $path_heritability
 mkdir -p $path_heritability
@@ -65,6 +65,6 @@ do
     path_phenotype="$path_distribution_gene/data_gene_families_persons_signals.tsv"
 
     # Execute heritability analysis.
-    $path_gcta --grm $path_relation --keep $path_persons --pheno $path_phenotype --qcovar $path_simple_variables --reml --out $path_simple/report --threads 5
-    $path_gcta --grm $path_relation --keep $path_persons --pheno $path_phenotype --qcovar $path_complex_variables --reml --out $path_complex/report --threads 5
+    $path_gcta --grm $path_relation --keep $path_persons --pheno $path_phenotype --qcovar $path_simple_variables --reml --out $path_simple/report --threads 7
+    $path_gcta --grm $path_relation --keep $path_persons --pheno $path_phenotype --qcovar $path_complex_variables --reml --out $path_complex/report --threads 7
 done

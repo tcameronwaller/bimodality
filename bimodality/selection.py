@@ -865,7 +865,7 @@ def impute_persons_genotypes(
     # Report on extent of imputation.
     report_genotype_imputation(
         columns=columns,
-        data_original=data_samples_tissues_persons,
+        data_original=data_samples_tissues_persons_selection,
         data_novel=data_selection,
     )
 
@@ -2285,6 +2285,113 @@ def write_product_heritability(
     pass
 
 
+def write_product_charts(
+    dock=None,
+    stringency=None,
+    information=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+        stringency (str): category, loose or tight, of selection criteria
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", str(stringency))
+    utility.create_directories(path_selection)
+
+    path_signals_initial = os.path.join(
+        path_selection, "signals_initial.pickle"
+    )
+    path_signals_final = os.path.join(
+        path_selection, "signals_final.pickle"
+    )
+    path_data_tissues_per_person = os.path.join(
+        path_selection, "data_tissues_per_person.pickle"
+    )
+    path_tissues_per_person = os.path.join(
+        path_selection, "tissues_per_person.pickle"
+    )
+    path_data_persons_per_tissue = os.path.join(
+        path_selection, "data_persons_per_tissue.pickle"
+    )
+    path_persons_per_tissue = os.path.join(
+        path_selection, "persons_per_tissue.pickle"
+    )
+    path_data_persons_sex_age_counts = os.path.join(
+        path_selection, "data_persons_sex_age_counts.pickle"
+    )
+
+    path_data_tissues_variance = os.path.join(
+        path_selection, "data_tissues_variance.pickle"
+    )
+    path_data_facilities_variance = os.path.join(
+        path_selection, "data_facilities_variance.pickle"
+    )
+    path_data_batches_isolation_variance = os.path.join(
+        path_selection, "data_batches_isolation_variance.pickle"
+    )
+    path_data_batches_sequence_variance = os.path.join(
+        path_selection, "data_batches_sequence_variance.pickle"
+    )
+
+    # Write information to file.
+
+    with open(path_signals_initial, "wb") as file_product:
+        pickle.dump(information["signals_initial"], file_product)
+    with open(path_signals_final, "wb") as file_product:
+        pickle.dump(information["signals_final"], file_product)
+
+    pandas.to_pickle(
+        information["data_tissues_per_person"],
+        path_data_tissues_per_person
+    )
+    pandas.to_pickle(
+        information["tissues_per_person"],
+        path_tissues_per_person
+    )
+    pandas.to_pickle(
+        information["data_persons_per_tissue"],
+        path_data_persons_per_tissue
+    )
+    pandas.to_pickle(
+        information["persons_per_tissue"],
+        path_persons_per_tissue
+    )
+    pandas.to_pickle(
+        information["data_persons_sex_age_counts"],
+        path_data_persons_sex_age_counts
+    )
+
+    pandas.to_pickle(
+        information["data_tissues_variance"],
+        path_data_tissues_variance,
+    )
+    pandas.to_pickle(
+        information["data_facilities_variance"],
+        path_data_facilities_variance,
+    )
+    pandas.to_pickle(
+        information["data_batches_isolation_variance"],
+        path_data_batches_isolation_variance,
+    )
+    pandas.to_pickle(
+        information["data_batches_sequence_variance"],
+        path_data_batches_sequence_variance,
+    )
+
+    pass
+
+
 def write_product(
     dock=None,
     stringency=None,
@@ -2321,6 +2428,13 @@ def write_product(
         information=information,
     )
 
+    # Information for plotting charts.
+    write_product_charts(
+        dock=dock,
+        stringency=stringency,
+        information=information,
+    )
+
     # Specify directories and files.
     path_selection = os.path.join(dock, "selection", str(stringency))
     utility.create_directories(path_selection)
@@ -2353,12 +2467,6 @@ def write_product(
     path_genes_selection_text = os.path.join(
         path_selection, "genes_selection.txt"
     )
-    path_signals_initial = os.path.join(
-        path_selection, "signals_initial.pickle"
-    )
-    path_signals_final = os.path.join(
-        path_selection, "signals_final.pickle"
-    )
 
     path_samples_tissues_persons = os.path.join(
         path_selection, "data_samples_tissues_persons.pickle"
@@ -2379,23 +2487,6 @@ def write_product(
         path_selection, "tissues_selection.pickle"
     )
 
-    path_data_tissues_per_person = os.path.join(
-        path_selection, "data_tissues_per_person.pickle"
-    )
-    path_tissues_per_person = os.path.join(
-        path_selection, "tissues_per_person.pickle"
-    )
-    path_data_persons_per_tissue = os.path.join(
-        path_selection, "data_persons_per_tissue.pickle"
-    )
-    path_persons_per_tissue = os.path.join(
-        path_selection, "persons_per_tissue.pickle"
-    )
-
-    path_data_persons_sex_age_counts = os.path.join(
-        path_selection, "data_persons_sex_age_counts.pickle"
-    )
-
     path_persons_properties_raw = os.path.join(
         path_selection, "data_persons_properties_raw.pickle"
     )
@@ -2407,19 +2498,6 @@ def write_product(
     )
     path_persons_properties_text = os.path.join(
         path_selection, "data_persons_properties.tsv"
-    )
-
-    path_data_tissues_variance = os.path.join(
-        path_selection, "data_tissues_variance.pickle"
-    )
-    path_data_facilities_variance = os.path.join(
-        path_selection, "data_facilities_variance.pickle"
-    )
-    path_data_batches_isolation_variance = os.path.join(
-        path_selection, "data_batches_isolation_variance.pickle"
-    )
-    path_data_batches_sequence_variance = os.path.join(
-        path_selection, "data_batches_sequence_variance.pickle"
     )
 
     # Write information to file.
@@ -2462,10 +2540,6 @@ def write_product(
         delimiter="\n",
         path_file=path_genes_selection_text
     )
-    with open(path_signals_initial, "wb") as file_product:
-        pickle.dump(information["signals_initial"], file_product)
-    with open(path_signals_final, "wb") as file_product:
-        pickle.dump(information["signals_final"], file_product)
     with open(path_samples_gtex, "wb") as file_product:
         pickle.dump(information["samples_gtex"], file_product)
     with open(path_samples_selection, "wb") as file_product:
@@ -2487,28 +2561,6 @@ def write_product(
     )
 
     pandas.to_pickle(
-        information["data_tissues_per_person"],
-        path_data_tissues_per_person
-    )
-    pandas.to_pickle(
-        information["tissues_per_person"],
-        path_tissues_per_person
-    )
-    pandas.to_pickle(
-        information["data_persons_per_tissue"],
-        path_data_persons_per_tissue
-    )
-    pandas.to_pickle(
-        information["persons_per_tissue"],
-        path_persons_per_tissue
-    )
-
-    pandas.to_pickle(
-        information["data_persons_sex_age_counts"],
-        path_data_persons_sex_age_counts
-    )
-
-    pandas.to_pickle(
         information["data_persons_properties_raw"],
         path_persons_properties_raw
     )
@@ -2527,23 +2579,6 @@ def write_product(
         sep="\t",
         header=True,
         index=True,
-    )
-
-    pandas.to_pickle(
-        information["data_tissues_variance"],
-        path_data_tissues_variance,
-    )
-    pandas.to_pickle(
-        information["data_facilities_variance"],
-        path_data_facilities_variance,
-    )
-    pandas.to_pickle(
-        information["data_batches_isolation_variance"],
-        path_data_batches_isolation_variance,
-    )
-    pandas.to_pickle(
-        information["data_batches_sequence_variance"],
-        path_data_batches_sequence_variance,
     )
 
     pass

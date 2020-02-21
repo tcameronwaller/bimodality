@@ -89,6 +89,16 @@ def read_source(dock=None):
         path_candidacy, "genes_multimodal.pickle"
     )
 
+    path_heritability = os.path.join(dock, "heritability")
+    path_collection = os.path.join(path_heritability, "collection")
+    path_data_genes_heritabilities_simple = os.path.join(
+        path_collection, "data_genes_heritabilities_simple.pickle"
+    )
+    path_data_genes_heritabilities_complex = os.path.join(
+        path_collection, "data_genes_heritabilities_complex.pickle"
+    )
+
+
     if False:
 
         path_probability = os.path.join(dock, "probability")
@@ -104,12 +114,6 @@ def read_source(dock=None):
 
         path_heritability = os.path.join(dock, "heritability")
         path_collection = os.path.join(path_heritability, "collection")
-        path_genes_heritabilities_simple = os.path.join(
-            path_collection, "genes_heritabilities_simple.pickle"
-        )
-        path_genes_heritabilities_complex = os.path.join(
-            path_collection, "genes_heritabilities_complex.pickle"
-        )
         path_genes_heritability = os.path.join(
             path_collection, "genes_heritability.pickle"
         )
@@ -133,6 +137,14 @@ def read_source(dock=None):
     with open(path_genes_multimodal, "rb") as file_source:
         genes_multimodal = pickle.load(file_source)
 
+    data_genes_heritabilities_simple = pandas.read_pickle(
+        path_data_genes_heritabilities_simple
+    )
+    data_genes_heritabilities_complex = pandas.read_pickle(
+        path_data_genes_heritabilities_complex
+    )
+
+
     if False:
         with open(path_genes_scores, "rb") as file_source:
             genes_scores = pickle.load(file_source)
@@ -141,10 +153,6 @@ def read_source(dock=None):
         with open(path_genes_probability, "rb") as file_source:
             genes_probability = pickle.load(file_source)
 
-        with open(path_genes_heritabilities_simple, "rb") as file_source:
-            genes_heritabilities_simple = pickle.load(file_source)
-        with open(path_genes_heritabilities_complex, "rb") as file_source:
-            genes_heritabilities_complex = pickle.load(file_source)
         with open(path_genes_heritability, "rb") as file_source:
             genes_heritability = pickle.load(file_source)
 
@@ -164,8 +172,8 @@ def read_source(dock=None):
         #"genes_probabilities": genes_probabilities,
         #"genes_probability": genes_probability,
 
-        #"genes_heritabilities_simple": genes_heritabilities_simple,
-        #"genes_heritabilities_complex": genes_heritabilities_complex,
+        "data_genes_heritabilities_simple": data_genes_heritabilities_simple,
+        "data_genes_heritabilities_complex": data_genes_heritabilities_complex,
         #"genes_heritability": genes_heritability,
     }
 

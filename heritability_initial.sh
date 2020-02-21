@@ -20,6 +20,7 @@ path_genotype_bed_bim_fam="$path_gtex_bed_bim_fam/gtex-8_genotype"
 path_genotype_pgen_pvar_psam="$path_gtex_pgen_pvar_psam/gtex-8_genotype"
 
 path_access_private="$path_user_cellar/Data/dock/access_private"
+path_persons="$path_access_private/families_persons.tsv"
 path_relation_gcta="$path_access_private/relation/gcta"
 path_relation_gcta_bed_bim_fam="$path_relation_gcta/bed_bim_fam"
 path_relation_gcta_pgen_pvar_psam="$path_relation_gcta/pgen_pvar_psam"
@@ -61,9 +62,9 @@ $path_plink_2 --vcf $path_genotype_vcf --make-pgen --out $path_genotype_pgen_pva
 
 ##########
 # Generate GRM for all autosomal chromosomes.
-$path_gcta --bfile $path_genotype_bed_bim_fam --autosome --maf 0.01 --make-grm --out $path_relation_gcta_bed_bim_fam/autosome_common --threads 10
-$path_gcta --pfile $path_genotype_pgen_pvar_psam --autosome --maf 0.01 --make-grm --out $path_relation_gcta_pgen_pvar_psam/autosome_common --threads 10
-$path_plink_2 --pfile $path_genotype_pgen_pvar_psam --autosome --maf 0.01 --make-rel --out $path_relation_plink/autosome_common --threads 10
+$path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_persons --autosome --maf 0.01 --make-grm --out $path_relation_gcta_bed_bim_fam/autosome_common --threads 10
+$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_persons --autosome --maf 0.01 --make-grm --out $path_relation_gcta_pgen_pvar_psam/autosome_common --threads 10
+$path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons --autosome --maf 0.01 --make-rel --out $path_relation_plink/autosome_common --threads 10
 
 ##########
 # Calculate principal components.
@@ -76,4 +77,4 @@ $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --autosome --maf 0.01 --make
 # missing values across Eigenvectors.
 $path_gcta --grm $path_relation_gcta_pgen_pvar_psam/autosome_common --pca 25 --out $path_relation_gcta_pgen_pvar_psam/components
 $path_gcta --grm $path_relation_gcta_bed_bim_fam/autosome_common --pca 25 --out $path_relation_gcta_bed_bim_fam/components
-$path_plink_2 --pfile $path_genotype_pgen_pvar_psam --autosome --maf 0.01 --pca 25 --out $path_relation_plink/components
+$path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons --autosome --maf 0.01 --pca 25 --out $path_relation_plink/components
