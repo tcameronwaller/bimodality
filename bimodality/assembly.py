@@ -196,7 +196,7 @@ def read_source_sample(dock=None):
     )
     path_genotype_component_gcta = os.path.join(
         path_access_private,
-        "relation", "gcta", "pgen_pvar_psam", "components.eigenvec",
+        "relation", "gcta", "bed_bim_fam", "components.eigenvec",
     )
     path_genotype_component_plink = os.path.join(
         path_access_private, "relation", "plink", "components.eigenvec"

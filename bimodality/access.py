@@ -118,7 +118,7 @@ def define_source():
             "suffix": "gtf",
             "compression": False,
         },
-        # Update on 7 February 2020
+        # Update on 21 February 2020
         # Gencode Release 33 (GRCh38.p13)
         "annotation_gene_gencode": {
             "path": (

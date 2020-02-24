@@ -2007,9 +2007,18 @@ def write_product_gene(
     path_data_gene_signal_tissue = os.path.join(
         path_gene, "data_gene_signal_tissue.pickle"
     )
+
+    # This data frame includes a gene's signals across persons (rows) and
+    # major tissues (columns).
+    # The organization segment of the distribution procedure has already
+    # aggregated the signals of any minor tissues by mean.
+    # The permutation procedure reads and permutes this data frame for each
+    # gene.
+    # The distribution procedure transforms this data frame further.
     path_data_gene_persons_tissues_signals = os.path.join(
         path_gene, "data_gene_persons_tissues_signals.pickle"
     )
+
     path_data_gene_tissue_mean = os.path.join(
         path_gene, "data_gene_tissue_mean.pickle"
     )

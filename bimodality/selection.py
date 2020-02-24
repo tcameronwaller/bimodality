@@ -1814,7 +1814,7 @@ def select_organize_samples_genes_signals(
     # threshold.
     signals_initial = normalize_collect_report_gene_signals(
         data_gene_signal=data_gene_signal_fill,
-        threshold=0.13750, #0.13750, 1.0
+        threshold=math.log((0.1 + 1.0), 2) # pseudo count 1.0, 0.1 TPM
     )
 
     # Select genes and samples by signals and coverage.
@@ -1859,7 +1859,7 @@ def select_organize_samples_genes_signals(
     # threshold.
     signals_final = normalize_collect_report_gene_signals(
         data_gene_signal=data_gene_signal_selection,
-        threshold=0.13750, #0.13750, 1.0
+        threshold=math.log((0.1 + 1.0), 2) # pseudo count 1.0, 0.1 TPM
     )
 
     # Extract identifiers of genes.

@@ -969,7 +969,7 @@ def plot_scatter(
         values_ordinate,
         linestyle="",
         marker="o",
-        markersize=5, # 5, 15
+        markersize=15, # 5, 15
         markeredgecolor=colors["blue"],
         markerfacecolor=colors["blue"]
     )
@@ -2176,19 +2176,64 @@ def read_source_gene_heritability(
 
     path_heritability = os.path.join(dock, "heritability")
     path_collection = os.path.join(path_heritability, "collection")
-    path_data_heritabilities_complex = os.path.join(
+
+    path_data_genes_heritabilities_simple = os.path.join(
+        path_collection, "data_genes_heritabilities_simple.pickle"
+    )
+    path_data_genes_heritabilities_complex = os.path.join(
         path_collection, "data_genes_heritabilities_complex.pickle"
+    )
+    path_data_genes_unimodal_heritabilities_simple = os.path.join(
+        path_collection, "data_genes_unimodal_heritabilities_simple.pickle"
+    )
+    path_data_genes_unimodal_heritabilities_complex = os.path.join(
+        path_collection, "data_genes_unimodal_heritabilities_complex.pickle"
+    )
+    path_data_genes_multimodal_heritabilities_simple = os.path.join(
+        path_collection, "data_genes_multimodal_heritabilities_simple.pickle"
+    )
+    path_data_genes_multimodal_heritabilities_complex = os.path.join(
+        path_collection, "data_genes_multimodal_heritabilities_complex.pickle"
     )
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_genes_heritabilities_complex = pandas.read_pickle(
-        path_data_heritabilities_complex
+    data_genes_heritabilities_simple = pandas.read_pickle(
+        path_data_genes_heritabilities_simple
     )
+    data_genes_heritabilities_complex = pandas.read_pickle(
+        path_data_genes_heritabilities_complex
+    )
+    data_genes_unimodal_heritabilities_simple = pandas.read_pickle(
+        path_data_genes_unimodal_heritabilities_simple
+    )
+    data_genes_unimodal_heritabilities_complex = pandas.read_pickle(
+        path_data_genes_unimodal_heritabilities_complex
+    )
+    data_genes_multimodal_heritabilities_simple = pandas.read_pickle(
+        path_data_genes_multimodal_heritabilities_simple
+    )
+    data_genes_multimodal_heritabilities_complex = pandas.read_pickle(
+        path_data_genes_multimodal_heritabilities_complex
+    )
+
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
+        "data_genes_heritabilities_simple": data_genes_heritabilities_simple,
         "data_genes_heritabilities_complex": data_genes_heritabilities_complex,
+        "data_genes_unimodal_heritabilities_simple": (
+            data_genes_unimodal_heritabilities_simple
+        ),
+        "data_genes_unimodal_heritabilities_complex": (
+            data_genes_unimodal_heritabilities_complex
+        ),
+        "data_genes_multimodal_heritabilities_simple": (
+            data_genes_multimodal_heritabilities_simple
+        ),
+        "data_genes_multimodal_heritabilities_complex": (
+            data_genes_multimodal_heritabilities_complex
+        ),
     }
 
 
@@ -2231,7 +2276,7 @@ def organize_gene_heritability(
     identifiers = data.index.to_list()
     translations = dict()
     for identifier in identifiers:
-        translations[identifier] = integration.access_gene_name(
+        translations[identifier] = assembly.access_gene_name(
             identifier=identifier,
             data_gene_annotation=data_gene_annotation,
         )
@@ -2247,26 +2292,20 @@ def organize_gene_heritability(
 
 def plot_chart_gene_heritability(
     data=None,
-    path_directory=None
+    path_file=None
 ):
     """
     Plots charts from the analysis process.
 
     arguments:
         data (object): Pandas data frame of variables
-        path_directory (str): path for directory
+        path_file (str): path for file
 
     raises:
 
     returns:
 
     """
-
-    # Define file name.
-    title = "heritability_thresholds"
-    path_file = os.path.join(
-        path_directory, str(title + ".svg")
-    )
 
     # Define fonts.
     fonts = define_font_properties()
@@ -2280,9 +2319,9 @@ def plot_chart_gene_heritability(
         ordinate="percentage",
         title_abscissa="-1 * log10(FDR)",
         title_ordinate="% heritability",
-        threshold_abscissa=1.12,
+        threshold_abscissa=1.30,
         selection_abscissa=">=",
-        threshold_ordinate=50,
+        threshold_ordinate=10,
         selection_ordinate=">=",
         fonts=fonts,
         colors=colors,
@@ -2315,13 +2354,38 @@ def prepare_charts_gene_heritability(
     # Read source information from file.
     source = read_source_gene_heritability(dock=dock)
 
-    # Organize data.
-    data = organize_gene_heritability(
-        data_gene_annotation=source["data_gene_annotation"],
-        data_genes_heritabilities=(
-            source["data_genes_heritabilities_complex"]
-        ),
-    )
+    # Define parameters for each chart.
+    charts = list()
+    record = {
+        "title": "genes_selection_simple",
+        "data": source["data_genes_heritabilities_simple"],
+    }
+    charts.append(record)
+    record = {
+        "title": "genes_selection_complex",
+        "data": source["data_genes_heritabilities_complex"],
+    }
+    charts.append(record)
+    record = {
+        "title": "genes_unimodal_simple",
+        "data": source["data_genes_unimodal_heritabilities_simple"],
+    }
+    charts.append(record)
+    record = {
+        "title": "genes_unimodal_complex",
+        "data": source["data_genes_unimodal_heritabilities_complex"],
+    }
+    charts.append(record)
+    record = {
+        "title": "genes_multimodal_simple",
+        "data": source["data_genes_multimodal_heritabilities_simple"],
+    }
+    charts.append(record)
+    record = {
+        "title": "genes_multimodal_complex",
+        "data": source["data_genes_multimodal_heritabilities_complex"],
+    }
+    charts.append(record)
 
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
@@ -2334,11 +2398,21 @@ def prepare_charts_gene_heritability(
     utility.remove_directory(path=path_directory)
     utility.create_directories(path=path_directory)
 
-    # Create chart.
-    plot_chart_gene_heritability(
-        data=data,
-        path_directory=path_directory
-    )
+    # Iterate on charts.
+    for chart in charts:
+        # Organize data.
+        data = organize_gene_heritability(
+            data_gene_annotation=source["data_gene_annotation"],
+            data_genes_heritabilities=chart["data"],
+        )
+        # Create chart.
+        path_file = os.path.join(
+            path_directory, str(chart["title"] + ".svg")
+        )
+        plot_chart_gene_heritability(
+            data=data,
+            path_file=path_file
+        )
 
     pass
 
@@ -2607,38 +2681,53 @@ def read_source_sets_gene_heritability(
     """
 
     # Specify directories and files.
-    path_split = os.path.join(dock, "split")
-    path_genes_split = os.path.join(path_split, "genes.txt")
+    path_selection = os.path.join(dock, "selection", "tight")
+    path_genes_selection = os.path.join(
+        path_selection, "genes_selection.pickle"
+    )
 
     path_heritability = os.path.join(dock, "heritability")
     path_collection = os.path.join(path_heritability, "collection")
-    path_sets_genes_models = os.path.join(
-        path_collection, "sets_genes_models.pickle"
+    path_sets_genes_selection = os.path.join(
+        path_collection, "sets_genes_selection.pickle"
+    )
+    path_sets_genes_unimodal = os.path.join(
+        path_collection, "sets_genes_unimodal.pickle"
+    )
+    path_sets_genes_multimodal = os.path.join(
+        path_collection, "sets_genes_multimodal.pickle"
     )
     # Read information from file.
-    genes_split = utility.read_file_text_list(
-        delimiter="\n",
-        path_file=path_genes_split,
-    )
-    with open(path_sets_genes_models, "rb") as file_source:
-        sets_genes_models = pickle.load(file_source)
+    with open(path_genes_selection, "rb") as file_source:
+        genes_selection = pickle.load(file_source)
+    with open(path_sets_genes_selection, "rb") as file_source:
+        sets_genes_selection = pickle.load(file_source)
+    with open(path_sets_genes_unimodal, "rb") as file_source:
+        sets_genes_unimodal = pickle.load(file_source)
+    with open(path_sets_genes_multimodal, "rb") as file_source:
+        sets_genes_multimodal = pickle.load(file_source)
+
     # Compile and return information.
     return {
-        "genes_split": genes_split,
-        "sets_genes_models": sets_genes_models,
+        "genes_selection": genes_selection,
+        "sets_genes_selection": sets_genes_selection,
+        "sets_genes_unimodal": sets_genes_unimodal,
+        "sets_genes_multimodal": sets_genes_multimodal,
     }
 
 
 def plot_chart_sets_gene_heritability(
     sets=None,
-    path=None
+    count=None,
+    path_file=None
 ):
     """
     Plots charts from the analysis process.
 
     arguments:
         sets (dict<list<str>>): values in sets
-        path (str): path to directory and file
+        count (int): count of sets
+        path_file (str): path to directory and file
 
     raises:
 
@@ -2654,13 +2743,13 @@ def plot_chart_sets_gene_heritability(
     # Create figure.
     figure = plot_overlap_sets(
         sets=sets,
-        count=3,
+        count=count,
         fonts=fonts,
         colors=colors,
     )
     # Write figure.
     write_figure(
-        path=path,
+        path=path_file,
         figure=figure
     )
 
@@ -2683,30 +2772,55 @@ def prepare_charts_sets_gene_heritability(
 
     """
 
-    print("going to plot overlap between sets of genes by heritability")
-
     # Read source information from file.
     source = read_source_sets_gene_heritability(dock=dock)
 
     # Organize information.
-    sets = dict()
-    sets["total"] = source["genes_split"]
-    sets["simple"] = source["sets_genes_models"]["simple"]
-    sets["complex"] = source["sets_genes_models"]["complex"]
+    # Define parameters for each chart.
+    charts = list()
+    sets_selection = source["sets_genes_selection"]
+    sets_selection["total"] = source["genes_selection"]
+    record = {
+        "title": "genes_selection",
+        "count": 3,
+        "sets": sets_selection,
+    }
+    charts.append(record)
+    record = {
+        "title": "genes_unimodal",
+        "count": 2,
+        "sets": source["sets_genes_unimodal"],
+    }
+    charts.append(record)
+    record = {
+        "title": "genes_multimodal",
+        "count": 2,
+        "sets": source["sets_genes_multimodal"],
+    }
+    charts.append(record)
 
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
     path_heritability = os.path.join(path_plot, "heritability")
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_heritability)
-    utility.create_directory(path=path_heritability)
-    path_sets = os.path.join(path_heritability, "sets.svg")
-
-    plot_chart_sets_gene_heritability(
-        sets=sets,
-        path=path_sets,
+    path_directory = os.path.join(
+        path_heritability, "sets"
     )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    # Iterate on charts.
+    for chart in charts:
+        # Create chart.
+        path_file = os.path.join(
+            path_directory, str(chart["title"] + ".svg")
+        )
+        plot_chart_sets_gene_heritability(
+            sets=chart["sets"],
+            count=chart["count"],
+            path_file=path_file,
+        )
 
     pass
 
@@ -3470,7 +3584,7 @@ def organize_signals_genes_persons_groups(
     # Prepare translation of genes' identifiers to names.
     translations = dict()
     for identifier in genes:
-        translations[identifier] = integration.access_gene_name(
+        translations[identifier] = assembly.access_gene_name(
             identifier=identifier,
             data_gene_annotation=data_gene_annotation,
         )
@@ -4690,7 +4804,6 @@ def plot_charts_restriction(
 
 
 
-
 ###############################################################################
 # Procedure
 
@@ -4773,6 +4886,19 @@ def execute_procedure(dock=None):
     # and tissues (rows).
     prepare_charts_genes_signals_tissues_persons(dock=dock)
 
+    ##########
+    ##########
+    ##########
+    # Heritability procedure
+
+    # Plot charts for heritability of genes' pantissue signals.
+    # Charts will be scatter plots.
+    prepare_charts_gene_heritability(dock=dock)
+
+    # Plot charts of overlap between sets in selection of genes by
+    # heritability.
+    prepare_charts_sets_gene_heritability(dock=dock)
+
 
     if False:
 
@@ -4798,17 +4924,8 @@ def execute_procedure(dock=None):
         prepare_charts_gene_sets_probability(dock=dock)
 
         # Plot charts of overlap between sets in selection of genes by
-        # heritability.
-        prepare_charts_sets_gene_heritability(dock=dock)
-
-        # Plot charts of overlap between sets in selection of genes by
         # integration.
         prepare_charts_gene_sets_integration(dock=dock)
-
-        # Plot charts for heritability of genes' pantissue signals.
-        # Charts will be scatter plots.
-        prepare_charts_gene_heritability(dock=dock)
-
 
     #plot_charts_analysis(dock=dock)
     #plot_charts_tissue(dock=dock)

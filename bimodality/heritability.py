@@ -76,7 +76,6 @@ def read_source_initial(dock=None):
         path_candidacy, "genes_multimodal.pickle"
     )
 
-
     # Read information from file.
     with open(path_genes_selection, "rb") as file_source:
         genes_selection = pickle.load(file_source)
@@ -413,7 +412,6 @@ def select_heritabilities_by_genes(
     data_selection = data_genes_heritabilities.loc[
         data_genes_heritabilities.index.isin(genes), :
     ]
-
     # Return information.
     return data_selection
 
@@ -452,34 +450,90 @@ def select_heritable_genes_by_threshold(
     ]
 
     # Extract identifiers of genes.
-    genes = data_discovery["gene"].to_list()
+    genes = data_discovery.index.to_list()
 
     # Return information.
     return genes
 
 
-
-
 def select_genes_heritabilities_sets(
     genes=None,
-    data_genes_heritabilities=None,
+    threshold_proportion=None,
+    threshold_discovery=None,
+    data_genes_heritabilities_simple=None,
+    data_genes_heritabilities_complex=None,
 ):
     """
     Selects information on the heritabilities of specific genes.
 
     arguments:
         genes (list<str>): identifiers of genes to select
-        data_genes_heritabilities (object): Pandas data frame of genes'
-            heritabilities
+        threshold_proportion (float): threshold by proportion of phenotypic
+            variance attributable to genotype
+        threshold_discovery (float): threshold by false discovery rate
+        data_genes_heritabilities_simple (object): Pandas data frame of genes'
+            heritabilities from a simple model with only technical variables
+        data_genes_heritabilities_complex (object): Pandas data frame of genes'
+            heritabilities from a complex model with technical and hypothetical
+            variables
 
     raises:
 
     returns:
-        (object): Pandas data frame of genes' heritabilities
+        (dict): information about genes' heritabilities by simple and complex
+            models
     """
 
-    pass
+    # Copy data.
+    data_genes_heritabilities_simple = data_genes_heritabilities_simple.copy(
+        deep=True
+    )
+    data_genes_heritabilities_complex = data_genes_heritabilities_complex.copy(
+        deep=True
+    )
 
+    # Select data for genes of interest.
+    data_simple = select_heritabilities_by_genes(
+        genes=genes,
+        data_genes_heritabilities=data_genes_heritabilities_simple,
+    )
+    data_complex = select_heritabilities_by_genes(
+        genes=genes,
+        data_genes_heritabilities=data_genes_heritabilities_complex,
+    )
+
+    # Determine genes with heritable distribution by simple and complex models.
+    utility.print_terminal_partition(level=2)
+    print("Counts of heritable genes...")
+    genes_simple = select_heritable_genes_by_threshold(
+        data_genes_heritabilities=data_simple,
+        threshold_proportion=threshold_proportion,
+        threshold_discovery=threshold_discovery,
+    )
+    utility.print_terminal_partition(level=2)
+    print("simple method: " + str(len(genes_simple)))
+    genes_complex = select_heritable_genes_by_threshold(
+        data_genes_heritabilities=data_complex,
+        threshold_proportion=threshold_proportion,
+        threshold_discovery=threshold_discovery,
+    )
+    utility.print_terminal_partition(level=2)
+    print("complex method: " + str(len(genes_complex)))
+
+    # Organize sets of genes.
+    sets_genes = dict()
+    sets_genes["simple"] = genes_simple
+    sets_genes["complex"] = genes_complex
+
+    # Compile information.
+    information = dict()
+    information["data_simple"] = data_simple
+    information["data_complex"] = data_complex
+    information["genes_simple"] = genes_simple
+    information["genes_complex"] = genes_complex
+    information["sets_genes"] = sets_genes
+    # Return information.
+    return information
 
 
 # Product
@@ -504,17 +558,12 @@ def write_product(dock=None, information=None):
     path_heritability = os.path.join(dock, "heritability")
     path_collection = os.path.join(path_heritability, "collection")
     utility.create_directory(path_collection)
-    path_sets_genes_models = os.path.join(
-        path_collection, "sets_genes_models.pickle"
-    )
-    path_simple = os.path.join(
-        path_collection, "genes_heritabilities_simple.pickle"
-    )
-    path_complex = os.path.join(
-        path_collection, "genes_heritabilities_complex.pickle"
-    )
+
     path_data_genes_heritabilities_simple = os.path.join(
         path_collection, "data_genes_heritabilities_simple.pickle"
+    )
+    path_data_genes_heritabilities_simple_text = os.path.join(
+        path_collection, "data_genes_heritabilities_simple.tsv"
     )
     path_data_genes_heritabilities_complex = os.path.join(
         path_collection, "data_genes_heritabilities_complex.pickle"
@@ -522,26 +571,39 @@ def write_product(dock=None, information=None):
     path_data_genes_heritabilities_complex_text = os.path.join(
         path_collection, "data_genes_heritabilities_complex.tsv"
     )
-    path_genes_heritability = os.path.join(
-        path_collection, "genes_heritability.pickle"
+    path_data_genes_unimodal_heritabilities_simple = os.path.join(
+        path_collection, "data_genes_unimodal_heritabilities_simple.pickle"
     )
+    path_data_genes_unimodal_heritabilities_complex = os.path.join(
+        path_collection, "data_genes_unimodal_heritabilities_complex.pickle"
+    )
+    path_data_genes_multimodal_heritabilities_simple = os.path.join(
+        path_collection, "data_genes_multimodal_heritabilities_simple.pickle"
+    )
+    path_data_genes_multimodal_heritabilities_complex = os.path.join(
+        path_collection, "data_genes_multimodal_heritabilities_complex.pickle"
+    )
+
+    path_sets_genes_selection = os.path.join(
+        path_collection, "sets_genes_selection.pickle"
+    )
+    path_sets_genes_unimodal = os.path.join(
+        path_collection, "sets_genes_unimodal.pickle"
+    )
+    path_sets_genes_multimodal = os.path.join(
+        path_collection, "sets_genes_multimodal.pickle"
+    )
+
     # Write information to file.
-    with open(path_sets_genes_models, "wb") as file_product:
-        pickle.dump(information["sets_genes_models"], file_product)
-    with open(path_simple, "wb") as file_product:
-        pickle.dump(
-            information["genes_heritabilities_simple"], file_product
-        )
-    with open(path_complex, "wb") as file_product:
-        pickle.dump(
-            information["genes_heritabilities_complex"], file_product
-        )
-    with open(path_genes_heritability, "wb") as file_product:
-        pickle.dump(
-            information["genes_heritability"], file_product
-        )
+
     information["data_genes_heritabilities_simple"].to_pickle(
         path=path_data_genes_heritabilities_simple
+    )
+    information["data_genes_heritabilities_simple"].to_csv(
+        path_or_buf=path_data_genes_heritabilities_simple_text,
+        sep="\t",
+        header=True,
+        index=True,
     )
     information["data_genes_heritabilities_complex"].to_pickle(
         path=path_data_genes_heritabilities_complex
@@ -552,6 +614,25 @@ def write_product(dock=None, information=None):
         header=True,
         index=True,
     )
+    information["data_genes_unimodal_heritabilities_simple"].to_pickle(
+        path=path_data_genes_unimodal_heritabilities_simple
+    )
+    information["data_genes_unimodal_heritabilities_complex"].to_pickle(
+        path=path_data_genes_unimodal_heritabilities_complex
+    )
+    information["data_genes_multimodal_heritabilities_simple"].to_pickle(
+        path=path_data_genes_multimodal_heritabilities_simple
+    )
+    information["data_genes_multimodal_heritabilities_complex"].to_pickle(
+        path=path_data_genes_multimodal_heritabilities_complex
+    )
+
+    with open(path_sets_genes_selection, "wb") as file_product:
+        pickle.dump(information["sets_genes_selection"], file_product)
+    with open(path_sets_genes_unimodal, "wb") as file_product:
+        pickle.dump(information["sets_genes_unimodal"], file_product)
+    with open(path_sets_genes_multimodal, "wb") as file_product:
+        pickle.dump(information["sets_genes_multimodal"], file_product)
 
     pass
 
@@ -624,115 +705,60 @@ def execute_procedure(dock=None):
     print("complex method:")
     print(data_genes_heritabilities_complex)
 
+    # Segregate heritability reports for selection genes, unimodal genes, and
+    # multimodal genes.
+    utility.print_terminal_partition(level=2)
+    print("Count of selection genes: " + str(len(source["genes_selection"])))
+    print("Count of unimodal genes: " + str(len(source["genes_unimodal"])))
+    print("Count of multimodal genes: " + str(len(source["genes_multimodal"])))
+    utility.print_terminal_partition(level=2)
+
     # Select sets of heritable genes.
     bin_genes_selection = select_genes_heritabilities_sets(
         genes=source["genes_selection"],
+        threshold_proportion=0.1,
+        threshold_discovery=0.05,
         data_genes_heritabilities_simple=data_genes_heritabilities_simple,
         data_genes_heritabilities_complex=data_genes_heritabilities_complex,
     )
     bin_genes_unimodal = select_genes_heritabilities_sets(
         genes=source["genes_unimodal"],
+        threshold_proportion=0.1,
+        threshold_discovery=0.05,
         data_genes_heritabilities_simple=data_genes_heritabilities_simple,
         data_genes_heritabilities_complex=data_genes_heritabilities_complex,
     )
     bin_genes_multimodal = select_genes_heritabilities_sets(
         genes=source["genes_multimodal"],
+        threshold_proportion=0.1,
+        threshold_discovery=0.05,
         data_genes_heritabilities_simple=data_genes_heritabilities_simple,
         data_genes_heritabilities_complex=data_genes_heritabilities_complex,
     )
 
-    if False:
-        # TODO: make this cleaner by generating a driver function
-        # pass the function
-        # 1. genes of interest
-        # 2. data_genes_heritabilities_simple
-        # 3. data_genes_heritabilities_complex
-        # return from function a dictionary...
-        # 1. data_genes_selection_heritabilities_simple
-        # 2. identifiers of the heritable genes organized in the sets format for charting...
-
-        # Segregate heritability reports for selection genes, unimodal genes, and
-        # multimodal genes.
-        print("Count of unimodal genes: " + str(len(source["genes_unimodal"])))
-        print("Count of multimodal genes: " + str(len(source["genes_multimodal"])))
-        data_genes_unimodal_heritabilities_simple = select_heritabilities_by_genes(
-            genes=source["genes_unimodal"],
-            data_genes_heritabilities=data_genes_heritabilities_simple,
-        )
-        data_genes_unimodal_heritabilities_complex = select_heritabilities_by_genes(
-            genes=source["genes_unimodal"],
-            data_genes_heritabilities=data_genes_heritabilities_complex,
-        )
-        data_genes_multimodal_heritabilities_simple = select_heritabilities_by_genes(
-            genes=source["genes_multimodal"],
-            data_genes_heritabilities=data_genes_heritabilities_simple,
-        )
-        data_genes_multimodal_heritabilities_complex = select_heritabilities_by_genes(
-            genes=source["genes_multimodal"],
-            data_genes_heritabilities=data_genes_heritabilities_complex,
-        )
-
-        # TODO: now select "heritable" genes by thresholds on FDR and proportion of variance explained (PVE)
-
-
-        # TODO: I need sets of genes that are heritable for...
-        # 1. unimodal simple
-        # 2. unimodal complex
-        # 3. multimodal simple
-        # 4. multimodal complex
-        # How do unimodal genes differ from multimodal genes on the basis of their heritability in simple and complex models?
-
-
-        # TODO: create set overlap charts (simple versus complex) for selection genes, unimodal, and multimodal
-
-
-    if False:
-        # Select genes with significant heritabilities.
-        utility.print_terminal_partition(level=2)
-        print("Counts of heritable genes...")
-        genes_heritable_simple = select_heritable_genes_by_threshold(
-            data_genes_heritabilities=data_genes_heritabilities_simple,
-            threshold_proportion=0.5,
-            threshold_discovery=0.05,
-        )
-        utility.print_terminal_partition(level=2)
-        print("simple method: " + str(len(genes_heritable_simple)))
-        genes_heritable_complex = select_heritable_genes_by_threshold(
-            data_genes_heritabilities=data_genes_heritabilities_complex,
-            threshold_proportion=0.5,
-            threshold_discovery=0.05,
-        )
-        utility.print_terminal_partition(level=2)
-        print("complex method: " + str(len(genes_heritable_complex)))
-        sets_genes_models = dict()
-        sets_genes_models["simple"] = genes_heritable_simple
-        sets_genes_models["complex"] = genes_heritable_complex
-        #print(sets_genes_models)
-
-        pass
-
+    # How do unimodal genes differ from multimodal genes on the basis of their heritability in simple and complex models?
+    # TODO: create set overlap charts (simple versus complex) for selection genes, unimodal, and multimodal
 
     # Compile information.
     information = {
         "data_genes_heritabilities_simple": data_genes_heritabilities_simple,
         "data_genes_heritabilities_complex": data_genes_heritabilities_complex,
         "data_genes_unimodal_heritabilities_simple": (
-            data_genes_unimodal_heritabilities_simple
+            bin_genes_unimodal["data_simple"]
         ),
         "data_genes_unimodal_heritabilities_complex": (
-            data_genes_unimodal_heritabilities_complex
+            bin_genes_unimodal["data_complex"]
         ),
         "data_genes_multimodal_heritabilities_simple": (
-            data_genes_multimodal_heritabilities_simple
+            bin_genes_multimodal["data_simple"]
         ),
         "data_genes_multimodal_heritabilities_complex": (
-            data_genes_multimodal_heritabilities_complex
+            bin_genes_multimodal["data_complex"]
         ),
 
-        #"genes_heritabilities_simple": genes_heritabilities_simple,
-        #"genes_heritabilities_complex": genes_heritabilities_complex,
-        #"sets_genes_models": sets_genes_models,
-        #"genes_heritability": genes_heritable_complex, # can also use "genes_heritability" which is union
+        "sets_genes_selection": bin_genes_selection["sets_genes"],
+        "sets_genes_unimodal": bin_genes_unimodal["sets_genes"],
+        "sets_genes_multimodal": bin_genes_multimodal["sets_genes"],
     }
     #Write product information to file.
     write_product(dock=dock, information=information)

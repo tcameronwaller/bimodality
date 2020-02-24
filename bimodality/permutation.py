@@ -43,14 +43,12 @@ import utility
 
 
 def read_source_initial(
-    source_genes=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        source_genes (str): name of directory from which to obtain genes list
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -62,31 +60,36 @@ def read_source_initial(
     """
 
     # Specify directories and files.
-    if source_genes == "split":
-        path_source = os.path.join(dock, "split")
-        path_genes = os.path.join(path_source, "genes.txt")
-        genes = utility.read_file_text_list(
-            delimiter="\n",
-            path_file=path_genes,
-        )
-    elif source_genes == "combination":
-        path_source = os.path.join(dock, "combination")
-        path_genes = os.path.join(path_source, "genes.txt")
-        genes = utility.read_file_text_list(
-            delimiter="\n",
-            path_file=path_genes,
-        )
-    elif source_genes == "distribution":
-        path_source = os.path.join(dock, "distribution")
-        genes = os.listdir(path_source)
+    path_selection = os.path.join(dock, "selection", "tight")
+    path_selection_genes = os.path.join(
+        path_selection, "genes_selection.pickle"
+    )
+
+    path_candidacy = os.path.join(dock, "candidacy")
+    path_genes_unimodal = os.path.join(
+        path_candidacy, "genes_unimodal.pickle"
+    )
+    path_genes_multimodal = os.path.join(
+        path_candidacy, "genes_multimodal.pickle"
+    )
+
     path_shuffle = os.path.join(dock, "shuffle")
     path_shuffles = os.path.join(path_shuffle, "shuffles.pickle")
     # Read information from file.
+    with open(path_selection_genes, "rb") as file_source:
+        genes_selection = pickle.load(file_source)
+    with open(path_genes_unimodal, "rb") as file_source:
+        genes_unimodal = pickle.load(file_source)
+    with open(path_genes_multimodal, "rb") as file_source:
+        genes_multimodal = pickle.load(file_source)
+
     with open(path_shuffles, "rb") as file_source:
         shuffles = pickle.load(file_source)
     # Compile and return information.
     return {
-        "genes": genes,
+        "genes_selection": genes_selection,
+        "genes_unimodal": genes_unimodal,
+        "genes_multimodal": genes_multimodal,
         "shuffles": shuffles,
     }
 
@@ -111,7 +114,7 @@ def read_source(
     """
 
     # Specify directories and files.
-    path_distribution = os.path.join(dock, "distribution")
+    path_distribution = os.path.join(dock, "distribution", "genes")
     path_gene = os.path.join(path_distribution, gene)
     path_data_gene_persons_tissues_signals = os.path.join(
         path_gene, "data_gene_persons_tissues_signals.pickle"
@@ -150,11 +153,19 @@ def permute_gene_distribution(
 
     """
 
+    def access(record):
+        return record[key]
+
+
     # Initialize collections of metrics.
-    coefficients = list()
-    dips = list()
-    mixtures = list()
+    collection = dict()
+    collection["coefficients"] = list()
+    collection["mixtures"] = list()
+    collection["dips"] = list()
     # Iterate on permutations.
+
+
+
     for shuffle_indices in shuffles:
         # Shuffle gene's signals.
         data_shuffle = permute_gene_signals(
@@ -168,6 +179,11 @@ def permute_gene_distribution(
         )
 
         # Collect metrics.
+        coefficients = numpy.append(
+            coefficients,
+            bins["bin_modality"]["scores"]["coefficient"],
+            axis=0,
+        )
         coefficients.append(
             bins["bin_modality"]["scores"]["coefficient"]
         )
@@ -178,12 +194,17 @@ def permute_gene_distribution(
             bins["bin_modality"]["scores"]["mixture"]
         )
         pass
-    # Compile information.
-    information = {
-        "coefficient": coefficients,
-        "dip": dips,
-        "mixture": mixtures,
-    }
+
+    # Iterate on permutations.
+    information = functools(
+        lambda shuffle_indices: permute_collect_measures(
+            collection=collection,
+            shuffle_indices=shuffle_indices,
+        ),
+        shuffles,
+        initializer=information
+    )
+
 
     # Return information.
     return information
@@ -348,7 +369,7 @@ def write_product_gene(gene=None, dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_permutation = os.path.join(dock, "permutation_cluster")
+    path_permutation = os.path.join(dock, "permutation")
     utility.create_directory(path_permutation)
     path_gene = os.path.join(path_permutation, gene)
     utility.create_directory(path_gene)
@@ -449,42 +470,36 @@ def execute_procedure_local(dock=None):
     # It is an option to read directory names from "distribution"; however,
     # distribution also writes report files to its directory, and these will
     # include in the list.
-    source = read_source_initial(
-        source_genes="split",
-        dock=dock
-    )
-    print("count of genes: " + str(len(source["genes"])))
+    source = read_source_initial(dock=dock)
+    print("count of genes: " + str(len(source["genes_selection"])))
     print("count of shuffles: " + str(len(source["shuffles"])))
 
-    if False:
-        report = execute_procedure_local_sub(
-            gene="ENSG00000231925", # TAPBP
-            shuffles=source["shuffles"],
-            dock=dock,
-        )
-    if True:
-        # Set up partial function for iterative execution.
-        # Each iteration uses a different sequential value of the "gene" variable
-        # with the same value of the "dock" variable.
-        execute_procedure_gene = functools.partial(
-            execute_procedure_local_sub,
-            shuffles=source["shuffles"],
-            dock=dock,
-        )
-        # Initialize multiprocessing pool.
-        #pool = multiprocessing.Pool(processes=os.cpu_count())
-        pool = multiprocessing.Pool(processes=200)
-        # Iterate on genes.
-        check_genes=[
-            "ENSG00000231925", # TAPBP
-        ]
-        #report = pool.map(execute_procedure_gene, check_genes)
-        report = pool.map(execute_procedure_gene, source["genes"][6300:])
-        #report = pool.map(
-        #    execute_procedure_gene,
-        #    random.sample(source["genes"], 100)
-        #)
-        #report = pool.map(execute_procedure_gene, source["genes"])
+    #report = execute_procedure_local_sub(
+    #    gene="ENSG00000231925", # TAPBP
+    #    shuffles=source["shuffles"],
+    #    dock=dock,
+    #)
+
+    # Define genes for iteration.
+    #genes_iteration = source["genes_selection"]
+    #genes_iteration = source["genes_unimodal"]
+    genes_iteration = source["genes_multimodal"]
+
+    # Set up partial function for iterative execution.
+    # Each iteration uses a different sequential value of the "gene" variable
+    # with the same value of the "dock" variable.
+    execute_procedure_gene = functools.partial(
+        execute_procedure_local_sub,
+        shuffles=source["shuffles"],
+        dock=dock,
+    )
+
+    # Initialize multiprocessing pool.
+    # Limit parallization on halyard to avoid exceeding memory.
+    #pool = multiprocessing.Pool(processes=os.cpu_count())
+    pool = multiprocessing.Pool(processes=6) # 6 on halyard, 200 on nrnb
+    # Iterate on genes.
+    report = pool.map(execute_procedure_gene, genes_iteration)
 
     # Pause procedure.
     time.sleep(10.0)

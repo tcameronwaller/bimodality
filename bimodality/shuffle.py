@@ -52,22 +52,38 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", "tight")
+    path_selection_persons = os.path.join(
+        path_selection, "persons_selection.pickle"
+    )
+    path_selection_tissues = os.path.join(
+        path_selection, "tissues_selection.pickle"
+    )
+
     path_split = os.path.join(dock, "split")
-    path_persons = os.path.join(
+    path_split_persons = os.path.join(
         path_split, "persons.pickle"
     )
-    path_tissues = os.path.join(
+    path_split_tissues = os.path.join(
         path_split, "tissues.pickle"
     )
+
     # Read information from file.
-    with open(path_persons, "rb") as file_source:
-        persons = pickle.load(file_source)
-    with open(path_tissues, "rb") as file_source:
-        tissues = pickle.load(file_source)
+    with open(path_selection_persons, "rb") as file_source:
+        persons_selection = pickle.load(file_source)
+    with open(path_selection_tissues, "rb") as file_source:
+        tissues_selection = pickle.load(file_source)
+    with open(path_split_persons, "rb") as file_source:
+        persons_split = pickle.load(file_source)
+    with open(path_split_tissues, "rb") as file_source:
+        tissues_split = pickle.load(file_source)
+
     # Compile and return information.
     return {
-        "persons": persons,
-        "tissues": tissues,
+        "persons_selection": len(persons_selection),
+        "tissues_selection": len(tissues_selection),
+        "persons_split": persons_split,
+        "tissues_split": tissues_split,
     }
 
 
@@ -255,7 +271,6 @@ def execute_procedure(dock=None, count=None):
     path_shuffle = os.path.join(dock, "shuffle")
     utility.remove_directory(path=path_shuffle)
 
-
     # Read source information from file.
     source = read_source(dock=dock)
 
@@ -263,8 +278,8 @@ def execute_procedure(dock=None, count=None):
     utility.print_terminal_partition(level=3)
     print(
         "Creating " + str(count) + " shuffles for matrices of dimension " +
-        "zero: " + str(source["tissues"]) + " by dimension one: " +
-        str(source["persons"]) + ". "
+        "zero: " + str(source["tissues_selection"]) + " by dimension one: " +
+        str(source["persons_selection"]) + ". "
         "Notice that shuffles occur across dimension one (tissues for each " +
         "person)."
     )
@@ -277,8 +292,8 @@ def execute_procedure(dock=None, count=None):
     # Create shuffle indices.
     shuffles = create_shuffle_indices(
         count=count,
-        dimension_zero=source["tissues"],
-        dimension_one=source["persons"],
+        dimension_zero=source["tissues_selection"],
+        dimension_one=source["persons_selection"],
     )
 
     # Compile information.

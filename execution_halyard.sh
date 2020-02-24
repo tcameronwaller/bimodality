@@ -47,34 +47,38 @@ echo "Now set to call routine and procedures."
 #scp /home/tcameronwaller/dock/selection/tight/heritability/simple/families_persons.tsv tcwaller@grenache.ucsd.edu:/cellar/users/tcwaller/Data/dock/access_private/families_persons.tsv
 # --- execute on nrnb
 #bash access_private.sh # run on 20 February 2020
-#bash heritability_initial.sh # run on 19 February 2020
+#bash heritability_initial.sh # run on 20 February 2020
 #cd /cellar/users/tcwaller/Data/dock/
 #tar -czvf access_private.tar.gz access_private/
 # --- execute on halyard
-#cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-02-06/
+#cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/
+#cp -r /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-02-06 dock_template_2020-02-20
+#cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-02-20/
+#rm access_private.tar.gz
+#rm -r access_private
 #scp tcwaller@grenache.ucsd.edu:/cellar/users/tcwaller/Data/dock/access_private.tar.gz access_private.tar.gz
 #tar -xzvf access_private.tar.gz
 #cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/
-#cp -r dock_template_2020-02-06 /home/tcameronwaller/dock_template_2020-02-06
+#cp -r dock_template_2020-02-20 /home/tcameronwaller/dock_template_2020-02-20
 #cd /home/tcameronwaller/
-# mv /home/tcameronwaller/dock_template_2020-02-06/ /home/tcameronwaller/dock/
+#mv /home/tcameronwaller/dock_template_2020-02-20/ /home/tcameronwaller/dock/
 
 # -- essential procedures
-#python3 interface.py main --dock $path_dock --access
-#python3 interface.py main --dock $path_dock --assembly
+#python3 interface.py main --dock $path_dock --access # run on 21 February 2020
+#python3 interface.py main --dock $path_dock --assembly # run on 21 February 2020
 #python3 interface.py main --dock $path_dock --selection
 
 ##########
 # - Batch Routine
 
 #python3 interface.py main --dock $path_dock --split
-#python3 interface.py main --dock $path_dock --distribution --local
+#python3 interface.py main --dock $path_dock --distribution --local # run on 21 February 2020
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --candidacy
 
 #python3 interface.py main --dock $path_dock --shuffle --count 10000
-#python3 interface.py main --dock $path_dock --permutation --local
+python3 interface.py main --dock $path_dock --permutation --local
 #nohup python3 interface.py main --dock $path_dock --permutation --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --permutation --remote --gene "ENSG00000186092"
 #python3 interface.py main --dock $path_dock --probability
@@ -82,8 +86,8 @@ echo "Now set to call routine and procedures."
 ##########
 # Analysis Routine
 
-#bash heritability_genes.sh # run on ______ 2020
-python3 interface.py main --dock $path_dock --heritability
+#bash heritability_genes.sh # run on 21 February 2020
+#python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
 #python3 interface.py main --dock $path_dock --prediction
