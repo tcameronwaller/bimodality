@@ -41,7 +41,7 @@ import heritability
 import structure
 
 import modality
-import plot
+#import plot
 import test
 import utility
 #import expecto

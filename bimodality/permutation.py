@@ -42,7 +42,7 @@ import utility
 # Functionality
 
 
-def read_source_initial(
+def read_source_genes(
     dock=None
 ):
     """
@@ -64,6 +64,9 @@ def read_source_initial(
     path_selection_genes = os.path.join(
         path_selection, "genes_selection.pickle"
     )
+    path_selection_genes_text = os.path.join(
+        path_selection, "genes_selection.txt"
+    )
 
     path_candidacy = os.path.join(dock, "candidacy")
     path_genes_unimodal = os.path.join(
@@ -73,25 +76,52 @@ def read_source_initial(
         path_candidacy, "genes_multimodal.pickle"
     )
 
-    path_shuffle = os.path.join(dock, "shuffle")
-    path_shuffles = os.path.join(path_shuffle, "shuffles.pickle")
     # Read information from file.
     with open(path_selection_genes, "rb") as file_source:
         genes_selection = pickle.load(file_source)
+    genes_selection_text = utility.read_file_text_list(
+        delimiter="\n",
+        path_file=path_selection_genes_text,
+    )
     with open(path_genes_unimodal, "rb") as file_source:
         genes_unimodal = pickle.load(file_source)
     with open(path_genes_multimodal, "rb") as file_source:
         genes_multimodal = pickle.load(file_source)
-
-    with open(path_shuffles, "rb") as file_source:
-        shuffles = pickle.load(file_source)
     # Compile and return information.
     return {
         "genes_selection": genes_selection,
+        "genes_selection_text": genes_selection_text,
         "genes_unimodal": genes_unimodal,
         "genes_multimodal": genes_multimodal,
-        "shuffles": shuffles,
     }
+
+
+def read_source_shuffles(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_shuffle = os.path.join(dock, "shuffle")
+    path_shuffles = os.path.join(path_shuffle, "shuffles.pickle")
+
+    # Read information from file.
+    with open(path_shuffles, "rb") as file_source:
+        shuffles = pickle.load(file_source)
+    # Compile and return information.
+    return shuffles
 
 
 def read_source(
@@ -544,19 +574,28 @@ def execute_procedure_local(dock=None):
     # It is an option to read directory names from "distribution"; however,
     # distribution also writes report files to its directory, and these will
     # include in the list.
-    source = read_source_initial(dock=dock)
+    source_genes = read_source_genes(dock=dock)
+    source_shuffles = read_source_shuffles(dock=dock)
 
     # Define genes for iteration.
     #genes_iteration = source["genes_selection"]
     #genes_iteration = source["genes_unimodal"]
-    genes_iteration = copy.deepcopy(source["genes_unimodal"])
-    genes_iteration.extend(source["genes_multimodal"])
-    print("count of genes: " + str(len(genes_iteration)))
-    print("count of shuffles: " + str(len(source["shuffles"])))
+    genes_iteration = copy.deepcopy(source_genes["genes_unimodal"])
+    genes_iteration.extend(source_genes["genes_multimodal"])
+    print(
+        "count of selection (total) genes: " +
+        str(len(source_genes["genes_selection"]))
+    )
+    print(
+        "count of selection (total) genes from text list: " +
+        str(len(source_genes["genes_selection_text"]))
+    )
+    print("count of iteration genes: " + str(len(genes_iteration)))
+    print("count of shuffles: " + str(len(source_shuffles)))
 
     #report = execute_procedure_local_sub(
     #    gene="ENSG00000231925", # TAPBP
-    #    shuffles=source["shuffles"],
+    #    shuffles=source_shuffles,
     #    dock=dock,
     #)
 
@@ -565,14 +604,14 @@ def execute_procedure_local(dock=None):
     # with the same value of the "dock" variable.
     execute_procedure_gene = functools.partial(
         execute_procedure_local_sub,
-        shuffles=source["shuffles"],
+        shuffles=source_shuffles,
         dock=dock,
     )
 
     # Initialize multiprocessing pool.
     # Limit parallization on halyard to avoid exceeding memory.
     #pool = multiprocessing.Pool(processes=os.cpu_count())
-    pool = multiprocessing.Pool(processes=8) # 7 on halyard, 200 on nrnb
+    pool = multiprocessing.Pool(processes=7) # 7 on halyard, 200 on nrnb
     # Iterate on genes.
     report = pool.map(execute_procedure_gene, genes_iteration)
 
@@ -653,8 +692,7 @@ def execute_procedure_remote(dock=None, gene=None):
     """
 
     # Read source information from file.
-    source_initial = read_source_initial(
-        source_genes="split",
+    source_shuffles = read_source_shuffles(
         dock=dock
     )
 
@@ -670,7 +708,7 @@ def execute_procedure_remote(dock=None, gene=None):
         data_gene_persons_tissues_signals=(
             source["data_gene_persons_tissues_signals"]
         ),
-        shuffles=source_initial["shuffles"],
+        shuffles=source_shuffles,
         dock=dock
     )
 

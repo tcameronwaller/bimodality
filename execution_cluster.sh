@@ -4,7 +4,7 @@
 #SBATCH --output=/cellar/users/tcwaller/Data/dock/out.txt
 #SBATCH --error=/cellar/users/tcwaller/Data/dock/error.txt
 #SBATCH --mem=10G
-#SBATCH --array=0-15445%300
+#SBATCH --array=0-15130%300
 #SBATCH --time=5-00:00:00 # days-hours:minutes:seconds
 
 # Organize paths.
@@ -14,12 +14,12 @@ path_python="$path_user_cellar/anaconda3/bin/python"
 path_repository="$path_user_cellar/repository"
 path_program="$path_repository/bimodality-master/bimodality"
 path_dock="$path_user_cellar/Data/dock"
-path_split="$path_dock/split"
+path_selection="$path_dock/selection/tight"
 path_distribution="$path_dock/distribution"
-path_permutation="$path_dock/permutation_cluster"
+path_permutation="$path_dock/permutation"
 
 # Define iteration variables.
-readarray -t genes < "$path_split/genes.txt"
+readarray -t genes < "$path_selection/genes_selection.txt"
 #count_genes=${#genes[@]}
 #indices=$((count_genes-1))
 #echo $indices
