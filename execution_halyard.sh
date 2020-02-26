@@ -77,11 +77,11 @@ echo "Now set to call routine and procedures."
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --candidacy
 
-#python3 interface.py main --dock $path_dock --shuffle --count 10000
-python3 interface.py main --dock $path_dock --permutation --local
+#python3 interface.py main --dock $path_dock --shuffle --count 100
+#python3 interface.py main --dock $path_dock --permutation --local
 #nohup python3 interface.py main --dock $path_dock --permutation --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --permutation --remote --gene "ENSG00000186092"
-#python3 interface.py main --dock $path_dock --probability
+python3 interface.py main --dock $path_dock --probability
 
 ##########
 # Analysis Routine

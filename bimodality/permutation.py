@@ -153,61 +153,135 @@ def permute_gene_distribution(
 
     """
 
-    def access(record):
-        return record[key]
+    def permute_collect_measures(
+        collection=None,
+        shuffle_indices=None,
+        data_gene_signals=None,
+    ):
+        #print(collection)
+        # Shuffle gene's signals.
+        data_shuffle = permute_gene_signals(
+            data_gene_signals=data_gene_signals,
+            shuffle_indices=shuffle_indices
+        )
+        # Distribution
+        bins = distribution.prepare_describe_distribution(
+            data_gene_persons_tissues_signals=data_shuffle,
+        )
+        # Collect metrics.
+        collection["coefficients"].append(
+            bins["bin_modality"]["scores"]["coefficient"]
+        )
+        collection["dips"].append(
+            bins["bin_modality"]["scores"]["dip"]
+        )
+        collection["mixtures"].append(
+            bins["bin_modality"]["scores"]["mixture"]
+        )
+        return collection
 
-
-    # Initialize collections of metrics.
+    # Initialize collections of measures.
     collection = dict()
     collection["coefficients"] = list()
     collection["mixtures"] = list()
     collection["dips"] = list()
+
     # Iterate on permutations.
+    information = functools.reduce(
+        lambda collection, shuffle_indices: permute_collect_measures(
+            collection=collection,
+            shuffle_indices=shuffle_indices,
+            data_gene_signals=data_gene_persons_tissues_signals,
+        ),
+        shuffles, # Iterable
+        collection, # Initializer
+    )
+
+    # Convert lists to NumPy arrays.
+    information["coefficients"] = numpy.array(
+        collection["coefficients"],
+        copy=False,
+    )
+    information["mixtures"] = numpy.array(
+        collection["mixtures"],
+        copy=False,
+    )
+    information["dips"] = numpy.array(
+        collection["dips"],
+        copy=False,
+    )
+
+    # Return information.
+    return information
 
 
+def permute_gene_distribution_iterative(
+    gene=None,
+    data_gene_persons_tissues_signals=None,
+    shuffles=None,
+):
+    """
+    Prepares and describes the distribution of a gene's signals across persons.
 
+    arguments:
+        gene (str): identifier of gene
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+        shuffles (list<list<list<int>>>): matrices of shuffle indices
+
+    raises:
+
+    returns:
+        (dict<list<float>>): values of modality metrics across permutations
+
+    """
+
+    # Initialize collections of measures.
+    collection = dict()
+    collection["coefficients"] = list()
+    collection["mixtures"] = list()
+    collection["dips"] = list()
+
+    # Iterate on permutations.
     for shuffle_indices in shuffles:
         # Shuffle gene's signals.
         data_shuffle = permute_gene_signals(
             data_gene_signals=data_gene_persons_tissues_signals,
             shuffle_indices=shuffle_indices
         )
-
         # Distribution
         bins = distribution.prepare_describe_distribution(
             data_gene_persons_tissues_signals=data_shuffle,
         )
-
         # Collect metrics.
-        coefficients = numpy.append(
-            coefficients,
-            bins["bin_modality"]["scores"]["coefficient"],
-            axis=0,
-        )
-        coefficients.append(
+        collection["coefficients"].append(
             bins["bin_modality"]["scores"]["coefficient"]
         )
-        dips.append(
+        collection["dips"].append(
             bins["bin_modality"]["scores"]["dip"]
         )
-        mixtures.append(
+        collection["mixtures"].append(
             bins["bin_modality"]["scores"]["mixture"]
         )
+
         pass
 
-    # Iterate on permutations.
-    information = functools(
-        lambda shuffle_indices: permute_collect_measures(
-            collection=collection,
-            shuffle_indices=shuffle_indices,
-        ),
-        shuffles,
-        initializer=information
+    # Convert lists to NumPy arrays.
+    collection["coefficients"] = numpy.array(
+        collection["coefficients"],
+        copy=False,
+    )
+    collection["mixtures"] = numpy.array(
+        collection["mixtures"],
+        copy=False,
+    )
+    collection["dips"] = numpy.array(
+        collection["dips"],
+        copy=False,
     )
 
-
     # Return information.
-    return information
+    return collection
 
 
 def permute_gene_signals(
@@ -464,14 +538,20 @@ def execute_procedure_local(dock=None):
 
     # Remove previous files to avoid version or batch confusion.
     path_permutation = os.path.join(dock, "permutation")
-    #utility.remove_directory(path=path_permutation)
+    utility.remove_directory(path=path_permutation)
 
     # Read source information from file.
     # It is an option to read directory names from "distribution"; however,
     # distribution also writes report files to its directory, and these will
     # include in the list.
     source = read_source_initial(dock=dock)
-    print("count of genes: " + str(len(source["genes_selection"])))
+
+    # Define genes for iteration.
+    #genes_iteration = source["genes_selection"]
+    #genes_iteration = source["genes_unimodal"]
+    genes_iteration = copy.deepcopy(source["genes_unimodal"])
+    genes_iteration.extend(source["genes_multimodal"])
+    print("count of genes: " + str(len(genes_iteration)))
     print("count of shuffles: " + str(len(source["shuffles"])))
 
     #report = execute_procedure_local_sub(
@@ -479,11 +559,6 @@ def execute_procedure_local(dock=None):
     #    shuffles=source["shuffles"],
     #    dock=dock,
     #)
-
-    # Define genes for iteration.
-    #genes_iteration = source["genes_selection"]
-    #genes_iteration = source["genes_unimodal"]
-    genes_iteration = source["genes_multimodal"]
 
     # Set up partial function for iterative execution.
     # Each iteration uses a different sequential value of the "gene" variable
@@ -497,7 +572,7 @@ def execute_procedure_local(dock=None):
     # Initialize multiprocessing pool.
     # Limit parallization on halyard to avoid exceeding memory.
     #pool = multiprocessing.Pool(processes=os.cpu_count())
-    pool = multiprocessing.Pool(processes=6) # 6 on halyard, 200 on nrnb
+    pool = multiprocessing.Pool(processes=8) # 7 on halyard, 200 on nrnb
     # Iterate on genes.
     report = pool.map(execute_procedure_gene, genes_iteration)
 

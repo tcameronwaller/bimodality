@@ -433,48 +433,6 @@ def read_source(dock=None):
     }
 
 
-def read_source_alternate(dock=None):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_probability = os.path.join(dock, "probability")
-    path_scores = os.path.join(
-        path_probability, "genes_scores.pickle"
-    )
-    path_permutations = os.path.join(
-        path_probability, "genes_permutations.pickle"
-    )
-    path_genes_probabilities = os.path.join(
-        path_probability, "genes_probabilities.pickle"
-    )
-
-    # Read information from file.
-    with open(path_scores, "rb") as file_source:
-        genes_scores = pickle.load(file_source)
-    with open(path_permutations, "rb") as file_source:
-        genes_permutations = pickle.load(file_source)
-    with open(path_genes_probabilities, "rb") as file_source:
-        genes_probabilities = pickle.load(file_source)
-    # Compile and return information.
-    return {
-        "genes_scores": genes_scores,
-        "genes_permutations": genes_permutations,
-        "genes_probabilities": genes_probabilities,
-    }
-
-
 # Collection
 
 
@@ -507,9 +465,31 @@ def check_genes(
     print("count of genes from distribution: " + str(len(genes_distribution)))
     print("count of genes from permutation: " + str(len(genes_permutation)))
 
+    utility.print_terminal_partition(level=3)
+
     print(
-        "Check whether all permutation list genes are in distribution list."
+        "Check whether distributions and permutations are available for all " +
+        "genes."
     )
+    match_distribution = utility.compare_lists_by_inclusion(
+        list_one=genes_distribution,
+        list_two=genes
+    )
+    print(
+        "Genes and distribution directories match: " +
+        str(match_distribution)
+    )
+    match_permutation = utility.compare_lists_by_inclusion(
+        list_one=genes_permutation,
+        list_two=genes
+    )
+    print(
+        "Genes and permutation directories match: " +
+        str(match_permutation)
+    )
+
+    utility.print_terminal_partition(level=3)
+
     # Returns True if all elements in list_two are in list_one.
     match = utility.compare_lists_by_inclusion(
         list_one=genes_distribution,
@@ -520,6 +500,10 @@ def check_genes(
     utility.print_terminal_partition(level=2)
 
     pass
+
+
+# TODO: remove the calculation of combination scores...
+# TODO: as measures do not have strong correlation, combination scores are meaningless
 
 
 def collect_organize_genes_scores_permutations(
@@ -544,7 +528,7 @@ def collect_organize_genes_scores_permutations(
 
     # Collect scores from distribution procedure.
     # Collect scores from permutation procedure.
-    originality = read_collect_genes_scores_permutations(
+    collection = read_collect_genes_scores_permutations(
         genes=genes,
         path_distribution=path_distribution,
         path_permutation=path_permutation,
@@ -561,37 +545,16 @@ def collect_organize_genes_scores_permutations(
             genes_scores_permutations=genes_scores_permutations
         )
 
-    # Standardize bimodality measures.
-    # Calculate standard scores and permutations using the same values of
-    # mean and standard deviation in order to allow comparison between scores
-    # and permutations.
-    standardization = standardize_scores_permutations(
-        genes_scores=originality["genes_scores"],
-        genes_permutations=originality["genes_permutations"],
-    )
-    utility.print_terminal_partition(level=3)
-    print("standardization complete")
-
-    # Calculate combination scores.
-    # Combination scores are scaled means of the primary bimodality measures.
-    # Combination scores are useful to rank genes.
-    combination = combine_scores_permutations(
-        genes_scores=standardization["genes_scores"],
-        genes_permutations=standardization["genes_permutations"],
-    )
-    utility.print_terminal_partition(level=3)
-    print("combination complete")
-
     # Convert permutations.
     genes_permutations = convert_genes_permutations(
-        genes_permutations=combination["genes_permutations"]
+        genes_permutations=collection["genes_permutations"]
     )
     utility.print_terminal_partition(level=3)
     print("conversion complete")
 
     # Compile information.
     information = dict()
-    information["genes_scores"] = combination["genes_scores"]
+    information["genes_scores"] = collection["genes_scores"]
     information["genes_permutations"] = genes_permutations
     # Return information.
     return information
@@ -634,41 +597,8 @@ def read_collect_genes_scores_permutations(
 
     """
 
-    # Report process.
-    utility.print_terminal_partition(level=1)
-    print(
-        "Reading and compiling information about genes' scores and " +
-        "permutations."
-    )
-
-    # Check contents of directory.
-    utility.print_terminal_partition(level=3)
-    print("Check that directories exist for all genes to collect.")
-    genes_distribution = utility.extract_subdirectory_names(
-        path=path_distribution
-    )
-    genes_permutation = utility.extract_subdirectory_names(
-        path=path_permutation
-    )
-    match_distribution = utility.compare_lists_by_inclusion(
-        list_one=genes_distribution,
-        list_two=genes
-    )
-    print(
-        "Genes and distribution directories match: " +
-        str(match_distribution)
-    )
-    match_permutation = utility.compare_lists_by_inclusion(
-        list_one=genes_permutation,
-        list_two=genes
-    )
-    print(
-        "Genes and permutation directories match: " +
-        str(match_permutation)
-    )
-
     # Collect genes' scores and permutations.
-    utility.print_terminal_partition(level=3)
+    utility.print_terminal_partition(level=2)
     print("Collect genes' scores and permutations.")
     # Collect information about genes.
     genes_scores = dict()
@@ -852,7 +782,7 @@ def check_genes_scores_permutations(
     pass
 
 
-# Standardization
+# Standardization... now obsolete
 
 
 def calculate_mean_deviation_scores_permutations(
@@ -1020,9 +950,6 @@ def standardize_scores_permutations(
     return information
 
 
-# Combination
-
-
 def combine_scores_permutations(
     genes_scores=None,
     genes_permutations=None
@@ -1094,6 +1021,54 @@ def combine_scores_permutations(
     return information
 
 
+def standardize_combine_scores_permutations(
+    genes_scores=None,
+    genes_permutations=None,
+):
+    """
+    Standardizes and combines scores and their permutations.
+
+    arguments:
+        genes_scores (dict<dict<float>>): information about genes' scores
+        genes_permutations (dict<dict<list<float>>>): information about genes'
+            permutations
+
+    raises:
+
+    returns:
+        (dict<dict<dict>>): information about genes' scores and permutations
+
+    """
+
+    # Standardize bimodality measures.
+    # Calculate standard scores and permutations using the same values of
+    # mean and standard deviation in order to allow comparison between scores
+    # and permutations.
+    standardization = standardize_scores_permutations(
+        genes_scores=genes_scores,
+        genes_permutations=genes_permutations,
+    )
+    utility.print_terminal_partition(level=3)
+    print("standardization complete")
+
+    # Calculate combination scores.
+    # Combination scores are scaled means of the primary bimodality measures.
+    # Combination scores are useful to rank genes.
+    combination = combine_scores_permutations(
+        genes_scores=standardization["genes_scores"],
+        genes_permutations=standardization["genes_permutations"],
+    )
+    utility.print_terminal_partition(level=3)
+    print("combination complete")
+
+    # Compile information.
+    information = dict()
+    information["genes_scores"] = combination["genes_scores"]
+    information["genes_permutations"] = genes_permutations
+    # Return information.
+    return information
+
+
 # Conversion
 
 
@@ -1118,17 +1093,14 @@ def convert_genes_permutations(
     for gene in genes_permutations:
         # Access information about gene's scores and distributions.
         permutations = genes_permutations[gene]
-        permutations["dip"] = numpy.asarray(
-            permutations["dip"], dtype=numpy.float32
+        permutations["dips"] = numpy.asarray(
+            permutations["dips"]
         )
-        permutations["mixture"] = numpy.asarray(
-            permutations["mixture"], dtype=numpy.float32
+        permutations["mixtures"] = numpy.asarray(
+            permutations["mixtures"]
         )
-        permutations["coefficient"] = numpy.asarray(
-            permutations["coefficient"], dtype=numpy.float32
-        )
-        permutations["combination"] = numpy.asarray(
-            permutations["combination"], dtype=numpy.float32
+        permutations["coefficients"] = numpy.asarray(
+            permutations["coefficients"]
         )
         # Compile information.
         genes_permutations[gene] = permutations
@@ -1168,7 +1140,7 @@ def calculate_probability_equal_greater(
     return probability
 
 
-def calculate_probabilities_genes(
+def calculate_organize_probabilities_genes(
     genes_scores=None,
     genes_permutations=None,
 ):
@@ -1192,12 +1164,12 @@ def calculate_probabilities_genes(
     raises:
 
     returns:
-        (dict<dict<float>>): information about genes' probabilities
+        (object): Pandas data frame of genes' probabilities from permutations
 
     """
 
     # Collect information about genes.
-    entries = dict()
+    records = list()
     # Iterate on genes.
     for gene in genes_scores:
         # Access information about gene's scores and distributions.
@@ -1207,12 +1179,10 @@ def calculate_probabilities_genes(
         dip = scores["dip"]
         mixture = scores["mixture"]
         coefficient = scores["coefficient"]
-        combination = scores["combination"]
         # Permutations
-        dips = permutations["dip"].tolist()
-        mixtures = permutations["mixture"].tolist()
-        coefficients = permutations["coefficient"].tolist()
-        combinations = permutations["combination"].tolist()
+        dips = permutations["dips"].tolist()
+        mixtures = permutations["mixtures"].tolist()
+        coefficients = permutations["coefficients"].tolist()
         # Calculate p-values.
         # These scores of bimodality indicate greater bimodality as values
         # increase.
@@ -1231,28 +1201,82 @@ def calculate_probabilities_genes(
             value=coefficient,
             distribution=coefficients,
         )
-        probability_combination = calculate_probability_equal_greater(
-            value=combination,
-            distribution=combinations,
-        )
-        # Calculate combination of p-values.
-        if False:
-            probability_combination = scipy.stats.combine_pvalues(
-                [probability_coefficient, probability_dip, probability_mixture],
-                method="stouffer",
-                weights=None,
-            )[1]
         # Compile information.
-        entry = dict()
-        entry["gene"] = gene
-        entry["dip"] = probability_dip
-        entry["mixture"] = probability_mixture
-        entry["coefficient"] = probability_coefficient
-        entry["combination"] = probability_combination
-        entries[gene] = entry
-
+        record = dict()
+        record["gene"] = gene
+        record["probability_dip"] = probability_dip
+        record["probability_mixture"] = probability_mixture
+        record["probability_coefficient"] = probability_coefficient
+        records.append(record)
+    # Organize data.
+    data = utility.convert_records_to_dataframe(
+        records=records,
+    )
+    data.set_index(
+        "gene",
+        drop=True,
+        inplace=True,
+    )
     # Return information.
-    return entries
+    return data
+
+
+def calculate_discoveries_genes(
+    threshold=None,
+    data_genes_probabilities=None,
+):
+    """
+    Calculates false discovery rates from genes' probabilities.
+
+    arguments:
+        threshold (float): value of alpha, or family-wise error rate of false
+            discoveries
+        data_genes_probabilities (object): Pandas data frame of genes'
+            probabilities from permutations
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' false discovery rates from
+            permutations
+
+    """
+
+    # Copy data.
+    data_copy = data_genes_probabilities.copy(deep=True)
+    # Calculate false discovery rates.
+    data_coefficient = (
+        utility.calculate_false_discovery_rate(
+            threshold=threshold,
+            probability="probability_coefficient",
+            discovery="discovery_coefficient",
+            significance="significance_coefficient",
+            data_probabilities=data_copy,
+        )
+    )
+    data_mixture = (
+        utility.calculate_false_discovery_rate(
+            threshold=threshold,
+            probability="probability_mixture",
+            discovery="discovery_mixture",
+            significance="significance_mixture",
+            data_probabilities=data_coefficient,
+        )
+    )
+    data_dip = (
+        utility.calculate_false_discovery_rate(
+            threshold=threshold,
+            probability="probability_dip",
+            discovery="discovery_dip",
+            significance="significance_dip",
+            data_probabilities=data_mixture,
+        )
+    )
+    # Return information.
+    return data_dip
+
+
+
 
 
 def select_genes_by_threshold(
@@ -1365,8 +1389,10 @@ def execute_procedure(dock=None):
 
     """
 
+    #####*********DO THIS####
     # TODO: For a limited count of genes (of interest...) re-run the permutation
     # TODO: procedure and collect the pan-tissue signal distribution across all permutations
+    # TODO: NPIP15
 
     # Remove previous files to avoid version or batch confusion.
     path_probability = os.path.join(dock, "probability")
@@ -1375,9 +1401,16 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
+    # Define genes for iteration.
+    #genes_iteration = source["genes_selection"]
+    #genes_iteration = source["genes_unimodal"]
+    genes_iteration = copy.deepcopy(source["genes_unimodal"])
+    genes_iteration.extend(source["genes_multimodal"])
+    print("count of genes: " + str(len(genes_iteration)))
+
     # Verify that distributions and permutations are available for all genes.
     check_genes(
-        genes=source["genes_selection"],
+        genes=genes_iteration,
         genes_distribution=source["genes_distribution"],
         genes_permutation=source["genes_permutation"],
     )
@@ -1388,7 +1421,7 @@ def execute_procedure(dock=None):
     path_distribution = os.path.join(dock, "distribution", "genes")
     path_permutation = os.path.join(dock, "permutation")
     genes_scores_permutations = collect_organize_genes_scores_permutations(
-        genes=source["genes_selection"],
+        genes=genes_iteration,
         path_distribution=path_distribution,
         path_permutation=path_permutation,
     )
@@ -1397,77 +1430,82 @@ def execute_procedure(dock=None):
     print("collection, standardization, and combination done!!!")
     utility.print_terminal_partition(level=2)
 
-    # Collect garbage to clear memory.
-    gc.collect()
+
+
+    # TODO: I think it makes more sense to organize genes, their probabilities, and their FDRs in a dataframe
+    # TODO: calculate FDRs
+    # TODO: organize data frame
 
     # Calculate genes' probabilities of bimodality.
-    genes_probabilities = calculate_probabilities_genes(
+    utility.print_terminal_partition(level=2)
+    data_genes_probabilities = calculate_organize_probabilities_genes(
         genes_scores=genes_scores_permutations["genes_scores"],
         genes_permutations=genes_scores_permutations["genes_permutations"],
     )
+    print(data_genes_probabilities)
 
-
-
-
-
-    source_alternate = read_source_alternate(dock=dock)
-    genes_scores = source_alternate["genes_scores"]
-    genes_permutations = source_alternate["genes_permutations"]
-    genes_scores_permutations = dict()
-    genes_scores_permutations["genes_scores"] = genes_scores
-    genes_scores_permutations["genes_permutations"] = genes_permutations
-    genes_probabilities = source_alternate["genes_probabilities"]
-
-    # Select genes by probabilities.
+    # Calculate genes' false discovery rates.
     utility.print_terminal_partition(level=2)
-    print("Select genes by threshold on measures' probabilities...")
-    genes_dip = select_genes_by_threshold(
-        genes_probabilities=genes_probabilities,
-        measure="dip",
-        threshold=0.05, # 0.001 (61), 0.005 (125), 0.05 (675)
+    data_genes_discoveries = calculate_discoveries_genes(
+        threshold=0.05,
+        data_genes_probabilities=data_genes_probabilities,
     )
-    genes_mixture = select_genes_by_threshold(
-        genes_probabilities=genes_probabilities,
-        measure="mixture",
-        threshold=0.0005, # 0.0005 (2626), 0.001 (2945), 0.005 (3895),
-    )
-    genes_coefficient = select_genes_by_threshold(
-        genes_probabilities=genes_probabilities,
-        measure="coefficient",
-        threshold=0.001, # 0.0005 (1160), 0.001 (1331), 0.005 (1827)
-    )
-    utility.print_terminal_partition(level=2)
-    print("dip: " + str(len(genes_dip)))
-    print("mixture: " + str(len(genes_mixture)))
-    print("coefficient: " + str(len(genes_coefficient)))
-    sets_genes_measures = dict()
-    sets_genes_measures["dip"] = genes_dip
-    sets_genes_measures["mixture"] = genes_mixture
-    sets_genes_measures["coefficient"] = genes_coefficient
+    print(data_genes_discoveries)
 
-    # Select genes that pass filters by multiple measures of bimodality.
-    genes_probability = utility.select_elements_by_sets(
-        names=["dip", "mixture", "coefficient"],
-        sets=sets_genes_measures,
-        count=2,
-    )
-    utility.print_terminal_partition(level=2)
-    print(
-        "selection of genes by multiple measurements: " +
-        str(len(genes_probability))
-    )
-    utility.print_terminal_partition(level=2)
+    # TODO: I still want to select genes by the set method (probably by any measure for all genes...)
+    # TODO: maybe implement similar to "heritability" procedure
 
-    # Compile information.
-    information = {
-        "genes_scores": genes_scores_permutations["genes_scores"],
-        "genes_permutations": genes_scores_permutations["genes_permutations"],
-        "genes_probabilities": genes_probabilities,
-        "sets_genes_measures": sets_genes_measures,
-        "genes_probability": genes_probability,
-    }
-    # Write product information to file.
-    write_product(dock=dock, information=information)
+    if False:
+        # Select genes by probabilities.
+        utility.print_terminal_partition(level=2)
+        print("Select genes by threshold on measures' probabilities...")
+        genes_dip = select_genes_by_threshold(
+            genes_probabilities=genes_probabilities,
+            measure="dip",
+            threshold=0.05, # 0.001 (61), 0.005 (125), 0.05 (675)
+        )
+        genes_mixture = select_genes_by_threshold(
+            genes_probabilities=genes_probabilities,
+            measure="mixture",
+            threshold=0.0005, # 0.0005 (2626), 0.001 (2945), 0.005 (3895),
+        )
+        genes_coefficient = select_genes_by_threshold(
+            genes_probabilities=genes_probabilities,
+            measure="coefficient",
+            threshold=0.001, # 0.0005 (1160), 0.001 (1331), 0.005 (1827)
+        )
+        utility.print_terminal_partition(level=2)
+        print("dip: " + str(len(genes_dip)))
+        print("mixture: " + str(len(genes_mixture)))
+        print("coefficient: " + str(len(genes_coefficient)))
+        sets_genes_measures = dict()
+        sets_genes_measures["dip"] = genes_dip
+        sets_genes_measures["mixture"] = genes_mixture
+        sets_genes_measures["coefficient"] = genes_coefficient
+
+        # Select genes that pass filters by multiple measures of bimodality.
+        genes_probability = utility.select_elements_by_sets(
+            names=["dip", "mixture", "coefficient"],
+            sets=sets_genes_measures,
+            count=2,
+        )
+        utility.print_terminal_partition(level=2)
+        print(
+            "selection of genes by multiple measurements: " +
+            str(len(genes_probability))
+        )
+        utility.print_terminal_partition(level=2)
+
+        # Compile information.
+        information = {
+            "genes_scores": genes_scores_permutations["genes_scores"],
+            "genes_permutations": genes_scores_permutations["genes_permutations"],
+            "genes_probabilities": genes_probabilities,
+            "sets_genes_measures": sets_genes_measures,
+            "genes_probability": genes_probability,
+        }
+        # Write product information to file.
+        write_product(dock=dock, information=information)
 
     pass
 

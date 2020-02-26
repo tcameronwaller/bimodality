@@ -308,7 +308,7 @@ def read_collect_organize_genes_heritabilities(
     return data
 
 
-def calculate_false_discovery_rate(
+def calculate_organize_discoveries(
     threshold=None,
     data_genes_heritabilities=None,
 ):
@@ -338,52 +338,28 @@ def calculate_false_discovery_rate(
 
     # Copy data.
     data_copy = data_genes_heritabilities.copy(deep=True)
-    data_copy.reset_index(
-        level=None,
-        inplace=True
+
+    # Calculate false discovery rates.
+    data_discoveries = utility.calculate_false_discovery_rate(
+        threshold=threshold,
+        probability="probability",
+        discovery="discovery",
+        significance="significance",
+        data_probabilities=data_copy,
     )
 
-    # False discovery rate method cannot accommodate missing values.
-    # Remove null values.
-    data_null_boolean = pandas.isna(data_copy["probability"])
-    data_null = data_copy.loc[data_null_boolean]
-    data_valid = data_copy.dropna(
-        axis="index",
-        how="any",
-        inplace=False,
-    )
-    # Calculate false discovery rates from probabilities.
-    probabilities = data_valid["probability"].to_numpy()
-    report = statsmodels.stats.multitest.multipletests(
-        probabilities,
-        alpha=threshold,
-        method="fdr_bh",
-        is_sorted=False,
-    )
-    significances = report[0]
-    discoveries = report[1]
-    data_valid["significance"] = significances
-    data_valid["discovery"] = discoveries
-    data_null["significance"] = False
-    data_null["discovery"] = float("nan")
-
-    # Combine null and valid portions of data.
-    data_discoveries = data_valid.append(
-        data_null,
-        ignore_index=True,
-    )
-
-    # Organize data.
-    data_discoveries.set_index(
-        "gene",
-        drop=True,
-        inplace=True,
-    )
     # Calculate logarithm of false discovery rate.
     data_discoveries["discovery_log"] = data_discoveries["discovery"].apply(
         lambda value: calculate_negative_logarithm(value=value)
     )
     return data_discoveries
+
+
+
+
+
+
+
 
 
 # Segregation
@@ -688,11 +664,11 @@ def execute_procedure(dock=None):
 
     # Correct probabilities for false discovery rate.
     utility.print_terminal_partition(level=2)
-    data_genes_heritabilities_simple = calculate_false_discovery_rate(
+    data_genes_heritabilities_simple = calculate_organize_discoveries(
         threshold=0.05,
         data_genes_heritabilities=data_genes_heritabilities_simple
     )
-    data_genes_heritabilities_complex = calculate_false_discovery_rate(
+    data_genes_heritabilities_complex = calculate_organize_discoveries(
         threshold=0.05,
         data_genes_heritabilities=data_genes_heritabilities_complex
     )

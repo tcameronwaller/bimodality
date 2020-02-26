@@ -1666,6 +1666,71 @@ def filter_rows_columns_by_threshold_outer_count(
     return data_pass
 
 
+def calculate_false_discovery_rate(
+    threshold=None,
+    probability=None,
+    discovery=None,
+    significance=None,
+    data_probabilities=None,
+):
+    """
+    Calculates false discover rates from probabilities.
+
+    arguments:
+        threshold (float): value of alpha, or family-wise error rate of false
+            discoveries
+        probability (str): name of column of probabilities
+        discovery (str): name of column of false discovery rates
+        significance (str): name of column of significance
+        data_probabilities (object): Pandas data frame of probabilities
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of probabilities and false discovery rates
+
+    """
+
+    # Copy data.
+    data_copy = data_probabilities.copy(deep=True)
+
+    # False discovery rate method cannot accommodate missing values.
+    # Remove null values.
+    data_null_boolean = pandas.isna(data_copy[probability])
+    data_null = data_copy.loc[data_null_boolean]
+    data_valid = data_copy.dropna(
+        axis="index",
+        how="any",
+        inplace=False,
+    )
+    # Calculate false discovery rates from probabilities.
+    probabilities = data_valid[probability].to_numpy()
+    report = statsmodels.stats.multitest.multipletests(
+        probabilities,
+        alpha=threshold,
+        method="fdr_bh",
+        is_sorted=False,
+    )
+    significances = report[0]
+    discoveries = report[1]
+    data_valid[significance] = significances
+    data_valid[discovery] = discoveries
+    data_null[significance] = False
+    data_null[discovery] = float("nan")
+
+    # Combine null and valid portions of data.
+    data_discoveries = data_valid.append(
+        data_null,
+        ignore_index=False,
+    )
+
+    # Return information.
+    return data_discoveries
+
+
+
+
+
 # Human Metabolome Database (HMDB).
 
 
