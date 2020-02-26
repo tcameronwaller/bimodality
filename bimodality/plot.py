@@ -4312,6 +4312,84 @@ def prepare_charts_regressions_genes(
 ###################################################################
 ################# Need to Update ###############################
 
+
+
+def report_metrics_from_modality(
+    name=None,
+    series=None,
+    dock=None,
+):
+    """
+    Calculates and prints reports on multiple metrics.
+
+    arguments:
+        name (str): name of series
+        series (list<float>): series of values of type float
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Calculate skewness.
+    skewness = scipy.stats.skew(series, axis=None)
+    # Calculate kurtosis.
+    kurtosis = scipy.stats.kurtosis(series, axis=None, fisher=True)
+    # Calculate bimodality coefficient.
+    coefficient = calculate_bimodality_coefficient(series)
+    # Calculate dip statistic.
+    dip = calculate_dip_statistic(series=series)
+    # Calculate mixture model score.
+    mixture = calculate_mixture_model_score(series=series)
+
+    # Prepare metric report text.
+    text = prepare_metric_report_text(
+        skewness=skewness,
+        kurtosis=kurtosis,
+        coefficient=coefficient,
+        dip=dip,
+        mixture=mixture,
+    )
+    print(text)
+
+    # Define fonts.
+    fonts = plot.define_font_properties()
+    # Define colors.
+    colors = plot.define_color_properties()
+
+    # Create figure.
+    figure = plot.plot_distribution_histogram(
+        series=series,
+        name="",
+        bin_method="count",
+        bin_count=50,
+        label_bins="Bins",
+        label_counts="Counts",
+        fonts=fonts,
+        colors=colors,
+        line=False,
+        position=0,
+        text=text,
+    )
+    # Specify directories and files.
+    path_metric = os.path.join(dock, "metric")
+    path_figure = os.path.join(path_metric, "figure")
+    utility.create_directory(path_figure)
+    file = (name + "_distribution.svg")
+    path_file = os.path.join(path_figure, file)
+    # Write figure.
+    plot.write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+
 # Sample
 
 # TODO: this obsolete function plots the minor tissue categories within each major tissue category...
