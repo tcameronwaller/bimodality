@@ -40,7 +40,6 @@ import statsmodels.api
 
 import distribution
 import modality
-import plot
 import utility
 
 #dir()

@@ -31,7 +31,6 @@ import scipy.stats
 # Custom
 
 import modality
-import category
 import utility
 
 #dir()
