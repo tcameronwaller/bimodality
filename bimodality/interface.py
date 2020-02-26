@@ -16,33 +16,33 @@ import textwrap
 
 # Custom.
 
-import access
-import assembly
+#import access
+#import assembly
 #import measurement
 #import sample
 #import tissue
-import selection
+#import selection
 
-import split
+#import split
 import distribution
-import candidacy
+#import candidacy
 
-import shuffle
+#import shuffle
 import permutation
-import probability
+#import probability
 
-import integration
-import category
-import prediction
-import heritability
+#import integration
+#import category
+#import prediction
+#import heritability
 
 #import integration
 
-import structure
+#import structure
 
-import modality
+#import modality
 #import plot
-import test
+#import test
 import utility
 #import expecto
 
