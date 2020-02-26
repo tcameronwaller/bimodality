@@ -473,10 +473,10 @@ def normalize_collect_report_gene_signals(
     data = data_gene_signal.copy(deep=True)
     # Transform genes' signals to logarithmic space.
     # Transform values of genes' signals to base-2 logarithmic space.
-    base = 2
-    pseudo_count = 1.0
-    data_log = data.applymap(
-        lambda value: math.log((value + pseudo_count), base)
+    data_log = utility.calculate_pseudo_logarithm_signals(
+        pseudo_count=1.0,
+        base=2.0,
+        data=data,
     )
     # Flatten signals to one dimensional array.
     signals = data_log.to_numpy().flatten()

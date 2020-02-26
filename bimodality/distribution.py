@@ -30,7 +30,6 @@ import scipy.stats
 
 # Custom
 
-import assembly
 import modality
 import category
 import utility
@@ -1200,6 +1199,48 @@ def standardize_gene_signal(
     return data_gene_signal_standard
 
 
+def transform_gene_signal_pseudo_logarithm(
+    data_gene_signal=None,
+):
+    """
+    Calculates the base 2.0 logarithm of genes' signals in each sample.
+
+    Original gene signals are in transcript counts per million (TPM).
+
+    To accommodate gene signals of 0.0, add a pseudo count of 1.0 to all counts
+    before calculation of the base 2.0 logarithm.
+
+    arguments:
+        data_gene_signal (object): Pandas data frame of genes' signals
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals in logarithmic space
+
+    """
+
+    # Transform genes' signals to base-2 logarithmic space.
+    # Transform before calculation of any median or mean values. <- maybe false
+    # Logarithms are not distributive.
+    # To accommodate gene signals of 0.0, add a pseudo count of 2.0 to all
+    # counts before calculation of the base-2 logarithm.
+    # log-2 signal = log2(TPM + pseudo-count)
+    # pseudo-count = 1.0
+    #utility.print_terminal_partition(level=2)
+    #print("Transformation of genes' signals to base-2 logarithmic space.")
+    #print(
+    #    "To accommodate gene signals of 0.0, add a pseudo count of " +
+    #    "1.0-5.0 to all counts before calculation of the base-2 logarithm."
+    #)
+    data_gene_signal_log = utility.calculate_pseudo_logarithm_signals(
+        pseudo_count=1.0,
+        base=2.0,
+        data=data_gene_signal,
+    )
+    return data_gene_signal_log
+
+
 # Transformation of gene's signals to logarithmic space.
 def normalize_standardize_gene_signal(
     data_gene_persons_tissues_signals=None
@@ -1237,9 +1278,8 @@ def normalize_standardize_gene_signal(
 
     # Transform genes' signals to logarithmic space.
     # Transform values of genes' signals to base-2 logarithmic space.
-    data_normal = assembly.transform_gene_signal_log(
+    data_normal = transform_gene_signal_pseudo_logarithm(
         data_gene_signal=data_gene_persons_tissues_signals,
-        pseudo_count=1.0,
     )
     # Transform genes' signals to standard or z-score space.
     # Calculate standard score for each gene.
@@ -1367,6 +1407,8 @@ def aggregate_data(
 
     """
 
+    data = data_gene_persons_tissues_signals.copy(deep=True)
+
     # If data come from the "availability" method of the restriction procedure,
     # they might include missing values.
 
@@ -1374,7 +1416,7 @@ def aggregate_data(
     # Transform gene's signals to base-two logarithmic space.
     # Transform gene's signals to standard, z-score space.
     data_normal_standard = normalize_standardize_gene_signal(
-        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
+        data_gene_persons_tissues_signals=data,
     )
 
     # Aggregate gene's signals across tissues from each person.
