@@ -2826,6 +2826,175 @@ def prepare_charts_sets_gene_heritability(
 
 
 ##########
+# Overlap between sets in selection of genes by permutation
+# Status: working
+
+
+def read_source_sets_gene_permutation(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_probability = os.path.join(dock, "probability")
+    path_sets_genes_measures = os.path.join(
+        path_probability, "sets_genes_measures.pickle"
+    )
+    path_sets_genes_selection = os.path.join(
+        path_probability, "sets_genes_selection.pickle"
+    )
+    path_sets_genes_unimodal = os.path.join(
+        path_probability, "sets_genes_unimodal.pickle"
+    )
+    path_sets_genes_multimodal = os.path.join(
+        path_probability, "sets_genes_multimodal.pickle"
+    )
+
+    # Read information from file.
+    with open(path_sets_genes_measures, "rb") as file_source:
+        sets_genes_measures = pickle.load(file_source)
+    with open(path_sets_genes_selection, "rb") as file_source:
+        sets_genes_selection = pickle.load(file_source)
+    with open(path_sets_genes_unimodal, "rb") as file_source:
+        sets_genes_unimodal = pickle.load(file_source)
+    with open(path_sets_genes_multimodal, "rb") as file_source:
+        sets_genes_multimodal = pickle.load(file_source)
+
+    # Compile and return information.
+    return {
+        "sets_genes_measures": sets_genes_measures,
+        "sets_genes_selection": sets_genes_selection,
+        "sets_genes_unimodal": sets_genes_unimodal,
+        "sets_genes_multimodal": sets_genes_multimodal,
+    }
+
+
+def plot_chart_sets_gene_permutation(
+    sets=None,
+    count=None,
+    path_file=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        sets (dict<list<str>>): values in sets
+        count (int): count of sets
+        path_file (str): path to directory and file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_overlap_sets(
+        sets=sets,
+        count=count,
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_sets_gene_permutation(
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_sets_gene_permutation(dock=dock)
+
+    # Organize information.
+    # Define parameters for each chart.
+    charts = list()
+    record = {
+        "title": "sets_genes_measures",
+        "count": 3,
+        "sets": source["sets_genes_measures"],
+    }
+    charts.append(record)
+    record = {
+        "title": "sets_genes_selection",
+        "count": 2,
+        "sets": source["sets_genes_selection"],
+    }
+    charts.append(record)
+    record = {
+        "title": "sets_genes_unimodal",
+        "count": 2,
+        "sets": source["sets_genes_unimodal"],
+    }
+    charts.append(record)
+    record = {
+        "title": "sets_genes_multimodal",
+        "count": 2,
+        "sets": source["sets_genes_multimodal"],
+    }
+    charts.append(record)
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_permutation = os.path.join(path_plot, "permutation")
+    path_directory = os.path.join(
+        path_permutation, "sets"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    # Iterate on charts.
+    for chart in charts:
+        # Create chart.
+        path_file = os.path.join(
+            path_directory, str(chart["title"] + ".svg")
+        )
+        plot_chart_sets_gene_permutation(
+            sets=chart["sets"],
+            count=chart["count"],
+            path_file=path_file,
+        )
+
+    pass
+
+
+##########
 # Overlap between sets in selection of genes by integration
 # Status: working
 
@@ -3182,6 +3351,136 @@ def prepare_charts_genes_persons_signals(
         )
         pass
 
+    pass
+
+
+##########
+# Distributions of a gene's pan-tissue aggregate signals across persons after
+# permutation
+# Histograms
+# Status: in progress
+
+
+def read_source_gene_signals_persons_permutation(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_probability = os.path.join(dock, "probability")
+    path_gene_signals_permutation = os.path.join(
+        path_probability, "gene_signals_permutation.pickle"
+    )
+
+    # Read information from file.
+    with open(path_gene_signals_permutation, "rb") as file_source:
+        gene_signals_permutation = pickle.load(file_source)
+
+    # Compile and return information.
+    return {
+        "gene_signals_permutation": gene_signals_permutation,
+    }
+
+
+def plot_chart_gene_signals_persons_permutation(
+    gene=None,
+    name=None,
+    values=None,
+    path=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        gene (str): identifier of a gene
+        name (str): name of a gene
+        values (list<float>): values of a gene's pan-tissue aggregate signals
+            across persons
+        path (str): path for file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_distribution_histogram(
+        series=values,
+        name=gene,
+        bin_method="count",
+        bin_count=50,
+        label_bins="Bins",
+        label_counts="Counts",
+        fonts=fonts,
+        colors=colors,
+        line=False,
+        position=0,
+        text=name,
+    )
+    # Write figure.
+    write_figure(
+        path=path,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_chart_gene_signals_persons_permutation(
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_gene_signals_persons_permutation(dock=dock)
+
+    # Define paths.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_permutation = os.path.join(path_plot, "permutation")
+    path_directory = os.path.join(path_permutation, "distribution")
+    path_file = os.path.join(
+        path_directory, "gene_permutation.svg"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    plot_chart_gene_signals_persons_permutation(
+        gene="",
+        name="",
+        values=source["gene_signals_permutation"],
+        path=path_file
+    )
     pass
 
 
@@ -4976,6 +5275,20 @@ def execute_procedure(dock=None):
     # Plot charts of overlap between sets in selection of genes by
     # heritability.
     prepare_charts_sets_gene_heritability(dock=dock)
+
+    ##########
+    ##########
+    ##########
+    # Probability procedure
+
+    # Plot charts of overlap between sets in significance of genes by
+    # permutation.
+    prepare_charts_sets_gene_permutation(dock=dock)
+
+    # Plot chart of the distribution of a gene's pan-tissue aggregate signals
+    # across persons after permutation.
+    prepare_chart_gene_signals_persons_permutation(dock=dock)
+
 
 
     if False:

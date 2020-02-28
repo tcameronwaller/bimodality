@@ -27,7 +27,7 @@ import pandas
 import sklearn
 import scipy
 import numpy
-import statsmodels
+import statsmodels.api
 
 # Custom
 
@@ -1675,7 +1675,7 @@ def calculate_false_discovery_rate(
     data_probabilities=None,
 ):
     """
-    Calculates false discover rates from probabilities.
+    Calculates false discovery rates from probabilities.
 
     arguments:
         threshold (float): value of alpha, or family-wise error rate of false

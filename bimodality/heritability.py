@@ -28,10 +28,10 @@ import gc
 import numpy
 import pandas
 import scipy.stats
-import statsmodels
 
 # Custom
 
+import assembly
 import utility
 
 #dir()
@@ -61,6 +61,9 @@ def read_source_initial(dock=None):
 
     # Specify directories and files.
     path_selection = os.path.join(dock, "selection", "tight")
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation_gencode.pickle"
+    )
     path_genes_selection = os.path.join(
         path_selection, "genes_selection.pickle"
     )
@@ -77,6 +80,7 @@ def read_source_initial(dock=None):
     )
 
     # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     with open(path_genes_selection, "rb") as file_source:
         genes_selection = pickle.load(file_source)
     genes_heritability = utility.extract_subdirectory_names(
@@ -90,6 +94,7 @@ def read_source_initial(dock=None):
 
     # Compile and return information.
     return {
+        "data_gene_annotation": data_gene_annotation,
         "genes_selection": genes_selection,
         "genes_heritability": genes_heritability,
         "genes_unimodal": genes_unimodal,
@@ -209,6 +214,7 @@ def check_genes(
 def read_collect_organize_genes_heritabilities(
     genes=None,
     method=None,
+    data_gene_annotation=None,
     dock=None,
 ):
     """
@@ -226,6 +232,7 @@ def read_collect_organize_genes_heritabilities(
     arguments:
         genes (list<str>): identifiers of genes
         method (str): method from which to collect, "simple" or "complex"
+        data_gene_annotation (object): Pandas data frame of genes' annotations
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -247,6 +254,10 @@ def read_collect_organize_genes_heritabilities(
     records = list()
     # Iterate on genes.
     for gene in genes:
+        name = assembly.access_gene_name(
+            identifier=gene,
+            data_gene_annotation=data_gene_annotation,
+        )
         # Specify directories and files.
         path_heritability_gene = os.path.join(path_heritability, "genes", gene)
         path_method = os.path.join(path_heritability_gene, method)
@@ -284,6 +295,7 @@ def read_collect_organize_genes_heritabilities(
         # Compile information.
         record = dict()
         record["gene"] = gene
+        record["name"] = name
         record["genotype"] = genotype
         record["residual"] = residual
         record["phenotype"] = phenotype
@@ -653,12 +665,14 @@ def execute_procedure(dock=None):
         read_collect_organize_genes_heritabilities(
             genes=source["genes_heritability"],
             method="simple",
+            data_gene_annotation=source["data_gene_annotation"],
             dock=dock,
     ))
     data_genes_heritabilities_complex = (
         read_collect_organize_genes_heritabilities(
             genes=source["genes_heritability"],
             method="complex",
+            data_gene_annotation=source["data_gene_annotation"],
             dock=dock,
     ))
 

@@ -22,6 +22,7 @@ import pickle
 import copy
 import random
 import gc
+import functools
 
 # Relevant
 
@@ -31,6 +32,9 @@ import scipy.stats
 
 # Custom
 
+import assembly
+import distribution
+import permutation
 import utility
 
 #dir()
@@ -394,6 +398,9 @@ def read_source(dock=None):
 
     # Specify directories and files.
     path_selection = os.path.join(dock, "selection", "tight")
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation_gencode.pickle"
+    )
     path_selection_genes = os.path.join(
         path_selection, "genes_selection.pickle"
     )
@@ -410,6 +417,7 @@ def read_source(dock=None):
     path_permutation = os.path.join(dock, "permutation")
 
     # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     with open(path_selection_genes, "rb") as file_source:
         genes_selection = pickle.load(file_source)
     with open(path_genes_unimodal, "rb") as file_source:
@@ -425,6 +433,7 @@ def read_source(dock=None):
 
     # Compile and return information.
     return {
+        "data_gene_annotation": data_gene_annotation,
         "genes_selection": genes_selection,
         "genes_unimodal": genes_unimodal,
         "genes_multimodal": genes_multimodal,
@@ -500,10 +509,6 @@ def check_genes(
     utility.print_terminal_partition(level=2)
 
     pass
-
-
-# TODO: remove the calculation of combination scores...
-# TODO: as measures do not have strong correlation, combination scores are meaningless
 
 
 def collect_organize_genes_scores_permutations(
@@ -632,60 +637,6 @@ def read_collect_genes_scores_permutations(
     return information
 
 
-def read_collect_genes_patients(path=None):
-    """
-    Collects information about genes.
-
-    Data structure.
-    - genes_scores_distributions (dict)
-    -- gene (dict)
-    --- scores (dict)
-    ---- coefficient (float)
-    ---- dip (float)
-    --- distributions (dict)
-    ---- coefficient (list)
-    ----- value (float)
-    ---- dip (list)
-    ----- value (float)
-
-    arguments:
-        path (str): path to directory
-
-    raises:
-
-    returns:
-        (dict<dict<dict>>): information about genes
-
-    """
-
-    # Report process.
-    utility.print_terminal_partition(level=1)
-    print(
-        "Reading and compiling information about genes' scores and " +
-        "distributions."
-    )
-    # Collect information about genes.
-    genes_patients = list()
-    # Iterate on directories for genes.
-    directories = os.listdir(path)
-    for directory in directories:
-        # Report progress.
-        print(directory)
-        # Create entry for gene.
-        #genes_patients[directory] = list()
-        # Specify directories and files.
-        path_directory = os.path.join(path, directory)
-        path_report = os.path.join(path_directory, "report_gene.pickle")
-        # Read information from file.
-        with open(path_report, "rb") as file_source:
-            report = pickle.load(file_source)
-        # Compile information.
-        patients = report["data_patients_tissues"].size
-        genes_patients.append(patients)
-    # Return information.
-    return genes_patients
-
-
 def check_genes_scores_permutations(
     genes=None,
     genes_scores_permutations=None
@@ -783,6 +734,8 @@ def check_genes_scores_permutations(
 
 
 # Standardization... now obsolete
+# As modality measures have little correlation, the z-score combination of
+# these measures is not reasonable.
 
 
 def calculate_mean_deviation_scores_permutations(
@@ -1143,6 +1096,7 @@ def calculate_probability_equal_greater(
 def calculate_organize_probabilities_genes(
     genes_scores=None,
     genes_permutations=None,
+    data_gene_annotation=None,
 ):
     """
     Calculates probabilities (p-values) from genes' scores and random
@@ -1160,6 +1114,7 @@ def calculate_organize_probabilities_genes(
         genes_scores (dict<dict<float>>): information about genes' scores
         genes_permutations (dict<dict<list<float>>>): information about genes'
             permutations
+        data_gene_annotation (object): Pandas data frame of genes' annotations
 
     raises:
 
@@ -1172,6 +1127,10 @@ def calculate_organize_probabilities_genes(
     records = list()
     # Iterate on genes.
     for gene in genes_scores:
+        name = assembly.access_gene_name(
+            identifier=gene,
+            data_gene_annotation=data_gene_annotation,
+        )
         # Access information about gene's scores and distributions.
         scores = genes_scores[gene]
         permutations = genes_permutations[gene]
@@ -1204,6 +1163,7 @@ def calculate_organize_probabilities_genes(
         # Compile information.
         record = dict()
         record["gene"] = gene
+        record["name"] = name
         record["probability_dip"] = probability_dip
         record["probability_mixture"] = probability_mixture
         record["probability_coefficient"] = probability_coefficient
@@ -1276,36 +1236,307 @@ def calculate_discoveries_genes(
     return data_dip
 
 
+# Selection
 
 
-
-def select_genes_by_threshold(
-    genes_probabilities=None,
-    measure=None,
-    threshold=None,
+def select_genes_measure_discoveries(
+    significance=None,
+    data_genes_discoveries=None,
 ):
     """
-    Selects genes by a threshold on probabilities for bimodality measures.
+    Selects genes with significant false discovery rates for a single measure
+    of modality.
 
     arguments:
-        genes_probabilities (dict<dict<float>>): information about genes'
-            probabilities
-        measure (str): name of a measure of bimodality
-        threshold (float): value of a threshold for a measure of bimodality
+        significance (str): name of column of significance
+        data_genes_discoveries (object): Pandas data frame of genes'
+            false discovery rates for measures of modality
 
     raises:
 
     returns:
-        (object): Pandas data frame of genes' properties, bimodality
-            scores, and probabilities
+        (list<str>): identifiers of genes
 
     """
 
-    genes = list()
-    for gene in genes_probabilities:
-        if genes_probabilities[gene][measure] < threshold:
-            genes.append(gene)
+    # Copy genes' heritabilities.
+    data_copy = data_genes_discoveries.copy(deep=True)
+
+    # Set threshold.
+    data_significance = data_copy.loc[data_copy[significance]]
+
+    # Extract identifiers of genes.
+    genes = data_significance.index.to_list()
+
+    # Return information.
     return genes
+
+
+def select_genes_measures_discoveries(
+    data_genes_discoveries=None,
+):
+    """
+    Selects genes by their false discovery rates for measures of modality.
+
+    arguments:
+        data_genes_discoveries (object): Pandas data frame of genes'
+            false discovery rates for measures of modality
+
+    raises:
+
+    returns:
+        (dict<list<str>>): sets of genes with significant false discovery rates for each
+            measure of modality
+    """
+
+    # Select genes for each measure of modality.
+    genes_coefficient = select_genes_measure_discoveries(
+        significance="significance_coefficient",
+        data_genes_discoveries=data_genes_discoveries,
+    )
+    genes_mixture = select_genes_measure_discoveries(
+        significance="significance_mixture",
+        data_genes_discoveries=data_genes_discoveries,
+    )
+    genes_dip = select_genes_measure_discoveries(
+        significance="significance_dip",
+        data_genes_discoveries=data_genes_discoveries,
+    )
+
+    # Compile information.
+    information = dict()
+    information["coefficient"] = genes_coefficient
+    information["mixture"] = genes_mixture
+    information["dip"] = genes_dip
+    # Return information.
+    return information
+
+
+# Sets
+
+
+def organize_genes_sets(
+    genes_selection=None,
+    genes_unimodal=None,
+    genes_multimodal=None,
+    genes_probability=None,
+):
+    """
+    Organize sets of genes.
+
+    arguments:
+        genes_selection (list<str>): identifiers of genes from selection
+        genes_unimodal (list<str>): identifiers of genes with unimodal
+            distributions in their pan-tissue signals across persons
+        genes_multimodal (list<str>): identifiers of genes with multimodal
+            distributions in their pan-tissue signals across persons
+        genes_probability (list<str>): identifiers of genes with significant
+            distributions in their pan-tissue signals across persons
+
+    raises:
+
+    returns:
+        (dict): sets of genes
+    """
+
+    # Organize sets of genes.
+    # Selection
+    sets_genes_selection = dict()
+    sets_genes_selection["selection"] = genes_selection
+    sets_genes_selection["probability"] = genes_probability
+    # Unimodal
+    sets_genes_unimodal = dict()
+    sets_genes_unimodal["unimodal"] = genes_unimodal
+    sets_genes_unimodal["probability"] = genes_probability
+    # Multimodal
+    sets_genes_multimodal = dict()
+    sets_genes_multimodal["multimodal"] = genes_multimodal
+    sets_genes_multimodal["probability"] = genes_probability
+
+    # Compile information.
+    information = dict()
+    information["selection"] = sets_genes_selection
+    information["unimodal"] = sets_genes_unimodal
+    information["multimodal"] = sets_genes_multimodal
+    # Return information.
+    return information
+
+
+# Permutation
+
+
+def permute_collect_gene_signals_all(
+    gene=None,
+    data_gene_persons_tissues_signals=None,
+    shuffles=None,
+):
+    """
+    Prepares and describes the distribution of a gene's signals across persons.
+
+    arguments:
+        gene (str): identifier of gene
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+        shuffles (list<list<list<int>>>): matrices of shuffle indices
+
+    raises:
+
+    returns:
+        (array<float>): gene's signals across persons and permutations
+
+    """
+
+    def permute_collect_signals(
+        collection=None,
+        shuffle_indices=None,
+        data_gene_signals=None,
+    ):
+        # Shuffle gene's signals.
+        data_shuffle = permutation.permute_gene_signals(
+            data_gene_signals=data_gene_signals,
+            shuffle_indices=shuffle_indices
+        )
+        # Distribution
+        bins = distribution.prepare_describe_distribution(
+            data_gene_persons_tissues_signals=data_shuffle,
+        )
+        # Extract signals.
+        #signals = bins["bin_aggregation"]["values"]
+        data = bins["bin_aggregation"]["data_gene_persons_signals"].copy(
+            deep=True
+        )
+        data.dropna(
+            axis="index",
+            how="any",
+            inplace=True,
+        )
+        signals = data["value"].to_numpy()
+        # Collect signals.
+        collection.append(signals)
+        return collection
+
+    # Initialize collections of measures.
+    collection = list()
+
+    # Iterate on permutations.
+    signals_permutations = functools.reduce(
+        lambda collection, shuffle_indices: permute_collect_signals(
+            collection=collection,
+            shuffle_indices=shuffle_indices,
+            data_gene_signals=data_gene_persons_tissues_signals,
+        ),
+        shuffles, # Iterable
+        collection, # Initializer
+    )
+    # Collapse signals to a single dimension.
+    signals = numpy.concatenate(
+        signals_permutations,
+        axis=None,
+    )
+    # Return information.
+    return signals
+
+
+def permute_collect_gene_signals_single(
+    gene=None,
+    data_gene_persons_tissues_signals=None,
+    shuffle=None,
+):
+    """
+    Prepares and describes the distribution of a gene's signals across persons.
+
+    arguments:
+        gene (str): identifier of gene
+        data_gene_persons_tissues_signals (object): Pandas data frame of a
+            gene's signals across persons and tissues
+        shuffle (list<list<int>>): matrix of shuffle indices
+
+    raises:
+
+    returns:
+        (array<float>): gene's signals across persons
+
+    """
+
+    # Shuffle gene's signals.
+    data_shuffle = permutation.permute_gene_signals(
+        data_gene_signals=data_gene_persons_tissues_signals,
+        shuffle_indices=shuffle
+    )
+    # Distribution
+    bins = distribution.prepare_describe_distribution(
+        data_gene_persons_tissues_signals=data_shuffle,
+    )
+    # Extract signals.
+    #signals = bins["bin_aggregation"]["values"]
+    data = bins["bin_aggregation"]["data_gene_persons_signals"].copy(
+        deep=True
+    )
+    data.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+    signals = data["value"].to_numpy()
+
+    # Return information.
+    return signals
+
+
+def read_permute_collect_gene_signals(
+    gene=None,
+    permutations=None,
+    dock=None,
+):
+    """
+    Organize sets of genes.
+
+    arguments:
+        gene (str): identifier of a gene
+        permutations (str): whether to execute "single" or "all" permutations
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (list<float>): gene's pan-tissue signals across persons and
+            permutations
+    """
+
+    # Read shuffles.
+    source_shuffles = permutation.read_source_shuffles(dock=dock)
+    # Read gene's signals.
+    source_gene = permutation.read_source(
+        gene=gene,
+        dock=dock
+    )
+    # Determine whether to execute a single permutation or all permutations.
+    if permutations == "single":
+        # Select shuffle indices at random.
+        shuffle = random.choice(source_shuffles)
+        # Permute gene's signals.
+        signals = permute_collect_gene_signals_single(
+            gene=gene,
+            data_gene_persons_tissues_signals=(
+                source_gene["data_gene_persons_tissues_signals"]
+            ),
+            shuffle=shuffle,
+        )
+        pass
+    elif permutations == "all":
+        # Permute gene's signals.
+        signals = permute_collect_gene_signals_all(
+            gene=gene,
+            data_gene_persons_tissues_signals=(
+                source_gene["data_gene_persons_tissues_signals"]
+            ),
+            shuffles=source_shuffles,
+        )
+        pass
+
+    # Return information.
+    return signals
 
 
 # Product
@@ -1329,14 +1560,12 @@ def write_product(dock=None, information=None):
     # Specify directories and files.
     path_probability = os.path.join(dock, "probability")
     utility.create_directory(path_probability)
-    path_scores = os.path.join(
-        path_probability, "genes_scores.pickle"
+
+    path_data_genes_discoveries = os.path.join(
+        path_probability, "data_genes_discoveries.pickle"
     )
-    path_permutations = os.path.join(
-        path_probability, "genes_permutations.pickle"
-    )
-    path_probabilities = os.path.join(
-        path_probability, "genes_probabilities.pickle"
+    path_data_genes_discoveries_text = os.path.join(
+        path_probability, "data_genes_discoveries.tsv"
     )
     path_sets_genes_measures = os.path.join(
         path_probability, "sets_genes_measures.pickle"
@@ -1344,21 +1573,29 @@ def write_product(dock=None, information=None):
     path_genes_probability = os.path.join(
         path_probability, "genes_probability.pickle"
     )
-
+    path_sets_genes_selection = os.path.join(
+        path_probability, "sets_genes_selection.pickle"
+    )
+    path_sets_genes_unimodal = os.path.join(
+        path_probability, "sets_genes_unimodal.pickle"
+    )
+    path_sets_genes_multimodal = os.path.join(
+        path_probability, "sets_genes_multimodal.pickle"
+    )
+    path_gene_signals_permutation = os.path.join(
+        path_probability, "gene_signals_permutation.pickle"
+    )
 
     # Write information to file.
-    with open(path_scores, "wb") as file_product:
-        pickle.dump(
-            information["genes_scores"], file_product
-        )
-    with open(path_permutations, "wb") as file_product:
-        pickle.dump(
-            information["genes_permutations"], file_product
-        )
-    with open(path_probabilities, "wb") as file_product:
-        pickle.dump(
-            information["genes_probabilities"], file_product
-        )
+    information["data_genes_discoveries"].to_pickle(
+        path=path_data_genes_discoveries
+    )
+    information["data_genes_discoveries"].to_csv(
+        path_or_buf=path_data_genes_discoveries_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
     with open(path_sets_genes_measures, "wb") as file_product:
         pickle.dump(
             information["sets_genes_measures"], file_product
@@ -1366,6 +1603,22 @@ def write_product(dock=None, information=None):
     with open(path_genes_probability, "wb") as file_product:
         pickle.dump(
             information["genes_probability"], file_product
+        )
+    with open(path_sets_genes_selection, "wb") as file_product:
+        pickle.dump(
+            information["sets_genes_selection"], file_product
+        )
+    with open(path_sets_genes_unimodal, "wb") as file_product:
+        pickle.dump(
+            information["sets_genes_unimodal"], file_product
+        )
+    with open(path_sets_genes_multimodal, "wb") as file_product:
+        pickle.dump(
+            information["sets_genes_multimodal"], file_product
+        )
+    with open(path_gene_signals_permutation, "wb") as file_product:
+        pickle.dump(
+            information["gene_signals_permutation"], file_product
         )
 
     pass
@@ -1388,11 +1641,6 @@ def execute_procedure(dock=None):
     returns:
 
     """
-
-    #####*********DO THIS####
-    # TODO: For a limited count of genes (of interest...) re-run the permutation
-    # TODO: procedure and collect the pan-tissue signal distribution across all permutations
-    # TODO: NPIP15
 
     # Remove previous files to avoid version or batch confusion.
     path_probability = os.path.join(dock, "probability")
@@ -1430,17 +1678,12 @@ def execute_procedure(dock=None):
     print("collection, standardization, and combination done!!!")
     utility.print_terminal_partition(level=2)
 
-
-
-    # TODO: I think it makes more sense to organize genes, their probabilities, and their FDRs in a dataframe
-    # TODO: calculate FDRs
-    # TODO: organize data frame
-
     # Calculate genes' probabilities of bimodality.
     utility.print_terminal_partition(level=2)
     data_genes_probabilities = calculate_organize_probabilities_genes(
         genes_scores=genes_scores_permutations["genes_scores"],
         genes_permutations=genes_scores_permutations["genes_permutations"],
+        data_gene_annotation=source["data_gene_annotation"],
     )
     print(data_genes_probabilities)
 
@@ -1452,60 +1695,58 @@ def execute_procedure(dock=None):
     )
     print(data_genes_discoveries)
 
-    # TODO: I still want to select genes by the set method (probably by any measure for all genes...)
-    # TODO: maybe implement similar to "heritability" procedure
+    # Select genes by false discovery rates for each measure of modality.
+    sets_genes_measures = select_genes_measures_discoveries(
+        data_genes_discoveries=data_genes_discoveries,
+    )
+    utility.print_terminal_partition(level=2)
+    print("coefficient: " + str(len(sets_genes_measures["coefficient"])))
+    print("mixture: " + str(len(sets_genes_measures["mixture"])))
+    print("dip: " + str(len(sets_genes_measures["dip"])))
 
-    if False:
-        # Select genes by probabilities.
-        utility.print_terminal_partition(level=2)
-        print("Select genes by threshold on measures' probabilities...")
-        genes_dip = select_genes_by_threshold(
-            genes_probabilities=genes_probabilities,
-            measure="dip",
-            threshold=0.05, # 0.001 (61), 0.005 (125), 0.05 (675)
-        )
-        genes_mixture = select_genes_by_threshold(
-            genes_probabilities=genes_probabilities,
-            measure="mixture",
-            threshold=0.0005, # 0.0005 (2626), 0.001 (2945), 0.005 (3895),
-        )
-        genes_coefficient = select_genes_by_threshold(
-            genes_probabilities=genes_probabilities,
-            measure="coefficient",
-            threshold=0.001, # 0.0005 (1160), 0.001 (1331), 0.005 (1827)
-        )
-        utility.print_terminal_partition(level=2)
-        print("dip: " + str(len(genes_dip)))
-        print("mixture: " + str(len(genes_mixture)))
-        print("coefficient: " + str(len(genes_coefficient)))
-        sets_genes_measures = dict()
-        sets_genes_measures["dip"] = genes_dip
-        sets_genes_measures["mixture"] = genes_mixture
-        sets_genes_measures["coefficient"] = genes_coefficient
+    # Select genes that are significant by any single measure of modality.
+    genes_probability = utility.select_elements_by_sets(
+        names=["dip", "mixture", "coefficient"],
+        sets=sets_genes_measures,
+        count=1,
+    )
+    utility.print_terminal_partition(level=2)
+    print(
+        "selection of genes by multiple measurements: " +
+        str(len(genes_probability))
+    )
+    utility.print_terminal_partition(level=2)
 
-        # Select genes that pass filters by multiple measures of bimodality.
-        genes_probability = utility.select_elements_by_sets(
-            names=["dip", "mixture", "coefficient"],
-            sets=sets_genes_measures,
-            count=2,
-        )
-        utility.print_terminal_partition(level=2)
-        print(
-            "selection of genes by multiple measurements: " +
-            str(len(genes_probability))
-        )
-        utility.print_terminal_partition(level=2)
+    # Organize sets.
+    bin = organize_genes_sets(
+        genes_selection=source["genes_selection"],
+        genes_unimodal=source["genes_unimodal"],
+        genes_multimodal=source["genes_multimodal"],
+        genes_probability=genes_probability,
+    )
 
-        # Compile information.
-        information = {
-            "genes_scores": genes_scores_permutations["genes_scores"],
-            "genes_permutations": genes_scores_permutations["genes_permutations"],
-            "genes_probabilities": genes_probabilities,
-            "sets_genes_measures": sets_genes_measures,
-            "genes_probability": genes_probability,
-        }
-        # Write product information to file.
-        write_product(dock=dock, information=information)
+    # Collect an exemplary gene's signals from permutation.
+    utility.print_terminal_partition(level=2)
+    gene_signals_permutation = read_permute_collect_gene_signals(
+        gene="ENSG00000183793", # NPIPA5
+        permutations="single", # "single" or "all"
+        dock=dock,
+    )
+    #print(gene_signals_permutation)
+    print("Count of permuted signals: " + str(len(gene_signals_permutation)))
+
+    # Compile information.
+    information = {
+        "data_genes_discoveries": data_genes_discoveries,
+        "sets_genes_measures": sets_genes_measures,
+        "sets_genes_selection": bin["selection"],
+        "sets_genes_unimodal": bin["unimodal"],
+        "sets_genes_multimodal": bin["multimodal"],
+        "genes_probability": genes_probability,
+        "gene_signals_permutation": gene_signals_permutation,
+    }
+    # Write product information to file.
+    write_product(dock=dock, information=information)
 
     pass
 

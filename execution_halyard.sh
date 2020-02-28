@@ -77,14 +77,14 @@ echo "Now set to call routine and procedures."
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --candidacy
 
-python3 interface.py main --dock $path_dock --shuffle --count 10000
+#python3 interface.py main --dock $path_dock --shuffle --count 10000
 # Current implementation requires approximately 3 Gigabytes of memory for
 # 10,000 shuffles on each computational process or node.
 # 100,000 shuffles require approximately 30 Gigabytes of memory on each node.
 #python3 interface.py main --dock $path_dock --permutation --local
 #nohup python3 interface.py main --dock $path_dock --permutation --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --permutation --remote --gene "ENSG00000186092"
-#python3 interface.py main --dock $path_dock --probability
+python3 interface.py main --dock $path_dock --probability
 
 ##########
 # Analysis Routine
@@ -99,7 +99,7 @@ python3 interface.py main --dock $path_dock --shuffle --count 10000
 
 #python3 interface.py main --dock $path_dock --structure
 
-#python3 interface.py main --dock $path_dock --plot
+python3 interface.py main --dock $path_dock --plot
 
 
 ##########
