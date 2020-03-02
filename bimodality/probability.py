@@ -378,14 +378,58 @@ def combine_scores_permutations_old(
 ###############################
 
 
+
+
+##########
+# Initialization
+
+
+def initialize_paths(dock=None):
+    """
+    Initialize directories for procedure's product files.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (dict<str>): collection of paths to directories for procedure's files
+
+    """
+
+    # Define paths to directories.
+    path_distribution = os.path.join(dock, "distribution")
+    path_distribution_genes = os.path.join(path_distribution, "genes")
+
+    path_permutation = os.path.join(dock, "permutation_all")
+    path_permutation_genes = os.path.join(path_permutation, "genes")
+
+    # Collect information.
+    paths = dict()
+    paths["distribution"] = path_distribution
+    paths["distribution_genes"] = path_distribution_genes
+    paths["permutation"] = path_permutation
+    paths["permutation_genes"] = path_permutation_genes
+
+    # Return information.
+    return paths
+
+
 # Source
 
 
-def read_source(dock=None):
+def read_source(
+    paths=None,
+    dock=None
+):
     """
     Reads and organizes source information from file
 
     arguments:
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -413,9 +457,6 @@ def read_source(dock=None):
         path_candidacy, "genes_multimodal.pickle"
     )
 
-    path_distribution = os.path.join(dock, "distribution")
-    path_permutation = os.path.join(dock, "permutation")
-
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     with open(path_selection_genes, "rb") as file_source:
@@ -425,10 +466,10 @@ def read_source(dock=None):
     with open(path_genes_multimodal, "rb") as file_source:
         genes_multimodal = pickle.load(file_source)
     genes_distribution = utility.extract_subdirectory_names(
-        path=path_distribution
+        path=paths["distribution_genes"]
     )
     genes_permutation = utility.extract_subdirectory_names(
-        path=path_permutation
+        path=paths["permutation_genes"]
     )
 
     # Compile and return information.
@@ -513,16 +554,15 @@ def check_genes(
 
 def collect_organize_genes_scores_permutations(
     genes=None,
-    path_distribution=None,
-    path_permutation=None,
+    paths=None,
 ):
     """
     Collects and organizes information about genes.
 
     arguments:
         genes (list<str>): identifiers of genes
-        path_distribution (str): path to distribution directory
-        path_permutation (str): path to permutation directory
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
 
     raises:
 
@@ -535,8 +575,7 @@ def collect_organize_genes_scores_permutations(
     # Collect scores from permutation procedure.
     collection = read_collect_genes_scores_permutations(
         genes=genes,
-        path_distribution=path_distribution,
-        path_permutation=path_permutation,
+        paths=paths,
     )
     utility.print_terminal_partition(level=3)
     print("collection complete")
@@ -567,8 +606,7 @@ def collect_organize_genes_scores_permutations(
 
 def read_collect_genes_scores_permutations(
     genes=None,
-    path_distribution=None,
-    path_permutation=None,
+    paths=None,
 ):
     """
     Collects information about genes.
@@ -592,8 +630,8 @@ def read_collect_genes_scores_permutations(
 
     arguments:
         genes (list<str>): identifiers of genes
-        path_distribution (str): path to distribution directory
-        path_permutation (str): path to permutation directory
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
 
     raises:
 
@@ -611,8 +649,12 @@ def read_collect_genes_scores_permutations(
     # Iterate on genes.
     for gene in genes:
         # Specify directories and files.
-        path_distribution_gene = os.path.join(path_distribution, gene)
-        path_permutation_gene = os.path.join(path_permutation, gene)
+        path_distribution_gene = os.path.join(
+            paths["distribution_genes"], gene
+        )
+        path_permutation_gene = os.path.join(
+            paths["permutation_genes"], gene
+        )
         path_scores = os.path.join(
             path_distribution_gene, "scores.pickle"
         )
@@ -1646,14 +1688,20 @@ def execute_procedure(dock=None):
     path_probability = os.path.join(dock, "probability")
     utility.remove_directory(path=path_probability)
 
+    # Initialize paths.
+    paths = initialize_paths(dock=dock)
+
     # Read source information from file.
-    source = read_source(dock=dock)
+    source = read_source(
+        paths=paths,
+        dock=dock
+    )
 
     # Define genes for iteration.
-    #genes_iteration = source["genes_selection"]
-    #genes_iteration = source["genes_unimodal"]
-    genes_iteration = copy.deepcopy(source["genes_unimodal"])
-    genes_iteration.extend(source["genes_multimodal"])
+    genes_iteration = source["genes_selection"]
+    # Unimodal and multimodal genes only (290).
+    #genes_iteration = copy.deepcopy(source["genes_unimodal"])
+    #genes_iteration.extend(source["genes_multimodal"])
     print("count of genes: " + str(len(genes_iteration)))
 
     # Verify that distributions and permutations are available for all genes.
@@ -1666,12 +1714,9 @@ def execute_procedure(dock=None):
     # Collect and organize genes' scores and permutations.
     # Contain these processes within a separate function to conserve memory.
     # This procedure standardizes values of each bimodality measure.
-    path_distribution = os.path.join(dock, "distribution", "genes")
-    path_permutation = os.path.join(dock, "permutation")
     genes_scores_permutations = collect_organize_genes_scores_permutations(
         genes=genes_iteration,
-        path_distribution=path_distribution,
-        path_permutation=path_permutation,
+        paths=paths,
     )
 
     utility.print_terminal_partition(level=2)

@@ -41,7 +41,6 @@ import statsmodels
 import selection
 import distribution
 import modality
-import plot
 import utility
 import assembly
 

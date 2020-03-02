@@ -42,6 +42,49 @@ import utility
 # Functionality
 
 
+##########
+# Initialization
+
+
+def initialize_directories(dock=None):
+    """
+    Initialize directories for procedure's product files.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (dict<str>): collection of paths to directories for procedure's files
+
+    """
+
+    # Define paths to directories.
+    path_permutation = os.path.join(dock, "permutation")
+    path_genes = os.path.join(path_permutation, "genes")
+
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_permutation)
+
+    # Initialize directories.
+    utility.create_directory(path_permutation)
+    utility.create_directory(path_genes)
+
+    # Collect information.
+    paths = dict()
+    paths["permutation"] = path_permutation
+    paths["genes"] = path_genes
+
+    # Return information.
+    return paths
+
+
+##########
+# Source
+
+
 def read_source_genes(
     dock=None
 ):
@@ -456,15 +499,20 @@ def shuffle_gene_signals_iterative(
 # Product
 
 
-def write_product_gene(gene=None, dock=None, information=None):
+def write_product_gene(
+    gene=None,
+    information=None,
+    paths=None,
+):
     """
     Writes product information to file.
 
     arguments:
         gene (str): identifier of single gene for which to execute the process.
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
+        information (object): information to write to file
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
 
     raises:
 
@@ -473,10 +521,9 @@ def write_product_gene(gene=None, dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_permutation = os.path.join(dock, "permutation")
-    utility.create_directory(path_permutation)
-    path_gene = os.path.join(path_permutation, gene)
+    path_gene = os.path.join(paths["genes"], gene)
     utility.create_directory(path_gene)
+
     path_permutations = os.path.join(
         path_gene, "permutations.pickle"
     )
@@ -496,6 +543,7 @@ def execute_procedure(
     gene=None,
     data_gene_persons_tissues_signals=None,
     shuffles=None,
+    paths=None,
     dock=None
 ):
     """
@@ -506,6 +554,8 @@ def execute_procedure(
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
         shuffles (list<list<list<int>>>): matrices of shuffle indices
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -536,8 +586,8 @@ def execute_procedure(
     #Write product information to file.
     write_product_gene(
         gene=gene,
-        dock=dock,
-        information=information
+        information=information,
+        paths=paths,
     )
 
     pass
@@ -566,9 +616,8 @@ def execute_procedure_local(dock=None):
     print(start)
     utility.print_terminal_partition(level=3)
 
-    # Remove previous files to avoid version or batch confusion.
-    path_permutation = os.path.join(dock, "permutation")
-    utility.remove_directory(path=path_permutation)
+    # Initialize directories.
+    paths = initialize_directories(dock=dock)
 
     # Read source information from file.
     # It is an option to read directory names from "distribution"; however,
@@ -605,6 +654,7 @@ def execute_procedure_local(dock=None):
     execute_procedure_gene = functools.partial(
         execute_procedure_local_sub,
         shuffles=source_shuffles,
+        paths=paths,
         dock=dock,
     )
 
@@ -633,6 +683,7 @@ def execute_procedure_local(dock=None):
 def execute_procedure_local_sub(
     gene=None,
     shuffles=None,
+    paths=None,
     dock=None
 ):
     """
@@ -641,6 +692,8 @@ def execute_procedure_local_sub(
     arguments:
         gene (str): identifier of single gene for which to execute the process
         shuffles (list<list<list<int>>>): matrices of shuffle indices
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -663,12 +716,12 @@ def execute_procedure_local_sub(
             source["data_gene_persons_tissues_signals"]
         ),
         shuffles=shuffles,
+        paths=paths,
         dock=dock
     )
 
     # Report progress.
-    path_permutation = os.path.join(dock, "permutation")
-    directories = os.listdir(path_permutation)
+    directories = os.listdir(paths["genes"])
     count = len(directories)
     if (count % 10 == 0):
         print("complete genes: " + str(len(directories)))

@@ -2809,8 +2809,8 @@ def execute_procedure(
     # Write product information to file.
     write_product_gene(
         gene=gene,
+        information=information,
         paths=paths,
-        information=information
     )
 
     pass
