@@ -479,6 +479,7 @@ def regress_cases(
     cases=None,
     variables=None,
     data_variables=None,
+    data_gene_annotation=None,
 ):
     """
     Drives iterative regression across cases.
@@ -489,6 +490,7 @@ def regress_cases(
         variables (list<str>): names of independent variables for regression
         data_variables (object): Pandas data frame of dependent and independent
             variables
+        data_gene_annotation (object): Pandas data frame of genes' annotations
 
     raises:
 
@@ -510,6 +512,10 @@ def regress_cases(
             data=data_variables,
         )
         report["case"] = case
+        report["name"] = assembly.access_gene_name(
+            identifier=case,
+            data_gene_annotation=data_gene_annotation,
+        )
         records.append(report)
         pass
     # Organize data.
@@ -523,6 +529,7 @@ def regress_cases(
         inplace=True
     )
     columns = list()
+    columns.append("name")
     columns.append("observations")
     columns.append("freedom")
     columns.append("r_square")
@@ -1601,6 +1608,7 @@ def execute_procedure(
             cases=genes_iteration,
             variables=variables["independence"],
             data_variables=data_variables,
+            data_gene_annotation=source["data_gene_annotation"],
         )
         utility.print_terminal_partition(level=2)
         print("data_regression_genes")
@@ -1652,6 +1660,7 @@ def execute_procedure(
             cases=genes_iteration,
             variables=variables["independence"],
             data_variables=data_variables,
+            data_gene_annotation=source["data_gene_annotation"],
         )
         utility.print_terminal_partition(level=2)
         print("data_regression_genes")
@@ -1664,7 +1673,6 @@ def execute_procedure(
             data_regression_models=data_regression_genes,
         )
 
-    if False:
 
         # Review.
         # 4 February 2020

@@ -1500,7 +1500,7 @@ def standardize_scale_variables(
             lambda series: scipy.stats.zscore(
                 series.to_numpy(),
                 axis=0,
-                ddof=1,
+                ddof=1, # Sample standard deviation.
                 nan_policy="omit",
             ),
         )
@@ -2025,8 +2025,8 @@ def define_regression_variables():
         #"tissues_9", # <- omit
         #"tissues_10", # <- omit
 
-        "facilities_1",
-        "facilities_2",
+        #"facilities_1", # <- omit due to multicollinearity
+        #"facilities_2", # <- omit due to multicollinearity
         #"facilities_3", # <- omit
 
         #"batches_isolation_1",

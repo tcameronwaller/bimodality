@@ -89,7 +89,7 @@ echo "Now set to call routine and procedures."
 ##########
 # Analysis Routine
 
-#bash heritability_genes.sh # run on 21 February 2020
+#bash heritability_genes.sh # run on 4 March 2020
 #python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...

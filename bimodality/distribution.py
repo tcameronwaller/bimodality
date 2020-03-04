@@ -1126,7 +1126,7 @@ def calculate_standard_score_gene_signal_by_tissue(
         lambda series: scipy.stats.zscore(
             series.to_numpy(),
             axis=0,
-            ddof=1,
+            ddof=1, # Sample standard deviation.
             nan_policy="omit",
         ),
         axis="index",
