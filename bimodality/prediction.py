@@ -34,7 +34,8 @@ import numpy
 import pandas
 import scipy.stats
 #from sklearn.linear_model import LinearRegression
-import statsmodels
+import statsmodels.api
+import statsmodels.stats.outliers_influence
 
 # Custom
 
@@ -156,6 +157,78 @@ def define_focus_genes():
     return information
 
 
+def calculate_report_independent_variable_correlations(
+    pairs=None,
+    data_persons_properties=None,
+    method=None,
+):
+    """
+    Reports the correlation coefficients between pairs of independent
+    variables.
+
+    arguments:
+        pairs (list<tuple<str>>): pairs of names of independent variables
+        data_persons_properties (object): Pandas data frame of persons and
+            their relevant properties
+        method (str): method for correlation, pearson, spearman, or kendall
+
+    raises:
+
+    returns:
+
+    """
+
+    utility.print_terminal_partition(level=2)
+
+    # Organize data.
+    data = data_persons_properties.copy(deep=True)
+
+    # Iterate on pairs of independent variables.
+    for pair in pairs:
+        # Select data for pair of features.
+        data_pair = data.loc[:, list(pair)]
+        # Remove observations with missing values for either feature.
+        data_pair.dropna(
+            axis="index",
+            how="any",
+            inplace=True,
+        )
+        #print(data_pair)
+        # Determine observations for which pair of features has matching
+        # values.
+        count = data_pair.shape[0]
+        # Calculate correlation.
+        if count > 1:
+            if method == "pearson":
+                correlation, probability = scipy.stats.pearsonr(
+                    data_pair[pair[0]].to_numpy(),
+                    data_pair[pair[1]].to_numpy(),
+                )
+            elif method == "spearman":
+                correlation, probability = scipy.stats.spearmanr(
+                    data_pair[pair[0]].to_numpy(),
+                    data_pair[pair[1]].to_numpy(),
+                )
+            elif method == "kendall":
+                correlation, probability = scipy.stats.kendalltau(
+                    data_pair[pair[0]].to_numpy(),
+                    data_pair[pair[1]].to_numpy(),
+                )
+            pass
+        else:
+            correlation = float("nan")
+            probability = float("nan")
+            pass
+        # Report correlation.
+        utility.print_terminal_partition(level=3)
+        print(pair[0] + " ... versus ... " + pair[1])
+        print("correlation: " + str(round(correlation, 6)))
+        print("probability: " + str(probability))
+
+    utility.print_terminal_partition(level=2)
+    pass
+
+
 def organize_dependent_independent_variables(
     variables=None,
     data_persons_properties=None,
@@ -200,6 +273,10 @@ def organize_dependent_independent_variables(
     # Return information.
     return data_variables
 
+
+
+
+# TODO: calculate Variance Inflation Factor (VIF) for each independent variable
 
 def regress_signal_ordinary_residuals(
     dependence=None,
@@ -328,13 +405,27 @@ def regress_signal_ordinary_residuals(
         counter = 1
         parameters = dict()
         probabilities = dict()
+        inflations = dict()
         parameters["intercept_parameter"] = report.params[0]
         probabilities["intercept_probability"] = report.pvalues[0]
+        inflations["intercept_inflation"] = float("nan")
+        # Iterate on each independent variable.
         for variable in independence:
+            # Coefficient or parameter.
             parameter = str(variable + ("_parameter"))
             parameters[parameter] = report.params[counter]
+            # Probability.
             probability = str(variable + ("_probability"))
             probabilities[probability] = report.pvalues[counter]
+            # Variance Inflation Factor (VIF).
+            inflation = str(variable + ("_inflation"))
+            inflations[inflation] = (
+                statsmodels.stats.outliers_influence.variance_inflation_factor(
+                    values_independence_intercept,
+                    counter
+                )
+            )
+            # Increment index.
             counter += 1
             pass
         information = {
@@ -345,9 +436,11 @@ def regress_signal_ordinary_residuals(
             "log_likelihood": report.llf,
             "akaike": report.aic,
             "bayes": report.bic,
+            "condition": report.condition_number,
         }
         information.update(parameters)
         information.update(probabilities)
+        information.update(inflations)
     else:
         # Compile information.
         #probabilities = list(
@@ -362,6 +455,8 @@ def regress_signal_ordinary_residuals(
             parameters[parameter] = float("nan")
             probability = str(variable + ("_probability"))
             probabilities[probability] = float("nan")
+            inflation = str(variable + ("_inflation"))
+            inflations[inflation] = float("nan")
             pass
         information = {
             "freedom": float("nan"),
@@ -371,9 +466,11 @@ def regress_signal_ordinary_residuals(
             "log_likelihood": float("nan"),
             "akaike": float("nan"),
             "bayes": float("nan"),
+            "condition": float("nan"),
         }
         information.update(parameters)
         information.update(probabilities)
+        information.update(inflations)
     # Return information.
     return information
 
@@ -433,15 +530,73 @@ def regress_cases(
     columns.append("log_likelihood")
     columns.append("akaike")
     columns.append("bayes")
+    columns.append("condition")
     columns.append("intercept_parameter")
     columns.append("intercept_probability")
     for variable in variables:
         columns.append(str(variable + ("_parameter")))
         columns.append(str(variable + ("_probability")))
+        columns.append(str(variable + ("_inflation")))
         pass
     data_regression = data_regression[[*columns]]
     # Return information.
     return data_regression
+
+
+def report_regression_models_quality(
+    variables=None,
+    data_regression_models=None,
+):
+    """
+    Drives iterative regression across cases.
+
+    arguments:
+        cases (list<str>): names of independent cases for which to regress
+            variables
+        variables (list<str>): names of independent variables for regression
+        data_regression_models (object): Pandas data frame of parameters and
+            statistics from regressions across cases
+
+    raises:
+
+    returns:
+
+    """
+
+    # Copy data.
+    data = data_regression_models.copy(deep=True)
+
+    # Define columns of interest.
+    columns = list()
+    columns.append("observations")
+    columns.append("freedom")
+    columns.append("r_square")
+    columns.append("r_square_adjust")
+    columns.append("log_likelihood")
+    columns.append("akaike")
+    columns.append("bayes")
+    columns.append("condition")
+    #columns.append("intercept_inflation")
+    for variable in variables:
+        columns.append(str(variable + ("_inflation")))
+        pass
+    # Select and sort columns of interest.
+    data = data.loc[
+        :, data.columns.isin(columns)
+    ]
+    data = data[[*columns]]
+    # Aggregate data by mean.
+    series = data.aggregate(
+        lambda x: x.mean()
+    )
+    # Report information.
+    utility.print_terminal_partition(level=2)
+    print("Mean statistics for regression models.")
+    print(series)
+    utility.print_terminal_partition(level=2)
+    pass
+
+
 
 
 def calculate_regression_discoveries(
@@ -1408,6 +1563,23 @@ def execute_procedure(
         str(len(variables["hypothesis"]))
     )
 
+    # Calculate correlation coefficients between pairs of independent
+    # variables.
+    pairs = list()
+    pairs.append(("hardiness_scale", "age_scale"))
+    pairs.append(("hardiness_scale", "body_scale"))
+    pairs.append(("hardiness_scale", "season_scale"))
+    pairs.append(("hardiness_scale", "delay_scale"))
+    pairs.append(("tissues_1", "facilities_1"))
+    pairs.append(("tissues_1", "facilities_2"))
+    pairs.append(("delay_scale", "facilities_1"))
+    pairs.append(("delay_scale", "facilities_2"))
+    calculate_report_independent_variable_correlations(
+        pairs=pairs,
+        data_persons_properties=source["data_persons_properties"],
+        method="spearman",
+    )
+
     # Organize dependent and independent variables for regression analysis.
     data_variables = organize_dependent_independent_variables(
         variables=variables["independence"],
@@ -1415,7 +1587,10 @@ def execute_procedure(
         data_signals_genes_persons=source["data_signals_genes_persons"],
     )
 
-    if True:
+    # Calculate the variance inflation factors (VIFs) for hardiness and delay
+    # independent variables.
+
+    if False:
         # Regress only on a few focus genes.
         genes_focus = define_focus_genes()
 
@@ -1466,13 +1641,13 @@ def execute_procedure(
             index=True,
         )
 
-    if False:
+    if True:
         # Regress each gene's signal across persons.
         # Iterate on genes.
         #genes_iteration = random.sample(source["genes_selection"], 1000)
-        genes_iteration = source["genes_selection"]#[0:1000]
-        #genes_iteration = source["genes_unimodal"]#[0:1000]
-        #genes_iteration = source["genes_multimodal"]#[0:1000]
+        #genes_iteration = source["genes_selection"]#[0:1000]
+        #genes_iteration = source["genes_unimodal"]
+        genes_iteration = source["genes_multimodal"]
         data_regression_genes = regress_cases(
             cases=genes_iteration,
             variables=variables["independence"],
@@ -1481,6 +1656,15 @@ def execute_procedure(
         utility.print_terminal_partition(level=2)
         print("data_regression_genes")
         print(data_regression_genes)
+
+        # Summarize regression quality.
+        # Report means of statistics across independent models.
+        report_regression_models_quality(
+            variables=variables["independence"],
+            data_regression_models=data_regression_genes,
+        )
+
+    if False:
 
         # Review.
         # 4 February 2020

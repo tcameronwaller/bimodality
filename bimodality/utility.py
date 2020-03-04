@@ -1308,18 +1308,18 @@ def calculate_pairwise_correlations(
         if count > 1:
             if method == "pearson":
                 correlation, probability = scipy.stats.pearsonr(
-                    data_pair[pair[0]].values,
-                    data_pair[pair[1]].values,
+                    data_pair[pair[0]].to_numpy(),
+                    data_pair[pair[1]].to_numpy(),
                 )
             elif method == "spearman":
                 correlation, probability = scipy.stats.spearmanr(
-                    data_pair[pair[0]].values,
-                    data_pair[pair[1]].values,
+                    data_pair[pair[0]].to_numpy(),
+                    data_pair[pair[1]].to_numpy(),
                 )
             elif method == "kendall":
                 correlation, probability = scipy.stats.kendalltau(
-                    data_pair[pair[0]].values,
-                    data_pair[pair[1]].values,
+                    data_pair[pair[0]].to_numpy(),
+                    data_pair[pair[1]].to_numpy(),
                 )
             pass
         else:

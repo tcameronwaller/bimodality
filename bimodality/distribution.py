@@ -1123,8 +1123,11 @@ def calculate_standard_score_gene_signal_by_tissue(
     # Calculate standard score.
     # This method inserts missing values if the standard deviation is zero.
     data_gene_standard = data_gene_persons_tissues_signals.apply(
-        lambda x: (
-            ((x - x.mean()) / x.std())
+        lambda series: scipy.stats.zscore(
+            series.to_numpy(),
+            axis=0,
+            ddof=1,
+            nan_policy="omit",
         ),
         axis="index",
     )

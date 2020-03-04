@@ -22,6 +22,7 @@ import copy
 
 import numpy
 import pandas
+import scipy
 
 # Custom
 
@@ -1464,13 +1465,61 @@ def insert_components(
     return data_combination
 
 
+def standardize_scale_variables(
+    variables=None,
+    data_persons_properties=None,
+):
+    """
+    Standardizes variables' values to z-score scale.
+
+    arguments:
+        variables (list<str>): names of independent variables for regression
+        data_persons_properties_raw (object): Pandas data frame of persons'
+            properties
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of information about persons
+
+    """
+
+    # Copy data.
+    data = data_persons_properties.copy(deep=True)
+
+    # Iterate on variables.
+    for variable in variables:
+
+        # Standardize variable's values.
+        if variable == "season_sequence":
+            variable_scale = "season_scale"
+        else:
+            variable_scale = str(variable + ("_scale"))
+        data[variable] = data[variable].astype(numpy.float32)
+        data[variable_scale] = data[variable].pipe(
+            lambda series: scipy.stats.zscore(
+                series.to_numpy(),
+                axis=0,
+                ddof=1,
+                nan_policy="omit",
+            ),
+        )
+        pass
+
+    # Return information.
+    return data
+
+
 def organize_persons_properties(
+    variables=None,
     data_persons_properties_raw=None,
 ):
     """
     Organizes information about persons.
 
     arguments:
+        variables (dict<list<str>>): names of independent variables for
+            regression
         data_persons_properties_raw (object): Pandas data frame of persons'
             properties
 
@@ -1559,9 +1608,15 @@ def organize_persons_properties(
         axis="columns",
     )
 
+    # Standardize the scales of specific variables for regression.
+    data_persons_properties_scale = standardize_scale_variables(
+        variables=variables["standardization"],
+        data_persons_properties=data_persons_properties,
+    )
+
     # Compile information.
     information = dict()
-    information["data_persons_properties"] = data_persons_properties
+    information["data_persons_properties"] = data_persons_properties_scale
     information["data_tissues_variance"] = data_tissues_variance
     information["data_facilities_variance"] = data_facilities_variance
     information["data_batches_isolation_variance"] = (
@@ -1924,13 +1979,23 @@ def define_regression_variables():
 
     """
 
-    # Variables that relate to hypotheses of interest.
-    hypothesis = [
-        "female",
+    # Variables of raw values that might require standardization to adjust
+    # scale.
+    standardization = [
         "age",
         "body",
         "hardiness",
         "season_sequence",
+        "delay",
+    ]
+
+    # Variables that relate to hypotheses of interest.
+    hypothesis = [
+        "female",
+        "age_scale",
+        "body_scale",
+        "hardiness_scale",
+        "season_scale",
     ]
     # Variables that relate to genotype.
     genotype = [
@@ -1939,15 +2004,15 @@ def define_regression_variables():
         "genotype_3",
         "genotype_4",
         "genotype_5",
-        #"genotype_6",
-        #"genotype_7",
-        #"genotype_8",
-        #"genotype_9",
-        #"genotype_10",
+        #"genotype_6", # <- omit
+        #"genotype_7", # <- omit
+        #"genotype_8", # <- omit
+        #"genotype_9", # <- omit
+        #"genotype_10", # <- omit
     ]
     # Variables that relate to technical methods.
     technique = [
-        "delay",
+        "delay_scale",
 
         "tissues_1",
         "tissues_2",
@@ -1987,6 +2052,7 @@ def define_regression_variables():
         #"batches_sequence_10", # <- omit
     ]
 
+    # Compile variables.
     independence = list()
     independence.extend(hypothesis)
     independence.extend(genotype)
@@ -2000,6 +2066,7 @@ def define_regression_variables():
 
     # Compile information.
     information = dict()
+    information["standardization"] = standardization
     information["hypothesis"] = hypothesis
     information["genotype"] = genotype
     information["technique"] = technique
@@ -2133,9 +2200,13 @@ def extract_organize_persons_properties(
     print("data_persons_properties_raw")
     print(data_persons_properties_raw)
 
+    # Define sets of variables for regression analysis.
+    variables = define_regression_variables()
+
     # Expand covariates.
     # Prepare covariates for regression.
     bin = organize_persons_properties(
+        variables=variables,
         data_persons_properties_raw=data_persons_properties_raw,
     )
     utility.print_terminal_partition(level=2)
@@ -2157,7 +2228,6 @@ def extract_organize_persons_properties(
     )
 
     # Organize information for heritability analysis.
-    variables = define_regression_variables()
     simple = organize_heritability_variables(
         variables=variables["heritability_simple"],
         data_persons_properties=bin["data_persons_properties"],
