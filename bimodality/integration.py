@@ -31,8 +31,9 @@ import scipy.stats
 
 # Custom
 
+import assembly
 import distribution
-import plot
+#import plot
 import utility
 
 #dir()
@@ -58,20 +59,16 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
+    # Read information from file.
+
+    # Selection.
     path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
         path_selection, "data_gene_annotation_gencode.pickle"
     )
-    path_genes_selection = os.path.join(
-        path_selection, "genes_selection.pickle"
-    )
-    path_samples_properties = os.path.join(
-        path_selection, "data_samples_tissues_persons.pickle"
-    )
-    path_persons_properties = os.path.join(
-        path_selection, "data_persons_properties.pickle"
-    )
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
 
+    # Distribution.
     path_distribution = os.path.join(dock, "distribution")
     path_collection = os.path.join(path_distribution, "collection")
     path_distribution_report = os.path.join(
@@ -80,51 +77,6 @@ def read_source(dock=None):
     path_data_signals_genes_persons = os.path.join(
         path_collection, "data_signals_genes_persons.pickle"
     )
-
-    path_candidacy = os.path.join(dock, "candidacy")
-    path_genes_unimodal = os.path.join(
-        path_candidacy, "genes_unimodal.pickle"
-    )
-    path_genes_multimodal = os.path.join(
-        path_candidacy, "genes_multimodal.pickle"
-    )
-
-    path_heritability = os.path.join(dock, "heritability")
-    path_collection = os.path.join(path_heritability, "collection")
-    path_data_genes_heritabilities_simple = os.path.join(
-        path_collection, "data_genes_heritabilities_simple.pickle"
-    )
-    path_data_genes_heritabilities_complex = os.path.join(
-        path_collection, "data_genes_heritabilities_complex.pickle"
-    )
-
-
-    if False:
-
-        path_probability = os.path.join(dock, "probability")
-        path_genes_scores = os.path.join(
-            path_probability, "genes_scores.pickle"
-        )
-        path_genes_probabilities = os.path.join(
-            path_probability, "genes_probabilities.pickle"
-        )
-        path_genes_probability = os.path.join(
-            path_probability, "genes_probability.pickle"
-        )
-
-        path_heritability = os.path.join(dock, "heritability")
-        path_collection = os.path.join(path_heritability, "collection")
-        path_genes_heritability = os.path.join(
-            path_collection, "genes_heritability.pickle"
-        )
-
-    # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_samples_properties = pandas.read_pickle(path_samples_properties)
-    data_persons_properties = pandas.read_pickle(path_persons_properties)
-    with open(path_genes_selection, "rb") as file_source:
-        genes_selection = pickle.load(file_source)
-
     data_signals_genes_persons = pandas.read_pickle(
         path_data_signals_genes_persons
     )
@@ -132,49 +84,71 @@ def read_source(dock=None):
         path_distribution_report
     )
 
-    with open(path_genes_unimodal, "rb") as file_source:
-        genes_unimodal = pickle.load(file_source)
-    with open(path_genes_multimodal, "rb") as file_source:
-        genes_multimodal = pickle.load(file_source)
+    # Probability.
+    path_probability = os.path.join(dock, "probability")
+    path_data_genes_permutation_probabilities = os.path.join(
+        path_probability, "data_genes_discoveries.pickle"
+    )
+    data_genes_permutation_probabilities = pandas.read_pickle(
+        path_data_genes_permutation_probabilities
+    )
 
-    data_genes_heritabilities_simple = pandas.read_pickle(
-        path_data_genes_heritabilities_simple
+    # Heritability.
+    path_heritability = os.path.join(dock, "heritability")
+    path_collection = os.path.join(path_heritability, "collection")
+    path_data_genes_heritabilities_complex = os.path.join(
+        path_collection, "data_genes_heritabilities_complex.pickle"
     )
     data_genes_heritabilities_complex = pandas.read_pickle(
         path_data_genes_heritabilities_complex
     )
 
+    # Candidacy.
+    path_candidacy = os.path.join(dock, "candidacy")
+    path_genes_unimodal = os.path.join(
+        path_candidacy, "genes_unimodal.pickle"
+    )
+    path_genes_multimodal = os.path.join(
+        path_candidacy, "genes_multimodal.pickle"
+    )
+    with open(path_genes_unimodal, "rb") as file_source:
+        genes_unimodal = pickle.load(file_source)
+    with open(path_genes_multimodal, "rb") as file_source:
+        genes_multimodal = pickle.load(file_source)
 
-    if False:
-        with open(path_genes_scores, "rb") as file_source:
-            genes_scores = pickle.load(file_source)
-        with open(path_genes_probabilities, "rb") as file_source:
-            genes_probabilities = pickle.load(file_source)
-        with open(path_genes_probability, "rb") as file_source:
-            genes_probability = pickle.load(file_source)
+    # Prediction.
+    path_prediction = os.path.join(dock, "prediction")
+    path_data_regression_genes = os.path.join(
+        path_prediction, "data_regression_genes.pickle"
+    )
+    path_sets_genes_prediction = os.path.join(
+        path_prediction, "sets.pickle"
+    )
+    data_regression_genes = pandas.read_pickle(
+        path_data_regression_genes
+    )
+    with open(path_sets_genes_prediction, "rb") as file_source:
+        sets_genes_prediction = pickle.load(file_source)
 
-        with open(path_genes_heritability, "rb") as file_source:
-            genes_heritability = pickle.load(file_source)
 
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
-        "data_samples_properties": data_samples_properties,
-        "data_persons_properties": data_persons_properties,
-        "genes_selection": genes_selection,
 
         "data_signals_genes_persons": data_signals_genes_persons,
         "data_gene_distribution_report": data_gene_distribution_report,
+
+        "data_genes_permutation_probabilities": (
+            data_genes_permutation_probabilities
+        ),
+
+        "data_genes_heritabilities_complex": data_genes_heritabilities_complex,
+
         "genes_unimodal": genes_unimodal,
         "genes_multimodal": genes_multimodal,
 
-        #"genes_scores": genes_scores,
-        #"genes_probabilities": genes_probabilities,
-        #"genes_probability": genes_probability,
-
-        "data_genes_heritabilities_simple": data_genes_heritabilities_simple,
-        "data_genes_heritabilities_complex": data_genes_heritabilities_complex,
-        #"genes_heritability": genes_heritability,
+        "data_regression_genes": data_regression_genes,
+        "sets_genes_prediction": sets_genes_prediction,
     }
 
 
@@ -254,6 +228,80 @@ def calculate_organize_gene_correlations(
     return data_cluster
 
 
+def organize_gene_correlations_multimodal_prediction(
+    sets=None,
+    data_signals_genes_persons=None,
+):
+    """
+    Calculates Pearson correlation coefficients between pairs of genes.
+
+    arguments:
+        sets (dict<dict<list<str>>>): sets of genes that associate
+            significantly to variables in regression
+        data_signals_genes_persons (object): Pandas data frame of genes'
+            pan-tissue signals across persons
+
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' pairwise correlations
+
+    """
+
+    # Calculate correlations between genes that associate with hypothetical
+    # variables in regression.
+    # Hardiness.
+    data_hardiness = calculate_organize_gene_correlations(
+        method="spearman", # pearson (normal distribution), spearman
+        threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
+        threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
+        count=2, # accommodate the value 1.0 for self pairs (A, A)
+        genes=sets["multimodal"]["hardiness_scale"],
+        data_signals_genes_persons=data_signals_genes_persons,
+    )
+    # Sex, age, body.
+    genes_sex_age_body = list()
+    genes_sex_age_body.extend(sets["multimodal"]["female"])
+    genes_sex_age_body.extend(sets["multimodal"]["age_scale"])
+    genes_sex_age_body.extend(sets["multimodal"]["body_scale"])
+    genes_sex_age_body_unique = utility.collect_unique_elements(
+        elements_original=genes_sex_age_body
+    )
+    data_sex_age_body = calculate_organize_gene_correlations(
+        method="spearman", # pearson (normal distribution), spearman
+        threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
+        threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
+        count=2, # accommodate the value 1.0 for self pairs (A, A)
+        genes=genes_sex_age_body_unique,
+        data_signals_genes_persons=data_signals_genes_persons,
+    )
+    # Sex, age, body.
+    genes_union = list()
+    genes_union.extend(sets["multimodal"]["female"])
+    genes_union.extend(sets["multimodal"]["age_scale"])
+    genes_union.extend(sets["multimodal"]["body_scale"])
+    genes_union.extend(sets["multimodal"]["hardiness_scale"])
+    genes_union_unique = utility.collect_unique_elements(
+        elements_original=genes_union
+    )
+    data_union = calculate_organize_gene_correlations(
+        method="spearman", # pearson (normal distribution), spearman
+        threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
+        threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
+        count=2, # accommodate the value 1.0 for self pairs (A, A)
+        genes=genes_union_unique,
+        data_signals_genes_persons=data_signals_genes_persons,
+    )
+    # Compile information.
+    collection = dict()
+    collection["hardiness"] = data_hardiness
+    collection["sex_age_body"] = data_sex_age_body
+    collection["union"] = data_union
+
+    # Return information.
+    return collection
+
 
 # Summary
 
@@ -261,12 +309,10 @@ def calculate_organize_gene_correlations(
 def organize_genes_integration(
     genes=None,
     data_gene_annotation=None,
-    data_samples_tissues_persons=None,
     data_gene_distribution_report=None,
-    genes_scores=None,
-    genes_probabilities=None,
-    genes_heritabilities_simple=None,
-    genes_heritabilities_complex=None,
+    data_genes_permutation_probabilities=None,
+    data_genes_heritabilities=None,
+    data_regression_genes=None,
 ):
     """
     Organizes information about genes.
@@ -279,17 +325,14 @@ def organize_genes_integration(
     arguments:
         genes (list<str>): identifiers of genes
         data_gene_annotation (object): Pandas data frame of genes' annotations
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples
         data_gene_distribution_report (object): Pandas data frame of
             information about genes' distributions
-        genes_scores (dict<dict<float>>): information about genes' scores
-        genes_probabilities (dict<dict<float>>): information about genes'
-            probabilities
-        genes_heritabilities_simple (dict<dict<float>>): information about
-            genes' heritabilities from a model without covariates
-        genes_heritabilities_complex (dict<dict<float>>): information about
-            genes' heritabilities from a model with covariates
+        data_genes_permutation_probabilities (object): Pandas data frame of
+            genes' probabilities from permutations
+        data_genes_heritabilities (object): Pandas data frame of genes'
+            heritabilities
+        data_regression_genes (object): Pandas data frame of parameters and
+            statistics from regressions across genes
 
     raises:
 
@@ -299,82 +342,70 @@ def organize_genes_integration(
     """
 
     # Organize data.
-    data_gene_distribution_report.set_index(
-        ["identifier"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
 
     # Collect information about genes.
     records = list()
     # Iterate on genes.
     for gene in genes:
-        # Access information about gene.
-
-        name = assembly.access_gene_name(
+        # Create record for gene.
+        record = dict()
+        # Access basic information about gene.
+        record["identifier"] = gene
+        record["name"] = assembly.access_gene_name(
             identifier=gene,
             data_gene_annotation=data_gene_annotation,
         )
-        chromosome = data_gene_annotation.loc[gene, "seqname"]
-        start = data_gene_annotation.loc[gene, "start"]
-        end = data_gene_annotation.loc[gene, "end"]
-        persons = (
-            data_gene_distribution_report.loc[gene, "persons_aggregation"]
+        record["chromosome"] = data_gene_annotation.loc[gene, "seqname"]
+        record["start"] = data_gene_annotation.loc[gene, "start"]
+        record["end"] = data_gene_annotation.loc[gene, "end"]
+        # Permutation.
+        record["permutation_coefficient"] = (
+            data_genes_permutation_probabilities.loc[
+                gene, "discovery_coefficient"
+            ]
         )
-        tissues = data_gene_distribution_report.loc[gene, "tissues"]
-        method = data_gene_distribution_report.loc[gene, "method"]
-        count = data_gene_distribution_report.loc[gene, "count"]
-        tissues_mean = data_gene_distribution_report.loc[gene, "tissues_mean"]
-        tissues_median = (
-            data_gene_distribution_report.loc[gene, "tissues_median"]
+        record["permutation_mixture"] = (
+            data_genes_permutation_probabilities.loc[
+                gene, "discovery_mixture"
+            ]
+        )
+        record["permutation_dip"] = data_genes_permutation_probabilities.loc[
+            gene, "discovery_dip"
+        ]
+        # Heritability.
+        record["heritability_phenotype"] = (
+            data_genes_heritabilities.loc[gene, "phenotype"]
+        )
+        record["heritability_genotype"] = (
+            data_genes_heritabilities.loc[gene, "genotype"]
+        )
+        record["heritability_proportion"] = (
+            data_genes_heritabilities.loc[gene, "proportion"]
+        )
+        record["heritability_discovery"] = (
+            data_genes_heritabilities.loc[gene, "discovery"]
+        )
+        # Prediction.
+        record["prediction_r_square"] = (
+            data_regression_genes.loc[gene, "r_square"]
+        )
+        record["prediction_sex_discovery"] = (
+            data_regression_genes.loc[gene, "female_discovery"]
+        )
+        record["prediction_age_discovery"] = (
+            data_regression_genes.loc[gene, "age_scale_discovery"]
+        )
+        record["prediction_body_discovery"] = (
+            data_regression_genes.loc[gene, "body_scale_discovery"]
+        )
+        record["prediction_hardiness_discovery"] = (
+            data_regression_genes.loc[gene, "hardiness_scale_discovery"]
         )
 
-        scores = genes_scores[gene]
-        score_dip = scores["dip"]
-        score_mixture = scores["mixture"]
-        score_coefficient = scores["coefficient"]
-        score_combination = scores["combination"]
 
-        probabilities = genes_probabilities[gene]
-        probability_dip = probabilities["dip"]
-        probability_mixture = probabilities["mixture"]
-        probability_coefficient = probabilities["coefficient"]
-        probability_combination = probabilities["combination"]
-
-        heritabilities = genes_heritabilities_complex[gene]
-        heritability_proportion = heritabilities["proportion"]
-        heritability_probability = heritabilities["probability"]
-
-        # Create record for gene.
-        record = dict()
         # Compile information.
-
-        record["identifier"] = gene
-        record["name"] = name
-        record["chromosome"] = chromosome
-        record["start"] = start
-        record["end"] = end
-        record["persons"] = persons
-        record["tissues"] = tissues
-        record["method"] = method
-        record["count"] = count
-        record["tissues_mean"] = tissues_mean
-        record["tissues_median"] = tissues_median
-
-        record["dip"] = score_dip
-        record["dip_probability"] = probability_dip
-        record["mixture"] = score_mixture
-        record["mixture_probability"] = probability_mixture
-        record["coefficient"] = score_coefficient
-        record["coefficient_probability"] = probability_coefficient
-        record["combination"] = score_combination
-        record["combination_probability"] = probability_combination
-
-        record["heritability_proportion"] = heritability_proportion
-        record["heritability_probability"] = heritability_probability
-
         records.append(record)
+        pass
 
     # Organize data.
     data = utility.convert_records_to_dataframe(
@@ -386,41 +417,19 @@ def organize_genes_integration(
         "chromosome",
         "start",
         "end",
-        "persons",
-        "tissues",
-        "method",
-        "count",
-        "tissues_mean",
-        "tissues_median",
-        "dip",
-        "dip_probability",
-        "mixture",
-        "mixture_probability",
-        "coefficient",
-        "coefficient_probability",
-        "combination",
-        "combination_probability",
+        "permutation_coefficient",
+        "permutation_mixture",
+        "permutation_dip",
+        "heritability_phenotype",
+        "heritability_genotype",
         "heritability_proportion",
-        "heritability_probability",
+        "heritability_discovery",
+        "prediction_r_square",
+        "prediction_sex_discovery",
+        "prediction_age_discovery",
+        "prediction_body_discovery",
+        "prediction_hardiness_discovery"
     ]]
-    data["dip"] = data["dip"].astype("float32")
-    data["dip_probability"] = data["dip_probability"].astype("float32")
-    data["mixture"] = data["mixture"].astype("float32")
-    data["mixture_probability"] = data["mixture_probability"].astype("float32")
-    data["coefficient"] = data["coefficient"].astype("float32")
-    data["coefficient_probability"] = (
-        data["coefficient_probability"].astype("float32")
-    )
-    data["combination"] = data["combination"].astype("float32")
-    data["combination_probability"] = (
-        data["combination_probability"].astype("float32")
-    )
-    data["heritability_proportion"] = (
-        data["heritability_proportion"].astype("float32")
-    )
-    data["heritability_probability"] = (
-        data["heritability_probability"].astype("float32")
-    )
 
     data.set_index(
         "identifier",
@@ -439,14 +448,12 @@ def organize_genes_integration(
         copy=False,
         inplace=True
     )
-    data.sort_values(
-        by=["combination"],
-        axis="index",
-        ascending=False,
-        inplace=True,
-    )
     # Return information.
     return data
+
+
+
+###############scrap???############################
 
 
 # Rank
@@ -566,20 +573,25 @@ def write_product(dock=None, information=None):
     path_data_correlation_multimodal = os.path.join(
         path_integration, "data_correlation_genes_multimodal.pickle"
     )
+    path_data_correlation_multimodal_hardiness = os.path.join(
+        path_integration, "data_correlation_multimodal_hardiness.pickle"
+    )
+    path_data_correlation_multimodal_sex_age_body = os.path.join(
+        path_integration, "data_correlation_multimodal_sex_age_body.pickle"
+    )
+    path_data_correlation_multimodal_union = os.path.join(
+        path_integration, "data_correlation_multimodal_union.pickle"
+    )
+
+    path_data_genes_integration = os.path.join(
+        path_integration, "data_genes_integration.pickle"
+    )
+    path_data_genes_integration_text = os.path.join(
+        path_integration, "data_genes_integration.tsv"
+    )
+
 
     if False:
-        path_genes_integration = os.path.join(
-            path_integration, "genes_integration.pickle"
-        )
-        path_data_genes_integration = os.path.join(
-            path_integration, "data_genes_integration.pickle"
-        )
-        path_data_genes_selection = os.path.join(
-            path_integration, "data_genes_selection.pickle"
-        )
-        path_data_genes_selection_text = os.path.join(
-            path_integration, "data_genes_selection.tsv"
-        )
 
         path_export_genes_selection = os.path.join(
             path_integration, "export_genes_selection.tsv"
@@ -595,26 +607,33 @@ def write_product(dock=None, information=None):
     information["data_correlation_genes_multimodal"].to_pickle(
         path_data_correlation_multimodal
     )
+    information["data_correlation_multimodal_hardiness"].to_pickle(
+        path_data_correlation_multimodal_hardiness
+    )
+    information["data_correlation_multimodal_sex_age_body"].to_pickle(
+        path_data_correlation_multimodal_sex_age_body
+    )
+    information["data_correlation_multimodal_union"].to_pickle(
+        path_data_correlation_multimodal_union
+    )
+
+    information["data_genes_integration"].to_pickle(
+        path_data_genes_integration
+    )
+    information["data_genes_integration"].to_csv(
+        path_or_buf=path_data_genes_integration_text,
+        columns=None,
+        sep="\t",
+        na_rep="",
+        header=True,
+        index=True,
+    )
 
     if False:
         with open(path_genes_integration, "wb") as file_product:
             pickle.dump(
                 information["genes_integration"], file_product
             )
-        information["data_genes_integration"].to_pickle(
-            path_data_genes_integration
-        )
-        information["data_genes_selection"].to_pickle(
-            path_data_genes_selection
-        )
-        information["data_genes_selection"].to_csv(
-            path_or_buf=path_data_genes_selection_text,
-            columns=None,
-            sep="\t",
-            na_rep="",
-            header=True,
-            index=True,
-        )
 
         # Exportation
         information["data_export_genes_selection"].to_csv(
@@ -633,409 +652,6 @@ def write_product(dock=None, information=None):
             header=False,
             index=False,
         )
-
-    pass
-
-
-
-##########################Scrap#########################3
-
-
-###########################
-# TODO: stuff below here needs work...
-
-
-# Thorough summary.
-
-# TODO: I think this is the most useful of the functions below...
-# TODO: ***for each measure separately***, split the gene ranks into low, middle, and high groups
-# TODO: I want to compare the scores and distributions of genes in these groups for each measure as a quality control
-def define_report_genes(
-    data_summary_genes=None,
-    rank=None
-):
-    """
-    Defines genes of interest for thorough summary in reports.
-
-    arguments:
-        data_summary_genes (object): Pandas data frame of genes' identifiers,
-            names, and probability values by measures of modality
-        rank (str): key of data column to use for ranks
-
-    raises:
-
-    returns:
-        (list<str>): identifiers of genes
-
-    """
-
-    # Collect genes.
-    genes = list()
-    # Collect sample genes from different ranges of modality scores.
-    # Select ranges.
-    data_one = data_summary_genes.loc[(data_summary_genes[rank] < 0.01)]
-    data_two = (data_summary_genes.loc[
-        (data_summary_genes[rank] > 0.01) & (data_summary_genes[rank] < 0.05)
-    ])
-    data_three = (data_summary_genes.loc[
-        (data_summary_genes[rank] > 0.05) & (data_summary_genes[rank] < 0.1)
-    ])
-    data_four = data_summary_genes.loc[(data_summary_genes[rank] > 0.1)]
-    # Extract genes' identifiers.
-    genes_one = data_one.index.to_list()
-    genes_two = data_two.index.to_list()
-    genes_three = data_three.index.to_list()
-    genes_four = data_four.index.to_list()
-    # Select sample from each range of genes.
-    gene_one = random.choice(genes_one)
-    gene_two = random.choice(genes_two)
-    gene_three = random.choice(genes_three)
-    gene_four = random.choice(genes_four)
-    genes.append(gene_one)
-    genes.append(gene_two)
-    genes.append(gene_three)
-    genes.append(gene_four)
-    # Include custom genes.
-    # UTY
-    genes.append("ENSG00000183878")
-    # TAPBP
-    genes.append("ENSG00000231925")
-    # XBP1
-    genes.append("ENSG00000100219")
-    # PHGDH
-    genes.append("ENSG00000092621")
-    return genes
-
-
-def report_gene_abundance_distribution_real(
-    data_gene_signals=None,
-):
-    """
-    Reports the real distribution across patients of a gene's aggregate
-    abundance across tissues.
-
-    arguments:
-        data_gene_signals (object): Pandas data frame of a single gene's
-            signals across specific patients and tissues.
-
-    raises:
-
-    returns:
-        (list<float>): values of gene abundances
-
-    """
-
-    # Analyze gene's signals.
-    information = pipe.analyze_gene_signal_distribution(
-        data_gene_signals=data_gene_signals
-    )
-    values = information["values"]
-    return values
-
-
-def report_gene_abundance_distribution_shuffle(
-    data_gene_signals=None,
-    shuffles=None,
-):
-    """
-    Reports the shuffle distribution across patients of a gene's aggregate
-    abundance across tissues.
-
-    arguments:
-        data_gene_signals (object): Pandas data frame of a single gene's
-            signals across specific patients and tissues
-        shuffles (list<list<list<int>>>): Matrices of indices
-
-    raises:
-
-    returns:
-        (list<float>): values of gene abundances
-
-    """
-
-    # Collect shuffle distribution of values.
-    values = pipe.collect_shuffle_distribution_value(
-        data_gene_signals=data_gene_signals,
-        shuffles=shuffles
-    )
-    return values
-
-
-def report_gene_modality_scores_distributions(
-    gene_scores_distributions=None,
-):
-    """
-    Reports the real distribution across patients of a gene's aggregate
-    abundance across tissues.
-
-    arguments:
-        name (str): name of gene
-        gene_scores_distributions (dict<dict>): information about a gene's
-            scores and distributions for modality
-        path (str): path to a directory
-
-
-    raises:
-
-    returns:
-        (dict<dict>): scores and distributions by multiple measures
-
-    """
-
-    # Report modality scores.
-    # Collect scores and distributions.
-    information = dict()
-    for type in ["coefficient", "dip", "mixture", "combination"]:
-        # Access information.
-        score = gene_scores_distributions["scores"][type]
-        values = gene_scores_distributions["distributions"][type]
-        # Compile information.
-        information[type] = dict()
-        information[type]["score"] = score
-        information[type]["distribution"] = values
-    # Return information.
-    return information
-
-
-def prepare_reports_genes(
-    genes=None,
-    data_gene_annotation=None,
-    genes_signals_patients_tissues=None,
-    shuffles=None,
-    genes_scores_distributions=None,
-):
-    """
-    Prepares thorough reports about analyses for a few genes of interest.
-
-    arguments:
-        genes (list<str>): identifiers of genes
-        data_gene_annotation (object): Pandas data frame of genes' annotations
-        genes_signals_patients_tissues (dict<object>): Collection of matrices.
-        shuffles (list<list<list<int>>>): Matrices of indices.
-        genes_scores_distributions (dict<dict<dict>>): information about genes
-
-    raises:
-
-    returns:
-        (dict): information for reports
-
-    """
-
-    # Collect reports.
-    reports = dict()
-    # Iterate on genes.
-    for gene in genes:
-        report = prepare_report_gene(
-            gene=gene,
-            data_gene_annotation=data_gene_annotation,
-            genes_signals_patients_tissues=genes_signals_patients_tissues,
-            shuffles=shuffles,
-            genes_scores_distributions=genes_scores_distributions,
-        )
-        # Collect report.
-        reports[gene] = report
-    return reports
-
-
-def prepare_report_gene(
-    gene=None,
-    data_gene_annotation=None,
-    genes_signals_patients_tissues=None,
-    shuffles=None,
-    genes_scores_distributions=None,
-):
-    """
-    Prepares a thorough report about analyses for a single gene of interest.
-
-    arguments:
-        gene (str): identifier of a single gene
-        data_gene_annotation (object): Pandas data frame of genes' annotations
-        genes_signals_patients_tissues (dict<object>): Collection of matrices.
-        shuffles (list<list<list<int>>>): Matrices of indices.
-        genes_scores_distributions (dict<dict<dict>>): information about genes
-
-    raises:
-
-    returns:
-        (dict): information for report
-
-    """
-
-    # Access information.
-    name = data_gene_annotation.loc[gene, "gene_name"]
-    data_gene_signals = genes_signals_patients_tissues[gene].copy(deep=True)
-    gene_scores_distributions = genes_scores_distributions[gene]
-
-    # Report real distribution across patients of a gene's aggregate
-    # abundance across tissues.
-    abundances_real = report_gene_abundance_distribution_real(
-        data_gene_signals=data_gene_signals,
-    )
-    # Report shuffle distribution across patients of a gene's aggregate
-    # abundance across tissues.
-    abundances_shuffle = report_gene_abundance_distribution_shuffle(
-        data_gene_signals=data_gene_signals,
-        shuffles=shuffles,
-    )
-    # Report distribution across shuffles of a gene's modality score.
-    scores_distributions = report_gene_modality_scores_distributions(
-        gene_scores_distributions=gene_scores_distributions,
-    )
-    # Compile information.
-    information = dict()
-    information["name"] = name
-    information["abundances_real"] = abundances_real
-    information["abundances_shuffle"] = abundances_shuffle
-    information["scores_distributions"] = scores_distributions
-    # Return information.
-    return information
-
-
-def write_product_integration(dock=None, information=None):
-    """
-    Writes product information to file.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
-
-    raises:
-
-    returns:
-
-    """
-
-    # Specify directories and files.
-    path_analysis = os.path.join(dock, "analysis")
-    utility.create_directory(path_analysis)
-    path_probabilities = os.path.join(
-        path_analysis, "data_genes_probabilities.pickle"
-    )
-    path_summary = os.path.join(
-        path_analysis, "data_summary_genes.pickle"
-    )
-    path_summary_text = os.path.join(
-        path_analysis, "data_summary_genes.txt"
-    )
-    path_summary_text_alternative = os.path.join(
-        path_analysis, "data_summary_genes_alternative.txt"
-    )
-    path_data_rank = os.path.join(
-        path_analysis, "data_rank_genes.txt"
-    )
-    path_rank_ensembl = os.path.join(
-        path_analysis, "genes_ranks_ensembl.txt"
-    )
-    path_rank_hugo = os.path.join(
-        path_analysis, "genes_ranks_hugo.txt"
-    )
-    path_genes_ensembl = os.path.join(
-        path_analysis, "genes_ensembl.txt"
-    )
-    path_genes_hugo = os.path.join(
-        path_analysis, "genes_hugo.txt"
-    )
-    path_genes_report = os.path.join(
-        path_analysis, "genes_report.txt"
-    )
-    path_reports = os.path.join(
-        path_analysis, "reports.pickle"
-    )
-    # Write information to file.
-    information["data_genes_probabilities"].to_pickle(path_summary)
-    information["data_summary_genes"].to_pickle(path_summary)
-    information["data_summary_genes"].to_csv(
-        path_or_buf=path_summary_text,
-        sep="\t",
-        header=True,
-        index=True,
-    )
-    information["data_summary_genes"].reset_index(
-        level="identifier", inplace=True
-    )
-    summary_genes = utility.convert_dataframe_to_records(
-        data=information["data_summary_genes"]
-    )
-    utility.write_file_text_table(
-        information=summary_genes,
-        path_file=path_summary_text_alternative,
-        names=summary_genes[0].keys(),
-        delimiter="\t",
-        header=True,
-    )
-    information["data_rank_genes"].to_csv(
-        path_or_buf=path_data_rank,
-        sep="\t",
-        header=True,
-        index=True,
-    )
-    information["data_rank_genes_ensembl"].to_csv(
-        path_or_buf=path_rank_ensembl,
-        sep="\t",
-        header=False,
-        index=False,
-    )
-    information["data_rank_genes_hugo"].to_csv(
-        path_or_buf=path_rank_hugo,
-        sep="\t",
-        header=False,
-        index=False,
-    )
-    utility.write_file_text_list(
-        elements=information["genes_ensembl"],
-        delimiter="\n",
-        path_file=path_genes_ensembl
-    )
-    utility.write_file_text_list(
-        elements=information["genes_hugo"],
-        delimiter="\n",
-        path_file=path_genes_hugo
-    )
-    utility.write_file_text_list(
-        elements=information["genes_report"],
-        delimiter="\n",
-        path_file=path_genes_report
-    )
-    with open(path_reports, "wb") as file_product:
-        pickle.dump(information["reports"], file_product)
-
-    pass
-
-# TODO: obsolete?
-def write_product_reports(dock=None, information=None):
-    """
-    Writes product information to file.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
-
-    raises:
-
-    returns:
-
-    """
-
-    # Specify directories and files.
-    path_analysis = os.path.join(dock, "analysis")
-    utility.create_directory(path_analysis)
-    path_reports = os.path.join(path_analysis, "reports")
-    # Remove previous files since they change from run to run.
-    utility.remove_directory(path=path_reports)
-    utility.create_directory(path_reports)
-    # Iterate on reports.
-    for gene in information["genes_report"]:
-        # Access information.
-        name = information["reports"][gene]["name"]
-        # Specify directories and files.
-        path_report = os.path.join(
-            path_reports, (name + "_reports.pickle")
-        )
-        # Write information to file.
-
-        pass
 
     pass
 
@@ -1065,6 +681,9 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
+    ##########
+    # Correlations
+
     # Calculate correlations between pairs of genes.
     # Use Spearman correlations for both unimodal and multimodal.
     data_correlation_genes_unimodal = calculate_organize_gene_correlations(
@@ -1086,6 +705,32 @@ def execute_procedure(dock=None):
     )
     print(data_correlation_genes_multimodal)
 
+    # Calculate and organize correlations for groups of genes from regression
+    # analysis.
+    bin_correlations = organize_gene_correlations_multimodal_prediction(
+        sets=source["sets_genes_prediction"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+    )
+
+    ##########
+    # Integration
+
+    # Integrate and organize information about all genes.
+    data_genes_integration = organize_genes_integration(
+        genes=source["genes_multimodal"],
+        data_gene_annotation=source["data_gene_annotation"],
+        data_gene_distribution_report=source["data_gene_distribution_report"],
+        data_genes_permutation_probabilities=(
+            source["data_genes_permutation_probabilities"]
+        ),
+        data_genes_heritabilities=(
+            source["data_genes_heritabilities_complex"]
+        ),
+        data_regression_genes=source["data_regression_genes"],
+    )
+
+    utility.print_terminal_partition(level=1)
+    print(data_genes_integration)
 
     if False:
 
@@ -1106,18 +751,6 @@ def execute_procedure(dock=None):
             str(len(genes_integration))
         )
         utility.print_terminal_partition(level=2)
-
-        # Integrate and organize information about all genes.
-        data_genes_integration = organize_genes_integration(
-            genes=source["genes_split"],
-            data_gene_annotation=source["data_gene_annotation"],
-            data_samples_tissues_persons=source["data_samples_tissues_persons"],
-            data_gene_distribution_report=source["data_gene_distribution_report"],
-            genes_scores=source["genes_scores"],
-            genes_probabilities=source["genes_probabilities"],
-            genes_heritabilities_simple=source["genes_heritabilities_simple"],
-            genes_heritabilities_complex=source["genes_heritabilities_complex"],
-        )
 
         # Select genes of interest.
         data_genes_selection = select_rank_genes(
@@ -1162,10 +795,14 @@ def execute_procedure(dock=None):
 
     # Compile information.
     information = {
-        #"genes_integration": genes_integration,
-        #"data_genes_integration": data_genes_integration,
+        "data_genes_integration": data_genes_integration,
         "data_correlation_genes_unimodal": data_correlation_genes_unimodal,
         "data_correlation_genes_multimodal": data_correlation_genes_multimodal,
+        "data_correlation_multimodal_hardiness": bin_correlations["hardiness"],
+        "data_correlation_multimodal_sex_age_body": (
+            bin_correlations["sex_age_body"]
+        ),
+        "data_correlation_multimodal_union": bin_correlations["union"],
         #"data_genes_selection": data_genes_selection,
         #"data_export_genes_selection": data_export_genes_selection,
         #"data_export_genes_total": data_export_genes_total,

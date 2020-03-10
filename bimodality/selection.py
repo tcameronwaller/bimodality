@@ -107,6 +107,7 @@ def organize_data_axes_indices(data=None):
     # The Pandas function to rename axis copies data deeply by default and
     # requires a lot of memory.
     utility.print_terminal_partition(level=2)
+    print("... organization of data for genes' signals across samples...")
 
     # Organize data.
 
@@ -213,7 +214,7 @@ def summarize_samples_genes(
         inplace=True
     )
     data_adipose = data_factor.loc[data_factor["tissue_major"] == "adipose", :]
-    print(data_adipose)
+    #print(data_adipose)
 
     pass
 
@@ -1823,6 +1824,20 @@ def select_organize_samples_genes_signals(
         tissues_major=tissues_selection,
         data_samples_tissues_persons=data_samples_exclusion,
     )
+
+    # Summarize original counts of samples and genes.
+    samples_temporary = data_samples_inclusion.index.to_list()
+    data_gene_signal_temporary = select_samples_genes_signals(
+        samples=samples_temporary,
+        data_gene_signal=data_gene_signal_protein,
+    )
+    utility.print_terminal_partition(level=1)
+    print("Summary after selection of samples by tissues.")
+    summarize_samples_genes(
+        data_samples_tissues_persons=data_samples_inclusion,
+        data_gene_signal=data_gene_signal_temporary,
+    )
+
 
     # Select final samples on basis of persons' eligibility.
     utility.print_terminal_partition(level=1)

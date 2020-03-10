@@ -4199,6 +4199,145 @@ def prepare_charts_signals_genes_correlations(
 
 
 ##########
+# Correlations in signals between pairs of genes
+# Heatmap
+# Status: in progress
+
+
+def read_source_signals_genes_correlations_prediction(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", "tight")
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation_gencode.pickle"
+    )
+
+    path_integration = os.path.join(dock, "integration")
+    path_data_correlation_multimodal_hardiness = os.path.join(
+        path_integration, "data_correlation_multimodal_hardiness.pickle"
+    )
+    path_data_correlation_multimodal_sex_age_body = os.path.join(
+        path_integration, "data_correlation_multimodal_sex_age_body.pickle"
+    )
+    path_data_correlation_multimodal_union = os.path.join(
+        path_integration, "data_correlation_multimodal_union.pickle"
+    )
+
+    # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+    data_correlation_multimodal_hardiness = pandas.read_pickle(
+        path_data_correlation_multimodal_hardiness
+    )
+    data_correlation_multimodal_sex_age_body = pandas.read_pickle(
+        path_data_correlation_multimodal_sex_age_body
+    )
+    data_correlation_multimodal_union = pandas.read_pickle(
+        path_data_correlation_multimodal_union
+    )
+
+    # Compile and return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+        "data_correlation_multimodal_hardiness": (
+            data_correlation_multimodal_hardiness
+        ),
+        "data_correlation_multimodal_sex_age_body": (
+            data_correlation_multimodal_sex_age_body
+        ),
+        "data_correlation_multimodal_union": data_correlation_multimodal_union,
+    }
+
+
+def prepare_charts_signals_genes_correlations_prediction(
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_signals_genes_correlations_prediction(dock=dock)
+
+    # Organize data.
+    data_hardiness = organize_signals_genes_correlations(
+        data_gene_annotation=source["data_gene_annotation"],
+        data_genes_correlations=source["data_correlation_multimodal_hardiness"],
+    )
+    data_sex_age_body = organize_signals_genes_correlations(
+        data_gene_annotation=source["data_gene_annotation"],
+        data_genes_correlations=(
+            source["data_correlation_multimodal_sex_age_body"]
+        ),
+    )
+    data_union = organize_signals_genes_correlations(
+        data_gene_annotation=source["data_gene_annotation"],
+        data_genes_correlations=source["data_correlation_multimodal_union"],
+    )
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_prediction = os.path.join(path_plot, "prediction")
+    path_directory = os.path.join(
+        path_prediction, "correlations_genes"
+    )
+    # Define file name.
+    path_hardiness = os.path.join(
+        path_directory, str("genes_multimodal_hardiness.svg")
+    )
+    path_sex_age_body = os.path.join(
+        path_directory, str("genes_multimodal_sex_age_body.svg")
+    )
+    path_union = os.path.join(
+        path_directory, str("genes_multimodal_union.svg")
+    )
+
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    # Create chart.
+    plot_chart_signals_genes_correlations(
+        data=data_hardiness,
+        path_file=path_hardiness
+    )
+    plot_chart_signals_genes_correlations(
+        data=data_sex_age_body,
+        path_file=path_sex_age_body
+    )
+    plot_chart_signals_genes_correlations(
+        data=data_union,
+        path_file=path_union
+    )
+
+    pass
+
+
+##########
 # Correlations in pantissue signals across persons between pairs of specific
 # genes of interest
 # scatter plots
@@ -5250,10 +5389,6 @@ def execute_procedure(dock=None):
     # Plot charts of overlap between sets in selection of genes by bimodality.
     prepare_charts_gene_sets_candidacy(dock=dock)
 
-    # Plot charts for correlations between pairs of all genes of interest.
-    # Chart is adjacency matrix heatmap.
-    prepare_charts_signals_genes_correlations(dock=dock)
-
     # Plot charts for correlations in signals between pairs of genes.
     # Charts will be scatter plots.
     # Each point will represent a person with pantissue signals from each gene.
@@ -5288,6 +5423,21 @@ def execute_procedure(dock=None):
     # Plot chart of the distribution of a gene's pan-tissue aggregate signals
     # across persons after permutation.
     prepare_chart_gene_signals_persons_permutation(dock=dock)
+
+    ##########
+    ##########
+    ##########
+    # Integration procedure
+
+    # Plot charts for correlations between pairs of all genes of interest.
+    # Chart is adjacency matrix heatmap.
+    prepare_charts_signals_genes_correlations(dock=dock)
+
+    # Plot charts for correlations between pairs of all genes of interest.
+    # Specific to multimodal genes that associate with hypothetical variables
+    # in prediction procedure.
+    # Chart is adjacency matrix heatmap.
+    prepare_charts_signals_genes_correlations_prediction(dock=dock)
 
 
 

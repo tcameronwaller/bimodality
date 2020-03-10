@@ -2600,9 +2600,16 @@ def read_collect_gene_report(
         "mixture",
         "coefficient",
     ]]
+    data.set_index(
+        ["identifier"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+
     # Convert modality measures to standard, z-score space.
     # Calculate combination modality measures.
-    if True:
+    if False:
         data_report = calculate_combination_scores(
             data_report=data,
         )
