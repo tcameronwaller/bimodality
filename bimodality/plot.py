@@ -1233,6 +1233,120 @@ def write_figure(path=None, figure=None):
 
 
 ##########
+# Sex, age, and hardiness of persons in GTEx cohort
+# Status: in progress
+
+
+def read_source_persons_sex_age_hardiness(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", "tight")
+    path_data_persons_sex_age_counts = os.path.join(
+        path_selection, "data_persons_sex_age_counts.pickle"
+    )
+    # Read information from file.
+    with open(path_data_persons_sex_age_counts, "rb") as file_source:
+        data_persons_sex_age_counts = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "data_persons_sex_age_counts": data_persons_sex_age_counts,
+    }
+
+
+def prepare_charts_persons_sex_age_hardiness(
+    dock=None
+):
+    """
+    Plots charts from the sample process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_persons_sex_age_hardiness(dock=dock)
+
+    if False:
+
+        print(source["data_persons_sex_age_counts"])
+
+        # Copy data.
+        data_persons_sex_age_counts = (
+            source["data_persons_sex_age_counts"].copy(deep=True)
+        )
+        # Organize data.
+        data_pivot = data_persons_sex_age_counts.pivot_table(
+            values="count",
+            index="sex",
+            columns="age_decade",
+            aggfunc="sum",
+            fill_value=0,
+        )
+        print(data_pivot)
+        data_pivot.rename_axis(
+            index="groups",
+            axis="index",
+            copy=False,
+            inplace=True,
+        )
+        data_pivot.reset_index(
+            level=["groups"], inplace=True
+        )
+        print("these are the data passed to the plot function")
+        print(data_pivot)
+
+        # Define fonts.
+        fonts = define_font_properties()
+        # Define colors.
+        colors = define_color_properties()
+        # Specify directories and files.
+        path_plot = os.path.join(dock, "plot")
+        path_persons = os.path.join(path_plot, "persons")
+        utility.create_directory(path_persons)
+
+        # Create figures.
+        figure = plot_bar_stack(
+            data=data_pivot,
+            label_vertical="Persons",
+            label_horizontal="Sex",
+            fonts=fonts,
+            colors=colors,
+            color_count=6,
+            rotation="horizontal",
+            legend=True,
+        )
+        # Specify directories and files.
+        file = ("persons_sex_age.svg")
+        path_file = os.path.join(path_persons, file)
+        # Write figure.
+        write_figure(
+            path=path_file,
+            figure=figure
+        )
+
+    pass
+
+
+##########
 # Counts of batches per person, histogram with bins by counts
 # Status: in progress
 
@@ -1319,116 +1433,6 @@ def prepare_chart_batches_per_person(dock=None):
     )
     # Specify directories and files.
     file = ("batches_per_person.svg")
-    path_file = os.path.join(path_persons, file)
-    # Write figure.
-    write_figure(
-        path=path_file,
-        figure=figure
-    )
-
-    pass
-
-##########
-# Sex and age of persons in GTEx
-# Status: working
-
-
-def read_source_person_sex_age(dock=None):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_data_persons_sex_age_counts = os.path.join(
-        path_selection, "data_persons_sex_age_counts.pickle"
-    )
-    # Read information from file.
-    with open(path_data_persons_sex_age_counts, "rb") as file_source:
-        data_persons_sex_age_counts = pickle.load(file_source)
-    # Compile and return information.
-    return {
-        "data_persons_sex_age_counts": data_persons_sex_age_counts,
-    }
-
-
-def prepare_chart_person_sex_age(
-    dock=None
-):
-    """
-    Plots charts from the sample process.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-
-    """
-
-    # Read source information from file.
-    source = read_source_person_sex_age(dock=dock)
-    print(source["data_persons_sex_age_counts"])
-
-    # Copy data.
-    data_persons_sex_age_counts = (
-        source["data_persons_sex_age_counts"].copy(deep=True)
-    )
-    # Organize data.
-    data_pivot = data_persons_sex_age_counts.pivot_table(
-        values="count",
-        index="sex",
-        columns="age_decade",
-        aggfunc="sum",
-        fill_value=0,
-    )
-    print(data_pivot)
-    data_pivot.rename_axis(
-        index="groups",
-        axis="index",
-        copy=False,
-        inplace=True,
-    )
-    data_pivot.reset_index(
-        level=["groups"], inplace=True
-    )
-    print("these are the data passed to the plot function")
-    print(data_pivot)
-
-    # Define fonts.
-    fonts = define_font_properties()
-    # Define colors.
-    colors = define_color_properties()
-    # Specify directories and files.
-    path_plot = os.path.join(dock, "plot")
-    path_persons = os.path.join(path_plot, "persons")
-    utility.create_directory(path_persons)
-
-    # Create figures.
-    figure = plot_bar_stack(
-        data=data_pivot,
-        label_vertical="Persons",
-        label_horizontal="Sex",
-        fonts=fonts,
-        colors=colors,
-        color_count=6,
-        rotation="horizontal",
-        legend=True,
-    )
-    # Specify directories and files.
-    file = ("persons_sex_age.svg")
     path_file = os.path.join(path_persons, file)
     # Write figure.
     write_figure(
@@ -1619,7 +1623,7 @@ def prepare_chart_tissues_per_person(dock=None):
         series=source["tissues_per_person"],
         name="",
         bin_method="count",
-        bin_count=17,
+        bin_count=10,
         label_bins="Bins by count of tissues per person",
         label_counts="Counts of persons in each bin",
         fonts=fonts,
@@ -4201,7 +4205,7 @@ def prepare_charts_signals_genes_correlations(
 ##########
 # Correlations in signals between pairs of genes
 # Heatmap
-# Status: in progress
+# Status: working
 
 
 def read_source_signals_genes_correlations_prediction(
@@ -5348,9 +5352,11 @@ def execute_procedure(dock=None):
     ##########
     # Selection procedure
 
+    # Plot charts for sex, age, and hardiness of persons in GTEx cohort.
+    prepare_charts_persons_sex_age_hardiness(dock=dock)
+
+
     if False:
-        # Plot chart for sex and age of persons in GTEx consortium.
-        prepare_chart_person_sex_age(dock=dock)
 
         # Plot chart for counts of persons per major tissue type.
         prepare_chart_persons_per_tissue(dock=dock)
