@@ -1757,6 +1757,70 @@ def calculate_pseudo_logarithm_signals(
     return data_log
 
 
+def count_data_factors_groups_elements(
+    factors=None,
+    element=None,
+    count=None,
+    data=None,
+):
+    """
+    Counts elements in groups by factor.
+
+    arguments:
+        factors (list<str>): names of factor columns in data
+        element (str): name of column in data for elements to count
+        count (str): name for column of counts in count data
+        data (object): Pandas data frame of elements in groups by factors
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of counts of elements in each factor group
+    """
+
+    # Copy data.
+    data_copy = data.copy(deep=True)
+
+    # Organize data.
+    data_copy.reset_index(
+        level=None,
+        inplace=True,
+    )
+    columns = factors
+    columns = copy.deepcopy(factors)
+    columns.append(element)
+    data_columns = data_copy.loc[
+        :, data_copy.columns.isin(columns)
+    ]
+    data_columns.drop_duplicates(
+        subset=None,
+        keep="first",
+        inplace=True,
+    )
+    data_columns.set_index(
+        factors,
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    # Count rows (elements) in each factor group of the data.
+    # This process is similar to iteration on groups and collection of the
+    # counts of elements in each group.
+    # Notice the use of ".size()" instead of ".shape[0]" to count rows.
+    # As the groups are series, ".size()" counts the elements properly.
+    data_counts = data_columns.groupby(
+        level=factors,
+        sort=True,
+        as_index=False
+    ).size().to_frame(
+        name=count
+    )
+    data_counts.reset_index(
+        level=None,
+        inplace=True,
+    )
+    return data_counts
+
 
 # Human Metabolome Database (HMDB).
 

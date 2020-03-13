@@ -292,7 +292,9 @@ def regress_signal_ordinary_residuals(
     raises:
 
     returns:
-        (dict): information about regression
+        (dict): collection of residuals for regression summary of information
+            about regression model
+
 
     """
 
@@ -364,7 +366,10 @@ def regress_signal_ordinary_residuals(
         #print(report.params)
         #print(report.pvalues)
 
-        # Compile information.
+        # Organize residuals.
+        residuals = report.resid
+
+        # Compile summary information.
         counter = 1
         parameters = dict()
         probabilities = dict()
@@ -373,6 +378,7 @@ def regress_signal_ordinary_residuals(
         probabilities["intercept_probability"] = report.pvalues[0]
         inflations["intercept_inflation"] = float("nan")
         # Iterate on each independent variable.
+        # Accommodate index for intercept.
         for variable in independence:
             # Coefficient or parameter.
             parameter = str(variable + ("_parameter"))
@@ -391,7 +397,7 @@ def regress_signal_ordinary_residuals(
             # Increment index.
             counter += 1
             pass
-        information = {
+        summary = {
             "freedom": report.df_model,
             "observations": report.nobs,
             "r_square": report.rsquared,
@@ -401,9 +407,9 @@ def regress_signal_ordinary_residuals(
             "bayes": report.bic,
             "condition": report.condition_number,
         }
-        information.update(parameters)
-        information.update(probabilities)
-        information.update(inflations)
+        summary.update(parameters)
+        summary.update(probabilities)
+        summary.update(inflations)
     else:
         # Compile information.
         #probabilities = list(
@@ -421,7 +427,7 @@ def regress_signal_ordinary_residuals(
             inflation = str(variable + ("_inflation"))
             inflations[inflation] = float("nan")
             pass
-        information = {
+        summary = {
             "freedom": float("nan"),
             "observations": float("nan"),
             "r_square": float("nan"),
@@ -431,11 +437,16 @@ def regress_signal_ordinary_residuals(
             "bayes": float("nan"),
             "condition": float("nan"),
         }
-        information.update(parameters)
-        information.update(probabilities)
-        information.update(inflations)
+        summary.update(parameters)
+        summary.update(probabilities)
+        summary.update(inflations)
+        residuals = numpy.empty()
+    # Compile information.
+    bin = dict()
+    bin["report"] = summary
+    bin["residuals"] = residuals
     # Return information.
-    return information
+    return bin
 
 
 def regress_cases(
@@ -458,22 +469,29 @@ def regress_cases(
     raises:
 
     returns:
-        (object): Pandas data frame of parameters and statistics from
-            regressions across cases
+        (dict): collection of residuals for regression on each case and data
+            summary on regressions
 
     """
 
+    # TODO: I need to collect residuals...
+
     # Regress.
     records = list()
+    residuals_genes = dict()
     for case in cases:
         #utility.print_terminal_partition(level=1)
         #print(case)
-        report = regress_signal_ordinary_residuals(
+        bin_case = regress_signal_ordinary_residuals(
             dependence=case,
             independence=variables,
             proportion=0.5,
             data=data_variables,
         )
+        # Collect residuals.
+        residuals_genes[case] = bin_case["residuals"]
+        # Collect reports.
+        report = bin_case["report"]
         report["case"] = case
         report["name"] = assembly.access_gene_name(
             identifier=case,
@@ -509,8 +527,12 @@ def regress_cases(
         columns.append(str(variable + ("_inflation")))
         pass
     data_regression = data_regression[[*columns]]
+    # Compile information.
+    bin = dict()
+    bin["residuals_genes"] = residuals_genes
+    bin["data_regression_genes"] = data_regression
     # Return information.
-    return data_regression
+    return bin
 
 
 def report_regression_models_quality(
@@ -770,19 +792,30 @@ def organize_genes_association(
     for variable in variables:
         union.extend(sets[variable])
         pass
-    # Compile information.
+    # Include in sets.
     sets["union"] = utility.collect_unique_elements(
         elements_original=union
     )
+    # Select genes that associate significantly with any hypothetical variable.
+    genes_prediction = utility.select_elements_by_sets(
+        names=variables,
+        sets=sets,
+        count=1,
+    )
+    # Compile information.
+    bin = dict()
+    bin["sets"] = sets
+    bin["genes_prediction"] = genes_prediction
     # Return information.
-    return sets
+    return bin
 
 
 ##########
 # Scale
 
 
-
+# TODO: this function is obsolete anyway...
+# TODO: it also uses the older version of calculating standard score...
 def scale_data_columns(
     columns=None,
     data=None,
@@ -1447,6 +1480,10 @@ def write_product(
     path_prediction = os.path.join(dock, "prediction")
     utility.create_directory(path_prediction)
 
+    path_residuals_genes = os.path.join(
+        path_prediction, "residuals_genes.pickle"
+    )
+
     path_data_regression_genes = os.path.join(
         path_prediction, "data_regression_genes.pickle"
     )
@@ -1457,8 +1494,11 @@ def write_product(
     path_sets = os.path.join(
         path_prediction, "sets.pickle"
     )
-    path_genes_multimodal_hypothesis = os.path.join(
-        path_prediction, "genes_multimodal_hypothesis"
+    path_genes_prediction = os.path.join(
+        path_prediction, "genes_prediction.pickle"
+    )
+    path_genes_multimodal_prediction = os.path.join(
+        path_prediction, "genes_multimodal_prediction.pickle"
     )
 
     path_data_regression_genes_selection_scale = os.path.join(
@@ -1472,6 +1512,8 @@ def write_product(
     )
 
     # Write information to file.
+    with open(path_residuals_genes, "wb") as file_product:
+        pickle.dump(information["residuals_genes"], file_product)
     pandas.to_pickle(
         information["data_regression_genes"],
         path_data_regression_genes
@@ -1484,21 +1526,24 @@ def write_product(
     )
     with open(path_sets, "wb") as file_product:
         pickle.dump(information["sets"], file_product)
-    with open(path_genes_multimodal_hypothesis, "wb") as file_product:
-        pickle.dump(information["genes_multimodal_hypothesis"], file_product)
+    with open(path_genes_prediction, "wb") as file_product:
+        pickle.dump(information["genes_prediction"], file_product)
+    with open(path_genes_multimodal_prediction, "wb") as file_product:
+        pickle.dump(information["genes_multimodal_prediction"], file_product)
 
-    pandas.to_pickle(
-        information["data_regression_genes_selection_scale"],
-        path_data_regression_genes_selection_scale
-    )
-    pandas.to_pickle(
-        information["data_regression_genes_unimodal_scale"],
-        path_data_regression_genes_unimodal_scale
-    )
-    pandas.to_pickle(
-        information["data_regression_genes_multimodal_scale"],
-        path_data_regression_genes_multimodal_scale
-    )
+    if False:
+        pandas.to_pickle(
+            information["data_regression_genes_selection_scale"],
+            path_data_regression_genes_selection_scale
+        )
+        pandas.to_pickle(
+            information["data_regression_genes_unimodal_scale"],
+            path_data_regression_genes_unimodal_scale
+        )
+        pandas.to_pickle(
+            information["data_regression_genes_multimodal_scale"],
+            path_data_regression_genes_multimodal_scale
+        )
 
     pass
 
@@ -1569,11 +1614,11 @@ def execute_procedure(
 
     # Regress each gene's signal across persons.
     # Iterate on genes.
-    #genes_iteration = random.sample(source["genes_selection"], 1000)
-    genes_iteration = source["genes_selection"]#[0:1000]
+    #genes_iteration = random.sample(source["genes_selection"], 100)
+    genes_iteration = source["genes_selection"]#[0:100]
     #genes_iteration = source["genes_unimodal"]
     #genes_iteration = source["genes_multimodal"]
-    data_regression_genes = regress_cases(
+    bin_regression = regress_cases(
         cases=genes_iteration,
         variables=variables["independence"],
         data_variables=data_variables,
@@ -1581,13 +1626,13 @@ def execute_procedure(
     )
     utility.print_terminal_partition(level=2)
     print("data_regression_genes")
-    print(data_regression_genes)
+    print(bin_regression["data_regression_genes"])
 
     # Summarize regression quality.
     # Report means of statistics across independent models.
     report_regression_models_quality(
         variables=variables["independence"],
-        data_regression_models=data_regression_genes,
+        data_regression_models=bin_regression["data_regression_genes"],
     )
 
     # Review.
@@ -1602,7 +1647,7 @@ def execute_procedure(
     data_regression_genes_discovery = calculate_regression_discoveries(
         variables=variables["independence"],
         threshold=0.05,
-        data=data_regression_genes,
+        data=bin_regression["data_regression_genes"],
     )
     utility.print_terminal_partition(level=2)
     print("data_regression_genes_discovery")
@@ -1636,45 +1681,70 @@ def execute_procedure(
         pass
 
     # Organize multimodal genes that associate with each hypothetical variable.
+    bin_selection_associations = organize_genes_association(
+        variables=variables["hypothesis"],
+        set="selection",
+        collections=sets,
+    )
+
+    # Organize multimodal genes that associate with each hypothetical variable.
     bin_multimodal_associations = organize_genes_association(
         variables=variables["hypothesis"],
         set="multimodal",
         collections=sets,
     )
-
-    # Select regression parameters and probabilities that are biologically
-    # relevant.
-    # Scale regression parameters across genes.
-    # The purpose of this scaling is to simplify comparison in chart.
-    data_regression_genes_scale = select_scale_regression_parameters(
-        variables=variables["hypothesis"],
-        data_regression_genes=data_regression_genes,
+    utility.print_terminal_partition(level=1)
+    print(
+        "Multimodal genes that associate significantly with any " +
+        "variable."
     )
     utility.print_terminal_partition(level=2)
-    print("data_regression_genes_scale")
-    print(data_regression_genes_scale)
-
-    # Separate regression information by sets of genes.
-    bin = separate_regression_gene_sets(
-        genes_selection=source["genes_selection"],
-        genes_unimodal=source["genes_unimodal"],
-        genes_multimodal=source["genes_multimodal"],
-        data_regression_genes=data_regression_genes_scale,
+    print(
+        "union: " + str(len(bin_multimodal_associations["sets"]["union"]))
     )
     utility.print_terminal_partition(level=2)
-    print("Regression genes, original: " + str(data_regression_genes.shape[0]))
     print(
-        "Regression genes, selection: " +
-        str(bin["data_regression_genes_selection_scale"].shape[0])
+        "genes_prediction: " +
+        str(len(bin_multimodal_associations["genes_prediction"]))
     )
-    print(
-        "Regression genes, unimodal: " +
-        str(bin["data_regression_genes_unimodal_scale"].shape[0])
-    )
-    print(
-        "Regression genes, multimodal: " +
-        str(bin["data_regression_genes_multimodal_scale"].shape[0])
-    )
+
+    if False:
+        # Select regression parameters and probabilities that are biologically
+        # relevant.
+        # Scale regression parameters across genes.
+        # The purpose of this scaling is to simplify comparison in chart.
+        data_regression_genes_scale = select_scale_regression_parameters(
+            variables=variables["hypothesis"],
+            data_regression_genes=bin_regression["data_regression_genes"],
+        )
+        utility.print_terminal_partition(level=2)
+        print("data_regression_genes_scale")
+        print(data_regression_genes_scale)
+
+        # Separate regression information by sets of genes.
+        bin = separate_regression_gene_sets(
+            genes_selection=source["genes_selection"],
+            genes_unimodal=source["genes_unimodal"],
+            genes_multimodal=source["genes_multimodal"],
+            data_regression_genes=data_regression_genes_scale,
+        )
+        utility.print_terminal_partition(level=2)
+        print(
+            "Regression genes, original: " +
+            str(bin_regression["data_regression_genes"].shape[0])
+        )
+        print(
+            "Regression genes, selection: " +
+            str(bin["data_regression_genes_selection_scale"].shape[0])
+        )
+        print(
+            "Regression genes, unimodal: " +
+            str(bin["data_regression_genes_unimodal_scale"].shape[0])
+        )
+        print(
+            "Regression genes, multimodal: " +
+            str(bin["data_regression_genes_multimodal_scale"].shape[0])
+        )
 
     # Prepare and report summary of regression model across all genes.
     utility.print_terminal_partition(level=2)
@@ -1688,21 +1758,26 @@ def execute_procedure(
 
     # Compile information.
     information = dict()
+    information["residuals_genes"] = bin_regression["residuals_genes"]
     information["data_regression_genes"] = data_regression_genes_discovery
     information["sets"] = sets
-    information["genes_multimodal_hypothesis"] = (
-        bin_multimodal_associations["union"]
+    information["genes_prediction"] = (
+        bin_selection_associations["genes_prediction"]
+    )
+    information["genes_multimodal_prediction"] = (
+        bin_multimodal_associations["genes_prediction"]
     )
 
-    information["data_regression_genes_selection_scale"] = (
-        bin["data_regression_genes_selection_scale"]
-    )
-    information["data_regression_genes_unimodal_scale"] = (
-        bin["data_regression_genes_unimodal_scale"]
-    )
-    information["data_regression_genes_multimodal_scale"] = (
-        bin["data_regression_genes_multimodal_scale"]
-    )
+    if False:
+        information["data_regression_genes_selection_scale"] = (
+            bin["data_regression_genes_selection_scale"]
+        )
+        information["data_regression_genes_unimodal_scale"] = (
+            bin["data_regression_genes_unimodal_scale"]
+        )
+        information["data_regression_genes_multimodal_scale"] = (
+            bin["data_regression_genes_multimodal_scale"]
+        )
     # Write product information to file.
     write_product(dock=dock, information=information)
 

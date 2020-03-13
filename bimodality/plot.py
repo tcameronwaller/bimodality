@@ -14,6 +14,7 @@ import os
 import pickle
 import itertools
 import statistics
+import copy
 
 # Relevant
 import pandas
@@ -896,6 +897,7 @@ def plot_scatter(
     title_ordinate=None,
     fonts=None,
     colors=None,
+    size=None,
 ):
     """
     Creates a figure of a chart of type scatter.
@@ -909,6 +911,7 @@ def plot_scatter(
         factor (str): name of data column with groups or factors of samples
         fonts (dict<object>): references to definitions of font properties
         colors (dict<tuple>): references to definitions of color properties
+        size (int): size of marker
 
     raises:
 
@@ -969,7 +972,7 @@ def plot_scatter(
         values_ordinate,
         linestyle="",
         marker="o",
-        markersize=15, # 5, 15
+        markersize=size, # 5, 15
         markeredgecolor=colors["blue"],
         markerfacecolor=colors["blue"]
     )
@@ -1890,6 +1893,7 @@ def plot_chart_regression_principal_components(
         title_ordinate="Variances",
         fonts=fonts,
         colors=colors,
+        size=15,
     )
     # Write figure.
     write_figure(
@@ -4492,6 +4496,7 @@ def plot_chart_signals_persons_gene_pair(
         title_ordinate=names[genes[1]],
         fonts=fonts,
         colors=colors,
+        size=5,
     )
     # Write figure.
     write_figure(
@@ -4745,6 +4750,199 @@ def prepare_charts_regressions_genes(
         path_directory=path_multimodal,
         data=source["data_regression_genes_multimodal_scale"],
     )
+    pass
+
+
+##########
+# Residuals from regression on genes' pan-tissue signals
+# scatter plots
+# Status: in progress
+
+
+def read_source_genes_regression_residuals(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", "tight")
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation_gencode.pickle"
+    )
+    path_candidacy = os.path.join(dock, "candidacy")
+    path_genes_multimodal = os.path.join(
+        path_candidacy, "genes_multimodal.pickle"
+    )
+
+    path_prediction = os.path.join(dock, "prediction")
+    path_residuals_genes = os.path.join(
+        path_prediction, "residuals_genes.pickle"
+    )
+
+    # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+    with open(path_genes_multimodal, "rb") as file_source:
+        genes_multimodal = pickle.load(file_source)
+    with open(path_residuals_genes, "rb") as file_source:
+        residuals_genes = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+        "genes_multimodal": genes_multimodal,
+        "residuals_genes": residuals_genes,
+    }
+
+
+def organize_gene_regression_residuals(
+    gene=None,
+    residuals_genes=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        gene (str): identifier of a gene
+        residuals_genes (dict<array>): collection of residuals from regressions
+            for each gene
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a gene's residuals across observations
+
+    """
+
+    # Access gene's residuals.
+    residuals = copy.deepcopy(residuals_genes[gene])
+
+    # Organize data.
+    collection = dict()
+    collection["residual"] = residuals
+    collection["observation"] = numpy.arange(
+        1,
+        (len(residuals) + 1),
+        1,
+    )
+    data = pandas.DataFrame(
+        data=collection,
+    )
+    # Return information
+    return data
+
+
+def plot_chart_gene_regression_residuals(
+    gene=None,
+    name=None,
+    data=None,
+    path_file=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        gene (str): identifier of a single gene
+        name (str): name of gene
+        data (object): Pandas data frame of a gene's aggregate, pantissue
+            signals across tissues and persons
+        path_file (str): path for file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_scatter(
+        data=data,
+        abscissa="observation",
+        ordinate="residual",
+        title_abscissa="Person",
+        title_ordinate="Residuals",
+        fonts=fonts,
+        colors=colors,
+        size=7,
+    )
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_genes_regression_residuals(
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_genes_regression_residuals(dock=dock)
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_prediction = os.path.join(path_plot, "prediction")
+    path_directory = os.path.join(
+        path_prediction, "residuals"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    # Iterate on genes.
+    for gene in source["genes_multimodal"]:
+        # Name.
+        name = assembly.access_gene_name(
+            identifier=gene,
+            data_gene_annotation=source["data_gene_annotation"],
+        )
+        # Define file name.
+        path_file = os.path.join(
+            path_directory, str(name + ".svg")
+        )
+        # Organize data.
+        data_gene = organize_gene_regression_residuals(
+            gene=gene,
+            residuals_genes=source["residuals_genes"],
+        )
+        # Create charts for the gene.
+        plot_chart_gene_regression_residuals(
+            gene=gene,
+            name=name,
+            data=data_gene,
+            path_file=path_file
+        )
+        pass
     pass
 
 
@@ -5353,7 +5551,7 @@ def execute_procedure(dock=None):
     # Selection procedure
 
     # Plot charts for sex, age, and hardiness of persons in GTEx cohort.
-    prepare_charts_persons_sex_age_hardiness(dock=dock)
+    #prepare_charts_persons_sex_age_hardiness(dock=dock)
 
 
     if False:
@@ -5429,6 +5627,17 @@ def execute_procedure(dock=None):
     # Plot chart of the distribution of a gene's pan-tissue aggregate signals
     # across persons after permutation.
     prepare_chart_gene_signals_persons_permutation(dock=dock)
+
+    ##########
+    ##########
+    ##########
+    # Prediction procedure
+
+    # Plot charts, scatter plots, for residuals from regressions on each gene's
+    # pan-tissue signals across persons.
+    prepare_charts_genes_regression_residuals(dock=dock)
+
+
 
     ##########
     ##########

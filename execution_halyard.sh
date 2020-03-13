@@ -66,7 +66,7 @@ echo "Now set to call routine and procedures."
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access # run on 21 February 2020
 #python3 interface.py main --dock $path_dock --assembly # run on 21 February 2020
-python3 interface.py main --dock $path_dock --selection
+#python3 interface.py main --dock $path_dock --selection
 
 ##########
 # - Batch Routine
@@ -95,7 +95,7 @@ python3 interface.py main --dock $path_dock --selection
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
 #python3 interface.py main --dock $path_dock --prediction
 
-#python3 interface.py main --dock $path_dock --integration
+python3 interface.py main --dock $path_dock --integration
 
 #python3 interface.py main --dock $path_dock --structure
 

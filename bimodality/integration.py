@@ -92,6 +92,16 @@ def read_source(dock=None):
     data_genes_permutation_probabilities = pandas.read_pickle(
         path_data_genes_permutation_probabilities
     )
+    path_genes_probability = os.path.join(
+        path_probability, "genes_probability.pickle"
+    )
+    with open(path_genes_probability, "rb") as file_source:
+        genes_probability = pickle.load(file_source)
+    path_sets_genes_multimodal_permutation = os.path.join(
+        path_probability, "sets_genes_multimodal.pickle"
+    )
+    with open(path_sets_genes_multimodal_permutation, "rb") as file_source:
+        sets_genes_multimodal_permutation = pickle.load(file_source)
 
     # Heritability.
     path_heritability = os.path.join(dock, "heritability")
@@ -124,11 +134,21 @@ def read_source(dock=None):
     path_sets_genes_prediction = os.path.join(
         path_prediction, "sets.pickle"
     )
+    path_genes_prediction = os.path.join(
+        path_prediction, "genes_prediction.pickle"
+    )
+    path_genes_multimodal_prediction = os.path.join(
+        path_prediction, "genes_multimodal_prediction.pickle"
+    )
     data_regression_genes = pandas.read_pickle(
         path_data_regression_genes
     )
     with open(path_sets_genes_prediction, "rb") as file_source:
         sets_genes_prediction = pickle.load(file_source)
+    with open(path_genes_prediction, "rb") as file_source:
+        genes_prediction = pickle.load(file_source)
+    with open(path_genes_multimodal_prediction, "rb") as file_source:
+        genes_multimodal_prediction = pickle.load(file_source)
 
 
     # Compile and return information.
@@ -141,6 +161,8 @@ def read_source(dock=None):
         "data_genes_permutation_probabilities": (
             data_genes_permutation_probabilities
         ),
+        "genes_probability": genes_probability,
+        "sets_genes_multimodal_permutation": sets_genes_multimodal_permutation,
 
         "data_genes_heritabilities_complex": data_genes_heritabilities_complex,
 
@@ -149,6 +171,8 @@ def read_source(dock=None):
 
         "data_regression_genes": data_regression_genes,
         "sets_genes_prediction": sets_genes_prediction,
+        "genes_prediction": genes_prediction,
+        "genes_multimodal_prediction": genes_multimodal_prediction,
     }
 
 
@@ -262,7 +286,7 @@ def organize_gene_correlations_multimodal_prediction(
     )
     # Sex, age, body.
     genes_sex_age_body = list()
-    genes_sex_age_body.extend(sets["multimodal"]["female"])
+    genes_sex_age_body.extend(sets["multimodal"]["female_scale"])
     genes_sex_age_body.extend(sets["multimodal"]["age_scale"])
     genes_sex_age_body.extend(sets["multimodal"]["body_scale"])
     genes_sex_age_body_unique = utility.collect_unique_elements(
@@ -278,7 +302,7 @@ def organize_gene_correlations_multimodal_prediction(
     )
     # Sex, age, body.
     genes_union = list()
-    genes_union.extend(sets["multimodal"]["female"])
+    genes_union.extend(sets["multimodal"]["female_scale"])
     genes_union.extend(sets["multimodal"]["age_scale"])
     genes_union.extend(sets["multimodal"]["body_scale"])
     genes_union.extend(sets["multimodal"]["hardiness_scale"])
@@ -390,7 +414,7 @@ def organize_genes_integration(
             data_regression_genes.loc[gene, "r_square"]
         )
         record["prediction_sex_discovery"] = (
-            data_regression_genes.loc[gene, "female_discovery"]
+            data_regression_genes.loc[gene, "female_scale_discovery"]
         )
         record["prediction_age_discovery"] = (
             data_regression_genes.loc[gene, "age_scale_discovery"]
@@ -715,9 +739,25 @@ def execute_procedure(dock=None):
     ##########
     # Integration
 
+    # Select genes that are both multimodal and significant from permutation.
+    collection = dict()
+    collection["multimodal"] = source["genes_multimodal"]
+    collection["probability"] = source["genes_probability"]
+    collection["prediction"] = source["genes_prediction"]
+    genes_multimodal_permutation_prediction = utility.select_elements_by_sets(
+        names=["multimodal", "probability", "prediction"],
+        sets=collection,
+        count=3,
+    )
+    utility.print_terminal_partition(level=2)
+    print(
+        "genes significant, multimodal, and predictable: " +
+        str(len(genes_multimodal_permutation_prediction))
+    )
+
     # Integrate and organize information about all genes.
     data_genes_integration = organize_genes_integration(
-        genes=source["genes_multimodal"],
+        genes=genes_multimodal_permutation_prediction,
         data_gene_annotation=source["data_gene_annotation"],
         data_gene_distribution_report=source["data_gene_distribution_report"],
         data_genes_permutation_probabilities=(

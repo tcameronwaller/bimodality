@@ -643,36 +643,18 @@ def select_samples_persons_by_tissues(
     """
 
     # Select persons by tissues.
-    data_persons = data_samples_tissues_persons.copy(deep=True)
-    data_persons.rename_axis(
-        "",
-        axis="columns",
-        inplace=True,
+    data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
+    # Count unique major tissues per person.
+    data_tissues_per_person = utility.count_data_factors_groups_elements(
+        factors=["person"],
+        element="tissue_major",
+        count="counts",
+        data=data_samples_tissues_persons,
     )
-    data_persons.reset_index(
-        level=None,
-        inplace=True
-    )
-    data_persons = data_persons.loc[
-        :, data_persons.columns.isin(["person", "tissue_major"])
-    ]
-    data_persons.drop_duplicates(
-        subset=None,
-        keep="first",
-        inplace=True,
-    )
-    # At this point, data represent unique pairs of persons and major tissues
-    # for which they have samples.
-    # Count tissues per person and persons per tissue.
-    data_persons_tissues = count_factor_group_elements(
-        factor="person",
-        name_factor="person",
-        name_elements="tissues",
-        data=data_persons,
-    )
+
     # Select persons by counts of tissues for which they have samples.
-    data_persons_selection = data_persons_tissues.loc[
-        (data_persons_tissues["tissues"] >= count), :
+    data_persons_selection = data_tissues_per_person.loc[
+        (data_tissues_per_person["counts"] >= count), :
     ]
     # Extract identifiers of persons.
     persons = utility.collect_unique_elements(
@@ -680,9 +662,8 @@ def select_samples_persons_by_tissues(
     )
 
     # Select samples by persons.
-    data_samples = data_samples_tissues_persons.copy(deep=True)
-    data_samples_selection = data_samples.loc[
-        data_samples["person"].isin(persons), :
+    data_samples_selection = data_samples_tissues_persons.loc[
+        data_samples_tissues_persons["person"].isin(persons), :
     ]
     samples = utility.collect_unique_elements(
         elements_original=data_samples_selection.index.to_list()
@@ -852,6 +833,20 @@ def select_organize_samples_genes_signals(
     print("Selection of samples by persons' eligibility.")
     print("Persons must have samples for adequate count of tissues.")
 
+    # Count tissues per person.
+    data_tissues_per_person_initial = (
+        utility.count_data_factors_groups_elements(
+            factors=["person"],
+            element="tissue_major",
+            count="counts",
+            data=data_samples_tissues_persons,
+    ))
+    utility.print_terminal_partition(level=2)
+    mean_tissues = data_tissues_per_person_initial["counts"].mean()
+    print("Mean tissues per person (initial): " + str(mean_tissues))
+    count_persons = len(data_tissues_per_person_initial["counts"].to_list())
+    print("Count of persons (initial): " + str(count_persons))
+
     # Select persons with adequate sample coverage of multiple tissues.
     bin_tissues = select_samples_persons_by_tissues(
         count=10,
@@ -862,6 +857,20 @@ def select_organize_samples_genes_signals(
     data_samples_tissues_persons_tissues = bin_tissues[
         "data_samples_tissues_persons"
     ]
+
+    # Count tissues per person.
+    data_tissues_per_person_final = (
+        utility.count_data_factors_groups_elements(
+            factors=["person"],
+            element="tissue_major",
+            count="counts",
+            data=data_samples_tissues_persons_tissues,
+    ))
+    utility.print_terminal_partition(level=2)
+    mean_tissues = data_tissues_per_person_final["counts"].mean()
+    print("Mean tissues per person (final): " + str(mean_tissues))
+    count_persons = len(data_tissues_per_person_final["counts"].to_list())
+    print("Count of persons (final): " + str(count_persons))
 
     # Select samples in signal data.
     data_gene_signal_sample = select_samples_genes_signals(
@@ -1791,9 +1800,6 @@ def organize_persons_properties(
     return information
 
 
-
-
-
 # Organize covariates for heritability analysis.
 
 
@@ -1813,6 +1819,7 @@ def define_regression_variables():
     # Variables of raw values that might require standardization to adjust
     # scale.
     standardization = [
+        "female",
         "age",
         "body",
         "hardiness",
@@ -1822,11 +1829,11 @@ def define_regression_variables():
 
     # Variables that relate to hypotheses of interest.
     hypothesis = [
-        "female",
+        "female_scale",
         "age_scale",
         "body_scale",
-        "hardiness_scale",
-        "season_scale",
+        "hardiness_scale", # "hardiness_scale" or "hardiness"
+        "season_scale", # "season_scale" or "season_sequence"
     ]
     # Variables that relate to genotype.
     genotype = [
@@ -2084,206 +2091,7 @@ def extract_organize_persons_properties(
 # Summary of persons' properties.
 
 
-# Count tissues per person and persons per tissue.
-
-# legacy compatibility... at least for now
-def count_factor_group_elements(
-    factor=None,
-    name_factor=None,
-    name_elements=None,
-    data=None,
-):
-    """
-    Counts elements in groups by factor.
-
-    arguments:
-        factor (str): name of factor column in data
-        name_factor (str): name for factor column in count data
-        name_elements (str): name for element column in count data
-        data (object): Pandas data frame of elements in groups by factors
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of counts of elements in each factor group
-    """
-
-    # Copy data.
-    data_copy = data.copy(deep=True)
-
-    # Organize data.
-
-
-    data_copy.set_index(
-        [factor],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    groups = data_copy.groupby(level=[factor])
-
-    records = []
-    for name, group in groups:
-        data_group = group.reset_index(
-            level=None,
-            inplace=False
-        )
-        data_group.drop_duplicates(
-            subset=None,
-            keep="first",
-            inplace=True,
-        )
-        # Compile information.
-        record = dict()
-        record[name_factor] = name
-        record[name_elements] = data_group.shape[0]
-        records.append(record)
-
-    data_count = utility.convert_records_to_dataframe(
-        records=records
-    )
-
-    return data_count
-
-
-
-
-def count_tissues_persons_groups(
-    data_samples_tissues_persons=None,
-):
-    """
-    Counts tissues per person and persons per tissue.
-
-    arguments:
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples.
-
-    raises:
-
-    returns:
-        (dict): information about persons, tissues, and samples
-    """
-
-    utility.print_terminal_partition(level=1)
-
-    # Copy data.
-    data_samples_copy = data_samples_tissues_persons.copy(deep=True)
-    # Organize data.
-    data_samples_copy.reset_index(
-        level=None,
-        inplace=True
-    )
-    data_samples = data_samples_copy.loc[
-        :, data_samples_copy.columns.isin([
-            "sample", "person", "tissue_major"
-        ])
-    ]
-    data_samples.drop_duplicates(
-        subset=None,
-        keep="first",
-        inplace=True,
-    )
-    data_samples.reindex()
-    # At this point, data include multiple samples for minor tissues.
-    data_samples.drop(
-        labels=["sample"],
-        axis="columns",
-        inplace=True
-    )
-    data_samples.drop_duplicates(
-        subset=None,
-        keep="first",
-        inplace=True,
-    )
-    # At this point, data represent unique pairs of persons and major tissues
-    # for which they have samples.
-
-    # Count tissues per person and persons per tissue.
-    data_tissues_per_person = count_factor_group_elements(
-        factor="person",
-        name_factor="person",
-        name_elements="tissues",
-        data=data_samples,
-    )
-    data_persons_per_tissue = count_factor_group_elements(
-        factor="tissue_major",
-        name_factor="tissue",
-        name_elements="persons",
-        data=data_samples,
-    )
-
-    # Compile information.
-    information = {
-        "data_tissues_per_person": data_tissues_per_person,
-        "data_persons_per_tissue": data_persons_per_tissue,
-        "tissues_per_person": data_tissues_per_person["tissues"].to_list(),
-        "persons_per_tissue": data_persons_per_tissue["persons"].to_list(),
-    }
-
-    # Return information.
-    return information
-
-
-# Count persons' by categories of sex and age.
-
-
-def count_persons_sex_age(
-    data_persons_properties=None,
-):
-    """
-    Counts persons in each group by sex and age.
-
-    arguments:
-        data_persons_properties (object): Pandas data frame of persons and
-            their properties
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of information about persons
-    """
-
-    # Copy data.
-    data_persons_properties = data_persons_properties.copy(deep=True)
-    # Organize data.
-    data_persons_properties.reset_index(
-        level=None,
-        inplace=True
-    )
-    data_persons_properties = data_persons_properties.loc[
-        :, data_persons_properties.columns.isin([
-            "person", "sex", "decade",
-        ])
-    ]
-    data_persons_properties.drop_duplicates(
-        subset=None,
-        keep="first",
-        inplace=True,
-    )
-    data_persons_properties.reindex()
-    data_persons_properties.set_index(
-        ["sex", "decade"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-
-    data_persons_sex_age_counts = data_persons_properties.groupby(
-        level=["sex", "decade"],
-        sort=True,
-        as_index=False
-    ).size().to_frame(
-        name="count"
-    )
-    data_persons_sex_age_counts.reset_index(
-        level=["sex", "decade"], inplace=True
-    )
-
-    # Return information.
-    return data_persons_sex_age_counts
-
-
-def perpare_persons_properties_summary(
+def prepare_persons_properties_summary(
     persons=None,
     data_samples_tissues_persons=None,
     data_persons_properties=None,
@@ -2308,54 +2116,89 @@ def perpare_persons_properties_summary(
     data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
     data_persons_properties = data_persons_properties.copy(deep=True)
 
-    # Extract information about persons' properties.
-    utility.print_terminal_partition(level=2)
-    print("data_persons_properties")
-    print(data_persons_properties)
-
     # Count persons in groups by multiple factors.
-    data_persons_sex_age_counts = count_factor_group_elements(
-        factor="tissue_major",
-        name_factor="tissue",
-        name_elements="persons",
-        data=data_samples,
-    )
-    data_persons_sex_hardiness_counts = count_factor_group_elements(
-        factor="tissue_major",
-        name_factor="tissue",
-        name_elements="persons",
-        data=data_samples,
-    )
-    data_persons_hardiness_age_counts = count_factor_group_elements(
-        factor="tissue_major",
-        name_factor="tissue",
-        name_elements="persons",
-        data=data_samples,
-    )
+    utility.print_terminal_partition(level=1)
+    print("Summary: counting persons in groups by factors.")
+    data_persons_sex_decade_counts = (
+        utility.count_data_factors_groups_elements(
+            factors=["sex", "decade"],
+            element="person",
+            count="counts",
+            data=data_persons_properties,
+    ))
+    utility.print_terminal_partition(level=2)
+    print("Sex and decade...")
+    utility.print_terminal_partition(level=3)
+    print(data_persons_sex_decade_counts)
+    utility.print_terminal_partition(level=3)
+    sum_persons = data_persons_sex_decade_counts["counts"].sum()
+    print("Sum persons: " + str(sum_persons))
+
+    data_persons_sex_hardiness_counts = (
+        utility.count_data_factors_groups_elements(
+            factors=["sex", "hardiness"],
+            element="person",
+            count="counts",
+            data=data_persons_properties,
+    ))
+    utility.print_terminal_partition(level=2)
+    print("Sex and hardiness...")
+    utility.print_terminal_partition(level=3)
+    print(data_persons_sex_hardiness_counts)
+
+    data_persons_hardiness_decade_counts = (
+        utility.count_data_factors_groups_elements(
+            factors=["hardiness", "decade"],
+            element="person",
+            count="counts",
+            data=data_persons_properties,
+    ))
+    utility.print_terminal_partition(level=2)
+    print("Hardiness and decade...")
+    utility.print_terminal_partition(level=3)
+    print(data_persons_hardiness_decade_counts)
 
     # Count tissues or persons in groups by single factor.
     # Count tissues per person and persons per tissue.
-    counts = count_tissues_persons_groups(
-        data_samples_tissues_persons=data_samples_tissues_persons_selection,
+    data_tissues_per_person = utility.count_data_factors_groups_elements(
+        factors=["person"],
+        element="tissue_major",
+        count="counts",
+        data=data_samples_tissues_persons,
     )
+    utility.print_terminal_partition(level=2)
+    print("Tissues per person...")
+    utility.print_terminal_partition(level=3)
+    print(data_tissues_per_person)
+    utility.print_terminal_partition(level=3)
+    mean_tissues = data_tissues_per_person["counts"].mean()
+    print("Mean tissues per person: " + str(mean_tissues))
 
+    data_persons_per_tissue = utility.count_data_factors_groups_elements(
+        factors=["tissue_major"],
+        element="person",
+        count="counts",
+        data=data_samples_tissues_persons,
+    )
+    utility.print_terminal_partition(level=2)
+    print("Persons per tissue...")
+    utility.print_terminal_partition(level=3)
+    print(data_persons_per_tissue)
 
-    if False:
+    # Compile information.
+    information = {
 
-        # Compile information.
-        information = {
+        # Sets of persons
+        "data_persons_sex_decade_counts": data_persons_sex_decade_counts,
+        "data_persons_sex_hardiness_counts": data_persons_sex_hardiness_counts,
+        "data_persons_hardiness_decade_counts": data_persons_hardiness_decade_counts,
 
-            # Sets of persons
-            "data_persons_sex_age_counts": data_persons_sex_age_counts,
-            "data_persons_sex_hardiness_counts": data_persons_sex_hardiness_counts,
-            "data_persons_hardiness_age_counts": data_persons_hardiness_age_counts,
-
-            # Sample coverage
-            "data_tissues_per_person": counts["data_tissues_per_person"],
-            "data_persons_per_tissue": counts["data_persons_per_tissue"],
-        }
-        # Return information.
-        return information
+        # Sample coverage
+        "data_tissues_per_person": data_tissues_per_person,
+        "data_persons_per_tissue": data_persons_per_tissue,
+    }
+    # Return information.
+    return information
 
 
 ##########
@@ -2478,17 +2321,17 @@ def write_product_charts(
     path_data_tissues_per_person = os.path.join(
         path_selection, "data_tissues_per_person.pickle"
     )
-    path_tissues_per_person = os.path.join(
-        path_selection, "tissues_per_person.pickle"
-    )
     path_data_persons_per_tissue = os.path.join(
         path_selection, "data_persons_per_tissue.pickle"
     )
-    path_persons_per_tissue = os.path.join(
-        path_selection, "persons_per_tissue.pickle"
+    path_data_persons_sex_decade_counts = os.path.join(
+        path_selection, "data_persons_sex_decade_counts.pickle"
     )
-    path_data_persons_sex_age_counts = os.path.join(
-        path_selection, "data_persons_sex_age_counts.pickle"
+    path_data_persons_sex_hardiness_counts = os.path.join(
+        path_selection, "data_persons_sex_hardiness_counts.pickle"
+    )
+    path_data_persons_hardiness_decade_counts = os.path.join(
+        path_selection, "data_persons_hardiness_decade_counts.pickle"
     )
 
     path_data_tissues_variance = os.path.join(
@@ -2516,20 +2359,20 @@ def write_product_charts(
         path_data_tissues_per_person
     )
     pandas.to_pickle(
-        information["tissues_per_person"],
-        path_tissues_per_person
-    )
-    pandas.to_pickle(
         information["data_persons_per_tissue"],
         path_data_persons_per_tissue
     )
     pandas.to_pickle(
-        information["persons_per_tissue"],
-        path_persons_per_tissue
+        information["data_persons_sex_decade_counts"],
+        path_data_persons_sex_decade_counts
     )
     pandas.to_pickle(
-        information["data_persons_sex_age_counts"],
-        path_data_persons_sex_age_counts
+        information["data_persons_sex_hardiness_counts"],
+        path_data_persons_sex_hardiness_counts
+    )
+    pandas.to_pickle(
+        information["data_persons_hardiness_decade_counts"],
+        path_data_persons_hardiness_decade_counts
     )
 
     pandas.to_pickle(
