@@ -178,12 +178,14 @@ def read_source(dock=None):
 
 # Correlations between pairs of genes
 
+# TODO: this function should probably be general and within the utility module.
 
 def calculate_organize_gene_correlations(
     method=None,
     threshold_high=None,
     threshold_low=None,
     count=None,
+    discovery=None,
     genes=None,
     data_signals_genes_persons=None,
 ):
@@ -196,6 +198,8 @@ def calculate_organize_gene_correlations(
         threshold_low (float): value must be less than this threshold
         count (int): minimal count of rows or columns that must
             pass threshold
+        discovery (float): value of false discovery rate for which to include
+            correlation coefficients
         genes (list<str>): identifiers of genes
         data_signals_genes_persons (object): Pandas data frame of genes'
             pan-tissue signals across persons
@@ -213,43 +217,69 @@ def calculate_organize_gene_correlations(
     # Calculate correlations between gene pairs of their pantissue signals
     # across persons.
     # Only collect genes with correlations beyond thresholds.
-    correlations = utility.calculate_pairwise_correlations(
+    collection = utility.collect_pairwise_correlations_pobabilities(
         method=method,
         features=genes,
         data=data_signal,
     )
-    # Organize data matrix.
-    data_correlation = utility.organize_correlations_matrix(
+
+    # Calculate false discovery rates for each primary feature.
+    # TODO: only half of the pairs (symmetrical) should affect the calculation of false discovery rate
+    # TODO: use a data frame as an intermediate data structure
+    collection_discovery = utility.calculate_pairwise_correlations_discoveries(
         features=genes,
-        correlations=correlations,
+        collection=collection,
+    )
+
+    # Organize data matrix for correlation coefficients.
+    data_correlation = utility.organize_correlations_probabilities_matrix(
+        features=genes,
+        collection=collection,
         key="correlation",
     )
 
-    # Filter genes by their pairwise correlations.
-    data_row = utility.filter_rows_columns_by_threshold_outer_count(
-        data=data_correlation,
-        dimension="row",
-        threshold_high=threshold_high,
-        threshold_low=threshold_low,
-        count=count,
-    )
-    data_column = utility.filter_rows_columns_by_threshold_outer_count(
-        data=data_row,
-        dimension="column",
-        threshold_high=threshold_high,
-        threshold_low=threshold_low,
-        count=count,
-    )
-    print("shape of data after signal filters...")
-    print(data_column.shape)
-
-    # Cluster data.
-    data_cluster = utility.cluster_adjacency_matrix(
-        data=data_column,
+    # Organize data matrix for probabilities.
+    data_probability = utility.organize_correlations_probabilities_matrix(
+        features=genes,
+        collection=collection,
+        key="probability",
     )
 
-    # Return information.
-    return data_cluster
+    utility.print_terminal_partition(level=1)
+    print("data_probability...")
+    print(data_probability)
+
+    # Filter correlation coefficients by value of false discovery rate.
+
+
+
+    if False:
+        # Filter genes by their pairwise correlations.
+        data_row = utility.filter_rows_columns_by_threshold_outer_count(
+            data=data_correlation,
+            dimension="row",
+            threshold_high=threshold_high,
+            threshold_low=threshold_low,
+            count=count,
+        )
+        data_column = utility.filter_rows_columns_by_threshold_outer_count(
+            data=data_row,
+            dimension="column",
+            threshold_high=threshold_high,
+            threshold_low=threshold_low,
+            count=count,
+        )
+        print("shape of data after signal filters...")
+        print(data_column.shape)
+
+        # Cluster data.
+        data_cluster = utility.cluster_adjacency_matrix(
+            data=data_column,
+        )
+
+        # Return information.
+        return data_cluster
+    pass
 
 
 def organize_gene_correlations_multimodal_prediction(
@@ -281,6 +311,7 @@ def organize_gene_correlations_multimodal_prediction(
         threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
         threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
         count=2, # accommodate the value 1.0 for self pairs (A, A)
+        discovery=0.05,
         genes=sets["multimodal"]["hardiness_scale"],
         data_signals_genes_persons=data_signals_genes_persons,
     )
@@ -297,6 +328,7 @@ def organize_gene_correlations_multimodal_prediction(
         threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
         threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
         count=2, # accommodate the value 1.0 for self pairs (A, A)
+        discovery=0.05,
         genes=genes_sex_age_body_unique,
         data_signals_genes_persons=data_signals_genes_persons,
     )
@@ -314,6 +346,7 @@ def organize_gene_correlations_multimodal_prediction(
         threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
         threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
         count=2, # accommodate the value 1.0 for self pairs (A, A)
+        discovery=0.05,
         genes=genes_union_unique,
         data_signals_genes_persons=data_signals_genes_persons,
     )
@@ -715,6 +748,7 @@ def execute_procedure(dock=None):
         threshold_high=0.7, # 1.0, 0.75, 0.5, 0.0
         threshold_low=-0.7, # -1.0, -0.75, -0.5, -0.0
         count=2, # accommodate the value 1.0 for self pairs (A, A)
+        discovery=0.05,
         genes=source["genes_unimodal"],
         data_signals_genes_persons=source["data_signals_genes_persons"],
     )
@@ -724,6 +758,7 @@ def execute_procedure(dock=None):
         threshold_high=0.7, # 1.0, 0.75, 0.5, 0.0
         threshold_low=-0.7, # -1.0, -0.75, -0.5, -0.0
         count=2, # accommodate the value 1.0 for self pairs (A, A)
+        discovery=0.05,
         genes=source["genes_multimodal"],
         data_signals_genes_persons=source["data_signals_genes_persons"],
     )

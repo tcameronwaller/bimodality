@@ -1013,6 +1013,8 @@ def combine_unique_elements_pairwise_orderless(
     """
     Combines elements in orderless pairs.
 
+    ABCD: AB AC AD BC BD CD
+
     arguments:
         elements (list): elements of interest
 
@@ -1036,6 +1038,8 @@ def combine_unique_elements_pairwise_order(
 ):
     """
     Combines elements in ordered pairs.
+
+    ABCD: AB AC AD BA BC BD CA CB CD DA DB DC
 
     arguments:
         elements (list): elements of interest
@@ -1248,14 +1252,15 @@ def calculate_principal_components(
     return information
 
 
-def calculate_pairwise_correlations(
+def collect_pairwise_correlations_pobabilities(
     method=None,
     features=None,
     data=None,
 ):
     """
-    Calculates correlation coefficients and probabilities across observations
-        between pairs of features.
+    Calculates and collects correlation coefficients and probabilities across
+    observations between pairs of features. These values are symmetrical and
+    not specific to order in pairs of features.
 
     arguments:
         method (str): method for correlation, pearson, spearman, or kendall
@@ -1275,21 +1280,22 @@ def calculate_pairwise_correlations(
     data_copy = data.copy(deep=True)
 
     # Determine ordered, pairwise combinations of genes.
-    pairs = combine_unique_elements_pairwise_order(
+    # ABCD: AB AC AD BC BD CD
+    pairs = combine_unique_elements_pairwise_orderless(
         elements=features,
     )
-    #print("count of orderless pairs of unique entities:" + str(len(pairs)))
-    #utility.print_terminal_partition(level=1)
 
     # Collect counts and correlations across pairs of features.
-    correlations = dict()
+    collection = dict()
     # Iterate on features.
+    # Generate appropriate values for self-pairs.
     for feature in features:
-        correlations[feature] = dict()
-        correlations[feature][feature] = dict()
-        correlations[feature][feature]["count"] = float("nan")
-        correlations[feature][feature]["correlation"] = 1.0
-        correlations[feature][feature]["probability"] = float("nan")
+        collection[feature] = dict()
+        collection[feature][feature] = dict()
+        collection[feature][feature]["count"] = float("nan")
+        collection[feature][feature]["correlation"] = 1.0
+        collection[feature][feature]["probability"] = float("nan")
+        collection[feature][feature]["discovery"] = float("nan")
 
     # Iterate on pairs of features.
     for pair in pairs:
@@ -1328,23 +1334,56 @@ def calculate_pairwise_correlations(
             pass
 
         # Collect information.
-        if not pair[0] in correlations:
-            correlations[pair[0]] = dict()
+        if not pair[0] in collection:
+            collection[pair[0]] = dict()
             pass
-        correlations[pair[0]][pair[1]] = dict()
-        correlations[pair[0]][pair[1]]["count"] = count
-        correlations[pair[0]][pair[1]]["correlation"] = correlation
-        correlations[pair[0]][pair[1]]["probability"] = probability
+        collection[pair[0]][pair[1]] = dict()
+        collection[pair[0]][pair[1]]["count"] = count
+        collection[pair[0]][pair[1]]["correlation"] = correlation
+        collection[pair[0]][pair[1]]["probability"] = probability
 
         pass
 
     # Return information.
-    return correlations
+    return collection
 
 
-def organize_correlations_matrix(
+def collect_pairwise_correlations_discoveries(
     features=None,
-    correlations=None,
+    collection=None,
+):
+    """
+    Calculates and collects Benjamini-Hochberg false discovery rates from
+    probabilities of correlations across observations between pairs of
+    features.
+
+    arguments:
+        features (list<str>): names of features
+        collection (dict): correlation coefficients and probabilities for pairs
+            of features
+
+    raises:
+
+    returns:
+        (dict): correlation coefficients, probabilities, and discoveries for
+            pairs of features
+
+    """
+
+    pass
+
+
+
+
+# TODO: I need a separate function to collect probabilities for each pair_0 gene
+# TODO: Create a second matrix for probabilities, and then calculate discoveries (Benjamini-Hochberg FDR)
+# TODO: For each correlation value, keep the value only if the FDR is <= threshold
+# TODO: introduce missing values for non-significant correlations...
+
+
+def organize_correlations_probabilities_matrix(
+    features=None,
+    collection=None,
     key=None,
 ):
     """
@@ -1352,8 +1391,8 @@ def organize_correlations_matrix(
 
     arguments:
         features (list<str>): names of features
-        correlations (dict): correlation coefficients and probabilities for
-            pairs of features
+        collection (dict): collection of correlation coefficients and
+            probabilities across observations between pairs of features
         key (str): key to extract values, either correlation or probability
 
     raises:
@@ -1374,10 +1413,10 @@ def organize_correlations_matrix(
         # Iterate on dimension two of entities.
         for feature_two in features:
             # Access value.
-            if feature_two in correlations[feature_one]:
-                value = (
-                    correlations[feature_one][feature_two][key]
-                )
+            if feature_two in collection[feature_one]:
+                value = collection[feature_one][feature_two][key]
+            elif feature_one in collection[feature_two]:
+                value = (collection[feature_two][feature_one][key])
             else:
                 value = float("nan")
             pass
