@@ -1092,7 +1092,12 @@ def convert_dataframe_to_records(data=None):
 
     """
 
-    return data.to_dict(orient="records")
+    data_copy = data.copy(deep=True)
+    data_copy.reset_index(
+        level=None,
+        inplace=True,
+    )
+    return data_copy.to_dict(orient="records")
 
 
 def segregate_data_two_thresholds(
@@ -1162,346 +1167,6 @@ def segregate_data_two_thresholds(
     collection["pass"] = data_pass
     collection["fail"] = data_fail
     return collection
-
-
-# TODO: switch to statsmodels PCA
-# https://www.statsmodels.org/devel/generated/statsmodels.multivariate.pca.pca.html
-
-def calculate_principal_components(
-    data=None,
-    components=None,
-    report=None,
-):
-    """
-    Calculates the principal components.
-
-    Format of data should have features across columns and observations across
-    rows.
-
-    This function then transforms the data frame to a matrix.
-
-    This matrix has observations across dimension zero and features across
-    dimension one.
-
-    arguments:
-        data (object): Pandas data frame of signals with features across rows
-            and observations across columns
-        components (int): count of principle components
-        report (bool): whether to print reports to terminal
-
-    raises:
-
-    returns:
-        (dict): information about data's principal components
-
-    """
-
-    # Organize data.
-    data_copy = data.copy(deep=True)
-
-    # Organize data for principle component analysis.
-    # Organize data as an array of arrays.
-    matrix = data_copy.to_numpy()
-    # Execute principle component analysis.
-    pca = sklearn.decomposition.PCA(n_components=components)
-    #report = pca.fit_transform(matrix)
-    pca.fit(matrix)
-    # Report extent of variance that each principal component explains.
-    variance_ratios = pca.explained_variance_ratio_
-    component_numbers = range(len(variance_ratios) + 1)
-    variance_series = {
-        "component": component_numbers[1:],
-        "variance": variance_ratios
-    }
-    data_component_variance = pandas.DataFrame(data=variance_series)
-    # Transform data by principal components.
-    matrix_component = pca.transform(matrix)
-    # Match components to samples.
-    observations = data_copy.index.to_list()
-    records = []
-    for index, row in enumerate(matrix_component):
-        record = {}
-        record["observation"] = observations[index]
-        for count in range(components):
-            name = "component_" + str(count + 1)
-            record[name] = row[count]
-        records.append(record)
-    data_component = (
-        convert_records_to_dataframe(records=records)
-    )
-    data_component.set_index(
-        ["observation"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    # Report
-    if report:
-        print_terminal_partition(level=3)
-        print("dimensions of original data: " + str(data.shape))
-        print("dimensions of novel data: " + str(data_component.shape))
-        print("proportional variance:")
-        print(data_component_variance)
-        print_terminal_partition(level=3)
-    # Compile information.
-    information = {
-        "data_observations_components": data_component,
-        "data_components_variances": data_component_variance,
-    }
-    # Return information.
-    return information
-
-
-def collect_pairwise_correlations_pobabilities(
-    method=None,
-    features=None,
-    data=None,
-):
-    """
-    Calculates and collects correlation coefficients and probabilities across
-    observations between pairs of features. These values are symmetrical and
-    not specific to order in pairs of features.
-
-    arguments:
-        method (str): method for correlation, pearson, spearman, or kendall
-        features (list<str>): names of features
-        data (object): Pandas data frame of features (columns) across
-            observations (rows)
-
-    raises:
-
-    returns:
-        (dict): correlation coefficients and probabilities for pairs of
-            features
-
-    """
-
-    # Organize data.
-    data_copy = data.copy(deep=True)
-
-    # Determine ordered, pairwise combinations of genes.
-    # ABCD: AB AC AD BC BD CD
-    pairs = combine_unique_elements_pairwise_orderless(
-        elements=features,
-    )
-
-    # Collect counts and correlations across pairs of features.
-    collection = dict()
-    # Iterate on features.
-    # Generate appropriate values for self-pairs.
-    for feature in features:
-        collection[feature] = dict()
-        collection[feature][feature] = dict()
-        collection[feature][feature]["count"] = float("nan")
-        collection[feature][feature]["correlation"] = 1.0
-        collection[feature][feature]["probability"] = float("nan")
-        collection[feature][feature]["discovery"] = float("nan")
-
-    # Iterate on pairs of features.
-    for pair in pairs:
-        # Select data for pair of features.
-        data_pair = data_copy.loc[:, list(pair)]
-        # Remove observations with missing values for either feature.
-        data_pair.dropna(
-            axis="index",
-            how="any",
-            inplace=True,
-        )
-        # Determine observations for which pair of features has matching
-        # values.
-        count = data_pair.shape[0]
-        # Calculate correlation.
-        if count > 1:
-            if method == "pearson":
-                correlation, probability = scipy.stats.pearsonr(
-                    data_pair[pair[0]].to_numpy(),
-                    data_pair[pair[1]].to_numpy(),
-                )
-            elif method == "spearman":
-                correlation, probability = scipy.stats.spearmanr(
-                    data_pair[pair[0]].to_numpy(),
-                    data_pair[pair[1]].to_numpy(),
-                )
-            elif method == "kendall":
-                correlation, probability = scipy.stats.kendalltau(
-                    data_pair[pair[0]].to_numpy(),
-                    data_pair[pair[1]].to_numpy(),
-                )
-            pass
-        else:
-            correlation = float("nan")
-            probability = float("nan")
-            pass
-
-        # Collect information.
-        if not pair[0] in collection:
-            collection[pair[0]] = dict()
-            pass
-        collection[pair[0]][pair[1]] = dict()
-        collection[pair[0]][pair[1]]["count"] = count
-        collection[pair[0]][pair[1]]["correlation"] = correlation
-        collection[pair[0]][pair[1]]["probability"] = probability
-
-        pass
-
-    # Return information.
-    return collection
-
-
-def collect_pairwise_correlations_discoveries(
-    features=None,
-    collection=None,
-):
-    """
-    Calculates and collects Benjamini-Hochberg false discovery rates from
-    probabilities of correlations across observations between pairs of
-    features.
-
-    arguments:
-        features (list<str>): names of features
-        collection (dict): correlation coefficients and probabilities for pairs
-            of features
-
-    raises:
-
-    returns:
-        (dict): correlation coefficients, probabilities, and discoveries for
-            pairs of features
-
-    """
-
-    pass
-
-
-
-
-# TODO: I need a separate function to collect probabilities for each pair_0 gene
-# TODO: Create a second matrix for probabilities, and then calculate discoveries (Benjamini-Hochberg FDR)
-# TODO: For each correlation value, keep the value only if the FDR is <= threshold
-# TODO: introduce missing values for non-significant correlations...
-
-
-def organize_correlations_probabilities_matrix(
-    features=None,
-    collection=None,
-    key=None,
-):
-    """
-    Organizes a matrix of correlation coefficients.
-
-    arguments:
-        features (list<str>): names of features
-        collection (dict): collection of correlation coefficients and
-            probabilities across observations between pairs of features
-        key (str): key to extract values, either correlation or probability
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of correlation coefficients
-
-    """
-
-    # Collect counts and correlations across pairs of features.
-    records = list()
-    # Iterate on dimension one of entities.
-    for feature_one in features:
-        # Collect information.
-        record = dict()
-        record["feature"] = feature_one
-
-        # Iterate on dimension two of entities.
-        for feature_two in features:
-            # Access value.
-            if feature_two in collection[feature_one]:
-                value = collection[feature_one][feature_two][key]
-            elif feature_one in collection[feature_two]:
-                value = (collection[feature_two][feature_one][key])
-            else:
-                value = float("nan")
-            pass
-            # Collect information.
-            record[feature_two] = value
-
-        # Collect information.
-        records.append(record)
-        pass
-
-    # Organize data.
-    data = convert_records_to_dataframe(records=records)
-    data.sort_values(
-        by=["feature"],
-        axis="index",
-        ascending=True,
-        inplace=True,
-    )
-    data.set_index(
-        ["feature"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data.rename_axis(
-        columns="features",
-        axis="columns",
-        copy=False,
-        inplace=True
-    )
-    # Return information.
-    return data
-
-
-def cluster_adjacency_matrix(
-    data=None,
-):
-    """
-    Organizes a matrix of correlation coefficients.
-
-    arguments:
-        data (object): Pandas data frame of values
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of values
-
-    """
-
-    data = data.copy(deep=True)
-    # Cluster.
-    columns = data.columns.to_list()
-    rows = data.index.to_list()
-    matrix = numpy.transpose(data.values)
-    linkage = scipy.cluster.hierarchy.linkage(
-        matrix,
-        method="average", # "single", "complete", "average"
-        metric="euclidean",
-        optimal_ordering=True,
-    )
-    dendrogram = scipy.cluster.hierarchy.dendrogram(
-        linkage,
-    )
-    dimension = len(matrix)
-    # Access seriation from dendrogram leaves.
-    leaves = dendrogram["leaves"]
-    # Generate new matrix with values of 1.0 that will persist on the diagonal.
-    #matrix_order = numpy.zeros((dimension, dimension))
-    matrix_cluster = numpy.full(
-        (dimension, dimension),
-        fill_value=1.0,
-    )
-    a,b = numpy.triu_indices(dimension, k=1)
-    matrix_cluster[a,b] = (
-        matrix[[leaves[i] for i in a], [leaves[j] for j in b]]
-    )
-    matrix_cluster[b,a] = matrix_cluster[a,b]
-    data_cluster = pandas.DataFrame(
-        data=matrix_cluster,
-        index=rows,
-        columns=columns,
-    )
-    # Return information.
-    return data_cluster
 
 
 def filter_rows_columns_by_threshold_proportion(
@@ -1619,69 +1284,6 @@ def filter_rows_columns_by_threshold_outer_proportion(
         # Filter columns by consideration of rows for each columns.
         rows = data.shape[0]
         count = round(proportion * rows)
-
-    # Determine whether values exceed threshold.
-    data_threshold = data.applymap(
-        lambda value: ((value <= threshold_low) or (threshold_high <= value))
-    )
-    # Determine whether count of values exceed threshold.
-    if dimension == "row":
-        axis = "columns"
-    elif dimension == "column":
-        axis = "index"
-    # This aggregation operation produces a series.
-    data_count = data_threshold.aggregate(
-        lambda slice: count_true(slice=slice, count=count),
-        axis=axis,
-    )
-
-    # Select rows and columns with appropriate values.
-    if dimension == "row":
-        data_pass = data.loc[data_count, : ]
-    elif dimension == "column":
-        data_pass = data.loc[:, data_count]
-    return data_pass
-
-
-def filter_rows_columns_by_threshold_outer_count(
-    data=None,
-    dimension=None,
-    threshold_high=None,
-    threshold_low=None,
-    count=None,
-):
-    """
-    Filters either rows or columns by whether a certain count of values
-    are outside of low and high thresholds.
-
-    Persistence of a row or column requires at least a specific count of
-    values beyond a specific threshold.
-
-    Filter rows by consideration of values across columns in each row.
-    Filter columns by consideration of values across rows in each column.
-
-    arguments:
-        data (object): Pandas data frame of values
-        dimension (str): dimension to filter, either "row" or "column"
-        threshold_high (float): value must be greater than this threshold
-        threshold_low (float): value must be less than this threshold
-        count (int): minimal count of rows or columns that must
-            pass threshold
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of values
-
-    """
-
-    def count_true(slice=None, count=None):
-        values = slice.values.tolist()
-        values_true = list(itertools.compress(values, values))
-        return (len(values_true) >= count)
-
-    # Copy data.
-    data = data.copy(deep=True)
 
     # Determine whether values exceed threshold.
     data_threshold = data.applymap(
@@ -1861,164 +1463,567 @@ def count_data_factors_groups_elements(
     return data_counts
 
 
-# Human Metabolome Database (HMDB).
+# Principal components
 
+# TODO: switch to statsmodels PCA
+# https://www.statsmodels.org/devel/generated/statsmodels.multivariate.pca.pca.html
 
-def match_hmdb_entries_by_identifiers_names(
-    identifiers=None,
-    names=None,
-    summary_hmdb=None
+def calculate_principal_components(
+    data=None,
+    components=None,
+    report=None,
 ):
-
     """
-    Matches entries from Human Metabolome Database by identifiers or names.
+    Calculates the principal components.
+
+    Format of data should have features across columns and observations across
+    rows.
+
+    This function then transforms the data frame to a matrix.
+
+    This matrix has observations across dimension zero and features across
+    dimension one.
 
     arguments:
-        identifiers (list<str>): identifiers by which to find entries in HMDB
-        names (list<str>): names by which to find entries in HMDB
-        summary_hmdb (dict<dict>): information about metabolites from Human
-            Metabolome Database (HMDB)
-
-    returns:
-        (list<str>): keys of entries in HMDB
+        data (object): Pandas data frame of signals with features across rows
+            and observations across columns
+        components (int): count of principle components
+        report (bool): whether to print reports to terminal
 
     raises:
 
+    returns:
+        (dict): information about data's principal components
+
     """
 
-    # Test.
-    #hmdb_keys = utility.match_hmdb_entries_by_identifiers_names(
-    #    identifiers=[],
-    #    names=["pyruvate"],
-    #    summary_hmdb=source["summary_hmdb"]
-    #)
-    # HMDB0000243
+    # Organize data.
+    data_copy = data.copy(deep=True)
 
-    # Ensure identifiers and names are not empty.
-    identifiers_valid = filter_nonempty_elements(identifiers)
-    names_valid = filter_nonempty_elements(names)
-    # Determine whether measurement's record include reference to HMDB.
-    if (len(identifiers_valid) > 0):
-        # Measurement's record includes references to HMDB.
-        # Match measurement's record to a entries in HMDB.
-        # Match by identifier.
-        hmdb_keys = filter_hmdb_entries_by_identifiers(
-            identifiers=identifiers_valid,
-            summary_hmdb=summary_hmdb
-        )
-    elif (len(names_valid) > 0):
-        # Measurement's record does not include reference to HMDB.
-        # Match measurement's record to an entry in HMDB.
-        # Attempt to match by name.
-        hmdb_keys = filter_hmdb_entries_by_synonyms(
-            names=names_valid,
-            summary_hmdb=summary_hmdb
-        )
-    else:
-        hmdb_keys = []
+    # Organize data for principle component analysis.
+    # Organize data as an array of arrays.
+    matrix = data_copy.to_numpy()
+    # Execute principle component analysis.
+    pca = sklearn.decomposition.PCA(n_components=components)
+    #report = pca.fit_transform(matrix)
+    pca.fit(matrix)
+    # Report extent of variance that each principal component explains.
+    variance_ratios = pca.explained_variance_ratio_
+    component_numbers = range(len(variance_ratios) + 1)
+    variance_series = {
+        "component": component_numbers[1:],
+        "variance": variance_ratios
+    }
+    data_component_variance = pandas.DataFrame(data=variance_series)
+    # Transform data by principal components.
+    matrix_component = pca.transform(matrix)
+    # Match components to samples.
+    observations = data_copy.index.to_list()
+    records = []
+    for index, row in enumerate(matrix_component):
+        record = {}
+        record["observation"] = observations[index]
+        for count in range(components):
+            name = "component_" + str(count + 1)
+            record[name] = row[count]
+        records.append(record)
+    data_component = (
+        convert_records_to_dataframe(records=records)
+    )
+    data_component.set_index(
+        ["observation"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    # Report
+    if report:
+        print_terminal_partition(level=3)
+        print("dimensions of original data: " + str(data.shape))
+        print("dimensions of novel data: " + str(data_component.shape))
+        print("proportional variance:")
+        print(data_component_variance)
+        print_terminal_partition(level=3)
+    # Compile information.
+    information = {
+        "data_observations_components": data_component,
+        "data_components_variances": data_component_variance,
+    }
     # Return information.
-    return hmdb_keys
+    return information
 
 
-def filter_hmdb_entries_by_identifiers(
-    identifiers=None, summary_hmdb=None
+# Pairwise correlations in symmetric adjacency matrix
+
+
+def collect_pairwise_correlations_pobabilities(
+    method=None,
+    features=None,
+    data=None,
 ):
     """
-    Filters entries from HMDB by their identifiers.
+    Calculates and collects correlation coefficients and probabilities across
+    observations between pairs of features. These values are symmetrical and
+    not specific to order in pairs of features.
 
     arguments:
-        identifiers (list<str>): identifiers by which to find entries in HMDB
-        summary_hmdb (dict<dict>): information about metabolites from Human
-            Metabolome Database (HMDB)
-
-    returns:
-        (list<str>): keys of entries in HMDB
+        method (str): method for correlation, pearson, spearman, or kendall
+        features (list<str>): names of features
+        data (object): Pandas data frame of features (columns) across
+            observations (rows)
 
     raises:
 
+    returns:
+        (dict): correlation coefficients and probabilities for pairs of
+            features
+
     """
 
-    keys = []
-    for key, record in summary_hmdb.items():
-        hmdb_entry_identifiers = record["references_hmdb"]
-        # Determine whether any of entry's identifiers match the metabolite's
-        # references
-        checks = []
-        for identifier in identifiers:
-            check = identifier in hmdb_entry_identifiers
-            checks.append(check)
-        if any(checks):
-            # The entry matches the metabolite's references.
-            keys.append(key)
-    return keys
+    # Organize data.
+    data_copy = data.copy(deep=True)
+
+    # Determine ordered, pairwise combinations of genes.
+    # ABCD: AB AC AD BC BD CD
+    pairs = combine_unique_elements_pairwise_orderless(
+        elements=features,
+    )
+
+    # Collect counts and correlations across pairs of features.
+    collection = dict()
+    # Iterate on features.
+    # Generate appropriate values for self-pairs.
+    for feature in features:
+        collection[feature] = dict()
+        collection[feature][feature] = dict()
+        collection[feature][feature]["count"] = float("nan")
+        collection[feature][feature]["correlation"] = 1.0
+        collection[feature][feature]["probability"] = 0.0
+        collection[feature][feature]["discovery"] = float("nan")
+        collection[feature][feature]["significance"] = True
+
+    # Iterate on pairs of features.
+    for pair in pairs:
+        # Select data for pair of features.
+        data_pair = data_copy.loc[:, list(pair)]
+        # Remove observations with missing values for either feature.
+        data_pair.dropna(
+            axis="index",
+            how="any",
+            inplace=True,
+        )
+        # Determine observations for which pair of features has matching
+        # values.
+        count = data_pair.shape[0]
+        # Calculate correlation.
+        if count > 1:
+            if method == "pearson":
+                correlation, probability = scipy.stats.pearsonr(
+                    data_pair[pair[0]].to_numpy(),
+                    data_pair[pair[1]].to_numpy(),
+                )
+            elif method == "spearman":
+                correlation, probability = scipy.stats.spearmanr(
+                    data_pair[pair[0]].to_numpy(),
+                    data_pair[pair[1]].to_numpy(),
+                )
+            elif method == "kendall":
+                correlation, probability = scipy.stats.kendalltau(
+                    data_pair[pair[0]].to_numpy(),
+                    data_pair[pair[1]].to_numpy(),
+                )
+            pass
+        else:
+            correlation = float("nan")
+            probability = float("nan")
+            pass
+
+        # Collect information.
+        if not pair[0] in collection:
+            collection[pair[0]] = dict()
+            pass
+        collection[pair[0]][pair[1]] = dict()
+        collection[pair[0]][pair[1]]["count"] = count
+        collection[pair[0]][pair[1]]["correlation"] = correlation
+        collection[pair[0]][pair[1]]["probability"] = probability
+
+        pass
+
+    # Return information.
+    return collection
 
 
-def filter_hmdb_entries_by_synonyms(
-    names=None, summary_hmdb=None
+def calculate_pairwise_correlations_discoveries(
+    collection=None,
+    threshold=None,
 ):
     """
-    Filters entries from HMDB by their synonyms.
+    Calculates and collects Benjamini-Hochberg false discovery rates from
+    probabilities of correlations across observations between pairs of
+    features.
 
     arguments:
-        names (list<str>): names by which to find entries in HMDB
-        summary_hmdb (dict<dict>): information about metabolites from Human
-            Metabolome Database (HMDB)
-
-    returns:
-        (list<str>): keys of entries in HMDB
+        collection (dict): correlation coefficients and probabilities for pairs
+            of features
+        threshold (float): value of alpha, or family-wise error rate of false
+            discoveries
 
     raises:
 
+    returns:
+        (dict): correlation coefficients, probabilities, and discoveries for
+            pairs of features
+
     """
 
-    keys = []
-    for key, record in summary_hmdb.items():
-        synonyms = record["synonyms"]
-        synonyms_comparison = []
-        for synonym in synonyms:
-            synonym_comparison = convert_string_low_alpha_num(synonym)
-            synonyms_comparison.append(synonym_comparison)
-        # Determine whether any of entry's identifiers match the metabolite's
-        # references
-        checks = []
-        for name in names:
-            name_comparison = convert_string_low_alpha_num(name)
-            check = name_comparison in synonyms_comparison
-            checks.append(check)
-        if any(checks):
-            # The entry matches the metabolite's references
-            keys.append(key)
-    return keys
+    # Extract probabilities.
+    data_probability = extract_pairs_values_long(
+        collection=collection,
+        key="probability",
+        name="probability",
+    )
+
+    # Calculate false discovery rates.
+    data_discovery = calculate_false_discovery_rate(
+        threshold=threshold,
+        probability="probability",
+        discovery="discovery",
+        significance="significance",
+        data_probabilities=data_probability,
+    )
+
+    # Introduce false discovery rates to collection.
+    collection_discovery = copy.deepcopy(collection)
+    records = convert_dataframe_to_records(data=data_discovery)
+    for record in records:
+        one = record["feature_one"]
+        two = record["feature_two"]
+        collection_discovery[one][two]["discovery"] = record["discovery"]
+        collection_discovery[one][two]["significance"] = record["significance"]
+        pass
+    # Return information.
+    return collection_discovery
 
 
-def filter_hmdb_entries_by_references(
-    reference=None, identifiers=None, summary_hmdb=None
+def extract_pairs_values_long(
+    collection=None,
+    key=None,
+    name=None,
 ):
     """
-    Filters entries from HMDB by their identifiers.
+    Extracts  a matrix of correlation coefficients.
 
     arguments:
-        reference (str): name of reference
-        identifiers (list<str>): identifiers by which to find entries in HMDB
-        summary_hmdb (dict<dict>): information about metabolites from Human
-            Metabolome Database (HMDB)
-
-    returns:
-        (list<str>): keys of entries in HMDB
+        collection (dict): collection of correlation coefficients and
+            probabilities across observations between pairs of features
+        key (str): key to extract values, either correlation or probability
+        name (str): name of column for values
 
     raises:
 
+    returns:
+        (object): Pandas data frame of correlation coefficients
+
     """
 
-    keys = []
-    for key, record in summary_hmdb.items():
-        reference_entry = record[reference]
-        # Determine whether any of entry's references match the query.
-        match = reference_entry in identifiers
-        if match:
-            # The entry matches the metabolite's references.
-            keys.append(key)
-    return keys
+    # Copy.
+    collection = copy.deepcopy(collection)
+
+    # Collect counts and correlations across pairs of features.
+    records = list()
+    # Iterate on dimension one of entities.
+    for feature_one in collection:
+        # Iterate on dimension two of entities.
+        for feature_two in collection[feature_one]:
+            # Collect information.
+            record = dict()
+            record["feature_one"] = feature_one
+            record["feature_two"] = feature_two
+            record[name] = collection[feature_one][feature_two][key]
+            # Collect information.
+            records.append(record)
+            pass
+        pass
+
+    # Organize data.
+    data = convert_records_to_dataframe(records=records)
+    #data.set_index(
+    #    ["feature_one", "feature_two"],
+    #    append=False,
+    #    drop=True,
+    #    inplace=True
+    #)
+    # Return information.
+    return data
+
+
+def organize_symmetric_adjacency_matrix(
+    features=None,
+    collection=None,
+    key=None,
+    threshold=None,
+    fill=None,
+):
+    """
+    Organizes a symmetric adjacency matrix of correlation coefficients.
+
+    arguments:
+        features (list<str>): names of features
+        collection (dict): collection of correlation coefficients and
+            probabilities across observations between pairs of features
+        key (str): key to extract values, either correlation or probability
+        threshold (bool): whether to include only values that are significant
+            by the false discovery rate
+        fill (float): value with which to fill missing values or those that are
+            insignificant
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of correlation coefficients
+
+    """
+
+    # Collect counts and correlations across pairs of features.
+    records = list()
+    # Iterate on dimension one of entities.
+    for feature_one in features:
+        # Collect information.
+        record = dict()
+        record["feature"] = feature_one
+
+        # Iterate on dimension two of entities.
+        for feature_two in features:
+            # Access value.
+            if feature_two in collection[feature_one]:
+                value = collection[feature_one][feature_two][key]
+                significance = (
+                    collection[feature_one][feature_two]["significance"]
+                )
+            elif feature_one in collection[feature_two]:
+                value = (collection[feature_two][feature_one][key])
+                significance = (
+                    collection[feature_two][feature_one]["significance"]
+                )
+            else:
+                significance = False
+            pass
+            # Collect information.
+            if threshold and significance:
+                record[feature_two] = value
+            else:
+                record[feature_two] = fill
+        # Collect information.
+        records.append(record)
+        pass
+
+    # Organize data.
+    data = convert_records_to_dataframe(records=records)
+    data.sort_values(
+        by=["feature"],
+        axis="index",
+        ascending=True,
+        inplace=True,
+    )
+    data.set_index(
+        ["feature"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data.rename_axis(
+        columns="features",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    # Return information.
+    return data
+
+
+def cluster_adjacency_matrix(
+    data=None,
+):
+    """
+    Organizes a matrix of correlation coefficients.
+
+    arguments:
+        data (object): Pandas data frame of values
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of values
+
+    """
+
+    data = data.copy(deep=True)
+    # Cluster.
+    columns = data.columns.to_list()
+    rows = data.index.to_list()
+    matrix = numpy.transpose(data.values)
+    linkage = scipy.cluster.hierarchy.linkage(
+        matrix,
+        method="average", # "single", "complete", "average"
+        metric="euclidean",
+        optimal_ordering=True,
+    )
+    dendrogram = scipy.cluster.hierarchy.dendrogram(
+        linkage,
+    )
+    dimension = len(matrix)
+    # Access seriation from dendrogram leaves.
+    leaves = dendrogram["leaves"]
+    # Generate new matrix with values of 1.0 that will persist on the diagonal.
+    #matrix_order = numpy.zeros((dimension, dimension))
+    matrix_cluster = numpy.full(
+        (dimension, dimension),
+        fill_value=1.0,
+    )
+    a,b = numpy.triu_indices(dimension, k=1)
+    matrix_cluster[a,b] = (
+        matrix[[leaves[i] for i in a], [leaves[j] for j in b]]
+    )
+    matrix_cluster[b,a] = matrix_cluster[a,b]
+    data_cluster = pandas.DataFrame(
+        data=matrix_cluster,
+        index=rows,
+        columns=columns,
+    )
+    # Return information.
+    return data_cluster
+
+
+def filter_features_by_threshold_outer_count(
+    data=None,
+    threshold_high=None,
+    threshold_low=None,
+    count=None,
+):
+    """
+    Filters features in a symmetric adjacency matrix by whether a certain count
+    of values are outside of low and high thresholds.
+
+    arguments:
+        data (object): Pandas data frame of values
+        threshold_high (float): value must be greater than this threshold
+        threshold_low (float): value must be less than this threshold
+        count (int): minimal count of rows or columns that must
+            pass threshold
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of values
+
+    """
+
+    def count_true(slice=None, count=None):
+        values = slice.to_numpy().tolist()
+        values_true = list(itertools.compress(values, values))
+        return (len(values_true) >= count)
+
+    # Copy data.
+    data = data.copy(deep=True)
+    # Determine whether values exceed threshold.
+    data_threshold = data.applymap(
+        lambda value: ((value <= threshold_low) or (threshold_high <= value))
+    )
+    # This aggregation operation produces a series.
+    data_count_row = data_threshold.aggregate(
+        lambda slice: count_true(slice=slice, count=count),
+        axis="columns",
+    )
+    # Select rows with appropriate values.
+    data_row = data.loc[data_count_row, : ]
+    # Extract identifiers of features.
+    features = collect_unique_elements(
+        elements_original=data_row.index.tolist()
+    )
+    # Select identical features across rows and columns.
+    data_feature_row = data.loc[
+        data.index.isin(features),
+        :
+    ]
+    data_feature_column = data_feature_row.loc[
+        :, data_feature_row.columns.isin(features)
+    ]
+    # Return information.
+    return data_feature_column
+
+
+def organize_feature_signal_correlations(
+    method=None,
+    threshold_high=None,
+    threshold_low=None,
+    count=None,
+    discovery=None,
+    features=None,
+    data_signal=None,
+):
+    """
+    Calculates and organizes correlation coefficients between pairs of features
+    across observations.
+
+    arguments:
+        method (str): method for correlation, pearson, spearman, or kendall
+        threshold_high (float): value must be greater than this threshold
+        threshold_low (float): value must be less than this threshold
+        count (int): minimal count of rows or columns that must
+            pass threshold
+        discovery (float): value of false discovery rate for which to include
+            correlation coefficients
+        features (list<str>): identifiers of features
+        data_signal (object): Pandas data frame of features' signals across
+            observations
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' pairwise correlations
+
+    """
+
+    # Organize data.
+    data = data_signal.copy(deep=True)
+
+    # Calculate correlations between gene pairs of their pantissue signals
+    # across persons.
+    # Only collect genes with correlations beyond thresholds.
+    collection = collect_pairwise_correlations_pobabilities(
+        method=method,
+        features=features,
+        data=data,
+    )
+    # Calculate false discovery rates for each primary feature.
+    collection_discovery = calculate_pairwise_correlations_discoveries(
+        collection=collection,
+        threshold=discovery,
+    )
+
+    # Organize data matrix for correlation coefficients.
+    # Filter correlation coefficients by value of false discovery rate.
+    # Clustering algorithm requires that matrix not include missing values.
+    data_correlation = organize_symmetric_adjacency_matrix(
+        features=features,
+        collection=collection_discovery,
+        key="correlation",
+        threshold=True,
+        fill=0.0,
+    )
+    # Filter genes by their pairwise correlations.
+    data_pass = filter_features_by_threshold_outer_count(
+        data=data_correlation,
+        threshold_high=threshold_high,
+        threshold_low=threshold_low,
+        count=count,
+    )
+    # Cluster data.
+    data_cluster = cluster_adjacency_matrix(
+        data=data_pass,
+    )
+    # Return information.
+    return data_cluster
 
 
 # Metabolic information.

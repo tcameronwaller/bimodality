@@ -176,112 +176,6 @@ def read_source(dock=None):
     }
 
 
-# Correlations between pairs of genes
-
-# TODO: this function should probably be general and within the utility module.
-
-def calculate_organize_gene_correlations(
-    method=None,
-    threshold_high=None,
-    threshold_low=None,
-    count=None,
-    discovery=None,
-    genes=None,
-    data_signals_genes_persons=None,
-):
-    """
-    Calculates Pearson correlation coefficients between pairs of genes.
-
-    arguments:
-        method (str): method for correlation, pearson, spearman, or kendall
-        threshold_high (float): value must be greater than this threshold
-        threshold_low (float): value must be less than this threshold
-        count (int): minimal count of rows or columns that must
-            pass threshold
-        discovery (float): value of false discovery rate for which to include
-            correlation coefficients
-        genes (list<str>): identifiers of genes
-        data_signals_genes_persons (object): Pandas data frame of genes'
-            pan-tissue signals across persons
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' pairwise correlations
-
-    """
-
-    # Organize data.
-    data_signal = data_signals_genes_persons.copy(deep=True)
-
-    # Calculate correlations between gene pairs of their pantissue signals
-    # across persons.
-    # Only collect genes with correlations beyond thresholds.
-    collection = utility.collect_pairwise_correlations_pobabilities(
-        method=method,
-        features=genes,
-        data=data_signal,
-    )
-
-    # Calculate false discovery rates for each primary feature.
-    # TODO: only half of the pairs (symmetrical) should affect the calculation of false discovery rate
-    # TODO: use a data frame as an intermediate data structure
-    collection_discovery = utility.calculate_pairwise_correlations_discoveries(
-        features=genes,
-        collection=collection,
-    )
-
-    # Organize data matrix for correlation coefficients.
-    data_correlation = utility.organize_correlations_probabilities_matrix(
-        features=genes,
-        collection=collection,
-        key="correlation",
-    )
-
-    # Organize data matrix for probabilities.
-    data_probability = utility.organize_correlations_probabilities_matrix(
-        features=genes,
-        collection=collection,
-        key="probability",
-    )
-
-    utility.print_terminal_partition(level=1)
-    print("data_probability...")
-    print(data_probability)
-
-    # Filter correlation coefficients by value of false discovery rate.
-
-
-
-    if False:
-        # Filter genes by their pairwise correlations.
-        data_row = utility.filter_rows_columns_by_threshold_outer_count(
-            data=data_correlation,
-            dimension="row",
-            threshold_high=threshold_high,
-            threshold_low=threshold_low,
-            count=count,
-        )
-        data_column = utility.filter_rows_columns_by_threshold_outer_count(
-            data=data_row,
-            dimension="column",
-            threshold_high=threshold_high,
-            threshold_low=threshold_low,
-            count=count,
-        )
-        print("shape of data after signal filters...")
-        print(data_column.shape)
-
-        # Cluster data.
-        data_cluster = utility.cluster_adjacency_matrix(
-            data=data_column,
-        )
-
-        # Return information.
-        return data_cluster
-    pass
-
-
 def organize_gene_correlations_multimodal_prediction(
     sets=None,
     data_signals_genes_persons=None,
@@ -306,14 +200,14 @@ def organize_gene_correlations_multimodal_prediction(
     # Calculate correlations between genes that associate with hypothetical
     # variables in regression.
     # Hardiness.
-    data_hardiness = calculate_organize_gene_correlations(
+    data_hardiness = utility.organize_feature_signal_correlations(
         method="spearman", # pearson (normal distribution), spearman
         threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
         threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
         count=2, # accommodate the value 1.0 for self pairs (A, A)
         discovery=0.05,
-        genes=sets["multimodal"]["hardiness_scale"],
-        data_signals_genes_persons=data_signals_genes_persons,
+        features=sets["multimodal"]["hardiness_scale"],
+        data_signal=data_signals_genes_persons,
     )
     # Sex, age, body.
     genes_sex_age_body = list()
@@ -323,14 +217,14 @@ def organize_gene_correlations_multimodal_prediction(
     genes_sex_age_body_unique = utility.collect_unique_elements(
         elements_original=genes_sex_age_body
     )
-    data_sex_age_body = calculate_organize_gene_correlations(
+    data_sex_age_body = utility.organize_feature_signal_correlations(
         method="spearman", # pearson (normal distribution), spearman
         threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
         threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
         count=2, # accommodate the value 1.0 for self pairs (A, A)
         discovery=0.05,
-        genes=genes_sex_age_body_unique,
-        data_signals_genes_persons=data_signals_genes_persons,
+        features=genes_sex_age_body_unique,
+        data_signal=data_signals_genes_persons,
     )
     # Sex, age, body.
     genes_union = list()
@@ -341,14 +235,14 @@ def organize_gene_correlations_multimodal_prediction(
     genes_union_unique = utility.collect_unique_elements(
         elements_original=genes_union
     )
-    data_union = calculate_organize_gene_correlations(
+    data_union = utility.organize_feature_signal_correlations(
         method="spearman", # pearson (normal distribution), spearman
-        threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
-        threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
+        threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
+        threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
         count=2, # accommodate the value 1.0 for self pairs (A, A)
         discovery=0.05,
-        genes=genes_union_unique,
-        data_signals_genes_persons=data_signals_genes_persons,
+        features=genes_union_unique,
+        data_signal=data_signals_genes_persons,
     )
     # Compile information.
     collection = dict()
@@ -743,25 +637,27 @@ def execute_procedure(dock=None):
 
     # Calculate correlations between pairs of genes.
     # Use Spearman correlations for both unimodal and multimodal.
-    data_correlation_genes_unimodal = calculate_organize_gene_correlations(
-        method="spearman", # pearson (normal distribution), spearman
-        threshold_high=0.7, # 1.0, 0.75, 0.5, 0.0
-        threshold_low=-0.7, # -1.0, -0.75, -0.5, -0.0
-        count=2, # accommodate the value 1.0 for self pairs (A, A)
-        discovery=0.05,
-        genes=source["genes_unimodal"],
-        data_signals_genes_persons=source["data_signals_genes_persons"],
-    )
+    data_correlation_genes_unimodal = (
+        utility.organize_feature_signal_correlations(
+            method="spearman", # pearson (normal distribution), spearman
+            threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
+            threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
+            count=2, # accommodate the value 1.0 for self pairs (A, A)
+            discovery=0.05,
+            features=source["genes_unimodal"],
+            data_signal=source["data_signals_genes_persons"],
+    ))
     print(data_correlation_genes_unimodal)
-    data_correlation_genes_multimodal = calculate_organize_gene_correlations(
-        method="spearman", # pearson (normal distribution), spearman
-        threshold_high=0.7, # 1.0, 0.75, 0.5, 0.0
-        threshold_low=-0.7, # -1.0, -0.75, -0.5, -0.0
-        count=2, # accommodate the value 1.0 for self pairs (A, A)
-        discovery=0.05,
-        genes=source["genes_multimodal"],
-        data_signals_genes_persons=source["data_signals_genes_persons"],
-    )
+    data_correlation_genes_multimodal = (
+        utility.organize_feature_signal_correlations(
+            method="spearman", # pearson (normal distribution), spearman
+            threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
+            threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
+            count=2, # accommodate the value 1.0 for self pairs (A, A)
+            discovery=0.05,
+            features=source["genes_multimodal"],
+            data_signal=source["data_signals_genes_persons"],
+    ))
     print(data_correlation_genes_multimodal)
 
     # Calculate and organize correlations for groups of genes from regression
