@@ -1809,10 +1809,13 @@ def organize_symmetric_adjacency_matrix(
                 significance = False
             pass
             # Collect information.
-            if threshold and significance:
-                record[feature_two] = value
+            if threshold:
+                if significance:
+                    record[feature_two] = value
+                else:
+                    record[feature_two] = fill
             else:
-                record[feature_two] = fill
+                record[feature_two] = value
         # Collect information.
         records.append(record)
         pass

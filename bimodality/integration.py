@@ -226,6 +226,10 @@ def organize_gene_correlations_multimodal_prediction(
         features=genes_sex_age_body_unique,
         data_signal=data_signals_genes_persons,
     )
+    #utility.print_terminal_partition(level=1)
+    #print("data_sex_age_body")
+    #utility.print_terminal_partition(level=2)
+    #print(data_sex_age_body)
     # Sex, age, body.
     genes_union = list()
     genes_union.extend(sets["multimodal"]["female_scale"])
@@ -640,25 +644,31 @@ def execute_procedure(dock=None):
     data_correlation_genes_unimodal = (
         utility.organize_feature_signal_correlations(
             method="spearman", # pearson (normal distribution), spearman
-            threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
-            threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
+            threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
+            threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
             count=2, # accommodate the value 1.0 for self pairs (A, A)
             discovery=0.05,
             features=source["genes_unimodal"],
             data_signal=source["data_signals_genes_persons"],
     ))
-    print(data_correlation_genes_unimodal)
+    utility.print_terminal_partition(level=2)
+    print("Unimodal genes...")
+    utility.print_terminal_partition(level=3)
+    print(data_correlation_genes_unimodal.shape)
     data_correlation_genes_multimodal = (
         utility.organize_feature_signal_correlations(
             method="spearman", # pearson (normal distribution), spearman
-            threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
-            threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
+            threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
+            threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
             count=2, # accommodate the value 1.0 for self pairs (A, A)
             discovery=0.05,
             features=source["genes_multimodal"],
             data_signal=source["data_signals_genes_persons"],
     ))
-    print(data_correlation_genes_multimodal)
+    utility.print_terminal_partition(level=2)
+    print("Multimodal genes...")
+    utility.print_terminal_partition(level=3)
+    print(data_correlation_genes_multimodal.shape)
 
     # Calculate and organize correlations for groups of genes from regression
     # analysis.

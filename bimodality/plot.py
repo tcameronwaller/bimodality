@@ -237,7 +237,9 @@ def plot_heatmap_cluster(
     # Represent data as a color grid.
     image = axes.imshow(
         matrix,
-        #cmap= ,
+        cmap="PuOr", # "PuOr", "RdBu" diverging color map
+        vmin=-1,
+        vmax=1,
         aspect="auto",
     )
 
@@ -4293,7 +4295,9 @@ def prepare_charts_signals_genes_correlations_prediction(
     # Organize data.
     data_hardiness = organize_signals_genes_correlations(
         data_gene_annotation=source["data_gene_annotation"],
-        data_genes_correlations=source["data_correlation_multimodal_hardiness"],
+        data_genes_correlations=(
+            source["data_correlation_multimodal_hardiness"]
+        ),
     )
     data_sex_age_body = organize_signals_genes_correlations(
         data_gene_annotation=source["data_gene_annotation"],
@@ -4535,20 +4539,67 @@ def prepare_charts_signals_persons_gene_pairs(
     # NPIPB2: ENSG00000234719
     # NPIPB15: ENSG00000196436
     pairs_genes = [
-        # NPIPA5, NPIPB2
-        ("ENSG00000183793", "ENSG00000234719"),
-        # NPIPA5, NPIPB15
-        ("ENSG00000183793", "ENSG00000196436"),
-        # NPIPB2, NPIPB15
-        ("ENSG00000234719", "ENSG00000196436"),
-        # GATD3A, GATD3B
+        # GATD3A, GATD3B... strong correlation
         ("ENSG00000160221", "ENSG00000280071"),
-        # IL1R2, LILRA2
+        # IL1R2, LILRA2... strong correlation
         ("ENSG00000115590", "ENSG00000239998"),
-        # XKR4, PTHLH
+        # XKR4, PTHLH... strong correlation
         ("ENSG00000206579", "ENSG00000087494"),
-        # XKR4, XKR9
-        ("ENSG00000206579", "ENSG00000221947"),
+        # XKR4, ALOX15B... strong correlation
+        ("ENSG00000206579", "ENSG00000179593"),
+        # CCL20, IL1R2... strong correlation
+        ("ENSG00000115009", "ENSG00000115590"),
+        # COL27A1, CEP57L1... strong correlation
+        ("ENSG00000196739", "ENSG00000183137"),
+        # PHC2, SORT1... strong correlation
+        ("ENSG00000134686", "ENSG00000134243"),
+
+        # CD163, LILRA2... strong correlation
+        ("ENSG00000177575", "ENSG00000239998"),
+        # PHC2, CKAP4... strong correlation
+        ("ENSG00000134686", "ENSG00000136026"),
+        # CKAP4, CXCL5... strong correlation
+        ("ENSG00000136026", "ENSG00000163735"),
+        # GCKR, RETN... strong correlation, both relate to diabetes risk
+        ("ENSG00000084734", "ENSG00000104918"),
+        # CD163, HPR... strong correlation, both genes are relevant to blood hemoglobin and haptoglobin
+        ("ENSG00000177575", "ENSG00000261701"),
+        # CERKL, CNGA4... strong correlation, both relate to neurons
+        ("ENSG00000188452", "ENSG00000132259"),
+        # PHC2, CLP1... strong correlation, both relate to transcriptional regulation
+        ("ENSG00000134686", "ENSG00000172409"),
+
+        # SPRED3, GCKR... strong correlation
+        ("ENSG00000188766", "ENSG00000084734"),
+        # SPRED3, RETN... strong correlation
+        ("ENSG00000188766", "ENSG00000104918"),
+
+        # NPIPA5, NPIPB2... weak correlation
+        #("ENSG00000183793", "ENSG00000234719"),
+        # NPIPA5, NPIPB15... weak correlation
+        #("ENSG00000183793", "ENSG00000196436"),
+        # NPIPB2, NPIPB15... weak correlation
+        #("ENSG00000234719", "ENSG00000196436"),
+
+        # LIPG, LILRA2... weak correlation
+        #("ENSG00000101670", "ENSG00000239998"),
+        # GTF2A1L, ZBTB16... weak correlation
+        #("ENSG00000242441", "ENSG00000109906"),
+        # GTF2A1L, ALOX15B... weak correlation
+        #("ENSG00000242441", "ENSG00000179593"),
+        # CLP1, ZBTB16... weak correlation
+        #("ENSG00000172409", "ENSG00000109906"),
+        # GTF2A1L, PHC2... weak correlation
+        #("ENSG00000242441", "ENSG00000134686"),
+        # CD163, LIPG... weak correlation
+        #("ENSG00000177575", "ENSG00000101670"),
+        # SPRED3, PTHLH... weak correlation
+        #("ENSG00000188766", "ENSG00000087494"),
+        # XKR4, XKR9... weak correlation
+        #("ENSG00000206579", "ENSG00000221947"),
+        # FAM20C, FKBP5... weak correlation
+        #("ENSG00000177706", "ENSG00000096060"),
+
     ]
 
     # Read source information from file.
