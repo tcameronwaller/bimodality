@@ -227,6 +227,11 @@ def plot_heatmap_cluster(
     labels_columns = data.index.to_list()
     matrix = numpy.transpose(data.values)
 
+    # Report dimensions.
+    #utility.print_terminal_partition(level=1)
+    #print(matrix.shape[0])
+    #print(matrix.shape[1])
+
     # Create figure.
     figure = matplotlib.pyplot.figure(
         figsize=(15.748, 11.811),
@@ -240,31 +245,60 @@ def plot_heatmap_cluster(
         cmap="PuOr", # "PuOr", "RdBu" diverging color map
         vmin=-1,
         vmax=1,
-        aspect="auto",
+        aspect="equal",
+        origin="upper",
+        # Extent: (left, right, bottom, top)
+        extent=(-0.5, (matrix.shape[1] - 0.5), (matrix.shape[0] - 0.5), -0.5),
     )
 
     # Create legend for color map.
-    label_bar = "legend"
-    bar = axes.figure.colorbar(image, ax=axes)
+    label_bar = "correlation"
+    bar = axes.figure.colorbar(
+        image,
+        ax=axes,
+    )
     bar.ax.set_ylabel(label_bar, rotation=-90, va="bottom")
 
     # Create ticks and labels for each grid.
     # Let the horizontal axes labeling appear on top.
     axes.tick_params(
         axis="both",
-        which="both",
+        which="both", # major, minor, or both
         direction="out",
         length=5.0,
         width=3.0,
         color=colors["black"],
-        pad=5,
+        pad=7,
         labelsize=fonts["values"]["two"]["size"],
         labelcolor=colors["black"],
         top=True,
-        bottom=False,
+        bottom=False, # False
         labeltop=True,
         labelbottom=False
     )
+
+    # Create ticks and labels.
+    axes.set_xticks(numpy.arange(matrix.shape[1]))
+    if (label_columns and (data.shape[0] < 70)):
+        axes.set_xticklabels(
+            labels_columns,
+            #minor=False,
+            alpha=1.0,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"]["five"]
+        )
+    axes.set_yticks(numpy.arange(matrix.shape[0]))
+    if (label_rows and (data.shape[0] < 70)):
+        axes.set_yticklabels(
+            labels_rows,
+            #minor=False,
+            alpha=1.0,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"]["five"]
+        )
+
     # Rotate the tick labels and set their alignment.
     matplotlib.pyplot.setp(
         axes.get_xticklabels(),
@@ -272,27 +306,6 @@ def plot_heatmap_cluster(
         ha="right",
         rotation_mode="anchor"
     )
-
-    if (label_columns and (data.shape[0] < 75)):
-        axes.set_xticks(numpy.arange(matrix.shape[1]))
-        axes.set_xticklabels(
-            labels_columns,
-            minor=False,
-            alpha=1.0,
-            backgroundcolor=colors["white"],
-            color=colors["black"],
-            fontproperties=fonts["properties"]["five"]
-        )
-    if (label_rows and (data.shape[0] < 75)):
-        axes.set_yticks(numpy.arange(matrix.shape[0]))
-        axes.set_yticklabels(
-            labels_rows,
-            minor=False,
-            alpha=1.0,
-            backgroundcolor=colors["white"],
-            color=colors["black"],
-            fontproperties=fonts["properties"]["five"]
-        )
 
     return figure
 
@@ -4350,6 +4363,185 @@ def prepare_charts_signals_genes_correlations_prediction(
 
 
 ##########
+# Correlations in signals between pairs of genes from Gene Ontology enrichment
+# Heatmap
+# Status: in progress
+
+
+def read_source_signals_genes_correlations_ontology(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", "tight")
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation_gencode.pickle"
+    )
+
+    # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+
+    # Compile and return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+    }
+
+
+def prepare_charts_signals_genes_correlations_ontology(
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_signals_genes_correlations_ontology(dock=dock)
+
+    # Specify directory for source files.
+    path_integration = os.path.join(dock, "integration")
+    path_ontology = os.path.join(
+        path_integration, "ontology_multimodal_correlations"
+    )
+    path_function = os.path.join(
+        path_ontology, "function"
+    )
+    path_structure = os.path.join(
+        path_ontology, "structure"
+    )
+    path_hypothesis = os.path.join(
+        path_ontology, "hypothesis"
+    )
+    files_function = os.listdir(path=path_function)
+    files_structure = os.listdir(path=path_structure)
+    files_hypothesis = os.listdir(path=path_hypothesis)
+
+    # Specify directory for product files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_plot_ontology = os.path.join(path_plot, "ontology")
+    path_correlation = os.path.join(
+        path_plot_ontology, "correlations_genes"
+    )
+    path_plot_function = os.path.join(
+        path_correlation, "function"
+    )
+    path_plot_structure = os.path.join(
+        path_correlation, "structure"
+    )
+    path_plot_hypothesis = os.path.join(
+        path_correlation, "hypothesis"
+    )
+
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_correlation)
+    utility.create_directories(path=path_plot_function)
+    utility.create_directories(path=path_plot_structure)
+    utility.create_directories(path=path_plot_hypothesis)
+
+    # Iterate on source files.
+    for file in files_function:
+        # Extract name of set.
+        file_first = file.replace("data_", "")
+        file_last = file_first.replace(".pickle", "")
+        name = file_last
+        # Read information.
+        path_data = os.path.join(
+            path_function, file
+        )
+        data = pandas.read_pickle(path_data)
+        # Organize data.
+        data_organization = organize_signals_genes_correlations(
+            data_gene_annotation=source["data_gene_annotation"],
+            data_genes_correlations=data,
+        )
+        # Define file name.
+        path_file = os.path.join(
+            path_plot_function, str(name + ".svg")
+        )
+        # Create chart.
+        plot_chart_signals_genes_correlations(
+            data=data_organization,
+            path_file=path_file
+        )
+
+    # Iterate on source files.
+    for file in files_structure:
+        # Extract name of set.
+        file_first = file.replace("data_", "")
+        file_last = file_first.replace(".pickle", "")
+        name = file_last
+        # Read information.
+        path_data = os.path.join(
+            path_structure, file
+        )
+        data = pandas.read_pickle(path_data)
+        # Organize data.
+        data_organization = organize_signals_genes_correlations(
+            data_gene_annotation=source["data_gene_annotation"],
+            data_genes_correlations=data,
+        )
+        # Define file name.
+        path_file = os.path.join(
+            path_plot_structure, str(name + ".svg")
+        )
+        # Create chart.
+        plot_chart_signals_genes_correlations(
+            data=data_organization,
+            path_file=path_file
+        )
+
+    # Iterate on source files.
+    for file in files_hypothesis:
+        # Extract name of set.
+        file_first = file.replace("data_", "")
+        file_last = file_first.replace(".pickle", "")
+        name = file_last
+        # Read information.
+        path_data = os.path.join(
+            path_hypothesis, file
+        )
+        data = pandas.read_pickle(path_data)
+        # Organize data.
+        data_organization = organize_signals_genes_correlations(
+            data_gene_annotation=source["data_gene_annotation"],
+            data_genes_correlations=data,
+        )
+        # Define file name.
+        path_file = os.path.join(
+            path_plot_hypothesis, str(name + ".svg")
+        )
+        # Create chart.
+        plot_chart_signals_genes_correlations(
+            data=data_organization,
+            path_file=path_file
+        )
+
+    pass
+
+
+##########
 # Correlations in pantissue signals across persons between pairs of specific
 # genes of interest
 # scatter plots
@@ -5705,6 +5897,10 @@ def execute_procedure(dock=None):
     # Chart is adjacency matrix heatmap.
     prepare_charts_signals_genes_correlations_prediction(dock=dock)
 
+    # Plot charts for correlations between pairs of genes of interest from
+    # Gene Ontology enrichment.
+    # Chart is adjacency matrix heatmap.
+    prepare_charts_signals_genes_correlations_ontology(dock=dock)
 
 
     if False:

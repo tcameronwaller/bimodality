@@ -2085,6 +2085,17 @@ def extract_organize_persons_properties(
     return information
 
 
+# Organize phenotypes and covariates for eQTL analysis.
+
+# TODO: 1. covariates -> organize here...
+# TODO: keep process and files for heritability separate from those for eQTL...
+# TODO: 2. phenotypes -> organize in distribution procedure...
+# TODO: 3.
+
+
+
+
+
 ##########
 ##########
 ##########

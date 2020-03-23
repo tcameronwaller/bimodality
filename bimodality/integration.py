@@ -43,6 +43,103 @@ import utility
 # Functionality
 
 
+def read_source_ontology(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    def match_format(name=None):
+        return (".csv" in name)
+
+    # Specify directories and files.
+    # Read information from file.
+
+    # Ontology.
+    path_ontology = os.path.join(dock, "ontology_2020-03-19")
+    path_function = os.path.join(path_ontology, "function")
+    path_structure = os.path.join(path_ontology, "structure")
+    path_hypothesis = os.path.join(path_ontology, "hypothesis")
+
+    # Select files.
+    files_function = os.listdir(path=path_function)
+    files_function_format = list(filter(match_format, files_function))
+    files_structure = os.listdir(path=path_structure)
+    files_structure_format = list(filter(match_format, files_structure))
+    files_hypothesis = os.listdir(path=path_hypothesis)
+    files_hypothesis_format = list(filter(match_format, files_hypothesis))
+
+    # Collect information from files.
+    collection_function = dict()
+    for file in files_function_format:
+        # Read information.
+        path_data = os.path.join(
+            path_function, file
+        )
+        data = pandas.read_csv(
+            path_data,
+            sep="\t",
+            header=0,
+        )
+        # Extract name of set.
+        name = file.replace(".csv", "")
+        # Collect information.
+        collection_function[name] = data
+        pass
+
+    # Collect information from files.
+    collection_structure = dict()
+    for file in files_structure_format:
+        # Read information.
+        path_data = os.path.join(
+            path_structure, file
+        )
+        data = pandas.read_csv(
+            path_data,
+            sep="\t",
+            header=0,
+        )
+        # Extract name of set.
+        name = file.replace(".csv", "")
+        # Collect information.
+        collection_structure[name] = data
+        pass
+
+    # Collect information from files.
+    collection_hypothesis = dict()
+    for file in files_hypothesis_format:
+        # Read information.
+        path_data = os.path.join(
+            path_hypothesis, file
+        )
+        data = pandas.read_csv(
+            path_data,
+            sep="\t",
+            header=0,
+        )
+        # Extract name of set.
+        name = file.replace(".csv", "")
+        # Collect information.
+        collection_hypothesis[name] = data
+        pass
+
+    # Compile and return information.
+    return {
+        "function": collection_function,
+        "structure": collection_structure,
+        "hypothesis": collection_hypothesis,
+    }
+
+
 def read_source(dock=None):
     """
     Reads and organizes source information from file
@@ -60,6 +157,9 @@ def read_source(dock=None):
 
     # Specify directories and files.
     # Read information from file.
+
+    # Ontology.
+    source_ontology = read_source_ontology(dock=dock)
 
     # Selection.
     path_selection = os.path.join(dock, "selection", "tight")
@@ -173,6 +273,8 @@ def read_source(dock=None):
         "sets_genes_prediction": sets_genes_prediction,
         "genes_prediction": genes_prediction,
         "genes_multimodal_prediction": genes_multimodal_prediction,
+
+        "source_ontology": source_ontology,
     }
 
 
@@ -193,7 +295,8 @@ def organize_gene_correlations_multimodal_prediction(
     raises:
 
     returns:
-        (object): Pandas data frame of genes' pairwise correlations
+        (dict<object>): collection of Pandas data frames of genes' pairwise
+            correlations
 
     """
 
@@ -255,6 +358,121 @@ def organize_gene_correlations_multimodal_prediction(
     collection["union"] = data_union
 
     # Return information.
+    return collection
+
+
+def extract_ontology_gene_sets(
+    source_ontology=None,
+):
+    """
+    Defines sets of genes' identifiers from gene ontology enrichment.
+
+    arguments:
+        source_ontology (dict<object>): collection of Pandas data frames with
+            identifiers and names of genes
+
+    raises:
+
+    returns:
+        (dict<list<str>>): identifiers of genes
+
+    """
+
+    collection = dict()
+    for name in source_ontology.keys():
+        data = source_ontology[name]
+        identifiers = data["identifier"].to_numpy().tolist()
+        # Collection information.
+        collection[name] = identifiers
+    # Return information.
+    return collection
+
+
+def organize_gene_correlations_multimodal_ontology(
+    data_signals_genes_persons=None,
+    source_ontology=None,
+):
+    """
+    Calculates Pearson correlation coefficients between pairs of genes.
+
+    arguments:
+        data_signals_genes_persons (object): Pandas data frame of genes'
+            pan-tissue signals across persons
+        source_ontology (dict<object>): collection of Pandas data frames with
+            identifiers and names of genes
+
+    raises:
+
+    returns:
+        (dict<object>): collection of Pandas data frames of genes' pairwise
+            correlations
+
+    """
+
+    # Extract sets of genes from Gene Ontology enrichment.
+    sets_function = extract_ontology_gene_sets(
+        source_ontology=source_ontology["function"],
+    )
+    sets_structure = extract_ontology_gene_sets(
+        source_ontology=source_ontology["structure"],
+    )
+    sets_hypothesis = extract_ontology_gene_sets(
+        source_ontology=source_ontology["hypothesis"],
+    )
+
+    # Function sets.
+    collection_function = dict()
+    for name in sets_function:
+        # Calculate correlation matrix
+        data_correlation = utility.organize_feature_signal_correlations(
+            method="spearman", # pearson (normal distribution), spearman
+            threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
+            threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
+            count=2, # accommodate the value 1.0 for self pairs (A, A)
+            discovery=0.05,
+            features=sets_function[name],
+            data_signal=data_signals_genes_persons,
+        )
+        # Compile information.
+        collection_function[name] = data_correlation
+
+    # Structure sets.
+    collection_structure = dict()
+    for name in sets_structure:
+        # Calculate correlation matrix
+        data_correlation = utility.organize_feature_signal_correlations(
+            method="spearman", # pearson (normal distribution), spearman
+            threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
+            threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
+            count=2, # accommodate the value 1.0 for self pairs (A, A)
+            discovery=0.05,
+            features=sets_structure[name],
+            data_signal=data_signals_genes_persons,
+        )
+        # Compile information.
+        collection_structure[name] = data_correlation
+
+    # Hypothesis sets.
+    collection_hypothesis = dict()
+    for name in sets_hypothesis:
+        # Calculate correlation matrix
+        data_correlation = utility.organize_feature_signal_correlations(
+            method="spearman", # pearson (normal distribution), spearman
+            threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
+            threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
+            count=2, # accommodate the value 1.0 for self pairs (A, A)
+            discovery=0.05,
+            features=sets_hypothesis[name],
+            data_signal=data_signals_genes_persons,
+        )
+        # Compile information.
+        collection_hypothesis[name] = data_correlation
+
+    # Return information.
+    collection = dict()
+    collection["function"] = collection_function
+    collection["structure"] = collection_structure
+    collection["hypothesis"] = collection_hypothesis
     return collection
 
 
@@ -503,6 +721,84 @@ def export_genes_function(
 # Write.
 
 
+def write_product_ontology(dock=None, information=None):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_integration = os.path.join(dock, "integration")
+    path_ontology = os.path.join(
+        path_integration, "ontology_multimodal_correlations"
+    )
+    path_function = os.path.join(
+        path_ontology, "function"
+    )
+    path_structure = os.path.join(
+        path_ontology, "structure"
+    )
+    path_hypothesis = os.path.join(
+        path_ontology, "hypothesis"
+    )
+    utility.create_directories(path_function)
+    utility.create_directories(path_structure)
+    utility.create_directories(path_hypothesis)
+
+    # Iterate on sets.
+    collection_function = information["bin_ontology"]["function"]
+    for name in collection_function.keys():
+        # Specify path to file.
+        file_name = ("data_" + name + ".pickle")
+        path_data = os.path.join(
+            path_function, file_name
+        )
+        # Write information to file.
+        collection_function[name].to_pickle(
+            path_data
+        )
+        pass
+
+    # Iterate on sets.
+    collection_structure = information["bin_ontology"]["structure"]
+    for name in collection_structure.keys():
+        # Specify path to file.
+        file_name = ("data_" + name + ".pickle")
+        path_data = os.path.join(
+            path_structure, file_name
+        )
+        # Write information to file.
+        collection_structure[name].to_pickle(
+            path_data
+        )
+        pass
+
+    # Iterate on sets.
+    collection_hypothesis = information["bin_ontology"]["hypothesis"]
+    for name in collection_hypothesis.keys():
+        # Specify path to file.
+        file_name = ("data_" + name + ".pickle")
+        path_data = os.path.join(
+            path_hypothesis, file_name
+        )
+        # Write information to file.
+        collection_hypothesis[name].to_pickle(
+            path_data
+        )
+        pass
+
+    pass
+
+
 def write_product(dock=None, information=None):
     """
     Writes product information to file.
@@ -517,6 +813,12 @@ def write_product(dock=None, information=None):
     returns:
 
     """
+
+    # Ontology.
+    write_product_ontology(
+        dock=dock,
+        information=information,
+    )
 
     # Specify directories and files.
     path_integration = os.path.join(dock, "integration")
@@ -672,10 +974,21 @@ def execute_procedure(dock=None):
 
     # Calculate and organize correlations for groups of genes from regression
     # analysis.
-    bin_correlations = organize_gene_correlations_multimodal_prediction(
+    bin_prediction = organize_gene_correlations_multimodal_prediction(
         sets=source["sets_genes_prediction"],
         data_signals_genes_persons=source["data_signals_genes_persons"],
     )
+
+    # Calculate and organize correlations for groups of genes from Gene
+    # Ontology enrichment analysis.
+    bin_ontology = organize_gene_correlations_multimodal_ontology(
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+        source_ontology=source["source_ontology"],
+    )
+
+
+
+
 
     ##########
     # Integration
@@ -779,11 +1092,14 @@ def execute_procedure(dock=None):
         "data_genes_integration": data_genes_integration,
         "data_correlation_genes_unimodal": data_correlation_genes_unimodal,
         "data_correlation_genes_multimodal": data_correlation_genes_multimodal,
-        "data_correlation_multimodal_hardiness": bin_correlations["hardiness"],
+        "data_correlation_multimodal_hardiness": bin_prediction["hardiness"],
         "data_correlation_multimodal_sex_age_body": (
-            bin_correlations["sex_age_body"]
+            bin_prediction["sex_age_body"]
         ),
-        "data_correlation_multimodal_union": bin_correlations["union"],
+        "data_correlation_multimodal_union": bin_prediction["union"],
+
+        "bin_ontology": bin_ontology,
+
         #"data_genes_selection": data_genes_selection,
         #"data_export_genes_selection": data_export_genes_selection,
         #"data_export_genes_total": data_export_genes_total,
