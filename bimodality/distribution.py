@@ -21,6 +21,7 @@ import datetime
 import gc
 import time
 import random
+import copy
 
 # Relevant
 
@@ -1816,7 +1817,7 @@ def prepare_describe_distribution(
 
 
 ##########
-# Extraction
+# Format for heritability in GCTA
 
 
 def extract_gene_persons_signals(
@@ -2227,6 +2228,9 @@ def write_product_collection(
     path_data_report_text = os.path.join(
         paths["collection"], "data_gene_report.tsv"
     )
+    path_data_signals_genes_persons_fastqtl = os.path.join(
+        paths["collection"], "data_signals_genes_persons_fastqtl.tsv"
+    )
     # Write information to file.
     information["data_signals_genes_persons"].to_pickle(
         path=path_data_signals_genes_persons,
@@ -2244,6 +2248,14 @@ def write_product_collection(
         pickle.dump(information["genes_scores"], file_product)
     with open(path_scores, "wb") as file_product:
         pickle.dump(information["scores"], file_product)
+    information["data_signals_genes_persons_fastqtl"].to_csv(
+        path_or_buf=path_data_signals_genes_persons_fastqtl,
+        sep="\t",
+        na_rep="NA",
+        header=True,
+        index=False,
+    )
+
 
     pass
 
@@ -2271,13 +2283,18 @@ def read_collection_initial(
 
     # Specify directories and files.
     path_selection = os.path.join(dock, "selection", "tight")
+    path_gene_annotation = os.path.join(
+        path_selection, "data_gene_annotation_gencode.pickle"
+    )
     path_persons_properties = os.path.join(
         path_selection, "data_persons_properties.pickle"
     )
     # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     data_persons_properties = pandas.read_pickle(path_persons_properties)
     # Compile and return information.
     return {
+        "data_gene_annotation": data_gene_annotation,
         "data_persons_properties": data_persons_properties,
     }
 
@@ -2386,7 +2403,7 @@ def read_collect_organize_signals_genes_persons(
     raises:
 
     returns:
-        (object): Pandas data frame of genes' pantissue signals across persons
+        (object): Pandas data frame of genes' pan-tissue signals across persons
 
     """
 
@@ -2448,7 +2465,7 @@ def read_collect_organize_signals_genes_persons(
         inplace=True
     )
     data_collection.rename_axis(
-        columns="genes",
+        columns="gene",
         axis="columns",
         copy=False,
         inplace=True
@@ -2645,6 +2662,97 @@ def read_collect_gene_report(
     return data_report
 
 
+# TODO: I think I will probably need to filter persons by whether they have genotype data in the vcf file...
+
+def organize_persons_genes_signals_fastqtl(
+    data_signals_genes_persons=None,
+    data_gene_annotation=None,
+):
+    """
+    Organizes genes' pan-tissue signals across persons in format for
+    Quantitative Trait Loci (QTL) analysis in FastQTL.
+
+    Format (text, tab and new line delimiters)
+
+    Chr     start      end        ID           GTEX-111CU GTEX-111FC GTEX-111YS
+    chr11   62337448   62393412   ENSG162174   -0.190985  -0.328112  -0.093140
+    chr16   19856691   19886167   ENSG167191   -0.292748  -0.083921  -0.304542
+    chr21   39867438   39929397   ENSG183036   -0.192331   0.886126  -0.240055
+    chr6    10492223    10629368  ENSG111846   -0.543567   0.366667   0.292186
+    chr19   35248330   35267964   ENSG105699    0.152548  -0.275815   0.025869
+
+
+    arguments:
+        data_sginals_genes_persons (object): Pandas data frame of genes'
+            pan-tissue signals across persons
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' pan-tissue signals across persons
+            in format for FastQTL
+    """
+
+    # Copy data.
+    data_gene_annotation = data_gene_annotation.copy(deep=True)
+    data_signals_genes_persons = data_signals_genes_persons.copy(deep=True)
+
+    # Access identifiers of persons.
+    persons = data_signals_genes_persons.index.to_numpy().tolist()
+
+    # Transpose columns to rows and rows to columns.
+    # Organize genes across rows and persons across columns.
+    data_transposition = data_signals_genes_persons.transpose(copy=True)
+    data_transposition.reset_index(
+        level=None,
+        inplace=True
+    )
+    # Introduce chromosomal coordinates.
+    data_transposition["#Chr"] = data_transposition["gene"].apply(
+        lambda gene:
+            data_gene_annotation.loc[gene, "seqname"],
+    )
+    data_transposition["start"] = data_transposition["gene"].apply(
+        lambda gene:
+            data_gene_annotation.loc[gene, "start"],
+    )
+    data_transposition["end"] = data_transposition["gene"].apply(
+        lambda gene:
+            data_gene_annotation.loc[gene, "end"],
+    )
+    data_transposition["pid"] = "gene"
+    data_transposition["end"] = data_transposition["gene"].apply(
+        lambda gene:
+            data_gene_annotation.loc[gene, "end"],
+    )
+    # Rename column.
+    data_transposition.rename(
+        columns={
+            "gene": "gid",
+        },
+        inplace=True,
+    )
+    data_transposition.rename_axis(
+        columns="",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    # Sort columns according to format requirements.
+    columns = copy.deepcopy(persons)
+    columns.insert(0, "strand")
+    columns.insert(0, "gid")
+    columns.insert(0, "pid")
+    columns.insert(0, "end")
+    columns.insert(0, "start")
+    columns.insert(0, "#Chr")
+    data_sort = data_transposition[[*columns]]
+
+    # Return information.
+    return data_sort
+
+
 def read_collect_write_iterations(
     genes=None,
     paths=None,
@@ -2655,6 +2763,7 @@ def read_collect_write_iterations(
 
     arguments:
         genes (list<str>): identifiers of genes
+        data_gene_annotation (object): Pandas data frame of genes' annotations
         paths (dict<str>): collection of paths to directories for procedure's
             files
         dock (str): path to root or dock directory for source and product
@@ -2711,12 +2820,24 @@ def read_collect_write_iterations(
         paths=paths,
     )
 
+    # Format for Quantitative Trait Loci (QTL) in FastQTL
+    # Extract distribution of gene's signals across persons for heritability
+    # analysis.
+    data_signals_genes_persons_fastqtl = (
+        organize_persons_genes_signals_fastqtl(
+            data_signals_genes_persons=data_signals_genes_persons,
+            data_gene_annotation=source["data_gene_annotation"],
+    ))
+
     # Compile information.
     information = dict()
     information["data_signals_genes_persons"] = data_signals_genes_persons
     information["genes_scores"] = genes_scores["genes_scores"]
     information["scores"] = genes_scores["scores"]
     information["data_report"] = data_report
+    information["data_signals_genes_persons_fastqtl"] = (
+        data_signals_genes_persons_fastqtl
+    )
     # Write product information to file.
     write_product_collection(
         information=information,
@@ -2774,7 +2895,7 @@ def execute_procedure(
         ),
     )
 
-    # Extraction
+    # Format for heritability in GCTA
     # Extract distribution of gene's signals across persons for heritability
     # analysis.
     data_gene_families_persons_signals = extract_gene_persons_signals(
@@ -2859,8 +2980,8 @@ def execute_procedure_local(dock=None):
     print("count of genes: " + str(len(source["genes"])))
 
     # Specify genes on which to iterate.
-    #genes_iteration = random.sample(source["genes"], 1000)
-    genes_iteration = source["genes"]#[0:100]
+    genes_iteration = random.sample(source["genes"], 100)
+    #genes_iteration = source["genes"]#[0:100]
 
     # Execute procedure for a single gene.
     if False:

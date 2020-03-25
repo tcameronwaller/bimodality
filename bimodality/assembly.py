@@ -1208,6 +1208,7 @@ def organize_genes_annotations_set(
         "seqname",
         "start",
         "end",
+        "strand",
     ]
     data_gene_annotation = data_gene_annotation.loc[
         : , data_gene_annotation.columns.isin(columns)
