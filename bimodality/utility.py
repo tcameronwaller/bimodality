@@ -1850,6 +1850,8 @@ def cluster_adjacency_matrix(
     """
     Organizes a matrix of correlation coefficients.
 
+    This function is currently specific to a symmetric adjacency matrix.
+
     arguments:
         data (object): Pandas data frame of values
 
@@ -1862,8 +1864,8 @@ def cluster_adjacency_matrix(
 
     data = data.copy(deep=True)
     # Cluster.
-    columns = data.columns.to_list()
-    rows = data.index.to_list()
+    columns = data.columns.to_numpy()#.tolist()
+    rows = data.index.to_numpy()#.tolist()
     matrix = numpy.transpose(data.values)
     linkage = scipy.cluster.hierarchy.linkage(
         matrix,
@@ -1883,15 +1885,27 @@ def cluster_adjacency_matrix(
         (dimension, dimension),
         fill_value=1.0,
     )
+    # Sort matrix values.
     a,b = numpy.triu_indices(dimension, k=1)
     matrix_cluster[a,b] = (
         matrix[[leaves[i] for i in a], [leaves[j] for j in b]]
     )
     matrix_cluster[b,a] = matrix_cluster[a,b]
+    # Sort matrix row and column labels.
+    indices = range(0, dimension)
+    rows_sort = list(map(
+        lambda index: rows[leaves[index]],
+        indices
+    ))
+    columns_sort = list(map(
+        lambda index: columns[leaves[index]],
+        indices
+    ))
+    # Organize data.
     data_cluster = pandas.DataFrame(
         data=matrix_cluster,
-        index=rows,
-        columns=columns,
+        index=rows_sort,
+        columns=columns_sort,
     )
     # Return information.
     return data_cluster
@@ -2025,6 +2039,7 @@ def organize_feature_signal_correlations(
     data_cluster = cluster_adjacency_matrix(
         data=data_pass,
     )
+    #data_cluster = data_pass
     # Return information.
     return data_cluster
 

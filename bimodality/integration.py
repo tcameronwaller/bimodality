@@ -65,7 +65,7 @@ def read_source_ontology(dock=None):
     # Read information from file.
 
     # Ontology.
-    path_ontology = os.path.join(dock, "ontology_2020-03-19")
+    path_ontology = os.path.join(dock, "ontology_2020-03-25")
     path_function = os.path.join(path_ontology, "function")
     path_structure = os.path.join(path_ontology, "structure")
     path_hypothesis = os.path.join(path_ontology, "hypothesis")
@@ -946,8 +946,8 @@ def execute_procedure(dock=None):
     data_correlation_genes_unimodal = (
         utility.organize_feature_signal_correlations(
             method="spearman", # pearson (normal distribution), spearman
-            threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
-            threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
+            threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
+            threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
             count=2, # accommodate the value 1.0 for self pairs (A, A)
             discovery=0.05,
             features=source["genes_unimodal"],
@@ -960,8 +960,8 @@ def execute_procedure(dock=None):
     data_correlation_genes_multimodal = (
         utility.organize_feature_signal_correlations(
             method="spearman", # pearson (normal distribution), spearman
-            threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
-            threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
+            threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
+            threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
             count=2, # accommodate the value 1.0 for self pairs (A, A)
             discovery=0.05,
             features=source["genes_multimodal"],
