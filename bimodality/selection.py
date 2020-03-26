@@ -453,7 +453,6 @@ def include_samples_by_tissues(
 # Signal.
 
 
-
 def normalize_collect_report_gene_signals(
     data_gene_signal=None,
     threshold=None,
@@ -1891,16 +1890,24 @@ def define_regression_variables():
     ]
 
     # Compile variables.
+
+    # Regression.
     independence = list()
     independence.extend(hypothesis)
     independence.extend(genotype)
     independence.extend(technique)
 
+    # Heritability.
     heritability_simple = list()
     heritability_simple.extend(technique)
     heritability_complex = list()
     heritability_complex.extend(hypothesis)
     heritability_complex.extend(technique)
+
+    # Quantitative Trait Loci (QTL).
+    trait = list()
+    trait.extend(hypothesis)
+    trait.extend(technique)
 
     # Compile information.
     information = dict()
@@ -1911,6 +1918,7 @@ def define_regression_variables():
     information["independence"] = independence
     information["heritability_simple"] = heritability_simple
     information["heritability_complex"] = heritability_complex
+    information["trait"] = trait
 
     # Return information.
     return information
@@ -1928,8 +1936,8 @@ def organize_heritability_variables(
 
     arguments:
         variables (list<str>): names of variables for regression
-        data_persons_properties (object): Pandas data frame of persons their
-            properties
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
 
     raises:
 
@@ -1977,6 +1985,68 @@ def organize_heritability_variables(
     }
     # Return information.
     return information
+
+
+# Organize covariates for quantitative trait loci (QTL) analysis.
+
+
+def organize_quantitative_trait_loci_variables(
+    variables=None,
+    data_persons_properties=None,
+):
+    """
+    Organizes information about persons for quantitative trait loci (QTL)
+    analysis.
+
+    arguments:
+        variables (list<str>): names of variables for regression
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons' variables for quantitative
+            trait loci analysis
+    """
+
+    # Copy data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+
+    # Extract quantitative covariates.
+    columns = copy.deepcopy(variables)
+    data_persons_variables = data_persons_properties.loc[
+        :, data_persons_properties.columns.isin(columns)
+    ]
+
+    # Transpose columns to rows and rows to columns.
+    # Organize variables across rows and persons across columns.
+    data_transposition = data_persons_variables.transpose(copy=True)
+    data_transposition.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_transposition.rename_axis(
+        index="",
+        axis="index",
+        copy=False,
+        inplace=True
+    )
+    data_transposition.rename_axis(
+        columns="",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    data_transposition.rename(
+        columns={
+            "index": "id",
+        },
+        inplace=True,
+    )
+
+    # Return information.
+    return data_transposition
 
 
 def extract_organize_persons_properties(
@@ -2061,6 +2131,12 @@ def extract_organize_persons_properties(
         data_persons_properties=bin["data_persons_properties"],
     )
 
+    # Organize information for quantitative trait loci (QTL) analysis.
+    data_persons_variables_trait = organize_quantitative_trait_loci_variables(
+        variables=variables["trait"],
+        data_persons_properties=bin["data_persons_properties"],
+    )
+
     # Compile information.
     information = {
         "data_persons_properties_raw": data_persons_properties_raw,
@@ -2075,25 +2151,15 @@ def extract_organize_persons_properties(
             "data_batches_sequence_variance"
         ],
 
-        "data_families_persons_simple": simple["data_families_persons"],
+        "data_families_persons": simple["data_families_persons"],
         "data_persons_variables_simple": simple["data_persons_variables"],
-        "data_families_persons_complex": complex["data_families_persons"],
         "data_persons_variables_complex": complex["data_persons_variables"],
+
+        "data_persons_variables_trait": data_persons_variables_trait,
 
     }
     # Return information.
     return information
-
-
-# Organize phenotypes and covariates for eQTL analysis.
-
-# TODO: 1. covariates -> organize here...
-# TODO: keep process and files for heritability separate from those for eQTL...
-# TODO: 2. phenotypes -> organize in distribution procedure...
-# TODO: 3.
-
-
-
 
 
 ##########
@@ -2260,10 +2326,10 @@ def write_product_heritability(
     # Write information to file.
     if model == "simple":
         pandas.to_pickle(
-            information["data_families_persons_simple"],
+            information["data_families_persons"],
             path_families_persons
         )
-        information["data_families_persons_simple"].to_csv(
+        information["data_families_persons"].to_csv(
             path_or_buf=path_families_persons_text,
             sep="\t",
             na_rep="NA",
@@ -2279,10 +2345,10 @@ def write_product_heritability(
         )
     elif model == "complex":
         pandas.to_pickle(
-            information["data_families_persons_complex"],
+            information["data_families_persons"],
             path_families_persons
         )
-        information["data_families_persons_complex"].to_csv(
+        information["data_families_persons"].to_csv(
             path_or_buf=path_families_persons_text,
             sep="\t",
             na_rep="NA",
@@ -2296,6 +2362,51 @@ def write_product_heritability(
             header=False,
             index=False,
         )
+    pass
+
+
+def write_product_trait(
+    dock=None,
+    stringency=None,
+    information=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+        stringency (str): category, loose or tight, of selection criteria
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", str(stringency))
+    utility.create_directories(path_selection)
+
+    # Variables for quantitative trait loci (QTL) analysis.
+    path_trait = os.path.join(
+        path_selection, "trait"
+    )
+    utility.create_directories(path_trait)
+
+    path_data_persons_variables = os.path.join(
+        path_trait, "data_persons_variables.tsv"
+    )
+
+    # Write information to file.
+    information["data_persons_variables_trait"].to_csv(
+        path_or_buf=path_data_persons_variables,
+        sep="\t",
+        na_rep="NA",
+        header=True,
+        index=False,
+    )
     pass
 
 
@@ -2428,7 +2539,7 @@ def write_product(
 
     # Priority information for further analysis.
 
-    # Variables for heritability analysis.
+    # Information for heritability analysis.
     write_product_heritability(
         dock=dock,
         stringency=stringency,
@@ -2439,6 +2550,13 @@ def write_product(
         dock=dock,
         stringency=stringency,
         model="complex",
+        information=information,
+    )
+
+    # Information for quantitative trait loci (QTL) analysis.
+    write_product_trait(
+        dock=dock,
+        stringency=stringency,
         information=information,
     )
 
