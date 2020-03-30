@@ -194,8 +194,10 @@ def define_color_properties():
     }
 
 
-def plot_heatmap_cluster(
+def plot_heatmap_symmetric_diverge(
     data=None,
+    minimum=None,
+    maximum=None,
     label_rows=None,
     label_columns=None,
     fonts=None,
@@ -207,6 +209,8 @@ def plot_heatmap_cluster(
     arguments:
         data (object): Pandas data frame of quantitative values with mappings
             to columns and rows that will be transposed in heatmap
+        minimum (float): minimal value
+        maximum (float): maximal value
         label_rows (bool): whether to include explicit labels on heatmap's rows
         label_columns (bool): whether to include explicit labels on heatmap's
             columns
@@ -225,12 +229,7 @@ def plot_heatmap_cluster(
     # Map data's rows to heatmap's columns.
     labels_rows = data.columns.to_list()
     labels_columns = data.index.to_list()
-    matrix = numpy.transpose(data.values)
-
-    # Report dimensions.
-    #utility.print_terminal_partition(level=1)
-    #print(matrix.shape[0])
-    #print(matrix.shape[1])
+    matrix = numpy.transpose(data.to_numpy())
 
     # Create figure.
     figure = matplotlib.pyplot.figure(
@@ -243,21 +242,41 @@ def plot_heatmap_cluster(
     image = axes.imshow(
         matrix,
         cmap="PuOr", # "PuOr", "RdBu" diverging color map
-        vmin=-1,
-        vmax=1,
+        vmin=minimum,
+        vmax=maximum,
         aspect="equal",
         origin="upper",
         # Extent: (left, right, bottom, top)
-        extent=(-0.5, (matrix.shape[1] - 0.5), (matrix.shape[0] - 0.5), -0.5),
+        #extent=(-0.5, (matrix.shape[1] - 0.5), (matrix.shape[0] - 0.5), -0.5),
     )
 
     # Create legend for color map.
     label_bar = "correlation"
     bar = axes.figure.colorbar(
         image,
+        orientation="vertical",
         ax=axes,
     )
-    bar.ax.set_ylabel(label_bar, rotation=-90, va="bottom")
+    bar.ax.set_ylabel(
+        label_bar,
+        rotation=-90,
+        va="bottom",
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["three"],
+    )
+    bar.ax.tick_params(
+        axis="both",
+        which="both", # major, minor, or both
+        direction="out",
+        length=5.0,
+        width=2.0,
+        color=colors["black"],
+        pad=3,
+        labelsize=fonts["values"]["three"]["size"],
+        labelcolor=colors["black"],
+    )
 
     # Create ticks and labels for each grid.
     # Let the horizontal axes labeling appear on top.
@@ -268,45 +287,47 @@ def plot_heatmap_cluster(
         length=5.0,
         width=3.0,
         color=colors["black"],
-        pad=7,
-        labelsize=fonts["values"]["two"]["size"],
+        pad=10,
         labelcolor=colors["black"],
         top=True,
         bottom=False, # False
+        left=True,
+        right=False,
         labeltop=True,
-        labelbottom=False
+        labelbottom=False,
+        labelleft=True,
+        labelright=False,
     )
 
     # Create ticks and labels.
-    axes.set_xticks(numpy.arange(matrix.shape[1]))
-    if (label_columns and (data.shape[0] < 70)):
+    if (label_columns and (data.shape[1] <= 50)):
+        axes.set_xticks(numpy.arange(matrix.shape[1]))
         axes.set_xticklabels(
             labels_columns,
             #minor=False,
+            rotation=-30,
+            rotation_mode="anchor",
+            ha="right", # horizontal alignment
+            va="bottom", # vertical alignment
             alpha=1.0,
             backgroundcolor=colors["white"],
             color=colors["black"],
-            fontproperties=fonts["properties"]["five"]
+            fontproperties=fonts["properties"]["three"]
         )
-    axes.set_yticks(numpy.arange(matrix.shape[0]))
-    if (label_rows and (data.shape[0] < 70)):
+    if (label_rows and (data.shape[0] <= 50)):
+        axes.set_yticks(numpy.arange(matrix.shape[0]))
         axes.set_yticklabels(
             labels_rows,
             #minor=False,
+            ha="right", # horizontal alignment
+            va="center", # vertical alignment
             alpha=1.0,
             backgroundcolor=colors["white"],
             color=colors["black"],
-            fontproperties=fonts["properties"]["five"]
+            fontproperties=fonts["properties"]["three"]
         )
 
-    # Rotate the tick labels and set their alignment.
-    matplotlib.pyplot.setp(
-        axes.get_xticklabels(),
-        rotation=-30,
-        ha="right",
-        rotation_mode="anchor"
-    )
-
+    # Return figure.
     return figure
 
 
@@ -404,11 +425,13 @@ def plot_heatmap(
     return figure
 
 
+# TODO: this function needs to accommodate categorical groups (sex)
+# TODO: this function also needs to accommodate continuous groups (age, body, hardiness, etc)
 
-
-# TODO: This function is in progress...
-# TODO: I'm trying to include a bar or bars to designate groups of persons
-def plot_heatmap_groups(
+def plot_heatmap_asymmetric_groups(
+    group=None,
+    groups=None,
+    category=None,
     data=None,
     label_rows=None,
     label_columns=None,
@@ -418,7 +441,22 @@ def plot_heatmap_groups(
     """
     Creates a figure of a chart of type heatmap.
 
+    Data must have observations across rows.
+    Data's observations must already be in sort order.
+    Data must have features across columns.
+    Data must also have a single column of name "group".
+    Values in column "group" must be integers.
+
+    The chart will organize features across rows and observations across
+    columns.
+    The chart will represent integer values of the group of each observation in
+    a separate chart across columns.
+
+
     arguments:
+        group (str): name of group
+        groups (int): count of categorical groups
+        category (bool): whether to treat group variable as a category
         data (object): Pandas data frame of quantitative values with mappings
             to columns and rows that will be transposed in heatmap
         label_rows (bool): whether to include explicit labels on heatmap's rows
@@ -435,42 +473,185 @@ def plot_heatmap_groups(
     """
 
     # Organize data.
+    # Copy data.
+    data_selection = data.iloc[:, :]
+    data_group = data_selection.copy(deep=True)
+    data_value = data_selection.copy(deep=True)
+    # Groups.
+    groups = data_group["group"].to_list()
     # Map data's columns to heatmap's rows.
     # Map data's rows to heatmap's columns.
-    labels_rows = data.columns.to_list()
-    labels_columns = data.index.to_list()
-    matrix = numpy.transpose(data.values)
+    data_value.drop(
+        labels=["group"],
+        axis="columns",
+        inplace=True
+    )
+    utility.print_terminal_partition(level=2)
+    print(data_value)
+    labels_rows = data_value.columns.to_list()
+    labels_columns = data_value.index.to_list()
+    matrix = numpy.transpose(data_value.to_numpy())
 
     # Create figure.
     figure = matplotlib.pyplot.figure(
         figsize=(15.748, 11.811),
-        tight_layout=True
+        #tight_layout=True,
     )
     axes = figure.subplots(
-        nrows=2,
-        ncols=1,
-        sharex=True,
-        squeeze=True,
-        gridspec_kw=dict(height_ratios=[1, 5])
+        nrows=3,
+        ncols=2,
+        sharex=False,
+        sharey=False,
+        #squeeze=True,
+        gridspec_kw=dict(
+            hspace=0.05,
+            wspace=0.05,
+            height_ratios=[1, 2, 22],
+            width_ratios=[50, 1],
+            left=0.1,
+            right=0.95,
+            top=0.95,
+            bottom=0.05,
+        ),
     )
 
-    axes[0].axis("off")
+    ##########
+    # Empty axes.
+    axes[0, 1].set_axis_off()
+    axes[1, 1].set_axis_off()
+
+    ##########
+    # Top axes.
+    image_group = axes[1, 0].imshow(
+        [groups],
+        cmap=matplotlib.pyplot.get_cmap("coolwarm", 2),
+        vmin=0.0,
+        vmax=1.0,
+        aspect="auto",
+        origin="upper",
+        # Extent: (left, right, bottom, top)
+        extent=(-0.5, (len(groups) - 0.5), (1 + 0.5), -0.5),
+    )
+    axes[1, 0].tick_params(
+        axis="both",
+        which="both", # major, minor, or both
+        top=False,
+        bottom=False,
+        left=False,
+        right=False,
+        labeltop=False,
+        labelbottom=False,
+        labelleft=False,
+        labelright=False,
+    )
+    # Create legend for color map.
+    label_bar_group = str("persons' properties: " + str(group))
+    bar_group = figure.colorbar(
+        image_group,
+        cax=axes[0, 0],
+        ticks=[0.25, 0.75],
+        orientation="horizontal",
+        use_gridspec=True,
+    )
+    bar_group.ax.set_xticklabels(
+        ["female", "male"],
+        #minor=False,
+        ha="center", # horizontal alignment
+        va="center", # vertical alignment
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["five"]
+    )
+    bar_group.ax.set_xlabel(
+        label_bar_group,
+        rotation=0,
+        ha="center",
+        va="center",
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["three"],
+    )
+    #bar_group.ax.xaxis.set_label_position("top")
+    bar_group.ax.xaxis.set_label_coords(0.5, 1.7)
+    bar_group.ax.tick_params(
+        axis="both",
+        which="both", # major, minor, or both
+        direction="out",
+        length=5.0,
+        width=2.0,
+        color=colors["black"],
+        pad=15,
+        labelsize=fonts["values"]["four"]["size"],
+        labelcolor=colors["black"],
+        top=True,
+        bottom=False, # False
+        left=False,
+        right=False,
+        labeltop=True,
+        labelbottom=False,
+        labelleft=False,
+        labelright=False,
+    )
+
+
+    ##########
+    # Bottom axes.
+
+    utility.print_terminal_partition(level=3)
+    print(matrix)
+    utility.print_terminal_partition(level=3)
+    print(matrix.shape[0])
+    print(matrix.shape[1])
+    print(labels_rows)
+
+    counter = 1
+    for dimension_one in matrix:
+        utility.print_terminal_partition(level=3)
+        print(counter)
+        print(numpy.nanmean(dimension_one))
+        counter +=1
 
     # Represent data as a color grid.
-    image = axes[1].imshow(
+    image_value = axes[2, 0].imshow(
         matrix,
-        #cmap= ,
-        aspect="auto",
+        cmap="viridis",
+        #vmin=-10.0,
+        #vmax=10.0,
+        aspect="auto", # "auto", "equal"
+        origin="upper", # "lower" or "upper"
+        # Extent: (left, right, bottom, top)
+        # TODO: I might have matrix.shape[0] swapped with matrix.shape[1]
+        extent=(-0.5, (matrix.shape[1] - 0.5), (matrix.shape[0] - 0.5), -0.5),
+        #extent=(-0.5, (matrix.shape[1] - 0.5), (matrix.shape[0] + 20), - 0.5),
+        #extent=(-2, 1000, 4, -2),
+        alpha=1.0,
+        filternorm=True,
+        resample=True,
     )
+    #axes[2, 0].set_xlim(-10, (matrix.shape[1] + 10))
+    #axes[2, 0].set_ylim(-3, (matrix.shape[0] + 3))
 
-    # Create legend for color map.
-    label_bar = "legend"
-    bar = axes[1].figure.colorbar(image, ax=axes[1])
-    bar.ax.set_ylabel(label_bar, rotation=-90, va="bottom")
+
+    if False:
+        # Create legend for color map.
+        label_bar = "legend"
+        bar_value = figure.colorbar(
+            image_value,
+            cax=axes[2, 1],
+            orientation="vertical",
+            use_gridspec=True,
+        )
+        bar_value.ax.set_ylabel(
+            label_bar,
+            rotation=-90,
+            va="center"
+        )
 
     # Create ticks and labels for each grid.
     # Let the horizontal axes labeling appear on top.
-    axes[1].tick_params(
+    axes[2, 0].tick_params(
         axis="both",
         which="both",
         direction="out",
@@ -478,34 +659,29 @@ def plot_heatmap_groups(
         width=3.0,
         color=colors["black"],
         pad=5,
-        labelsize=fonts["values"]["two"]["size"],
+        labelsize=fonts["values"]["three"]["size"],
         labelcolor=colors["black"],
         top=False,
         bottom=True,
+        left=True,
+        right=False,
         labeltop=False,
-        labelbottom=True
-    )
-    # Rotate the tick labels and set their alignment.
-    matplotlib.pyplot.setp(
-        axes[1].get_xticklabels(),
-        rotation=-30,
-        ha="right",
-        rotation_mode="anchor"
-    )
+        labelbottom=True,
+        labelleft=True,
+        labelright=False,
 
-    if label_columns:
-        axes[1].set_xticks(numpy.arange(matrix.shape[1]))
-        axes[1].set_xticklabels(labels_columns)
-    if label_rows:
-        axes[1].set_yticks(numpy.arange(matrix.shape[0]))
-        axes[1].set_yticklabels(
-            labels_rows,
-            minor=False,
-            alpha=1.0,
-            backgroundcolor=colors["white"],
-            color=colors["black"],
-            fontproperties=fonts["properties"]["four"]
-        )
+    )
+    axes[2, 0].set_yticks(numpy.arange(matrix.shape[0]))
+    axes[2, 0].set_yticklabels(
+        labels_rows,
+        #minor=False,
+        ha="right", # horizontal alignment
+        va="center", # vertical alignment
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["four"]
+    )
 
     return figure
 
@@ -1239,6 +1415,32 @@ def write_figure(path=None, figure=None):
         #format="png",
         format="svg",
         #dpi=600,
+        facecolor="w",
+        edgecolor="w",
+        transparent=False
+    )
+    pass
+
+
+def write_figure_png(path=None, figure=None):
+    """
+    Writes figure to file.
+
+    arguments:
+        path (str): path to directory and file
+        figure (object): figure object
+
+    raises:
+
+    returns:
+
+    """
+
+    # Write information to file.
+    figure.savefig(
+        path,
+        format="png",
+        dpi=600,
         facecolor="w",
         edgecolor="w",
         transparent=False
@@ -3535,19 +3737,24 @@ def read_source_genes_signals_tissues_persons_initial(
     path_gene_annotation = os.path.join(
         path_selection, "data_gene_annotation_gencode.pickle"
     )
+    path_persons_properties = os.path.join(
+        path_selection, "data_persons_properties.pickle"
+    )
     path_candidacy = os.path.join(dock, "candidacy")
-    path_genes = os.path.join(
+    path_genes_multimodal = os.path.join(
         path_candidacy, "genes_multimodal.pickle"
     )
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    with open(path_genes, "rb") as file_source:
-        genes = pickle.load(file_source)
+    data_persons_properties = pandas.read_pickle(path_persons_properties)
+    with open(path_genes_multimodal, "rb") as file_source:
+        genes_multimodal = pickle.load(file_source)
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
-        "genes": genes,
+        "data_persons_properties": data_persons_properties,
+        "genes_multimodal": genes_multimodal,
     }
 
 
@@ -3595,13 +3802,20 @@ def read_source_genes_signals_tissues_persons(
 
 
 def organize_genes_signals_tissues_persons(
+    group=None,
+    category=None,
+    data_persons_properties=None,
     data_gene_persons_signals=None,
     data_gene_signals_tissues_persons=None,
 ):
     """
-    Plots charts from the analysis process.
+    Organize information for chart.
 
     arguments:
+        group (str): name of feature from persons' properties to use for groups
+        category (bool): whether to treat group variable as a category
+        data_persons_properties (object): Pandas data frame of persons'
+            properties
         data_gene_persons_signals (object): Pandas data frame of a gene's
             aggregate, pan-tissue signals across persons
         data_gene_signals_tissues_persons (object): Pandas data frame of a
@@ -3610,8 +3824,7 @@ def organize_genes_signals_tissues_persons(
     raises:
 
     returns:
-        (object): Pandas data frame of a gene's signals across tissues and
-            persons
+        (dict): information for chart
 
     """
 
@@ -3624,9 +3837,25 @@ def organize_genes_signals_tissues_persons(
     )
     # Introduce aggregate, pantissue signals to tissue-person matrix.
     # These aggregate signals will be useful to sort the data.
-    # Join
-    data_hybrid = data_gene_signals_tissues_persons.join(
+    data_sort = data_gene_signals_tissues_persons.join(
         data_gene_persons_signals,
+        how="left",
+        on="person"
+    )
+    # Introduce groups to data.
+    if category:
+        data_persons_properties["group"], groups = pandas.factorize(
+            data_persons_properties[group],
+            sort=True
+        )
+    else:
+        data_persons_properties["group"] = data_persons_properties[group]
+        groups = None
+    data_persons_properties = data_persons_properties.loc[
+        :, data_persons_properties.columns.isin(["group", group])
+    ]
+    data_hybrid = data_sort.join(
+        data_persons_properties,
         how="left",
         on="person"
     )
@@ -3639,17 +3868,24 @@ def organize_genes_signals_tissues_persons(
     )
     # Remove the column for aggregate, pantissue signals.
     data_hybrid.drop(
-        labels="signal",
+        labels=["signal", group],
         axis="columns",
         inplace=True
     )
+    # Compile information.
+    bin = dict()
+    bin["groups"] = len(list(groups))
+    bin["data"] = data_hybrid
     # Return information
-    return data_hybrid
+    return bin
 
 
 def plot_chart_genes_signals_tissues_persons(
     gene=None,
     name=None,
+    group=None,
+    groups=None,
+    category=None,
     data=None,
     path_directory=None
 ):
@@ -3659,6 +3895,9 @@ def plot_chart_genes_signals_tissues_persons(
     arguments:
         gene (str): identifier of a single gene
         name (str): name of gene
+        group (str): name of group
+        groups (int): count of categorical groups
+        category (bool): whether to treat group variable as a category
         data (object): Pandas data frame of a gene's aggregate, pantissue
             signals across tissues and persons
         path_directory (str): path for directory
@@ -3671,7 +3910,7 @@ def plot_chart_genes_signals_tissues_persons(
 
     # Define file name.
     path_figure = os.path.join(
-        path_directory, str(name + ".svg")
+        path_directory, str(name + ".png")
     )
 
     # Define fonts.
@@ -3680,7 +3919,9 @@ def plot_chart_genes_signals_tissues_persons(
     colors = define_color_properties()
 
     # Create figure.
-    figure = plot_heatmap(
+    figure = plot_heatmap_asymmetric_groups(
+        group=group,
+        groups=groups,
         data=data,
         label_columns=False,
         label_rows=True,
@@ -3688,7 +3929,7 @@ def plot_chart_genes_signals_tissues_persons(
         colors=colors,
     )
     # Write figure.
-    write_figure(
+    write_figure_png(
         path=path_figure,
         figure=figure
     )
@@ -3724,45 +3965,88 @@ def prepare_charts_genes_signals_tissues_persons(
     path_tissues_persons = os.path.join(
         path_candidacy, "tissues_persons"
     )
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_tissues_persons)
-    utility.create_directories(path=path_tissues_persons)
 
-    # Iterate on genes.
-    for gene in source_initial["genes"]:
-
-        # Name.
-        name = assembly.access_gene_name(
-            identifier=gene,
-            data_gene_annotation=source_initial["data_gene_annotation"],
+    # Iterate on categorical and ordinal groups of variables.
+    variables_categorical = ["sex"]
+    variables_continuous = ["age", "body", "hardiness", "season_sequence"]
+    # Iterate on categorical variables.
+    for variable in variables_categorical:
+        # Define paths.
+        path_category = os.path.join(
+            path_tissues_persons, "category",
         )
-
-        # Read source information from file.
-        source_gene = read_source_genes_signals_tissues_persons(
-            gene=gene,
-            dock=dock
+        path_directory = os.path.join(
+            path_category, variable
         )
-        # Organize data.
-        # Sort persons by their pantissue aggregate signals for the gene.
-        # The same order is important to compare the heatmap to the histogram.
-        data_gene_signals_tissues_persons = (
-            organize_genes_signals_tissues_persons(
-                data_gene_persons_signals=(
-                    source_gene["data_gene_persons_signals"]
-                ),
-                data_gene_signals_tissues_persons=(
-                    source_gene["data_gene_signals_tissues_persons"]
-                ),
+        # Remove previous files to avoid version or batch confusion.
+        utility.remove_directory(path=path_directory)
+        utility.create_directories(path=path_directory)
+
+        # Iterate on genes.
+        targets = [
+        "ENSG00000196436", # NPIPB15
+        "ENSG00000163958", # ZDHHC19
+        "ENSG00000104918", # RETN
+        "ENSG00000101670", # LIPG
+        ]
+        #for gene in source_initial["genes_multimodal"][0:3]:
+        for gene in targets:
+            # Name.
+            name = assembly.access_gene_name(
+                identifier=gene,
+                data_gene_annotation=source_initial["data_gene_annotation"],
             )
-        )
-        # Create charts for the gene.
-        plot_chart_genes_signals_tissues_persons(
-            gene=gene,
-            name=name,
-            data=data_gene_signals_tissues_persons,
-            path_directory=path_tissues_persons
-        )
+            # Read source information from file.
+            source_gene = read_source_genes_signals_tissues_persons(
+                gene=gene,
+                dock=dock
+            )
+            # Organize data.
+            # Sort persons by their pantissue aggregate signals for the gene.
+            # The same order is important to compare the heatmap to the histogram.
+            bin = (
+                organize_genes_signals_tissues_persons(
+                    group=variable,
+                    category=True,
+                    data_persons_properties=(
+                        source_initial["data_persons_properties"]
+                    ),
+                    data_gene_persons_signals=(
+                        source_gene["data_gene_persons_signals"]
+                    ),
+                    data_gene_signals_tissues_persons=(
+                        source_gene["data_gene_signals_tissues_persons"]
+                    ),
+                )
+            )
+            # Create charts for the gene.
+            plot_chart_genes_signals_tissues_persons(
+                gene=gene,
+                name=name,
+                group=variable,
+                groups=bin["groups"],
+                category=True,
+                data=bin["data"],
+                path_directory=path_candidacy
+            )
+            pass
         pass
+
+    if False:
+        # Iterate on continuous variables.
+        for variable in variables_continuous:
+            # Define paths.
+            path_continuity = os.path.join(
+                path_tissues_persons, "continuity",
+            )
+            path_directory = os.path.join(
+                path_continuity, variable
+            )
+            # Remove previous files to avoid version or batch confusion.
+            utility.remove_directory(path=path_directory)
+            utility.create_directories(path=path_directory)
+
+            pass
     pass
 
 
@@ -4143,8 +4427,10 @@ def plot_chart_signals_genes_correlations(
     colors = define_color_properties()
 
     # Create figure.
-    figure = plot_heatmap_cluster(
+    figure = plot_heatmap_symmetric_diverge(
         data=data,
+        minimum=-1.0,
+        maximum=1.0,
         label_columns=True,
         label_rows=True,
         fonts=fonts,
@@ -5806,101 +6092,105 @@ def execute_procedure(dock=None):
         prepare_chart_tissues_per_person(dock=dock)
 
 
-    # Plot charts of overlap between sets in selection of genes and samples.
-    prepare_charts_sets_selection_genes_samples(dock=dock)
+        # Plot charts of overlap between sets in selection of genes and samples.
+        prepare_charts_sets_selection_genes_samples(dock=dock)
 
-    # Plot charts for selection of principal components on categorical
-    # variables for regression.
-    prepare_charts_regression_principal_components(dock=dock)
+        # Plot charts for selection of principal components on categorical
+        # variables for regression.
+        prepare_charts_regression_principal_components(dock=dock)
 
-    ##########
-    ##########
-    ##########
-    # Distribution procedure
+        ##########
+        ##########
+        ##########
+        # Distribution procedure
 
 
 
-    ##########
-    ##########
-    ##########
-    # Candidacy procedure
+    if False:
+        ##########
+        ##########
+        ##########
+        # Candidacy procedure
 
-    # Plot charts of distributions of genes' pan-tissue aggregate signals
-    # across persons.
-    prepare_charts_genes_persons_signals(dock=dock)
+        # Plot charts of distributions of genes' pan-tissue aggregate signals
+        # across persons.
+        prepare_charts_genes_persons_signals(dock=dock)
 
-    # Plot charts of distributions of each modality measure's scores across
-    # genes.
-    prepare_charts_modality_gene_distribution(dock=dock)
+        # Plot charts of distributions of each modality measure's scores across
+        # genes.
+        prepare_charts_modality_gene_distribution(dock=dock)
 
-    # Plot charts of overlap between sets in selection of genes by bimodality.
-    prepare_charts_gene_sets_candidacy(dock=dock)
+        # Plot charts of overlap between sets in selection of genes by bimodality.
+        prepare_charts_gene_sets_candidacy(dock=dock)
 
-    # Plot charts for correlations in signals between pairs of genes.
-    # Charts will be scatter plots.
-    # Each point will represent a person with pantissue signals from each gene.
-    prepare_charts_signals_persons_gene_pairs(dock=dock)
+        # Plot charts for correlations in signals between pairs of genes.
+        # Charts will be scatter plots.
+        # Each point will represent a person with pantissue signals from each gene.
+        prepare_charts_signals_persons_gene_pairs(dock=dock)
 
     # Plot charts, heatmaps, for each gene's signals across persons (columns)
     # and tissues (rows).
     prepare_charts_genes_signals_tissues_persons(dock=dock)
 
-    ##########
-    ##########
-    ##########
-    # Heritability procedure
+    if False:
 
-    # Plot charts for heritability of genes' pantissue signals.
-    # Charts will be scatter plots.
-    prepare_charts_gene_heritability(dock=dock)
+        ##########
+        ##########
+        ##########
+        # Heritability procedure
 
-    # Plot charts of overlap between sets in selection of genes by
-    # heritability.
-    prepare_charts_sets_gene_heritability(dock=dock)
+        # Plot charts for heritability of genes' pantissue signals.
+        # Charts will be scatter plots.
+        prepare_charts_gene_heritability(dock=dock)
 
-    ##########
-    ##########
-    ##########
-    # Probability procedure
+        # Plot charts of overlap between sets in selection of genes by
+        # heritability.
+        prepare_charts_sets_gene_heritability(dock=dock)
 
-    # Plot charts of overlap between sets in significance of genes by
-    # permutation.
-    prepare_charts_sets_gene_permutation(dock=dock)
+        ##########
+        ##########
+        ##########
+        # Probability procedure
 
-    # Plot chart of the distribution of a gene's pan-tissue aggregate signals
-    # across persons after permutation.
-    prepare_chart_gene_signals_persons_permutation(dock=dock)
+        # Plot charts of overlap between sets in significance of genes by
+        # permutation.
+        prepare_charts_sets_gene_permutation(dock=dock)
 
-    ##########
-    ##########
-    ##########
-    # Prediction procedure
+        # Plot chart of the distribution of a gene's pan-tissue aggregate signals
+        # across persons after permutation.
+        prepare_chart_gene_signals_persons_permutation(dock=dock)
 
-    # Plot charts, scatter plots, for residuals from regressions on each gene's
-    # pan-tissue signals across persons.
-    prepare_charts_genes_regression_residuals(dock=dock)
+        ##########
+        ##########
+        ##########
+        # Prediction procedure
+
+        # Plot charts, scatter plots, for residuals from regressions on each gene's
+        # pan-tissue signals across persons.
+        prepare_charts_genes_regression_residuals(dock=dock)
 
 
+        ##########
+        ##########
+        ##########
+        # Integration procedure
 
-    ##########
-    ##########
-    ##########
-    # Integration procedure
+        # Plot charts for correlations between pairs of all genes of interest.
+        # Chart is adjacency matrix heatmap.
+        prepare_charts_signals_genes_correlations(dock=dock)
 
-    # Plot charts for correlations between pairs of all genes of interest.
-    # Chart is adjacency matrix heatmap.
-    prepare_charts_signals_genes_correlations(dock=dock)
+    if False:
 
-    # Plot charts for correlations between pairs of all genes of interest.
-    # Specific to multimodal genes that associate with hypothetical variables
-    # in prediction procedure.
-    # Chart is adjacency matrix heatmap.
-    prepare_charts_signals_genes_correlations_prediction(dock=dock)
+        # Plot charts for correlations between pairs of all genes of interest.
+        # Specific to multimodal genes that associate with hypothetical variables
+        # in prediction procedure.
+        # Chart is adjacency matrix heatmap.
+        prepare_charts_signals_genes_correlations_prediction(dock=dock)
 
-    # Plot charts for correlations between pairs of genes of interest from
-    # Gene Ontology enrichment.
-    # Chart is adjacency matrix heatmap.
-    prepare_charts_signals_genes_correlations_ontology(dock=dock)
+        # Plot charts for correlations between pairs of genes of interest from
+        # Gene Ontology enrichment.
+        # Chart is adjacency matrix heatmap.
+        prepare_charts_signals_genes_correlations_ontology(dock=dock)
 
 
     if False:

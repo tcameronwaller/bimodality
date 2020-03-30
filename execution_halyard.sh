@@ -71,8 +71,8 @@ echo "Now set to call routine and procedures."
 ##########
 # - Batch Routine
 
-python3 interface.py main --dock $path_dock --split
-python3 interface.py main --dock $path_dock --distribution --local # run on 21 February 2020
+#python3 interface.py main --dock $path_dock --split
+#python3 interface.py main --dock $path_dock --distribution --local # run on 21 February 2020
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --candidacy
@@ -99,7 +99,7 @@ python3 interface.py main --dock $path_dock --distribution --local # run on 21 F
 
 #python3 interface.py main --dock $path_dock --structure
 
-#python3 interface.py main --dock $path_dock --plot
+python3 interface.py main --dock $path_dock --plot
 
 
 ##########

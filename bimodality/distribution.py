@@ -3004,7 +3004,7 @@ def execute_procedure_local(dock=None):
     )
     # Initialize multiprocessing pool.
     #pool = multiprocessing.Pool(processes=os.cpu_count())
-    pool = multiprocessing.Pool(processes=7)
+    pool = multiprocessing.Pool(processes=8)
     # Iterate on genes.
     report = pool.map(
         execute_procedure_gene,

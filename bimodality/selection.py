@@ -613,7 +613,6 @@ def select_samples_tissues_persons(
     data_samples_selection = data_samples.loc[
         data_samples.index.isin(samples), :
     ]
-
     # Return information.
     return data_samples_selection
 
@@ -756,7 +755,6 @@ def select_organize_samples_genes_signals(
         data_gene_annotation=data_gene_annotation_gtex,
         data_gene_signal=data_gene_signal,
     )
-
     # Use genes' annotations from GENCODE.
     utility.print_terminal_partition(level=2)
     print("Select signal genes by GENCODE reference.")
@@ -765,7 +763,6 @@ def select_organize_samples_genes_signals(
         data_gene_annotation=data_gene_annotation_gencode,
         data_gene_signal=data_gene_signal,
     )
-
     # Continue analyses with selection of genes by GENCODE.
     data_gene_signal_protein = bin_genes_gencode[
         "data_gene_signal_protein"
@@ -775,14 +772,13 @@ def select_organize_samples_genes_signals(
     ##########
     ##########
     ##########
-    # Select samples from persons with at least 10 sex-neutral tissues
-
+    # Select samples from persons with at least 10 out of 20 sex-neutral
+    # tissues.
     # Collect list of samples from GTEx.
     utility.print_terminal_partition(level=2)
     print("Selection of samples...")
     samples_gtex = data_gene_signal_protein.columns.to_list()
     print("Count of samples from GTEx: " + str(len(samples_gtex)))
-
     # Select samples by tissues of interest.
     # Exclude samples for cell lines that are not whole tissues.
     # Exclude samples for tissues with coverage by <100 samples.
@@ -812,7 +808,6 @@ def select_organize_samples_genes_signals(
         tissues_major=tissues_selection,
         data_samples_tissues_persons=data_samples_exclusion,
     )
-
     # Summarize original counts of samples and genes.
     samples_temporary = data_samples_inclusion.index.to_list()
     data_gene_signal_temporary = select_samples_genes_signals(
@@ -825,13 +820,10 @@ def select_organize_samples_genes_signals(
         data_samples_tissues_persons=data_samples_inclusion,
         data_gene_signal=data_gene_signal_temporary,
     )
-
-
     # Select final samples on basis of persons' eligibility.
     utility.print_terminal_partition(level=1)
     print("Selection of samples by persons' eligibility.")
     print("Persons must have samples for adequate count of tissues.")
-
     # Count tissues per person.
     data_tissues_per_person_initial = (
         utility.count_data_factors_groups_elements(
@@ -845,18 +837,14 @@ def select_organize_samples_genes_signals(
     print("Mean tissues per person (initial): " + str(mean_tissues))
     count_persons = len(data_tissues_per_person_initial["counts"].to_list())
     print("Count of persons (initial): " + str(count_persons))
-
     # Select persons with adequate sample coverage of multiple tissues.
     bin_tissues = select_samples_persons_by_tissues(
         count=10,
         data_samples_tissues_persons=data_samples_inclusion,
     )
-    persons_selection = bin_tissues["persons"]
-
     data_samples_tissues_persons_tissues = bin_tissues[
         "data_samples_tissues_persons"
     ]
-
     # Count tissues per person.
     data_tissues_per_person_final = (
         utility.count_data_factors_groups_elements(
@@ -870,13 +858,11 @@ def select_organize_samples_genes_signals(
     print("Mean tissues per person (final): " + str(mean_tissues))
     count_persons = len(data_tissues_per_person_final["counts"].to_list())
     print("Count of persons (final): " + str(count_persons))
-
     # Select samples in signal data.
     data_gene_signal_sample = select_samples_genes_signals(
         samples=bin_tissues["samples"],
         data_gene_signal=data_gene_signal_protein,
     )
-
     # Summarize original counts of samples and genes.
     summarize_samples_genes(
         data_samples_tissues_persons=data_samples_tissues_persons_tissues,
@@ -890,20 +876,17 @@ def select_organize_samples_genes_signals(
     utility.print_terminal_partition(level=1)
     print("Selection of genes and samples by signal coverage.")
     utility.print_terminal_partition(level=1)
-
     # Fill missing signals with values of zero.
     data_gene_signal_fill = data_gene_signal_sample.fillna(
         value=0.0,
         inplace=False,
     )
-
     # Collect initial distribution of genes' signals for selection of signal
     # threshold.
     signals_initial = normalize_collect_report_gene_signals(
         data_gene_signal=data_gene_signal_fill,
         threshold=math.log((0.1 + 1.0), 2) # pseudo count 1.0, 0.1 TPM
     )
-
     # Select genes and samples by signals and coverage.
     if stringency == "loose":
         # Each gene must have signal greater than or equal to 0.1 in at least
@@ -934,21 +917,18 @@ def select_organize_samples_genes_signals(
         # 1.0           0.1                 0.1
         # 1.0           0.5                 0.1
         # 1.0           0.5                 0.5
-
         data_gene_signal_selection = select_samples_genes_signals_coverage(
             threshold=0.1,
             proportion_gene=0.5, # 0.5
             proportion_sample=0.5, # 0.5
             data_gene_signal=data_gene_signal_fill,
         )
-
     # Collect initial distribution of genes' signals for selection of signal
     # threshold.
     signals_final = normalize_collect_report_gene_signals(
         data_gene_signal=data_gene_signal_selection,
         threshold=math.log((0.1 + 1.0), 2) # pseudo count 1.0, 0.1 TPM
     )
-
     # Extract identifiers of genes.
     genes_selection = utility.collect_unique_elements(
         elements_original=data_gene_signal_selection.index.tolist()
@@ -957,20 +937,24 @@ def select_organize_samples_genes_signals(
     samples_selection = utility.collect_unique_elements(
         elements_original=data_gene_signal_selection.columns.tolist()
     )
-
     # Select samples, tissues, and persons from filtered genes' signals.
     data_samples_tissues_persons_selection = select_samples_tissues_persons(
         samples=samples_selection,
         data_samples_tissues_persons=data_samples_tissues_persons,
     )
-
+    # Extract identifiers of persons.
+    persons_selection = utility.collect_unique_elements(
+        elements_original=(
+            data_samples_tissues_persons_selection["person"].to_list()
+        )
+    )
     # Summarize original counts of samples and genes.
     summarize_samples_genes(
         data_samples_tissues_persons=data_samples_tissues_persons_selection,
         data_gene_signal=data_gene_signal_selection,
     )
-
     utility.print_terminal_partition(level=2)
+    print("count of genes: " + str(len(genes_selection)))
     print("count of persons: " + str(len(persons_selection)))
     print("count of samples: " + str(len(samples_selection)))
     utility.print_terminal_partition(level=3)
@@ -2049,8 +2033,15 @@ def organize_quantitative_trait_loci_variables(
     return data_transposition
 
 
+# TODO: within this function...
+# TODO: organize persons_selection and persons_genotype
+# TODO: calculate covariate principal components using only the relevant persons
+# TODO: 1. regression (all 631 persons with imputed genotypes)
+# TODO: 2. heritability and trait with only the 555 or whatever persons with valid genotypes
+
+
 def extract_organize_persons_properties(
-    persons=None,
+    persons_selection=None,
     data_samples_tissues_persons=None,
     data_samples_tissues_persons_selection=None,
     data_gene_signal=None,
@@ -2060,7 +2051,8 @@ def extract_organize_persons_properties(
     analysis.
 
     arguments:
-        persons (list<str>): identifiers of persons
+        persons_selection (list<str>): identifiers of persons from selection of
+            samples, tissues, and persons for further analysis
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples
         data_samples_tissues_persons_selection (object): Pandas data frame of
@@ -2091,9 +2083,52 @@ def extract_organize_persons_properties(
             data_gene_sample=data_transposition,
         )
 
+    ##########
+    ##########
+    ##########
+    # Selection of persons
+    # 1. for modality analysis: persons_selection
+    # - persons with samples for at least 10 of 20 sex-neutral tissues
+    # 2. for regression analysis: persons_selection
+    # - impute missing genotypes to maximize observations in regression
+    # 3. for heritability analysis: persons_genotype
+    # - only include persons with valid genotypic (SNP) data
+    # 4. for quantitative trait loci (QTL) analysis: persons_genotype
+    # - only include persons with valid genotypic (SNP) data
+    ##########
+    ##########
+    ##########
+
+    # Select persons.
+
+
+    # Define variables.
+    variables = define_regression_variables()
+
+    # TODO: here is a critical point... for imputation, I want all the persons...
+
+    # Split up this procedure by persons considered...
+
+
+    ##########
+    # Regression
+    ##########
+    #bin_regression =
+
+    ##########
+    # Heritability
+    ##########
+    #bin_heritability =
+
+    ##########
+    # Quantitative trait loci (QTL)
+    ##########
+    #bin_trait =
+
+
     # Impute missing genotypes.
     data_samples_genotypes = impute_persons_genotypes(
-        persons=persons,
+        persons=persons_selection,
         data_samples_tissues_persons=data_samples_tissues_persons,
         data_samples_tissues_persons_selection=(
             data_samples_tissues_persons_selection
@@ -2107,9 +2142,6 @@ def extract_organize_persons_properties(
     utility.print_terminal_partition(level=2)
     print("data_persons_properties_raw")
     print(data_persons_properties_raw)
-
-    # Define sets of variables for regression analysis.
-    variables = define_regression_variables()
 
     # Expand covariates.
     # Prepare covariates for regression.
@@ -2612,8 +2644,11 @@ def write_product(
     path_samples_selection = os.path.join(
         path_selection, "samples_selection.pickle"
     )
-    path_persons = os.path.join(
+    path_persons_selection = os.path.join(
         path_selection, "persons_selection.pickle"
+    )
+    path_persons_selection_text = os.path.join(
+        path_selection, "persons_selection.txt"
     )
     path_tissues = os.path.join(
         path_selection, "tissues_selection.pickle"
@@ -2678,6 +2713,11 @@ def write_product(
         pickle.dump(information["samples_selection"], file_product)
     with open(path_persons, "wb") as file_product:
         pickle.dump(information["persons_selection"], file_product)
+    utility.write_file_text_list(
+        elements=information["persons_selection"],
+        delimiter="\n",
+        path_file=path_persons_selection_text
+    )
     with open(path_tissues, "wb") as file_product:
         pickle.dump(information["tissues_selection"], file_product)
 
@@ -2754,7 +2794,7 @@ def execute_procedure(dock=None):
     # 4. select samples from sex-neutral tissues
     # 5. select genes with signal (>= 0.1 TPM) in >=50% of samples
     # 6. select samples with signal (>= 0.1 TPM) in >=50% of genes
-    bin = select_organize_samples_genes_signals(
+    bin_selection = select_organize_samples_genes_signals(
         data_gene_annotation_gtex=source["data_gene_annotation_gtex"],
         data_gene_annotation_gencode=source["data_gene_annotation_gencode"],
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
@@ -2762,8 +2802,8 @@ def execute_procedure(dock=None):
         stringency="tight",
     )
     # Organize information from selection of samples, genes, and signals.
-    organization = extract_organize_persons_properties(
-        persons=bin["persons_selection"],
+    bin_organization = extract_organize_persons_properties(
+        persons_selection=bin["persons_selection"],
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_samples_tissues_persons_selection=(
             bin["data_samples_tissues_persons"]
@@ -2778,8 +2818,8 @@ def execute_procedure(dock=None):
     )
     # Compile information.
     information = dict()
-    information.update(bin)
-    information.update(organization)
+    information.update(bin_selection)
+    information.update(bin_organization)
     information.update(summary)
 
     # Write product information to file.
