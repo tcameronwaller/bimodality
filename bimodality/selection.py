@@ -1744,6 +1744,15 @@ def organize_persons_properties(
             float("nan")))),
         axis="columns",
     )
+    data_persons_properties["climate"] = data_persons_properties.apply(
+        lambda row:
+            1 if (row["season"] == "summer") else
+            (2 if (row["season"] == "spring") else
+            (3 if (row["season"] == "fall") else
+            (4 if (row["season"] == "winter") else
+            float("nan")))),
+        axis="columns",
+    )
     data_persons_properties["spring"] = data_persons_properties.apply(
         lambda row: 1 if (row["season"] == "spring") else 0,
         axis="columns",
@@ -1807,6 +1816,7 @@ def define_regression_variables():
         "body",
         "hardiness",
         "season_sequence",
+        "climate",
         "delay",
     ]
 
@@ -1816,7 +1826,7 @@ def define_regression_variables():
         "age_scale",
         "body_scale",
         "hardiness_scale", # "hardiness_scale" or "hardiness"
-        "season_scale", # "season_scale" or "season_sequence"
+        "climate_scale", # "season_scale" or "season_sequence"
     ]
     # Variables that relate to genotype.
     genotype = [

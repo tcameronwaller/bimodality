@@ -425,16 +425,12 @@ def plot_heatmap(
     return figure
 
 
-# TODO: this function needs to accommodate categorical groups (sex)
-# TODO: this function also needs to accommodate continuous groups (age, body, hardiness, etc)
-
 def plot_heatmap_asymmetric_groups(
-    group=None,
-    groups=None,
-    category=None,
+    title=None,
+    property=None,
+    type=None,
+    properties=None,
     data=None,
-    label_rows=None,
-    label_columns=None,
     fonts=None,
     colors=None,
 ):
@@ -454,14 +450,13 @@ def plot_heatmap_asymmetric_groups(
 
 
     arguments:
-        group (str): name of group
-        groups (int): count of categorical groups
-        category (bool): whether to treat group variable as a category
+        title (str): title for chart
+        property (str): name of feature from persons' properties to use for
+            groups
+        type (str): type of property, category or continuity
+        properties (list<str>): unique values of property
         data (object): Pandas data frame of quantitative values with mappings
             to columns and rows that will be transposed in heatmap
-        label_rows (bool): whether to include explicit labels on heatmap's rows
-        label_columns (bool): whether to include explicit labels on heatmap's
-            columns
         fonts (dict<object>): references to definitions of font properties
         colors (dict<tuple>): references to definitions of color properties
 
@@ -474,31 +469,45 @@ def plot_heatmap_asymmetric_groups(
 
     # Organize data.
     # Copy data.
-    data_selection = data.iloc[:, :]
-    data_group = data_selection.copy(deep=True)
-    data_value = data_selection.copy(deep=True)
+    #data_selection = data.iloc[:, :]
+    data_property = data.copy(deep=True)
+    data_value = data.copy(deep=True)
     # Groups.
-    groups = data_group["group"].to_list()
+    property_values = data_property["property"].to_list()
     # Map data's columns to heatmap's rows.
     # Map data's rows to heatmap's columns.
     data_value.drop(
-        labels=["group"],
+        labels=["property"],
         axis="columns",
         inplace=True
     )
-    utility.print_terminal_partition(level=2)
-    print(data_value)
     labels_rows = data_value.columns.to_list()
     labels_columns = data_value.index.to_list()
     matrix = numpy.transpose(data_value.to_numpy())
+    # Determine maximal and minimal values.
+    minimum_property = round(min(property_values), 2)
+    maximum_property = round(max(property_values), 2)
+    array = matrix.flatten()
+    minimum_value = round(numpy.nanmin(array), 2)
+    maximum_value = round(numpy.nanmax(array), 2)
 
     # Create figure.
     figure = matplotlib.pyplot.figure(
         figsize=(15.748, 11.811),
         #tight_layout=True,
     )
+    figure.suptitle(
+        title,
+        x=0.01,
+        y=0.99,
+        ha="left",
+        va="top",
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["two"]
+    )
     axes = figure.subplots(
-        nrows=3,
+        nrows=2,
         ncols=2,
         sharex=False,
         sharey=False,
@@ -506,126 +515,130 @@ def plot_heatmap_asymmetric_groups(
         gridspec_kw=dict(
             hspace=0.05,
             wspace=0.05,
-            height_ratios=[1, 2, 22],
+            height_ratios=[1, 10],
             width_ratios=[50, 1],
-            left=0.1,
-            right=0.95,
-            top=0.95,
+            left=0.09,
+            right=0.94,
+            top=0.94,
             bottom=0.05,
         ),
     )
 
     ##########
-    # Empty axes.
-    axes[0, 1].set_axis_off()
-    axes[1, 1].set_axis_off()
-
-    ##########
     # Top axes.
-    image_group = axes[1, 0].imshow(
-        [groups],
-        cmap=matplotlib.pyplot.get_cmap("coolwarm", 2),
-        vmin=0.0,
-        vmax=1.0,
+    if type == "category":
+        #color_map = matplotlib.colors.ListedColormap(
+        #    [colors["blue"], colors["orange"]], 2
+        #)
+        color_map = matplotlib.pyplot.get_cmap("GnBu", len(properties))
+        axis_property_labels = properties
+    elif type == "continuity":
+        color_map = "GnBu"
+        axis_property_labels = [minimum_value, maximum_value]
+    image_property = axes[0, 0].imshow(
+        [property_values],
+        cmap=color_map,
+        vmin=minimum_property,
+        vmax=maximum_property,
         aspect="auto",
         origin="upper",
         # Extent: (left, right, bottom, top)
-        extent=(-0.5, (len(groups) - 0.5), (1 + 0.5), -0.5),
+        extent=(-0.5, (len(property_values) - 0.5), (1 + 0.5), -0.5),
     )
-    axes[1, 0].tick_params(
-        axis="both",
-        which="both", # major, minor, or both
-        top=False,
-        bottom=False,
-        left=False,
-        right=False,
-        labeltop=False,
-        labelbottom=False,
-        labelleft=False,
-        labelright=False,
-    )
-    # Create legend for color map.
-    label_bar_group = str("persons' properties: " + str(group))
-    bar_group = figure.colorbar(
-        image_group,
-        cax=axes[0, 0],
-        ticks=[0.25, 0.75],
-        orientation="horizontal",
-        use_gridspec=True,
-    )
-    bar_group.ax.set_xticklabels(
-        ["female", "male"],
+    axes[0, 0].set_yticks(numpy.arange(1))
+    axes[0, 0].set_yticklabels(
+        [str(property)],
         #minor=False,
-        ha="center", # horizontal alignment
+        ha="right", # horizontal alignment
         va="center", # vertical alignment
         alpha=1.0,
         backgroundcolor=colors["white"],
         color=colors["black"],
-        fontproperties=fonts["properties"]["five"]
+        fontproperties=fonts["properties"]["four"]
     )
-    bar_group.ax.set_xlabel(
-        label_bar_group,
+    axes[0, 0].set_xlabel(
+        "persons' property",
         rotation=0,
-        ha="center",
-        va="center",
+        ha="right",
+        va="bottom",
         alpha=1.0,
         backgroundcolor=colors["white"],
         color=colors["black"],
         fontproperties=fonts["properties"]["three"],
     )
     #bar_group.ax.xaxis.set_label_position("top")
-    bar_group.ax.xaxis.set_label_coords(0.5, 1.7)
-    bar_group.ax.tick_params(
+    axes[0, 0].xaxis.set_label_coords(1.0, 1.2)
+    axes[0, 0].tick_params(
         axis="both",
         which="both", # major, minor, or both
         direction="out",
         length=5.0,
-        width=2.0,
-        color=colors["black"],
-        pad=15,
-        labelsize=fonts["values"]["four"]["size"],
-        labelcolor=colors["black"],
-        top=True,
-        bottom=False, # False
-        left=False,
+        width=3.0,
+        pad=7,
+        top=False,
+        bottom=False,
+        left=True,
         right=False,
-        labeltop=True,
+        labeltop=False,
+        labelbottom=False,
+        labelleft=True,
+        labelright=False,
+        #color=colors["black"],
+        #labelsize=fonts["values"]["four"]["size"],
+        #labelcolor=colors["black"],
+    )
+    # Create legend for color map.
+    bar_property = figure.colorbar(
+        image_property,
+        cax=axes[0, 1],
+        ticks=[minimum_property, maximum_property],
+        orientation="vertical",
+        use_gridspec=True,
+    )
+    bar_property.ax.set_yticklabels(
+        axis_property_labels,
+        #minor=False,
+        ha="left", # horizontal alignment
+        va="bottom", # vertical alignment
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["four"]
+    )
+    bar_property.ax.tick_params(
+        axis="both",
+        which="both", # major, minor, or both
+        direction="out",
+        length=5.0,
+        width=3.0,
+        pad=7,
+        top=False,
+        bottom=False,
+        left=False,
+        right=True,
+        labeltop=False,
         labelbottom=False,
         labelleft=False,
-        labelright=False,
+        labelright=True,
+        #color=colors["black"],
+        #labelsize=fonts["values"]["four"]["size"],
+        #labelcolor=colors["black"],
     )
 
 
     ##########
     # Bottom axes.
 
-    utility.print_terminal_partition(level=3)
-    print(matrix)
-    utility.print_terminal_partition(level=3)
-    print(matrix.shape[0])
-    print(matrix.shape[1])
-    print(labels_rows)
-
-    counter = 1
-    for dimension_one in matrix:
-        utility.print_terminal_partition(level=3)
-        print(counter)
-        print(numpy.nanmean(dimension_one))
-        counter +=1
-
     # Represent data as a color grid.
-    image_value = axes[2, 0].imshow(
+    image_value = axes[1, 0].imshow(
         matrix,
-        cmap="viridis",
-        #vmin=-10.0,
-        #vmax=10.0,
+        cmap="RdPu",
+        vmin=minimum_value,
+        vmax=maximum_value,
         aspect="auto", # "auto", "equal"
         origin="upper", # "lower" or "upper"
         # Extent: (left, right, bottom, top)
-        # TODO: I might have matrix.shape[0] swapped with matrix.shape[1]
-        extent=(-0.5, (matrix.shape[1] - 0.5), (matrix.shape[0] - 0.5), -0.5),
-        #extent=(-0.5, (matrix.shape[1] - 0.5), (matrix.shape[0] + 20), - 0.5),
-        #extent=(-2, 1000, 4, -2),
+        #extent=(-0.5, (matrix.shape[1] - 0.5), (matrix.shape[0] - 0.5), -0.5),
         alpha=1.0,
         filternorm=True,
         resample=True,
@@ -633,34 +646,15 @@ def plot_heatmap_asymmetric_groups(
     #axes[2, 0].set_xlim(-10, (matrix.shape[1] + 10))
     #axes[2, 0].set_ylim(-3, (matrix.shape[0] + 3))
 
-
-    if False:
-        # Create legend for color map.
-        label_bar = "legend"
-        bar_value = figure.colorbar(
-            image_value,
-            cax=axes[2, 1],
-            orientation="vertical",
-            use_gridspec=True,
-        )
-        bar_value.ax.set_ylabel(
-            label_bar,
-            rotation=-90,
-            va="center"
-        )
-
     # Create ticks and labels for each grid.
     # Let the horizontal axes labeling appear on top.
-    axes[2, 0].tick_params(
+    axes[1, 0].tick_params(
         axis="both",
         which="both",
         direction="out",
         length=5.0,
         width=3.0,
-        color=colors["black"],
-        pad=5,
-        labelsize=fonts["values"]["three"]["size"],
-        labelcolor=colors["black"],
+        pad=7,
         top=False,
         bottom=True,
         left=True,
@@ -669,10 +663,12 @@ def plot_heatmap_asymmetric_groups(
         labelbottom=True,
         labelleft=True,
         labelright=False,
-
+        color=colors["black"],
+        labelsize=fonts["values"]["four"]["size"],
+        labelcolor=colors["black"],
     )
-    axes[2, 0].set_yticks(numpy.arange(matrix.shape[0]))
-    axes[2, 0].set_yticklabels(
+    axes[1, 0].set_yticks(numpy.arange(matrix.shape[0]))
+    axes[1, 0].set_yticklabels(
         labels_rows,
         #minor=False,
         ha="right", # horizontal alignment
@@ -682,7 +678,55 @@ def plot_heatmap_asymmetric_groups(
         color=colors["black"],
         fontproperties=fonts["properties"]["four"]
     )
-
+    # Create legend for color map.
+    bar_value = figure.colorbar(
+        image_value,
+        cax=axes[1, 1],
+        ticks=[minimum_value, maximum_value],
+        orientation="vertical",
+        use_gridspec=True,
+    )
+    bar_value.ax.set_ylabel(
+        "gene's signals across tissues and persons",
+        rotation=-90,
+        ha="center",
+        va="bottom",
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["three"],
+    )
+    bar_value.ax.yaxis.set_label_coords(2, 0.5)
+    bar_value.ax.set_yticklabels(
+        [minimum_value, maximum_value],
+        #minor=False,
+        ha="left", # horizontal alignment
+        va="top", # vertical alignment
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["four"]
+    )
+    bar_value.ax.tick_params(
+        axis="both",
+        which="both", # major, minor, or both
+        direction="out",
+        length=5.0,
+        width=3.0,
+        pad=7,
+        top=False,
+        bottom=False,
+        left=False,
+        right=True,
+        labeltop=False,
+        labelbottom=False,
+        labelleft=False,
+        labelright=True,
+        #color=colors["black"],
+        #labelsize=fonts["values"]["four"]["size"],
+        #labelcolor=colors["black"],
+    )
+    # Return figure.
     return figure
 
 
@@ -1440,7 +1484,7 @@ def write_figure_png(path=None, figure=None):
     figure.savefig(
         path,
         format="png",
-        dpi=600,
+        dpi=300,
         facecolor="w",
         edgecolor="w",
         transparent=False
@@ -3802,8 +3846,8 @@ def read_source_genes_signals_tissues_persons(
 
 
 def organize_genes_signals_tissues_persons(
-    group=None,
-    category=None,
+    property=None,
+    type=None,
     data_persons_properties=None,
     data_gene_persons_signals=None,
     data_gene_signals_tissues_persons=None,
@@ -3812,8 +3856,9 @@ def organize_genes_signals_tissues_persons(
     Organize information for chart.
 
     arguments:
-        group (str): name of feature from persons' properties to use for groups
-        category (bool): whether to treat group variable as a category
+        property (str): name of feature from persons' properties to use for
+            groups
+        type (str): type of property, category or continuity
         data_persons_properties (object): Pandas data frame of persons'
             properties
         data_gene_persons_signals (object): Pandas data frame of a gene's
@@ -3828,6 +3873,12 @@ def organize_genes_signals_tissues_persons(
 
     """
 
+    # Copy data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+    data_gene_persons_signals = data_gene_persons_signals.copy(deep=True)
+    data_gene_signals_tissues_persons = data_gene_signals_tissues_persons.copy(
+        deep=True
+    )
     # Rename the aggregate, pantissue signals.
     data_gene_persons_signals.rename(
         columns={
@@ -3843,16 +3894,17 @@ def organize_genes_signals_tissues_persons(
         on="person"
     )
     # Introduce groups to data.
-    if category:
-        data_persons_properties["group"], groups = pandas.factorize(
-            data_persons_properties[group],
+    if type == "category":
+        data_persons_properties["property"], properties = pandas.factorize(
+            data_persons_properties[property],
             sort=True
         )
-    else:
-        data_persons_properties["group"] = data_persons_properties[group]
-        groups = None
+        properties = list(properties)
+    elif type == "continuity":
+        data_persons_properties["property"] = data_persons_properties[property]
+        properties = None
     data_persons_properties = data_persons_properties.loc[
-        :, data_persons_properties.columns.isin(["group", group])
+        :, data_persons_properties.columns.isin(["property", property])
     ]
     data_hybrid = data_sort.join(
         data_persons_properties,
@@ -3868,13 +3920,13 @@ def organize_genes_signals_tissues_persons(
     )
     # Remove the column for aggregate, pantissue signals.
     data_hybrid.drop(
-        labels=["signal", group],
+        labels=["signal", property],
         axis="columns",
         inplace=True
     )
     # Compile information.
     bin = dict()
-    bin["groups"] = len(list(groups))
+    bin["properties"] = properties
     bin["data"] = data_hybrid
     # Return information
     return bin
@@ -3883,9 +3935,9 @@ def organize_genes_signals_tissues_persons(
 def plot_chart_genes_signals_tissues_persons(
     gene=None,
     name=None,
-    group=None,
-    groups=None,
-    category=None,
+    property=None,
+    type=None,
+    properties=None,
     data=None,
     path_directory=None
 ):
@@ -3895,9 +3947,10 @@ def plot_chart_genes_signals_tissues_persons(
     arguments:
         gene (str): identifier of a single gene
         name (str): name of gene
-        group (str): name of group
-        groups (int): count of categorical groups
-        category (bool): whether to treat group variable as a category
+        property (str): name of feature from persons' properties to use for
+            groups
+        type (str): type of property, category or continuity
+        properties (list<str>): unique values of property
         data (object): Pandas data frame of a gene's aggregate, pantissue
             signals across tissues and persons
         path_directory (str): path for directory
@@ -3920,11 +3973,11 @@ def plot_chart_genes_signals_tissues_persons(
 
     # Create figure.
     figure = plot_heatmap_asymmetric_groups(
-        group=group,
-        groups=groups,
+        title=name,
+        property=property,
+        type=type,
+        properties=properties,
         data=data,
-        label_columns=False,
-        label_rows=True,
         fonts=fonts,
         colors=colors,
     )
@@ -3967,16 +4020,17 @@ def prepare_charts_genes_signals_tissues_persons(
     )
 
     # Iterate on categorical and ordinal groups of variables.
-    variables_categorical = ["sex"]
-    variables_continuous = ["age", "body", "hardiness", "season_sequence"]
+    variables = list()
+    variables.append(dict(name="sex", type="category"))
+    variables.append(dict(name="age", type="continuity"))
+    variables.append(dict(name="body", type="continuity"))
+    variables.append(dict(name="hardiness", type="continuity"))
+    variables.append(dict(name="season_sequence", type="continuity"))
     # Iterate on categorical variables.
-    for variable in variables_categorical:
+    for variable in variables:
         # Define paths.
-        path_category = os.path.join(
-            path_tissues_persons, "category",
-        )
         path_directory = os.path.join(
-            path_category, variable
+            path_tissues_persons, variable["name"],
         )
         # Remove previous files to avoid version or batch confusion.
         utility.remove_directory(path=path_directory)
@@ -3989,8 +4043,7 @@ def prepare_charts_genes_signals_tissues_persons(
         "ENSG00000104918", # RETN
         "ENSG00000101670", # LIPG
         ]
-        #for gene in source_initial["genes_multimodal"][0:3]:
-        for gene in targets:
+        for gene in source_initial["genes_multimodal"]:
             # Name.
             name = assembly.access_gene_name(
                 identifier=gene,
@@ -4006,8 +4059,8 @@ def prepare_charts_genes_signals_tissues_persons(
             # The same order is important to compare the heatmap to the histogram.
             bin = (
                 organize_genes_signals_tissues_persons(
-                    group=variable,
-                    category=True,
+                    property=variable["name"],
+                    type=variable["type"],
                     data_persons_properties=(
                         source_initial["data_persons_properties"]
                     ),
@@ -4023,30 +4076,14 @@ def prepare_charts_genes_signals_tissues_persons(
             plot_chart_genes_signals_tissues_persons(
                 gene=gene,
                 name=name,
-                group=variable,
-                groups=bin["groups"],
-                category=True,
+                property=variable["name"],
+                type=variable["type"],
+                properties=bin["properties"],
                 data=bin["data"],
-                path_directory=path_candidacy
+                path_directory=path_directory
             )
             pass
         pass
-
-    if False:
-        # Iterate on continuous variables.
-        for variable in variables_continuous:
-            # Define paths.
-            path_continuity = os.path.join(
-                path_tissues_persons, "continuity",
-            )
-            path_directory = os.path.join(
-                path_continuity, variable
-            )
-            # Remove previous files to avoid version or batch confusion.
-            utility.remove_directory(path=path_directory)
-            utility.create_directories(path=path_directory)
-
-            pass
     pass
 
 
