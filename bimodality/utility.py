@@ -1866,7 +1866,7 @@ def cluster_adjacency_matrix(
     # Cluster.
     columns = data.columns.to_numpy()#.tolist()
     rows = data.index.to_numpy()#.tolist()
-    matrix = numpy.transpose(data.values)
+    matrix = numpy.transpose(data.to_numpy())
     linkage = scipy.cluster.hierarchy.linkage(
         matrix,
         method="average", # "single", "complete", "average"
@@ -1905,6 +1905,61 @@ def cluster_adjacency_matrix(
     data_cluster = pandas.DataFrame(
         data=matrix_cluster,
         index=rows_sort,
+        columns=columns_sort,
+    )
+    # Return information.
+    return data_cluster
+
+
+def cluster_features_columns(
+    data=None,
+):
+    """
+    Clusters features on columns by their similarities across instances on
+    rows.
+
+    arguments:
+        data (object): Pandas data frame of values
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of values
+
+    """
+
+    data = data.copy(deep=True)
+    # Cluster.
+    columns = data.columns.to_numpy()#.tolist()
+    rows = data.index.to_numpy()#.tolist()
+    # Plan to cluster across columns.
+    # Organize columns across dimension zero.
+    matrix = numpy.transpose(data.to_numpy())
+    linkage = scipy.cluster.hierarchy.linkage(
+        matrix,
+        method="average", # "single", "complete", "average"
+        metric="euclidean",
+        optimal_ordering=True,
+    )
+    dendrogram = scipy.cluster.hierarchy.dendrogram(
+        linkage,
+    )
+    # Access seriation from dendrogram leaves.
+    leaves = dendrogram["leaves"]
+    # Sort matrix row and column labels.
+    indices = range(0, len(matrix))
+    matrix_cluster = list(map(
+        lambda index: matrix[leaves[index]],
+        indices
+    ))
+    columns_sort = list(map(
+        lambda index: columns[leaves[index]],
+        indices
+    ))
+    # Organize data.
+    data_cluster = pandas.DataFrame(
+        data=numpy.transpose(matrix_cluster),
+        index=rows,
         columns=columns_sort,
     )
     # Return information.

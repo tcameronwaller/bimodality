@@ -43,7 +43,7 @@ import utility
 # Functionality
 
 
-def read_source_ontology(dock=None):
+def read_source_annotation_sets(dock=None):
     """
     Reads and organizes source information from file
 
@@ -65,10 +65,10 @@ def read_source_ontology(dock=None):
     # Read information from file.
 
     # Ontology.
-    path_ontology = os.path.join(dock, "ontology_2020-03-25")
-    path_function = os.path.join(path_ontology, "function")
-    path_structure = os.path.join(path_ontology, "structure")
-    path_hypothesis = os.path.join(path_ontology, "hypothesis")
+    path_annotation = os.path.join(dock, "annotation_2020-04-01")
+    path_function = os.path.join(path_annotation, "function")
+    path_structure = os.path.join(path_annotation, "structure")
+    path_hypothesis = os.path.join(path_annotation, "hypothesis")
 
     # Select files.
     files_function = os.listdir(path=path_function)
@@ -140,6 +140,40 @@ def read_source_ontology(dock=None):
     }
 
 
+def read_source_annotation_genes_query(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    # Read information from file.
+
+    # Annotation.
+    path_annotation = os.path.join(dock, "annotation_2020-04-01")
+    path_data_genes_query = os.path.join(path_annotation, "genes_query.csv")
+    data_genes_query = pandas.read_csv(
+        path_data_genes_query,
+        sep="\t",
+        header=0,
+    )
+    data_genes_query_pass = data_genes_query.loc[
+        data_genes_query["query"] == 1, :
+    ]
+    genes_query = data_genes_query_pass["identifier"].to_list()
+    # Return information.
+    return genes_query
+
+
 def read_source(dock=None):
     """
     Reads and organizes source information from file
@@ -158,15 +192,25 @@ def read_source(dock=None):
     # Specify directories and files.
     # Read information from file.
 
-    # Ontology.
-    source_ontology = read_source_ontology(dock=dock)
+    # Annotation.
+    source_ontology = read_source_annotation_sets(dock=dock)
+    genes_query = read_source_annotation_genes_query(dock=dock)
 
     # Selection.
     path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
         path_selection, "data_gene_annotation_gencode.pickle"
     )
+    path_persons_properties = os.path.join(
+        path_selection, "data_persons_properties.pickle"
+    )
+    path_genes_selection = os.path.join(
+        path_selection, "genes_selection.pickle"
+    )
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+    data_persons_properties = pandas.read_pickle(path_persons_properties)
+    with open(path_genes_selection, "rb") as file_source:
+        genes_selection = pickle.load(file_source)
 
     # Distribution.
     path_distribution = os.path.join(dock, "distribution")
@@ -253,7 +297,11 @@ def read_source(dock=None):
 
     # Compile and return information.
     return {
+        "genes_query": genes_query,
+
         "data_gene_annotation": data_gene_annotation,
+        "data_persons_properties": data_persons_properties,
+        "genes_selection": genes_selection,
 
         "data_signals_genes_persons": data_signals_genes_persons,
         "data_gene_distribution_report": data_gene_distribution_report,
@@ -474,6 +522,55 @@ def organize_gene_correlations_multimodal_ontology(
     collection["structure"] = collection_structure
     collection["hypothesis"] = collection_hypothesis
     return collection
+
+
+# Groups of persons by components on genes
+
+
+def organize_persons_genes_components(
+    genes=None,
+    data_signals_genes_persons=None,
+):
+    """
+    Organizes a principal components analysis on genes' pan-tissue signals as
+    features across persons as instances.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        data_signals_genes_persons (object): Pandas data frame of genes'
+            pan-tissue signals across persons
+
+    raises:
+
+    returns:
+        (dict<object>): collection of Pandas data frames of genes' pairwise
+            correlations
+
+    """
+
+    # Copy data.
+    data_copy = data_signals_genes_persons.copy(deep=True)
+    # Select genes of interest.
+    data_selection = data_copy.loc[
+        :, data_copy.columns.isin(genes)
+    ]
+    # Reduce dimensionality.
+    report = utility.calculate_principal_components(
+        data=data_selection,
+        components=20,
+        report=True,
+    )
+
+    utility.print_terminal_partition(level=1)
+    print("PCA on genes across persons!")
+    utility.print_terminal_partition(level=2)
+    print(data_selection)
+    utility.print_terminal_partition(level=3)
+    print(report)
+
+    # Return information.
+    return report
+
 
 
 # Summary
@@ -840,6 +937,13 @@ def write_product(dock=None, information=None):
         path_integration, "data_correlation_multimodal_union.pickle"
     )
 
+    path_data_persons_genes_components = os.path.join(
+        path_integration, "data_persons_genes_components.pickle"
+    )
+    path_data_persons_genes_variances = os.path.join(
+        path_integration, "data_persons_genes_variances.pickle"
+    )
+
     path_data_genes_integration = os.path.join(
         path_integration, "data_genes_integration.pickle"
     )
@@ -872,6 +976,13 @@ def write_product(dock=None, information=None):
     )
     information["data_correlation_multimodal_union"].to_pickle(
         path_data_correlation_multimodal_union
+    )
+
+    information["data_persons_genes_components"].to_pickle(
+        path_data_persons_genes_components
+    )
+    information["data_persons_genes_variances"].to_pickle(
+        path_data_persons_genes_variances
     )
 
     information["data_genes_integration"].to_pickle(
@@ -939,7 +1050,7 @@ def execute_procedure(dock=None):
     source = read_source(dock=dock)
 
     ##########
-    # Correlations
+    # Correlations between pairs of genes
 
     # Calculate correlations between pairs of genes.
     # Use Spearman correlations for both unimodal and multimodal.
@@ -986,9 +1097,12 @@ def execute_procedure(dock=None):
         source_ontology=source["source_ontology"],
     )
 
-
-
-
+    ##########
+    # Groups of persons by their expression of genes.
+    bin_components = organize_persons_genes_components(
+        genes=source["genes_query"], # genes_selection, genes_multimodal
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+    )
 
     ##########
     # Integration
@@ -1087,6 +1201,7 @@ def execute_procedure(dock=None):
             genes_scores_distributions=source["genes_scores_distributions"],
         )
 
+
     # Compile information.
     information = {
         "data_genes_integration": data_genes_integration,
@@ -1099,6 +1214,13 @@ def execute_procedure(dock=None):
         "data_correlation_multimodal_union": bin_prediction["union"],
 
         "bin_ontology": bin_ontology,
+
+        "data_persons_genes_components": (
+            bin_components["data_observations_components"]
+        ),
+        "data_persons_genes_variances": (
+            bin_components["data_components_variances"]
+        ),
 
         #"data_genes_selection": data_genes_selection,
         #"data_export_genes_selection": data_export_genes_selection,
