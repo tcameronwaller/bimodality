@@ -35,130 +35,8 @@ import utility
 
 
 ##########
-# Source.
-
-
-def read_source(dock=None):
-    """
-    Reads and organizes source information from file.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_access = os.path.join(dock, "access")
-    path_attribute_sample = os.path.join(path_access, "attribute_sample.txt")
-    path_attribute_person = os.path.join(path_access, "attribute_person.txt")
-    path_gene_annotation = os.path.join(
-        path_access, "annotation_gene_gencode.gtf"
-    )
-    path_gene_count = os.path.join(path_access, "count_gene.gct")
-    path_gene_signal = os.path.join(path_access, "signal_gene.gct")
-
-    path_access_private = os.path.join(dock, "access_private")
-    path_attribute_person_private = os.path.join(
-        path_access_private, "attribute_person.txt"
-    )
-
-    path_customization = os.path.join(dock, "customization")
-    path_tissues_major = os.path.join(
-        path_customization, "translation_tissues_major.tsv"
-    )
-    path_tissues_minor = os.path.join(
-        path_customization, "translation_tissues_minor.tsv"
-    )
-
-    # TODO: include translation for person attributes
-
-
-
-    # Read information from file.
-    #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
-    data_person_attribute = pandas.read_csv(
-        path_attribute_person,
-        sep="\t",
-        header=0,
-    )
-    data_sample_attribute = pandas.read_csv(
-        path_attribute_sample,
-        sep="\t",
-        header=0,
-    )
-    data_gene_annotation = gtfparse.read_gtf(path_gene_annotation)
-    data_gene_count = pandas.read_csv(
-        path_gene_count,
-        sep="\t",
-        header=2,
-        #nrows=1000,
-    )
-    data_gene_signal = pandas.read_csv(
-        path_gene_signal,
-        sep="\t",
-        header=2,
-        #nrows=1000,
-    )
-    data_tissues_major = pandas.read_csv(
-        path_tissues_major,
-        sep="\t",
-        header=0,
-    )
-    data_tissues_minor = pandas.read_csv(
-        path_tissues_minor,
-        sep="\t",
-        header=0,
-    )
-    # Compile and return information.
-    return {
-        "data_person_attribute": data_person_attribute,
-        "data_sample_attribute": data_sample_attribute,
-        "data_gene_annotation": data_gene_annotation,
-        "data_gene_count": data_gene_count,
-        "data_gene_signal": data_gene_signal,
-        "data_tissues_major": data_tissues_major,
-        "data_tissues_minor": data_tissues_minor,
-    }
-
-
-##########
 # Organization of samples' attributes, specifically associations to persons
 # and tissues.
-
-
-def read_gene_signal_samples(path=None):
-    """
-    Reads and extracts sample identifiers from genes' signals.
-
-    arguments:
-        path (str): path to file of genes' signals across samples
-
-    raises:
-
-    returns:
-        (list<str>): list of sample identifiers
-
-    """
-
-    # Read lines for samples with genes' signals.
-    lines = utility.read_file_text_lines(
-        path_file=path,
-        start=2,
-        stop=3,
-    )
-    line = lines[0]
-    # Split line's content by delimiter.
-    headers = line.split("\t")
-    headers.remove("Name")
-    headers.remove("Description")
-    samples = headers
-    return samples
 
 
 def read_source_sample(dock=None):
@@ -296,7 +174,7 @@ def read_source_sample(dock=None):
     )
 
     # Extract identifiers of samples with measurements for genes.
-    samples = read_gene_signal_samples(path=path_gene_signal)
+    samples_gtex = read_gene_signal_samples(dock=dock)
 
     # Compile and return information.
     return {
@@ -310,7 +188,7 @@ def read_source_sample(dock=None):
         "genotype_variances_plink": genotype_variances_plink,
         "data_tissues_major": data_tissues_major,
         "data_tissues_minor": data_tissues_minor,
-        "samples": samples,
+        "samples_gtex": samples_gtex,
     }
 
 
@@ -485,17 +363,19 @@ def translate_season(value=None):
 
     """
 
-    if value == "Fall":
-        season = "fall"
-    elif value == "Spring":
-        season = "spring"
-    elif value == "Summer":
-        season = "summer"
-    elif value == "Winter":
-        season = "winter"
+    if isinstance(value, str):
+        if str(value).strip().lower() == "fall":
+            season = "fall"
+        elif str(value).strip().lower() == "spring":
+            season = "spring"
+        elif str(value).strip().lower() == "summer":
+            season = "summer"
+        elif str(value).strip().lower() == "winter":
+            season = "winter"
+        else:
+            season = float("nan")
     else:
-        season = "other"
-
+        season = float("nan")
     return season
 
 
@@ -725,6 +605,83 @@ def extract_person_genotypes(
     return information
 
 
+def translate_binary_boolean(value=None):
+    """
+    Translates values of a binary boolean variable.
+
+    arguments:
+        value (int): value of variable from GTEx
+
+    raises:
+
+    returns:
+        (bool): whether value was true
+
+    """
+
+    if isinstance(value, str):
+        if (str(value).strip().lower() == "yes"):
+            translation = True
+        elif (str(value).strip().lower() == "no"):
+            translation = False
+        else:
+            translation = float("nan")
+    elif (isinstance(value, int) or isinstance(value, float)):
+        # Accommodate floats or inexact entries.
+        if (value > 0.5):
+            translation = True
+        elif (value < 0.5):
+            translation = False
+        else:
+            translation = float("nan")
+    else:
+        translation = float("nan")
+    return translation
+
+
+def determine_person_boolean_binary_any(
+    person=None,
+    variables=None,
+    data_person_attribute_private=None,
+):
+    """
+    Determines a person's categorical ancestry.
+
+    arguments:
+        person (str): identifier of a person
+        variables (list<str>): names of variables, if any of which is 1, then
+        the function returns 1
+        data_person_attribute_private (object): Pandas data frame of private
+            attributes for persons
+
+    raises:
+
+    returns:
+        (bool): whether person has a value of 1 for any of the variables
+
+    """
+
+    # Collect values of variables.
+    values = list()
+    for variable in variables:
+        value = data_person_attribute_private.at[person, variable]
+        values.append(value)
+    values_true = list(map(
+        lambda value: translate_binary_boolean(value=value), values
+    ))
+    values_false = list(map(
+        lambda value: not translate_binary_boolean(value=value), values
+    ))
+    # Determine whether any of the values represent true.
+    if any(values_true):
+        match = True
+    elif any(values_false):
+        match = False
+    else:
+        match = float("nan")
+    return match
+
+
 def determine_sample_associations_attributes(
     sample=None,
     data_sample_attribute=None,
@@ -768,9 +725,9 @@ def determine_sample_associations_attributes(
 
     """
 
-    # Access tissue attributes.
+    # Access sample attributes.
     #removal = data_sample_attribute_private.at[sample, "SMTORMVE"]
-    batch_isolation = data_sample_attribute_private.at[sample, "SMNABTCH"]
+    batch_extraction = data_sample_attribute_private.at[sample, "SMNABTCH"]
     batches_sequence = data_sample_attribute_private.at[sample, "SMGEBTCH"]
     facilities = data_sample_attribute_private.at[sample, "SMCENTER"]
     #autolysis = data_sample_attribute_private.at[sample, "SMATSSCR"]
@@ -791,15 +748,31 @@ def determine_sample_associations_attributes(
     season_raw = data_person_attribute_private.at[person, "DTHSEASON"]
     season = translate_season(value=season_raw)
     delay = data_person_attribute_private.at[person, "TRDNISCH"]
-    #place = data_person_attribute_private.at[person, "DTHPLCE"]
-
+    delay_start = data_person_attribute_private.at[person, "TRISCHD"]
+    refrigeration = translate_binary_boolean(
+        value=data_person_attribute_private.at[person, "DTHRFG"],
+    )
+    refrigeration_duration = (
+        data_person_attribute_private.at[person, "DTHRFGD"]
+    )
+    refrigeration_unit = (
+        data_person_attribute_private.at[person, "DTHRFGDU"]
+    )
+    ventilation = translate_binary_boolean(
+        value=data_person_attribute_private.at[person, "DTHVNT"],
+    )
+    ventilation_duration = (
+        data_person_attribute_private.at[person, "DTHVNTD"]
+    )
+    ventilation_unit = (
+        data_person_attribute_private.at[person, "DTHVNTDU"]
+    )
     # Determine person's categorical ancestry.
     ancestry = determine_person_ancestry(
         person=person,
         data_person_attribute_private=data_person_attribute_private,
         data_person_ancestry=data_person_ancestry,
     )
-
     # Include principal components from persons' genotypes.
     genotypes = extract_person_genotypes(
         person=person,
@@ -807,24 +780,70 @@ def determine_sample_associations_attributes(
         data_genotype_gcta=data_genotype_component_gcta,
         data_genotype_plink=data_genotype_component_plink,
     )
+    # Determine persons' history of respiratory conditions.
+    respiration = determine_person_boolean_binary_any(
+        person=person,
+        variables=[
+            "MHCOPD", "MHCLRD", "MHCOUGHU", "MHSMKSTS", "MHASTHMA", "MHSRCDSS",
+            "MHPNMNIA", "MHPNMIAB", "MHTBHX"
+        ],
+        data_person_attribute_private=data_person_attribute_private,
+    )
+    # Determine persons' history of chronic inflammation.
+    inflammation = determine_person_boolean_binary_any(
+        person=person,
+        variables=[
+            "MHABNWBC", "MHFVRU", "MHTEMPU", "MHARTHTS", "MHRA", "MHLAPTHU",
+            "MHASCITES", "MHLUPUS", "MHSCLRDRM", "MHENCEPHA", "MHPRKNSN",
+            "MHALZDMT", "MHALZHMR", "MHALS", "MHMS", "MHREYES"
+        ],
+        data_person_attribute_private=data_person_attribute_private,
+    )
+    # Determine persons' history of infection.
+    infection = determine_person_boolean_binary_any(
+        person=person,
+        variables=[
+            "MHFNGINF", "MHBCTINF", "MHSEPSIS", "MHPSBLDCLT", "MHOPPINF",
+            "MHOSTMYLTS", "MHGNRR12M", "MHSYPH12M", "MHINFLNE", "MHFLU",
+            "MHSARS", "MHSMLPXCT", "MHWNVCT", "MHWNVHX", "MHSTD", "MHMENINA",
+        ],
+        data_person_attribute_private=data_person_attribute_private,
+    )
+    # Determine persons' history of steroid use.
+    steroid = determine_person_boolean_binary_any(
+        person=person,
+        variables=["MHHGH", "MHSTRDLT"],
+        data_person_attribute_private=data_person_attribute_private,
+    )
 
     # Compile and return information.
     information = {
         "sample": sample,
         "facilities": facilities,
-        "batch_isolation": batch_isolation,
+        "batch_extraction": batch_extraction,
         "batches_sequence": batches_sequence,
         "tissue_major": tissue_major,
         "tissue_minor": tissue_minor,
         "person": person,
+        "ancestry": ancestry,
         "sex": sex,
         "decade": decade,
         "age": age,
-        "ancestry": ancestry,
         "body": body,
         "hardiness": hardiness,
         "season": season,
         "delay": delay,
+        "delay_start": delay_start,
+        "refrigeration": refrigeration,
+        "refrigeration_duration": refrigeration_duration,
+        "refrigeration_unit": refrigeration_unit,
+        "ventilation": ventilation,
+        "ventilation_duration": ventilation_duration,
+        "ventilation_unit": ventilation_unit,
+        "respiration": respiration,
+        "inflammation": inflammation,
+        "infection": infection,
+        "steroid": steroid,
     }
     information.update(genotypes)
     return information
@@ -997,6 +1016,10 @@ def organize_samples_tissues_persons(
 
     """
 
+    # Remove previous files to avoid version or batch confusion.
+    path_assembly_sample = os.path.join(dock, "assembly", "sample")
+    utility.remove_directory(path=path_assembly_sample)
+
     # Read source information from file.
     source = read_source_sample(dock=dock)
 
@@ -1032,7 +1055,7 @@ def organize_samples_tissues_persons(
     #samples = headers[2:]
     # Collect information about samples.
     samples_tissues_persons = collect_samples_tissues_persons(
-        samples=source["samples"],
+        samples=source["samples_gtex"],
         data_person_attribute=source["data_person_attribute"],
         data_person_attribute_private=source["data_person_attribute_private"],
         data_person_ancestry=source["data_person_ancestry"],
@@ -1154,23 +1177,23 @@ def summarize_raw_data_gene_annotation(
     pass
 
 
-def extract_gene_identifier(string):
+def extract_gene_identifier(value=None):
     """
     Removes designation of version from Ensembl gene identifier.
 
     arguments:
-        string (str): Ensembl identifier of gene.
+        value (str): raw identifier of gene including version
 
     raises:
 
     returns:
-        (str): Ensemble identifier of gene without designation of version.
+        (str): identifier of gene without designation of version
 
     """
 
-    string_split = string.split(".")
-    identifier_gene = string_split[0]
-    return identifier_gene
+    value_split = value.split(".")
+    identifier = value_split[0]
+    return identifier
 
 
 def organize_genes_annotations_set(
@@ -1217,8 +1240,10 @@ def organize_genes_annotations_set(
     print(data_gene_annotation.shape)
     print(data_gene_annotation.iloc[0:10, 0:15])
     # Remove version designations from genes' identifiers.
-    data_gene_annotation["identifier"] = (
-        data_gene_annotation["gene_id"].apply(extract_gene_identifier)
+    data_gene_annotation["identifier"] = data_gene_annotation["gene_id"].apply(
+        lambda value: extract_gene_identifier(
+            value=value,
+        )
     )
     data_gene_annotation.drop(
         labels="gene_id",
@@ -1262,6 +1287,10 @@ def organize_genes_annotations(
         (object): Pandas data frame of genes' annotations.
 
     """
+
+    # Remove previous files to avoid version or batch confusion.
+    path_assembly_annotation = os.path.join(dock, "assembly", "annotation")
+    utility.remove_directory(path=path_assembly_annotation)
 
     # Read source information from file.
     source = read_source_gene_annotation(dock=dock)
@@ -1381,6 +1410,218 @@ def summarize_raw_data_gene_count(
     pass
 
 
+def organize_genes_counts(
+    dock=None,
+):
+    """
+    Organizes counts of genes.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' counts across samples
+
+    """
+
+    # Read source information from file.
+    source = read_source_gene_count(dock=dock)
+
+    # Summarize the structures of the raw data.
+    summarize_raw_data_gene_count(
+        data_gene_count=source["data_gene_count"],
+    )
+
+    # Organize genes' signals.
+    utility.print_terminal_partition(level=1)
+    print("Organization of genes' counts.")
+
+    # Organize data with names and indices.
+    data_gene_count_raw = organize_data_axes_indices(
+        data=source["data_gene_count"]
+    )
+
+    # Optimize data types.
+    data_gene_count = convert_data_types(
+        data=data_gene_count_raw,
+        type="int32"
+    )
+
+    # Remove indices for compatibility with feather file format.
+    data_gene_count.reset_index(
+        level=None,
+        inplace=True
+    )
+
+    # Compile information.
+    information = {
+        "data_gene_count": data_gene_count,
+    }
+
+    # Collect garbage to clear memory.
+    gc.collect()
+
+    #Write product information to file.
+    write_product_gene_count(dock=dock, information=information)
+
+
+##########
+# Organization of genes' signals.
+
+
+def read_gene_signal_samples(dock=None):
+    """
+    Reads and extracts sample identifiers from data for signals across samples
+    and genes.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (list<str>): list of sample identifiers
+
+    """
+
+    # Specify directories and files.
+    path_access = os.path.join(dock, "access")
+    path_gene_signal = os.path.join(path_access, "signal_gene.gct")
+
+    # Read lines for samples with genes' signals.
+    lines = utility.read_file_text_lines(
+        path_file=path_gene_signal,
+        start=2,
+        stop=3,
+    )
+    line = lines[0]
+    # Split line's content by delimiter.
+    headers = line.split("\t")
+    headers.remove("Name")
+    headers.remove("Description")
+    samples = headers
+    return samples
+
+
+def read_gene_signal_genes(dock=None):
+    """
+    Reads and extracts gene identifiers from data for signals across samples
+    and genes.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (list<str>): list of gene identifiers
+
+    """
+
+    # Report.
+    utility.print_terminal_partition(level=1)
+    print("reading genes' identifiers from GTEx signals...")
+
+    # Specify directories and files.
+    path_access = os.path.join(dock, "access")
+    path_gene_signal = os.path.join(path_access, "signal_gene.gct")
+
+    # Read information from file.
+    identifiers_raw = utility.read_file_text_lines_elements(
+        path_file=path_gene_signal,
+        delimiter="\t",
+        index=0,
+        start=3,
+        stop=1000000, # 1000000
+        report=True,
+    )
+    # Convert identifiers.
+    identifiers = list(map(
+        lambda value: extract_gene_identifier(
+            value=value,
+        ),
+        identifiers_raw
+    ))
+    # Report.
+    utility.print_terminal_partition(level=2)
+    print("count of genes: " + str(len(identifiers)))
+    # Return information.
+    return identifiers
+
+
+def compile_variables_types(
+    variables=None,
+    type=None,
+):
+    """
+    Compiles types of variables.
+
+    arguments:
+        variables (list<str>): identifiers of variables
+        type (str): variable type
+
+    raises:
+
+    returns:
+        (dict<str>): variable types
+
+    """
+
+    types = dict.fromkeys(variables, type)
+    return types
+
+
+def read_source_gene_signal(dock=None):
+    """
+    Reads and organizes source information from file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_access = os.path.join(dock, "access")
+    path_gene_signal = os.path.join(path_access, "signal_gene.gct")
+
+    # Read information from file.
+    #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
+
+    # Extract identifiers of samples with measurements for genes.
+    samples = read_gene_signal_samples(dock=dock)
+    # Designate variable types to conserve memory.
+    types = compile_variables_types(
+        variables=samples,
+        type="float32",
+    )
+    types_new = {
+        "Name": "str",
+        "Description": "str",
+    }
+    types.update(types_new)
+
+    data_gene_signal = pandas.read_csv(
+        path_gene_signal,
+        sep="\t",
+        header=2,
+        dtype=types,
+        #nrows=50000,
+    )
+    # Compile and return information.
+    return data_gene_signal
+
+
 def organize_data_axes_indices(data=None):
     """
     Organizes data with names and indices.
@@ -1401,7 +1642,11 @@ def organize_data_axes_indices(data=None):
 
     # Remove version designations from genes' identifiers.
     print("Remove version designations from genes' identifiers.")
-    data["gene"] = data["Name"].apply(extract_gene_identifier)
+    data["gene"] = data["Name"].apply(
+        lambda value: extract_gene_identifier(
+            value=value,
+        )
+    )
     data.drop(
         labels="Name",
         axis="columns",
@@ -1494,138 +1739,6 @@ def convert_data_types(data=None, type=None):
     return data_type
 
 
-def organize_genes_counts(
-    dock=None,
-):
-    """
-    Organizes counts of genes.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' counts across samples
-
-    """
-
-    # Read source information from file.
-    source = read_source_gene_count(dock=dock)
-
-    # Summarize the structures of the raw data.
-    summarize_raw_data_gene_count(
-        data_gene_count=source["data_gene_count"],
-    )
-
-    # Organize genes' signals.
-    utility.print_terminal_partition(level=1)
-    print("Organization of genes' counts.")
-
-    # Organize data with names and indices.
-    data_gene_count_raw = organize_data_axes_indices(
-        data=source["data_gene_count"]
-    )
-
-    # Optimize data types.
-    data_gene_count = convert_data_types(
-        data=data_gene_count_raw,
-        type="int32"
-    )
-
-    # Remove indices for compatibility with feather file format.
-    data_gene_count.reset_index(
-        level=None,
-        inplace=True
-    )
-
-    # Compile information.
-    information = {
-        "data_gene_count": data_gene_count,
-    }
-
-    # Collect garbage to clear memory.
-    gc.collect()
-
-    #Write product information to file.
-    write_product_gene_count(dock=dock, information=information)
-
-
-##########
-# Organization of genes' signals.
-
-
-def compile_variables_types(
-    variables=None,
-    type=None,
-):
-    """
-    Compiles types of variables.
-
-    arguments:
-        variables (list<str>): identifiers of variables
-        type (str): variable type
-
-    raises:
-
-    returns:
-        (dict<str>): variable types
-
-    """
-
-    types = dict.fromkeys(variables, type)
-    return types
-
-
-def read_source_gene_signal(dock=None):
-    """
-    Reads and organizes source information from file.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_access = os.path.join(dock, "access")
-    path_gene_signal = os.path.join(path_access, "signal_gene.gct")
-
-    # Read information from file.
-    #utility.print_file_lines(path_file=path_annotation_gene, start=0, stop=10)
-
-    # Extract identifiers of samples with measurements for genes.
-    samples = read_gene_signal_samples(path=path_gene_signal)
-    # Designate variable types to conserve memory.
-    types = compile_variables_types(
-        variables=samples,
-        type="float64",
-    )
-    types_new = {
-        "Name": "str",
-        "Description": "str",
-    }
-    types.update(types_new)
-
-    data_gene_signal = pandas.read_csv(
-        path_gene_signal,
-        sep="\t",
-        header=2,
-        #dtype=types,
-        #nrows=1000,
-    )
-    # Compile and return information.
-    return {
-        "data_gene_signal": data_gene_signal,
-    }
-
-
 def summarize_raw_data_gene_signal(
     data_gene_signal=None,
 ):
@@ -1680,12 +1793,22 @@ def organize_genes_signals(
 
     """
 
+    # Remove previous files to avoid version or batch confusion.
+    path_assembly_signal = os.path.join(dock, "assembly", "signal")
+    utility.remove_directory(path=path_assembly_signal)
+
     # Read source information from file.
-    source = read_source_gene_signal(dock=dock)
+    samples_gtex = read_gene_signal_samples(dock=dock)
+    genes_gtex = read_gene_signal_genes(dock=dock)
+    data_gene_signal = read_source_gene_signal(dock=dock)
+
+    # Report successful read.
+    utility.print_terminal_partition(level=1)
+    print("Read signals successfully.")
 
     # Summarize the structures of the raw data.
     summarize_raw_data_gene_signal(
-        data_gene_signal=source["data_gene_signal"],
+        data_gene_signal=data_gene_signal,
     )
 
     # Organize genes' signals.
@@ -1693,15 +1816,19 @@ def organize_genes_signals(
     print("Organization of genes' signals.")
 
     # Organize data with names and indices.
-    data_gene_signal_raw = organize_data_axes_indices(
-        data=source["data_gene_signal"]
+    data_gene_signal = organize_data_axes_indices(
+        data=data_gene_signal,
     )
 
     # Optimize data types.
-    data_gene_signal = convert_data_types(
-        data=data_gene_signal_raw,
-        type="float32"
-    )
+    # Use this function to determine whether lower memory types are adequate
+    # for values.
+    # Then read in the data with the lower memory type to conserve memory.
+    if False:
+        data_gene_signal = convert_data_types(
+            data=data_gene_signal,
+            type="float32"
+        )
 
     # Remove indices for compatibility with feather file format.
     data_gene_signal.reset_index(
@@ -1711,13 +1838,15 @@ def organize_genes_signals(
 
     # Compile information.
     information = {
+        "samples_gtex": samples_gtex,
+        "genes_gtex": genes_gtex,
         "data_gene_signal": data_gene_signal
     }
 
     # Collect garbage to clear memory.
     gc.collect()
 
-    #Write product information to file.
+    # Write product information to file.
     write_product_gene_signal(dock=dock, information=information)
 
 
@@ -1871,8 +2000,9 @@ def write_product_sample(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
-    utility.create_directory(path_assembly)
+    path_assembly = os.path.join(dock, "assembly", "sample")
+    utility.create_directories(path_assembly)
+
     path_samples_tissues_persons = os.path.join(
         path_assembly, "data_samples_tissues_persons.pickle"
     )
@@ -1920,8 +2050,8 @@ def write_product_gene_annotation(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
-    utility.create_directory(path_assembly)
+    path_assembly = os.path.join(dock, "assembly", "annotation")
+    utility.create_directories(path_assembly)
     path_gene_annotation_gtex = os.path.join(
         path_assembly, "data_gene_annotation_gtex.pickle"
     )
@@ -2008,13 +2138,23 @@ def write_product_gene_signal(dock=None, information=None):
     gc.collect()
 
     # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
-    utility.create_directory(path_assembly)
+    path_assembly = os.path.join(dock, "assembly", "signal")
+    utility.create_directories(path_assembly)
+    path_samples_gtex = os.path.join(
+        path_assembly, "samples_gtex.pickle"
+    )
+    path_genes_gtex = os.path.join(
+        path_assembly, "genes_gtex.pickle"
+    )
     path_gene_signal = os.path.join(
         path_assembly, "data_gene_signal.feather"
     )
 
     # Write information to file.
+    with open(path_samples_gtex, "wb") as file_product:
+        pickle.dump(information["samples_gtex"], file_product)
+    with open(path_genes_gtex, "wb") as file_product:
+        pickle.dump(information["genes_gtex"], file_product)
     information["data_gene_signal"].to_feather(
         fname=path_gene_signal,
     )
@@ -2043,10 +2183,6 @@ def execute_procedure(dock=None):
     returns:
 
     """
-
-    # Remove previous files to avoid version or batch confusion.
-    path_assembly = os.path.join(dock, "assembly")
-    utility.remove_directory(path=path_assembly)
 
     # Memory conservation
     # Data for genes' signals is extensive.

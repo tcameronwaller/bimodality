@@ -312,7 +312,7 @@ def plot_heatmap_symmetric_diverge(
             alpha=1.0,
             backgroundcolor=colors["white"],
             color=colors["black"],
-            fontproperties=fonts["properties"]["three"]
+            fontproperties=fonts["properties"]["four"]
         )
     if (label_rows and (data.shape[0] <= 50)):
         axes.set_yticks(numpy.arange(matrix.shape[0]))
@@ -697,7 +697,7 @@ def plot_heatmap_asymmetric_groups(
         use_gridspec=True,
     )
     bar_value.ax.set_ylabel(
-        "gene's signals across tissues and persons",
+        "genes' pan-tissue signals across persons",
         rotation=-90,
         ha="center",
         va="bottom",
@@ -3457,7 +3457,10 @@ def read_source_genes_persons_signals_initial(
         genes_unimodal = pickle.load(file_source)
     with open(path_genes_multimodal, "rb") as file_source:
         genes_multimodal = pickle.load(file_source)
-    genes_query = integration.read_source_annotation_genes_query(dock=dock)
+
+    genes_query = integration.read_source_annotation_query_genes_all(
+        dock=dock,
+    )
 
     # Compile and return information.
     return {
@@ -3581,12 +3584,12 @@ def prepare_charts_genes_persons_signals(
     path_distribution = os.path.join(path_candidacy, "distribution")
     path_unimodal = os.path.join(path_distribution, "unimodal")
     path_multimodal = os.path.join(path_distribution, "multimodal")
-    path_interest = os.path.join(path_distribution, "interest")
+    path_query = os.path.join(path_distribution, "query")
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=path_distribution)
     utility.create_directories(path=path_unimodal)
     utility.create_directories(path=path_multimodal)
-    utility.create_directories(path=path_interest)
+    utility.create_directories(path=path_query)
 
     # Iterate on genes.
     for gene in source_initial["genes_unimodal"]:
@@ -3657,7 +3660,7 @@ def prepare_charts_genes_persons_signals(
             # Distribution of gene's signals across persons.
             values = data_gene_persons_signals["value"].to_list()
             # Create charts for the gene.
-            path_gene_figure = os.path.join(path_interest, str(name + ".svg"))
+            path_gene_figure = os.path.join(path_query, str(name + ".svg"))
             plot_chart_genes_persons_signals(
                 gene=gene,
                 name=name,
@@ -3847,7 +3850,11 @@ def read_source_genes_signals_tissues_persons_initial(
         genes_selection = pickle.load(file_source)
     with open(path_genes_multimodal, "rb") as file_source:
         genes_multimodal = pickle.load(file_source)
-    genes_query = integration.read_source_annotation_genes_query(dock=dock)
+
+    genes_query = integration.read_source_annotation_query_genes_all(
+        dock=dock,
+    )
+
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
@@ -4223,8 +4230,8 @@ def prepare_charts_genes_signals_tissues_persons(
 
     # Iterate on categorical and ordinal groups of variables.
     variables = list()
-    variables.append(dict(name="sex", type="category"))
-    #variables.append(dict(name="age", type="continuity"))
+    #variables.append(dict(name="sex", type="category"))
+    variables.append(dict(name="age", type="continuity"))
     #variables.append(dict(name="body", type="continuity"))
     #variables.append(dict(name="hardiness", type="continuity"))
     #variables.append(dict(name="season_sequence", type="continuity"))
@@ -4249,7 +4256,7 @@ def prepare_charts_genes_signals_tissues_persons(
 ##########
 # Multiple genes' (rows) signals across persons (columns), with a chart
 # for those persons' properties
-# Sort order of persons is by property.
+# Sort order of persons is by property and my hierarchical clustering.
 # heatmaps
 # Status: working
 
@@ -4304,7 +4311,12 @@ def read_source_genes_signals_persons_properties(
         genes_selection = pickle.load(file_source)
     with open(path_genes_multimodal, "rb") as file_source:
         genes_multimodal = pickle.load(file_source)
-    genes_query = integration.read_source_annotation_genes_query(dock=dock)
+
+    genes_query_population = (
+        integration.read_source_annotation_query_genes_set(
+            set="population",
+            dock=dock,
+    ))
 
     # Compile and return information.
     return {
@@ -4313,13 +4325,14 @@ def read_source_genes_signals_persons_properties(
         "data_signals_genes_persons": data_signals_genes_persons,
         "genes_selection": genes_selection,
         "genes_multimodal": genes_multimodal,
-        "genes_query": genes_query,
+        "genes_query_population": genes_query_population,
     }
 
 
 def organize_genes_signals_persons_properties(
     property=None,
     type=None,
+    sequence=None,
     genes_query=None,
     data_gene_annotation=None,
     data_persons_properties=None,
@@ -4328,10 +4341,20 @@ def organize_genes_signals_persons_properties(
     """
     Organize information for chart.
 
+    Notice that the data have features (genes) across columns and instances
+    (persons) across rows.
+
+    Sequence of genes across rows depends on hierarchical cluster by their
+    similarities across persons.
+    Sequence of persons across columns depends either on sort by values of
+    property or on hierarchical cluster by their similarities across genes.
+
     arguments:
         property (str): name of feature from persons' properties to use for
             groups
         type (str): type of property, category or continuity
+        sequence (str): method for sequence of persons, sort by property's
+            values or cluster by similarities across genes
         genes_query (list<str>): identifiers of genes
         genes_selection (list<str>): identifiers of genes
         data_gene_annotation (object): Pandas data frame of genes' annotations
@@ -4370,14 +4393,15 @@ def organize_genes_signals_persons_properties(
         inplace=True,
     )
     # Cluster data.
-    data_signals_cluster = utility.cluster_features_columns(
+    data_signals_cluster = utility.cluster_data_columns(
         data=data_signals_selection,
     )
-    data_signals_cluster.rename_axis(
-        "person",
-        axis="index",
-        inplace=True,
-    )
+    if sequence == "cluster":
+        data_signals_sequence = utility.cluster_data_rows(
+            data=data_signals_cluster,
+        )
+    elif sequence == "sort":
+        data_signals_sequence = data_signals_cluster
 
     # Organize properties.
     if type == "category":
@@ -4397,20 +4421,21 @@ def organize_genes_signals_persons_properties(
         how="left",
         on="person"
     )
-    # Sort data by the aggregate, pantissue signals.
-    data_hybrid.sort_values(
-        by=["property"],
-        axis="index",
-        ascending=True,
-        inplace=True,
-    )
+
+    # Determine whether to sort by persons' values of property.
+    if sequence == "sort":
+        data_hybrid.sort_values(
+            by=["property"],
+            axis="index",
+            ascending=True,
+            inplace=True,
+        )
     # Remove the column for aggregate, pantissue signals.
     data_hybrid.drop(
         labels=[property],
         axis="columns",
         inplace=True
     )
-
     # Compile information.
     bin = dict()
     bin["properties"] = properties
@@ -4483,7 +4508,8 @@ def prepare_charts_genes_signals_persons_properties_variable(
     data_gene_annotation=None,
     data_persons_properties=None,
     data_signals_genes_persons=None,
-    path_directory=None,
+    path_sort=None,
+    path_cluster=None,
 ):
     """
     Plots charts from the analysis process.
@@ -4499,7 +4525,8 @@ def prepare_charts_genes_signals_persons_properties_variable(
             their properties
         data_signals_genes_persons (object): Pandas data frame of pan-tissue
             signals across genes and persons
-        path_directory (str): path to directory
+        path_sort (str): path to directory
+        path_cluster (str): path to directory
 
     raises:
 
@@ -4513,6 +4540,7 @@ def prepare_charts_genes_signals_persons_properties_variable(
     bin = organize_genes_signals_persons_properties(
         property=property,
         type=type,
+        sequence="sort",
         genes_query=genes_query,
         data_gene_annotation=data_gene_annotation,
         data_persons_properties=data_persons_properties,
@@ -4525,7 +4553,29 @@ def prepare_charts_genes_signals_persons_properties_variable(
         type=type,
         properties=bin["properties"],
         data=bin["data"],
-        path_directory=path_directory
+        path_directory=path_sort,
+    )
+
+    # Organize data.
+    # Sort persons by their pantissue aggregate signals for the gene.
+    # The same order is important to compare the heatmap to the histogram.
+    bin = organize_genes_signals_persons_properties(
+        property=property,
+        type=type,
+        sequence="cluster",
+        genes_query=genes_query,
+        data_gene_annotation=data_gene_annotation,
+        data_persons_properties=data_persons_properties,
+        data_signals_genes_persons=data_signals_genes_persons,
+    )
+    # Create charts for the gene.
+    plot_chart_genes_signals_tissues_persons(
+        name=property,
+        property=property,
+        type=type,
+        properties=bin["properties"],
+        data=bin["data"],
+        path_directory=path_cluster,
     )
     pass
 
@@ -4553,13 +4603,19 @@ def prepare_charts_genes_signals_persons_properties(
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
     path_candidacy = os.path.join(path_plot, "candidacy")
-    path_directory = os.path.join(
+    path_persons_properties = os.path.join(
         path_candidacy, "persons_properties"
     )
+    path_sort = os.path.join(
+        path_persons_properties, "sort_persons"
+    )
+    path_cluster = os.path.join(
+        path_persons_properties, "cluster_persons"
+    )
     # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_directory)
-    utility.create_directories(path=path_directory)
-
+    utility.remove_directory(path=path_persons_properties)
+    utility.create_directories(path=path_sort)
+    utility.create_directories(path=path_cluster)
 
     # Iterate on categorical and ordinal groups of variables.
     variables = list()
@@ -4574,12 +4630,13 @@ def prepare_charts_genes_signals_persons_properties(
         prepare_charts_genes_signals_persons_properties_variable(
             property=variable["name"],
             type=variable["type"],
-            genes_query=source["genes_query"],
+            genes_query=source["genes_query_population"],
             genes_selection=source["genes_selection"],
             data_gene_annotation=source["data_gene_annotation"],
             data_persons_properties=source["data_persons_properties"],
             data_signals_genes_persons=source["data_signals_genes_persons"],
-            path_directory=path_directory,
+            path_sort=path_sort,
+            path_cluster=path_cluster,
         )
         pass
     pass
@@ -5399,7 +5456,7 @@ def prepare_charts_signals_genes_correlations_prediction(
 # Status: in progress
 
 
-def read_source_signals_genes_correlations_ontology(
+def read_source_signals_genes_correlations_query(
     dock=None
 ):
     """
@@ -5431,7 +5488,7 @@ def read_source_signals_genes_correlations_ontology(
     }
 
 
-def prepare_charts_signals_genes_correlations_ontology(
+def prepare_charts_signals_genes_correlations_query(
     dock=None
 ):
     """
@@ -5448,58 +5505,36 @@ def prepare_charts_signals_genes_correlations_ontology(
     """
 
     # Read source information from file.
-    source = read_source_signals_genes_correlations_ontology(dock=dock)
+    source = read_source_signals_genes_correlations_query(dock=dock)
 
     # Specify directory for source files.
     path_integration = os.path.join(dock, "integration")
-    path_ontology = os.path.join(
-        path_integration, "ontology_multimodal_correlations"
+    path_query_correlations = os.path.join(
+        path_integration, "query_correlations"
     )
-    path_function = os.path.join(
-        path_ontology, "function"
-    )
-    path_structure = os.path.join(
-        path_ontology, "structure"
-    )
-    path_hypothesis = os.path.join(
-        path_ontology, "hypothesis"
-    )
-    files_function = os.listdir(path=path_function)
-    files_structure = os.listdir(path=path_structure)
-    files_hypothesis = os.listdir(path=path_hypothesis)
+    files_query_correlations = os.listdir(path=path_query_correlations)
 
     # Specify directory for product files.
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
-    path_plot_ontology = os.path.join(path_plot, "ontology")
-    path_correlation = os.path.join(
-        path_plot_ontology, "correlations_genes"
-    )
-    path_plot_function = os.path.join(
-        path_correlation, "function"
-    )
-    path_plot_structure = os.path.join(
-        path_correlation, "structure"
-    )
-    path_plot_hypothesis = os.path.join(
-        path_correlation, "hypothesis"
+    path_plot_integration = os.path.join(path_plot, "integration")
+    path_directory = os.path.join(
+        path_plot_integration, "correlations_query_genes"
     )
 
     # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_correlation)
-    utility.create_directories(path=path_plot_function)
-    utility.create_directories(path=path_plot_structure)
-    utility.create_directories(path=path_plot_hypothesis)
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
 
     # Iterate on source files.
-    for file in files_function:
+    for file in files_query_correlations:
         # Extract name of set.
         file_first = file.replace("data_", "")
         file_last = file_first.replace(".pickle", "")
         name = file_last
         # Read information.
         path_data = os.path.join(
-            path_function, file
+            path_query_correlations, file
         )
         data = pandas.read_pickle(path_data)
         # Organize data.
@@ -5509,59 +5544,7 @@ def prepare_charts_signals_genes_correlations_ontology(
         )
         # Define file name.
         path_file = os.path.join(
-            path_plot_function, str(name + ".svg")
-        )
-        # Create chart.
-        plot_chart_signals_genes_correlations(
-            data=data_organization,
-            path_file=path_file
-        )
-
-    # Iterate on source files.
-    for file in files_structure:
-        # Extract name of set.
-        file_first = file.replace("data_", "")
-        file_last = file_first.replace(".pickle", "")
-        name = file_last
-        # Read information.
-        path_data = os.path.join(
-            path_structure, file
-        )
-        data = pandas.read_pickle(path_data)
-        # Organize data.
-        data_organization = organize_signals_genes_correlations(
-            data_gene_annotation=source["data_gene_annotation"],
-            data_genes_correlations=data,
-        )
-        # Define file name.
-        path_file = os.path.join(
-            path_plot_structure, str(name + ".svg")
-        )
-        # Create chart.
-        plot_chart_signals_genes_correlations(
-            data=data_organization,
-            path_file=path_file
-        )
-
-    # Iterate on source files.
-    for file in files_hypothesis:
-        # Extract name of set.
-        file_first = file.replace("data_", "")
-        file_last = file_first.replace(".pickle", "")
-        name = file_last
-        # Read information.
-        path_data = os.path.join(
-            path_hypothesis, file
-        )
-        data = pandas.read_pickle(path_data)
-        # Organize data.
-        data_organization = organize_signals_genes_correlations(
-            data_gene_annotation=source["data_gene_annotation"],
-            data_genes_correlations=data,
-        )
-        # Define file name.
-        path_file = os.path.join(
-            path_plot_hypothesis, str(name + ".svg")
+            path_directory, str(name + ".svg")
         )
         # Create chart.
         plot_chart_signals_genes_correlations(
@@ -6849,6 +6832,13 @@ def execute_procedure(dock=None):
         ##########
         # Distribution procedure
 
+        # Plot charts of distributions of genes' pan-tissue aggregate signals
+        # across persons.
+        prepare_charts_genes_persons_signals(dock=dock)
+
+        # Plot charts of distributions of each modality measure's scores across
+        # genes.
+        prepare_charts_modality_gene_distribution(dock=dock)
 
 
         ##########
@@ -6856,16 +6846,8 @@ def execute_procedure(dock=None):
         ##########
         # Candidacy procedure
 
-        # Plot charts of distributions of genes' pan-tissue aggregate signals
-        # across persons.
-        prepare_charts_genes_persons_signals(dock=dock)
-
     if False:
 
-
-        # Plot charts of distributions of each modality measure's scores across
-        # genes.
-        prepare_charts_modality_gene_distribution(dock=dock)
 
         # Plot charts of overlap between sets in selection of genes by bimodality.
         prepare_charts_gene_sets_candidacy(dock=dock)
@@ -6875,16 +6857,11 @@ def execute_procedure(dock=None):
         # Each point will represent a person with pantissue signals from each gene.
         prepare_charts_signals_persons_gene_pairs(dock=dock)
 
-    # Plot charts, heatmaps, for each gene's signals across persons (columns)
-    # and tissues (rows).
-    # Include a chart to depict persons' properties.
-    # Sort order of persons is by pan-tissue signal.
-    prepare_charts_genes_signals_tissues_persons(dock=dock)
-
-    # Plot charts, heatmaps, for several genes' signals across persons
-    # (columns) along with those persons' properties.
-    prepare_charts_genes_signals_persons_properties(dock=dock)
-
+        # Plot charts, heatmaps, for each gene's signals across persons (columns)
+        # and tissues (rows).
+        # Include a chart to depict persons' properties.
+        # Sort order of persons is by pan-tissue signal.
+        prepare_charts_genes_signals_tissues_persons(dock=dock)
 
     if False:
 
@@ -6933,6 +6910,20 @@ def execute_procedure(dock=None):
     # signals across groups of persons.
     prepare_charts_persons_genes_components(dock=dock)
 
+    # Plot charts for correlations between pairs of genes of interest from
+    # Gene Ontology enrichment.
+    # Chart is adjacency matrix heatmap.
+    prepare_charts_signals_genes_correlations_query(dock=dock)
+
+    # Plot charts, heatmaps, for multiple genes' pan-tissue signals across
+    # persons along with those persons' properties.
+    # Genes will be across rows, and persons will be across columns.
+    # Sort order across rows depends on hierarchical clustering.
+    # In some charts, sort order across columns depends on persons' properties
+    # (sex, age, body mass index, hardiness).
+    # In other charts, sort order across columns depends on hierarchical
+    # clustering.
+    prepare_charts_genes_signals_persons_properties(dock=dock)
 
     if False:
 
@@ -6946,10 +6937,8 @@ def execute_procedure(dock=None):
         # Chart is adjacency matrix heatmap.
         prepare_charts_signals_genes_correlations_prediction(dock=dock)
 
-        # Plot charts for correlations between pairs of genes of interest from
-        # Gene Ontology enrichment.
-        # Chart is adjacency matrix heatmap.
-        prepare_charts_signals_genes_correlations_ontology(dock=dock)
+        # TODO: I think this chart might be obsolete?
+        prepare_charts_signals_genes_persons_groups(dock=dock)
 
 
     if False:
@@ -6963,13 +6952,6 @@ def execute_procedure(dock=None):
         # Plot charts of distributions of genes' bimodality measurement scores and
         # permutations.
         plot_charts_distribution(dock=dock)
-
-        # Plot charts, heatmaps, for each gene's aggregate, pantissue signals
-        # across persons.
-        # Genes will be across rows, and persons will be across columns.
-        # This chart will illustrate whether the same persons are in low and high
-        # groups for multiple genes.
-        prepare_charts_signals_genes_persons_groups(dock=dock)
 
         # Plot charts of overlap between sets in selection of genes by permutation
         # probability of bimodality.

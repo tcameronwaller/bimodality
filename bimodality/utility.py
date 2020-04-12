@@ -419,6 +419,51 @@ def read_file_text_lines(
     return lines
 
 
+def read_file_text_lines_elements(
+    path_file=None,
+    delimiter=None,
+    index=None,
+    start=None,
+    stop=None,
+    report=None,
+):
+    """
+    Reads all lines from a text file and collects elements from a single
+    index within each line.
+
+    arguments:
+        path_file (str): path to directory and file
+        delimiter (str): delimiter between elements in list
+        index (int): index of element to collect from each line
+        start (int): index of line to start reading
+        stop (int): index of line to stop reading
+        report (bool): whether to print element from each line
+
+    returns:
+        (list<str>): information from file
+
+    raises:
+
+    """
+
+    # Read information from file.
+    elements = list()
+    with open(path_file, "r") as file_source:
+        line = file_source.readline()
+        count = 0
+        while line:
+            if (start <= count and count < stop):
+                row = line.strip().split(delimiter)
+                element = row[index]
+                elements.append(element)
+                if report:
+                    print("line " + str(count) + ": " + str(element))
+            line = file_source.readline()
+            count += 1
+    # Return information.
+    return elements
+
+
 def write_file_text_table(
     information=None,
     path_file=None,
@@ -1911,7 +1956,7 @@ def cluster_adjacency_matrix(
     return data_cluster
 
 
-def cluster_features_columns(
+def cluster_data_columns(
     data=None,
 ):
     """
@@ -1932,6 +1977,7 @@ def cluster_features_columns(
     # Cluster.
     columns = data.columns.to_numpy()#.tolist()
     rows = data.index.to_numpy()#.tolist()
+    index_name = data.index.name
     # Plan to cluster across columns.
     # Organize columns across dimension zero.
     matrix = numpy.transpose(data.to_numpy())
@@ -1961,6 +2007,72 @@ def cluster_features_columns(
         data=numpy.transpose(matrix_cluster),
         index=rows,
         columns=columns_sort,
+    )
+    data_cluster.rename_axis(
+        index_name,
+        axis="index",
+        inplace=True,
+    )
+    # Return information.
+    return data_cluster
+
+
+def cluster_data_rows(
+    data=None,
+):
+    """
+    Clusters instances on rows by their similarities across features on
+    columns.
+
+    arguments:
+        data (object): Pandas data frame of values
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of values
+
+    """
+
+    data = data.copy(deep=True)
+    # Cluster.
+    columns = data.columns.to_numpy()#.tolist()
+    rows = data.index.to_numpy()#.tolist()
+    index_name = data.index.name
+    # Plan to cluster across columns.
+    # Organize rows across dimension zero.
+    matrix = data.to_numpy()
+    linkage = scipy.cluster.hierarchy.linkage(
+        matrix,
+        method="average", # "single", "complete", "average"
+        metric="euclidean",
+        optimal_ordering=True,
+    )
+    dendrogram = scipy.cluster.hierarchy.dendrogram(
+        linkage,
+    )
+    # Access seriation from dendrogram leaves.
+    leaves = dendrogram["leaves"]
+    # Sort matrix row and column labels.
+    indices = range(0, len(matrix))
+    matrix_cluster = list(map(
+        lambda index: matrix[leaves[index]],
+        indices
+    ))
+    rows_sort = list(map(
+        lambda index: rows[leaves[index]],
+        indices
+    ))
+    # Organize data.
+    data_cluster = pandas.DataFrame(
+        data=matrix_cluster,
+        index=rows_sort,
+        columns=columns,
+    )
+    data_cluster.rename_axis(
+        index_name,
+        axis="index",
+        inplace=True,
     )
     # Return information.
     return data_cluster

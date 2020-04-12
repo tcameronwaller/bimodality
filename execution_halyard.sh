@@ -65,8 +65,8 @@ echo "Now set to call routine and procedures."
 
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access # run on 21 February 2020
-#python3 interface.py main --dock $path_dock --assembly # run on 24 March 2020
-#python3 interface.py main --dock $path_dock --selection # run on 26 March 2020
+#python3 interface.py main --dock $path_dock --assembly # run on 11 April 2020
+python3 interface.py main --dock $path_dock --selection # run on 10 April 2020
 
 ##########
 # - Batch Routine
@@ -99,7 +99,7 @@ echo "Now set to call routine and procedures."
 
 #python3 interface.py main --dock $path_dock --structure
 
-python3 interface.py main --dock $path_dock --plot
+#python3 interface.py main --dock $path_dock --plot
 
 
 ##########

@@ -17,6 +17,7 @@ import statistics
 import pickle
 import itertools
 import copy
+import gc
 
 # Relevant
 
@@ -38,9 +39,15 @@ import utility
 # Functionality
 
 
-def read_source(dock=None):
+##########
+##########
+##########
+# Genes
+
+
+def read_source_gene_annotation(dock=None):
     """
-    Reads and organizes source information from file
+    Reads and organizes source information from file.
 
     arguments:
         dock (str): path to root or dock directory for source and product
@@ -54,18 +61,17 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
+    path_assembly_annotation = os.path.join(dock, "assembly", "annotation")
+    path_assembly_signal = os.path.join(dock, "assembly", "signal")
+
     path_gene_annotation_gtex = os.path.join(
-        path_assembly, "data_gene_annotation_gtex.pickle"
+        path_assembly_annotation, "data_gene_annotation_gtex.pickle"
     )
     path_gene_annotation_gencode = os.path.join(
-        path_assembly, "data_gene_annotation_gencode.pickle"
+        path_assembly_annotation, "data_gene_annotation_gencode.pickle"
     )
-    path_samples_tissues_persons = os.path.join(
-        path_assembly, "data_samples_tissues_persons.pickle"
-    )
-    path_gene_signal = os.path.join(
-        path_assembly, "data_gene_signal.feather"
+    path_genes_gtex = os.path.join(
+        path_assembly_signal, "genes_gtex.pickle"
     )
 
     # Read information from file.
@@ -75,18 +81,250 @@ def read_source(dock=None):
     data_gene_annotation_gencode = pandas.read_pickle(
         path_gene_annotation_gencode
     )
-    data_samples_tissues_persons = pandas.read_pickle(
-        path_samples_tissues_persons
-    )
-    data_gene_signal = pandas.read_feather(
-        path=path_gene_signal,
-    )
+    with open(path_genes_gtex, "rb") as file_source:
+        genes_gtex = pickle.load(file_source)
     # Compile and return information.
     return {
         "data_gene_annotation_gtex": data_gene_annotation_gtex,
         "data_gene_annotation_gencode": data_gene_annotation_gencode,
+        "genes_gtex": genes_gtex,
+    }
+
+
+def select_gene_annotation(
+    genes_gtex=None,
+    data_gene_annotation=None,
+):
+    """
+    Selects annotations for genes that are on nuclear autosomes, encode
+    proteins, and have signals in GTEx data.
+
+    arguments:
+        genes_gtex (list<str>): identifiers of genes with signals in GTEx data
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' annotations
+
+    """
+
+    utility.print_terminal_partition(level=2)
+    print("Original shape of data: " + str(data_gene_annotation.shape))
+
+    # Select entries for genes.
+    data_gene_annotation = (
+        data_gene_annotation.loc[data_gene_annotation["feature"] == "gene", :]
+    )
+    data_gene_annotation.drop(
+        labels="feature",
+        axis="columns",
+        inplace=True
+    )
+    utility.print_terminal_partition(level=2)
+    print("count of reference genes: " + str(data_gene_annotation.shape[0]))
+
+    # Select entries for genes on nuclear autosomes (non-sex chromosomes).
+    # There are 2422 genes on the X chromosome, of which 850 encode proteins.
+    # There are 567 genes on the Y chromosome, of which 66 encode proteins.
+    # There are 37 genes on the mitochondrial chromosome, of which 13 encode
+    # proteins.
+    data_gene_annotation = (
+        data_gene_annotation.loc[
+            data_gene_annotation["seqname"] != "chrX", :
+        ]
+    )
+    data_gene_annotation = (
+        data_gene_annotation.loc[
+            data_gene_annotation["seqname"] != "chrY", :
+        ]
+    )
+    data_gene_annotation = (
+        data_gene_annotation.loc[
+            data_gene_annotation["seqname"] != "chrM", :
+        ]
+    )
+    utility.print_terminal_partition(level=2)
+    print(
+        "count of reference genes on nuclear (not mitochondrial) autosomes: " +
+        str(data_gene_annotation.shape[0])
+    )
+
+    # Select entries for genes that encode proteins.
+    data_gene_annotation = (
+        data_gene_annotation.loc[
+            data_gene_annotation["gene_type"] == "protein_coding", :
+        ]
+    )
+    utility.print_terminal_partition(level=2)
+    print(
+        "count of reference genes that encode proteins: " +
+        str(data_gene_annotation.shape[0])
+    )
+
+    # Select entries for genes that have signal in GTEx data.
+    data_gene_annotation = data_gene_annotation.loc[
+        data_gene_annotation.index.isin(genes_gtex), :
+    ]
+    genes_gtex_annotation = data_gene_annotation.index.to_list()
+
+    # Report.
+    utility.print_terminal_partition(level=2)
+    print(
+        "count of reference genes that have signal in GTEx data: " +
+        str(data_gene_annotation.shape[0])
+    )
+    utility.print_terminal_partition(level=2)
+    print(data_gene_annotation.iloc[0:10, 0:7])
+
+    # Compile information.
+    bin = dict()
+    bin["data"] = data_gene_annotation
+    bin["genes_gtex_annotation"] = genes_gtex_annotation
+    # Return information.
+    return bin
+
+
+def select_organize_genes_annotations(
+    stringency=None,
+    dock=None,
+):
+    """
+    Selects and organizes information about genes.
+
+    arguments:
+        stringency (str): category, loose or tight, of selection criteria
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+    """
+
+    # Read source information from file.
+    source = read_source_gene_annotation(dock=dock)
+
+    ##########
+    ##########
+    ##########
+    # Select protein-coding genes on nuclear autosomes
+
+    # Select genes that encode proteins and are on autosomes.
+    # Count of genes: 18353
+    utility.print_terminal_partition(level=1)
+    print("Selection of genes.")
+
+    # GTEx reference.
+    utility.print_terminal_partition(level=2)
+    print("GTEx reference gene annotations.")
+    # GTEx reference: 18380 genes on autosomes that encode proteins.
+    # GTEx reference: 18380 genes with signal.
+    bin_gtex = select_gene_annotation(
+        genes_gtex=source["genes_gtex"],
+        data_gene_annotation=source["data_gene_annotation_gtex"],
+    )
+
+    # GENCODE reference.
+    utility.print_terminal_partition(level=2)
+    print("GENCODE reference gene annotations.")
+    # GENCODE reference: 19027 genes on autosomes that encode proteins.
+    # GENCODE reference: 18324 genes with signal.
+    bin_gencode = select_gene_annotation(
+        genes_gtex=source["genes_gtex"],
+        data_gene_annotation=source["data_gene_annotation_gencode"],
+    )
+
+    # Continue analyses with selection of genes by GENCODE.
+    utility.print_terminal_partition(level=2)
+    print(
+        "count of protein-coding genes with signals: " +
+        str(len(bin_gencode["genes_gtex_annotation"]))
+    )
+    utility.print_terminal_partition(level=3)
+
+    # Compile information.
+    information = dict()
+    information["data_gene_annotation_gtex"] = bin_gtex["data"]
+    information["data_gene_annotation_gencode"] = bin_gencode["data"]
+    information["genes_gtex_annotation"] = bin_gencode["genes_gtex_annotation"]
+
+    # Write product information to file.
+    write_product_gene_annotation(
+        stringency=stringency,
+        dock=dock,
+        information=information
+    )
+    pass
+
+
+##########
+##########
+##########
+# Samples, genes, signals
+
+
+def read_source_selection(
+    stringency=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        stringency (str): category, loose or tight, of selection criteria
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_assembly_sample = os.path.join(dock, "assembly", "sample")
+    path_assembly_signal = os.path.join(dock, "assembly", "signal")
+    path_samples_tissues_persons = os.path.join(
+        path_assembly_sample, "data_samples_tissues_persons.pickle"
+    )
+    path_gene_signal = os.path.join(
+        path_assembly_signal, "data_gene_signal.feather"
+    )
+    path_samples_gtex = os.path.join(
+        path_assembly_signal, "samples_gtex.pickle"
+    )
+
+    path_selection = os.path.join(dock, "selection", str(stringency))
+    path_gene_annotation = os.path.join(path_selection, "gene_annotation")
+    path_genes_gtex_annotation = os.path.join(
+        path_gene_annotation, "genes_gtex_annotation.pickle"
+    )
+
+    # Read information from file.
+    data_samples_tissues_persons = pandas.read_pickle(
+        path_samples_tissues_persons
+    )
+    data_gene_signal_feather = pandas.read_feather(
+        path=path_gene_signal,
+    )
+    data_gene_signal = organize_data_axes_indices(
+        data=data_gene_signal_feather
+    )
+    with open(path_samples_gtex, "rb") as file_source:
+        samples_gtex = pickle.load(file_source)
+    with open(path_genes_gtex_annotation, "rb") as file_source:
+        genes_gtex_annotation = pickle.load(file_source)
+
+
+    # Compile and return information.
+    return {
         "data_samples_tissues_persons": data_samples_tissues_persons,
         "data_gene_signal": data_gene_signal,
+        "samples_gtex": samples_gtex,
+        "genes_gtex_annotation": genes_gtex_annotation,
     }
 
 
@@ -106,13 +344,7 @@ def organize_data_axes_indices(data=None):
 
     # The Pandas function to rename axis copies data deeply by default and
     # requires a lot of memory.
-    utility.print_terminal_partition(level=2)
-    print("... organization of data for genes' signals across samples...")
-
     # Organize data.
-
-    print(data.iloc[0:10, 0:10])
-    print("Organize data with names and indices.")
     data.set_index(
         "gene",
         drop=True,
@@ -130,14 +362,12 @@ def organize_data_axes_indices(data=None):
         copy=False,
         inplace=True
     )
-    print(data.iloc[0:10, 0:10])
     return data
 
 
-# Summary.
-
-
 def summarize_samples_genes(
+    samples_gtex=None,
+    genes_gtex_annotation=None,
     data_samples_tissues_persons=None,
     data_gene_signal=None
 ):
@@ -145,6 +375,10 @@ def summarize_samples_genes(
     Summarize selection of samples and genes.
 
     arguments:
+        samples_gtex (list<str>): identifiers of samples with signals in GTEx
+            data
+        genes_gtex_annotation (list<str>): identifiers of protein-coding genes
+            on nuclear autosomes with signals in GTEx data
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues for all samples
         data_gene_signal (object): Pandas data frame of genes' counts or
@@ -162,7 +396,17 @@ def summarize_samples_genes(
 
     utility.print_terminal_partition(level=1)
     print("Summary of selection of samples and genes.")
+
+    utility.print_terminal_partition(level=2)
+    print("Count of samples from GTEx: " + str(len(samples_gtex)))
+    utility.print_terminal_partition(level=2)
+    print(
+        "Count of protein-coding genes on nuclear autosomes with signals in " +
+        "GTEx: " + str(len(genes_gtex_annotation))
+    )
+
     # Counts of samples and genes.
+    utility.print_terminal_partition(level=2)
     print("Genes' signals...")
     print("Count of samples: " + str(data_gene_signal.shape[1]))
     print("Count of genes: " + str(data_gene_signal.shape[0]))
@@ -218,103 +462,18 @@ def summarize_samples_genes(
 
     pass
 
-##########
-##########
-##########
-# Select genes, samples, and persons.
 
-# Genes.
-
-
-def select_gene_annotation(
-    data_gene_annotation=None,
+def select_signals_by_genes(
+    genes=None,
+    data_gene_signal=None,
 ):
     """
     Selects genes that encode proteins.
 
     arguments:
-        data_gene_annotation (object): Pandas data frame of genes' annotations
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' annotations
-
-    """
-
-    utility.print_terminal_partition(level=2)
-    print(
-        "Select annotations for genes that encode proteins and are on " +
-        "autosomes."
-    )
-
-    # Select entries for genes.
-    print(data_gene_annotation.shape)
-    data_gene_annotation = (
-        data_gene_annotation.loc[data_gene_annotation["feature"] == "gene", :]
-    )
-    data_gene_annotation.drop(
-        labels="feature",
-        axis="columns",
-        inplace=True
-    )
-    print(data_gene_annotation.shape)
-
-    # Select entries for genes on autosomes (non-sex chromosomes).
-    # There are 2422 genes on the X chromosome, of which 850 encode proteins.
-    # There are 567 genes on the Y chromosome, of which 66 encode proteins.
-    # There are 37 genes on the mitochondrial chromosome, of which 13 encode
-    # proteins.
-    print(
-        "count of genes in reference annotations: " +
-        str(data_gene_annotation.shape[0])
-    )
-    data_gene_annotation = (
-        data_gene_annotation.loc[
-            data_gene_annotation["seqname"] != "chrX", :
-        ]
-    )
-    data_gene_annotation = (
-        data_gene_annotation.loc[
-            data_gene_annotation["seqname"] != "chrY", :
-        ]
-    )
-    data_gene_annotation = (
-        data_gene_annotation.loc[
-            data_gene_annotation["seqname"] != "chrM", :
-        ]
-    )
-    print(
-        "count of reference genes on nuclear (not mito) autosomes: " +
-        str(data_gene_annotation.shape[0])
-    )
-    # Select entries for genes that encode proteins.
-    data_gene_annotation = (
-        data_gene_annotation.loc[
-            data_gene_annotation["gene_type"] == "protein_coding", :
-        ]
-    )
-    print(
-        "count of reference genes that encode proteins: " +
-        str(data_gene_annotation.shape[0])
-    )
-
-    print(data_gene_annotation.iloc[0:10, 0:7])
-
-    return data_gene_annotation
-
-
-def select_genes(
-    data_gene_annotation=None,
-    data_gene_signal=None
-):
-    """
-    Selects genes that encode proteins.
-
-    arguments:
-        data_gene_annotation (object): Pandas data frame of genes' annotations
-        data_gene_signal (object): Pandas data frame of genes' signals for all
-            samples, tissues, and patients
+        genes (list<str>): identifiers of genes
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
 
     raises:
 
@@ -325,68 +484,13 @@ def select_genes(
     """
 
     # Copy data.
-    data_gene_annotation = data_gene_annotation.copy(deep=True)
     data_gene_signal = data_gene_signal.copy(deep=True)
-
-    # Select protein-coding genes from signal data.
-    # Signal matrix has genes on the index dimension.
-    utility.print_terminal_partition(level=2)
-    print(
-        "Selection of signal genes that encode proteins."
-    )
-    # Describe original count of genes.
-    print("GTEx signal total genes: " + str(data_gene_signal.shape[0]))
-    genes_gtex = utility.collect_unique_elements(
-        elements_original=data_gene_signal.index.to_list()
-    )
-    print("GTEx signal total genes: " + str(len(genes_gtex)))
-
-    # Extract identifiers of protein-coding genes.
-    genes_protein = data_gene_annotation.index.to_list()
-    print(
-        "count of reference genes of type 'protein_coding': " +
-        str(len(genes_protein))
-    )
-
     # Filter gene signals.
-    # Remove indices.
-    #data_gene_signal.reset_index(
-    #    level=None,
-    #    inplace=True
-    #)
-    #data_gene_signal_protein = data_gene_signal.loc[
-    #    data_gene_signal["gene"].isin(genes_protein), :
-    #]
-    data_gene_signal_protein = data_gene_signal.loc[
-        genes_protein, :
+    data_gene_signal_annotation = data_gene_signal.loc[
+        genes, :
     ]
-    genes_selection_protein = utility.collect_unique_elements(
-        elements_original=data_gene_signal_protein.index.to_list()
-    )
-
-    utility.print_terminal_partition(level=2)
-    print(
-        "signal genes that encode proteins and on autosomes: " +
-        str(data_gene_signal_protein.shape[0])
-    )
-    print(
-        "signal genes that encode proteins and on autosomes: " +
-        str(len(genes_selection_protein))
-    )
-
-    utility.print_terminal_partition(level=2)
-
-    # Compile information.
-    information = dict()
-    information["genes_gtex"] = genes_gtex
-    information["genes_selection_protein"] = genes_selection_protein
-    information["data_gene_signal_protein"] = data_gene_signal_protein
-
     # Return information.
-    return information
-
-
-# Samples.
+    return data_gene_signal_annotation
 
 
 def exclude_samples_by_tissues(
@@ -450,6 +554,226 @@ def include_samples_by_tissues(
     return data_major
 
 
+def select_samples_persons_by_tissues_count(
+    count=None,
+    data_samples_tissues_persons=None,
+):
+    """
+    Select persons for whom samples are available for a minimal count of
+        tissues.
+
+    arguments:
+        count (int): Minimal count of major tissues for which each person must
+            have samples
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+
+    raises:
+
+    returns:
+        (dict<list<str>>): identifiers of persons and samples
+    """
+
+    # Select persons by tissues.
+    data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
+    # Count unique major tissues per person.
+    data_tissues_per_person = utility.count_data_factors_groups_elements(
+        factors=["person"],
+        element="tissue_major",
+        count="counts",
+        data=data_samples_tissues_persons,
+    )
+
+    # Select persons by counts of tissues for which they have samples.
+    data_persons_selection = data_tissues_per_person.loc[
+        (data_tissues_per_person["counts"] >= count), :
+    ]
+    # Extract identifiers of persons.
+    persons = utility.collect_unique_elements(
+        elements_original=data_persons_selection["person"].to_list()
+    )
+
+    # Select samples by persons.
+    data_samples_selection = data_samples_tissues_persons.loc[
+        data_samples_tissues_persons["person"].isin(persons), :
+    ]
+    samples = utility.collect_unique_elements(
+        elements_original=data_samples_selection.index.to_list()
+    )
+
+    # Compile information.
+    information = dict()
+    information["persons"] = persons
+    information["samples"] = samples
+    information["data_samples_tissues_persons"] = (
+        data_samples_selection
+    )
+    # Return information.
+    return information
+
+
+def report_selection_samples_persons_by_tissues(
+    samples_gtex=None,
+    data_samples_original=None,
+    data_samples_tissues=None,
+    data_samples_persons=None,
+    data_gene_signal=None,
+):
+    """
+    Select samples and persons by tissues.
+
+    arguments:
+        samples_gtex (list<str>): identifiers of samples with signals in GTEx
+            data
+        data_samples_original (object): Pandas data frame of persons and
+            tissues across samples
+        data_samples_tissues (object): Pandas data frame of persons and
+            tissues across samples
+        data_samples_persons (object): Pandas data frame of persons and
+            tissues across samples
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+    """
+
+    # Summarize original counts of samples and genes.
+    samples_temporary = data_samples_tissues.index.to_list()
+    data_gene_signal_temporary = select_signals_by_samples(
+        samples=samples_temporary,
+        data_gene_signal=data_gene_signal_protein,
+    )
+    utility.print_terminal_partition(level=1)
+    print("Summary after selection of samples by tissues.")
+    summarize_samples_genes(
+        samples_gtex=source["samples_gtex"],
+        data_samples_tissues_persons=data_samples_tissues,
+        data_gene_signal=data_gene_signal_temporary,
+    )
+    # Select final samples on basis of persons' eligibility.
+    utility.print_terminal_partition(level=1)
+    print("Selection of samples by persons' eligibility.")
+    print("Persons must have samples for adequate count of tissues.")
+    # Count tissues per person.
+    data_tissues_per_person_initial = (
+        utility.count_data_factors_groups_elements(
+            factors=["person"],
+            element="tissue_major",
+            count="counts",
+            data=data_samples_tissues_persons,
+    ))
+    utility.print_terminal_partition(level=2)
+    mean_tissues = data_tissues_per_person_initial["counts"].mean()
+    print("Mean tissues per person (initial): " + str(mean_tissues))
+    count_persons = len(data_tissues_per_person_initial["counts"].to_list())
+    print("Count of persons (initial): " + str(count_persons))
+
+    # Count tissues per person.
+    data_tissues_per_person_final = (
+        utility.count_data_factors_groups_elements(
+            factors=["person"],
+            element="tissue_major",
+            count="counts",
+            data=data_samples_persons,
+    ))
+    utility.print_terminal_partition(level=2)
+    mean_tissues = data_tissues_per_person_final["counts"].mean()
+    print("Mean tissues per person (final): " + str(mean_tissues))
+    count_persons = len(data_tissues_per_person_final["counts"].to_list())
+    print("Count of persons (final): " + str(count_persons))
+
+    pass
+
+
+def select_samples_persons_by_tissues(
+    stringency=None,
+    report=None,
+    samples_gtex=None,
+    data_samples_tissues_persons=None,
+    data_gene_signal=None,
+):
+    """
+    Select samples and persons by tissues.
+
+    arguments:
+        stringency (str): category, loose or tight, of selection criteria
+        report (bool): whether to print reports about the selection
+        samples_gtex (list<str>): identifiers of samples with signals in GTEx
+            data
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+        (list<str>): identifiers of samples
+    """
+
+    # Select persons by tissues.
+    data_samples_original = data_samples_tissues_persons.copy(deep=True)
+
+    # Select samples from persons with at least 10 out of 20 sex-neutral
+    # tissues.
+    # Select samples by tissues of interest.
+    # Exclude samples for cell lines that are not whole tissues.
+    # Exclude samples for tissues with coverage by <100 samples.
+    data_samples_exclusion = exclude_samples_by_tissues(
+        tissues_minor=["fibroblast", "lymphocyte"],
+        tissues_major=["bladder", "cervix", "fallopius", "kidney"],
+        data_samples_tissues_persons=data_samples_original,
+    )
+    if stringency == "loose":
+        # Select all tissues with adequate coverage.
+        tissues_selection = [
+            "adipose", "adrenal", "artery", "blood", "brain", "breast",
+            "colon", "esophagus", "heart", "intestine", "liver", "lung",
+            "muscle", "nerve", "ovary", "pancreas", "pituitary", "prostate",
+            "salivary", "skin", "spleen", "stomach", "testis", "thyroid",
+            "uterus", "vagina",
+        ]
+    elif stringency == "tight":
+        # Select sex-neutral tissues.
+        tissues_selection = [
+            "adipose", "adrenal", "artery", "blood", "brain", "colon",
+            "esophagus", "heart", "intestine", "liver", "lung", "muscle",
+            "nerve", "pancreas", "pituitary", "salivary", "skin", "spleen",
+            "stomach", "thyroid",
+        ]
+    data_samples_tissues = include_samples_by_tissues(
+        tissues_major=tissues_selection,
+        data_samples_tissues_persons=data_samples_exclusion,
+    )
+
+    # Select persons with adequate sample coverage of multiple tissues.
+    bin_tissues = select_samples_persons_by_tissues_count(
+        count=10,
+        data_samples_tissues_persons=data_samples_tissues,
+    )
+    data_samples_persons = bin_tissues[
+        "data_samples_tissues_persons"
+    ]
+
+    # Report.
+    if report:
+        report_selection_samples_persons_by_tissues(
+            samples_gtex=samples_gtex,
+            data_samples_original=data_samples_original,
+            data_samples_tissues=data_samples_tissues,
+            data_samples_persons=data_samples_persons,
+            data_gene_signal=data_gene_signal,
+        )
+
+    # Return information.
+    return bin_tissues["samples"]
+
+
+
+
+
 # Signal.
 
 
@@ -499,7 +823,7 @@ def normalize_collect_report_gene_signals(
     return signals
 
 
-def select_samples_genes_signals(
+def select_signals_by_samples(
     samples=None,
     data_gene_signal=None
 ):
@@ -620,73 +944,12 @@ def select_samples_tissues_persons(
 # Select persons.
 
 
-def select_samples_persons_by_tissues(
-    count=None,
-    data_samples_tissues_persons=None,
-):
-    """
-    Select persons for whom samples are available for a minimal count of
-        tissues.
-
-    arguments:
-        count (int): Minimal count of major tissues for which each person must
-            have samples
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples
-
-    raises:
-
-    returns:
-        (dict<list<str>>): identifiers of persons and samples
-    """
-
-    # Select persons by tissues.
-    data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
-    # Count unique major tissues per person.
-    data_tissues_per_person = utility.count_data_factors_groups_elements(
-        factors=["person"],
-        element="tissue_major",
-        count="counts",
-        data=data_samples_tissues_persons,
-    )
-
-    # Select persons by counts of tissues for which they have samples.
-    data_persons_selection = data_tissues_per_person.loc[
-        (data_tissues_per_person["counts"] >= count), :
-    ]
-    # Extract identifiers of persons.
-    persons = utility.collect_unique_elements(
-        elements_original=data_persons_selection["person"].to_list()
-    )
-
-    # Select samples by persons.
-    data_samples_selection = data_samples_tissues_persons.loc[
-        data_samples_tissues_persons["person"].isin(persons), :
-    ]
-    samples = utility.collect_unique_elements(
-        elements_original=data_samples_selection.index.to_list()
-    )
-
-    # Compile information.
-    information = dict()
-    information["persons"] = persons
-    information["samples"] = samples
-    information["data_samples_tissues_persons"] = (
-        data_samples_selection
-    )
-    # Return information.
-    return information
-
-
 # Loose and tight selection
 
 
 def select_organize_samples_genes_signals(
-    data_gene_annotation_gtex=None,
-    data_gene_annotation_gencode=None,
-    data_samples_tissues_persons=None,
-    data_gene_signal=None,
     stringency=None,
+    dock=None,
 ):
     """
     Selects samples and genes by signals beyond threshold.
@@ -694,15 +957,9 @@ def select_organize_samples_genes_signals(
     Data format should have genes across rows and samples across columns.
 
     arguments:
-        data_gene_annotation_gtex (object): Pandas data frame of genes'
-            annotations from GTEx
-        data_gene_annotation_gencode (object): Pandas data frame of genes'
-            annotations from GENCODE
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples
-        data_gene_signal (object): Pandas data frame of genes' signals across
-            samples
         stringency (str): category, loose or tight, of selection criteria
+        dock (str): path to root or dock directory for source and product
+            directories and files
 
     raises:
 
@@ -710,273 +967,171 @@ def select_organize_samples_genes_signals(
         (dict): information about samples, genes, and signals
     """
 
-    utility.print_terminal_partition(level=1)
-    print("Sample selection criteria: " + stringency)
-    utility.print_terminal_partition(level=1)
-
-    # Copy data.
-    data_gene_annotation_gtex = data_gene_annotation_gtex.copy(deep=True)
-    data_gene_annotation_gencode = data_gene_annotation_gencode.copy(deep=True)
-    data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
-    data_gene_signal = data_gene_signal.copy(deep=True)
+    # Read source information from file.
+    source = read_source_selection(
+        stringency=stringency,
+        dock=dock,
+    )
 
     # Summarize original counts of samples and genes.
     summarize_samples_genes(
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        data_gene_signal=data_gene_signal,
+        samples_gtex=source["samples_gtex"],
+        genes_gtex_annotation=source["genes_gtex_annotation"],
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_signal=source["data_gene_signal"],
     )
 
-    ##########
-    ##########
-    ##########
-    # Select protein-coding genes on nuclear autosomes
-
-    # Select genes that encode proteins and are on autosomes.
-    # Count of genes: 18353
-    utility.print_terminal_partition(level=1)
-    print("Selection of genes.")
-    utility.print_terminal_partition(level=2)
-    print("GTEx reference gene annotations.")
-    # GTEx reference: 18380 genes on autosomes that encode proteins.
-    data_gene_annotation_gtex = select_gene_annotation(
-        data_gene_annotation=data_gene_annotation_gtex,
-    )
-    utility.print_terminal_partition(level=2)
-    print("GENCODE reference gene annotations.")
-    # GENCODE reference: 19035 genes on autosomes that encode proteins.
-    data_gene_annotation_gencode = select_gene_annotation(
-        data_gene_annotation=data_gene_annotation_gencode,
-    )
-    # Use genes' annotations from GTEx.
-    utility.print_terminal_partition(level=2)
-    print("Select signal genes by GTEx reference.")
-    # GTEx signal genes on autosomes that encode proteins: 18380
-    bin_genes_gtex = select_genes(
-        data_gene_annotation=data_gene_annotation_gtex,
-        data_gene_signal=data_gene_signal,
-    )
-    # Use genes' annotations from GENCODE.
-    utility.print_terminal_partition(level=2)
-    print("Select signal genes by GENCODE reference.")
-    # GTEx signal genes on autosomes that encode proteins: 19035
-    bin_genes_gencode = select_genes(
-        data_gene_annotation=data_gene_annotation_gencode,
-        data_gene_signal=data_gene_signal,
-    )
-    # Continue analyses with selection of genes by GENCODE.
-    data_gene_signal_protein = bin_genes_gencode[
-        "data_gene_signal_protein"
-    ].copy(deep=True)
-    genes_gtex = copy.deepcopy(bin_genes_gencode["genes_gtex"])
-
-    ##########
-    ##########
-    ##########
-    # Select samples from persons with at least 10 out of 20 sex-neutral
-    # tissues.
-    # Collect list of samples from GTEx.
-    utility.print_terminal_partition(level=2)
-    print("Selection of samples...")
-    samples_gtex = data_gene_signal_protein.columns.to_list()
-    print("Count of samples from GTEx: " + str(len(samples_gtex)))
-    # Select samples by tissues of interest.
-    # Exclude samples for cell lines that are not whole tissues.
-    # Exclude samples for tissues with coverage by <100 samples.
-    data_samples_exclusion = exclude_samples_by_tissues(
-        tissues_minor=["fibroblast", "lymphocyte"],
-        tissues_major=["bladder", "cervix", "fallopius", "kidney"],
-        data_samples_tissues_persons=data_samples_tissues_persons,
-    )
-    if stringency == "loose":
-        # Select all tissues with adequate coverage.
-        tissues_selection = [
-            "adipose", "adrenal", "artery", "blood", "brain", "breast",
-            "colon", "esophagus", "heart", "intestine", "liver", "lung",
-            "muscle", "nerve", "ovary", "pancreas", "pituitary", "prostate",
-            "salivary", "skin", "spleen", "stomach", "testis", "thyroid",
-            "uterus", "vagina",
-        ]
-    elif stringency == "tight":
-        # Select sex-neutral tissues.
-        tissues_selection = [
-            "adipose", "adrenal", "artery", "blood", "brain", "colon",
-            "esophagus", "heart", "intestine", "liver", "lung", "muscle",
-            "nerve", "pancreas", "pituitary", "salivary", "skin", "spleen",
-            "stomach", "thyroid",
-        ]
-    data_samples_inclusion = include_samples_by_tissues(
-        tissues_major=tissues_selection,
-        data_samples_tissues_persons=data_samples_exclusion,
-    )
-    # Summarize original counts of samples and genes.
-    samples_temporary = data_samples_inclusion.index.to_list()
-    data_gene_signal_temporary = select_samples_genes_signals(
-        samples=samples_temporary,
-        data_gene_signal=data_gene_signal_protein,
-    )
-    utility.print_terminal_partition(level=1)
-    print("Summary after selection of samples by tissues.")
-    summarize_samples_genes(
-        data_samples_tissues_persons=data_samples_inclusion,
-        data_gene_signal=data_gene_signal_temporary,
-    )
-    # Select final samples on basis of persons' eligibility.
-    utility.print_terminal_partition(level=1)
-    print("Selection of samples by persons' eligibility.")
-    print("Persons must have samples for adequate count of tissues.")
-    # Count tissues per person.
-    data_tissues_per_person_initial = (
-        utility.count_data_factors_groups_elements(
-            factors=["person"],
-            element="tissue_major",
-            count="counts",
-            data=data_samples_tissues_persons,
-    ))
-    utility.print_terminal_partition(level=2)
-    mean_tissues = data_tissues_per_person_initial["counts"].mean()
-    print("Mean tissues per person (initial): " + str(mean_tissues))
-    count_persons = len(data_tissues_per_person_initial["counts"].to_list())
-    print("Count of persons (initial): " + str(count_persons))
-    # Select persons with adequate sample coverage of multiple tissues.
-    bin_tissues = select_samples_persons_by_tissues(
-        count=10,
-        data_samples_tissues_persons=data_samples_inclusion,
-    )
-    data_samples_tissues_persons_tissues = bin_tissues[
-        "data_samples_tissues_persons"
-    ]
-    # Count tissues per person.
-    data_tissues_per_person_final = (
-        utility.count_data_factors_groups_elements(
-            factors=["person"],
-            element="tissue_major",
-            count="counts",
-            data=data_samples_tissues_persons_tissues,
-    ))
-    utility.print_terminal_partition(level=2)
-    mean_tissues = data_tissues_per_person_final["counts"].mean()
-    print("Mean tissues per person (final): " + str(mean_tissues))
-    count_persons = len(data_tissues_per_person_final["counts"].to_list())
-    print("Count of persons (final): " + str(count_persons))
-    # Select samples in signal data.
-    data_gene_signal_sample = select_samples_genes_signals(
-        samples=bin_tissues["samples"],
-        data_gene_signal=data_gene_signal_protein,
-    )
-    # Summarize original counts of samples and genes.
-    summarize_samples_genes(
-        data_samples_tissues_persons=data_samples_tissues_persons_tissues,
-        data_gene_signal=data_gene_signal_sample,
+    # Select signals for protein-coding genes on nuclear autosomes.
+    data_gene_signal_annotation = select_signals_by_genes(
+        genes=source["genes_gtex_annotation"],
+        data_gene_signal=source["data_gene_signal"],
     )
 
-    ##########
-    ##########
-    ##########
-    # Select genes and samples by their signal coverage.
-    utility.print_terminal_partition(level=1)
-    print("Selection of genes and samples by signal coverage.")
-    utility.print_terminal_partition(level=1)
-    # Fill missing signals with values of zero.
-    data_gene_signal_fill = data_gene_signal_sample.fillna(
-        value=0.0,
-        inplace=False,
+    # Select samples and persons by tissues.
+    samples_tissues = select_samples_persons_by_tissues(
+        stringency=stringency,
+        report=True,
+        samples_gtex=source["samples_gtex"],
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_signal=data_gene_signal_annotation,
     )
-    # Collect initial distribution of genes' signals for selection of signal
-    # threshold.
-    signals_initial = normalize_collect_report_gene_signals(
-        data_gene_signal=data_gene_signal_fill,
-        threshold=math.log((0.1 + 1.0), 2) # pseudo count 1.0, 0.1 TPM
-    )
-    # Select genes and samples by signals and coverage.
-    if stringency == "loose":
-        # Each gene must have signal greater than or equal to 0.1 in at least
-        # 1% of samples.
-        # Each sample must have signal greater than or equal to 0.1 in at least
-        # 10% of genes.
-        data_gene_signal_selection = select_samples_genes_signals_coverage(
-            threshold=0.1,
-            proportion_gene=0.01, # 0.01
-            proportion_sample=0.1, # 0.1
+
+
+    ##################################################################
+
+
+    ################################3
+
+    if False:
+
+        # Select samples in signal data.
+        data_gene_signal_sample = select_signals_by_samples(
+            samples=bin_tissues["samples"],
+            data_gene_signal=data_gene_signal_protein,
+        )
+        # Summarize original counts of samples and genes.
+        summarize_samples_genes(
+            samples_gtex=source["samples_gtex"],
+            data_samples_tissues_persons=data_samples_tissues_persons_tissues,
+            data_gene_signal=data_gene_signal_sample,
+        )
+
+        ##########
+        ##########
+        ##########
+        # Select genes and samples by their signal coverage.
+        utility.print_terminal_partition(level=1)
+        print("Selection of genes and samples by signal coverage.")
+        utility.print_terminal_partition(level=1)
+        # Fill missing signals with values of zero.
+        data_gene_signal_fill = data_gene_signal_sample.fillna(
+            value=0.0,
+            inplace=False,
+        )
+        # Collect initial distribution of genes' signals for selection of signal
+        # threshold.
+        signals_initial = normalize_collect_report_gene_signals(
             data_gene_signal=data_gene_signal_fill,
+            threshold=math.log((0.1 + 1.0), 2) # pseudo count 1.0, 0.1 TPM
         )
-    elif stringency == "tight":
-        # Each gene must have signal greater than or equal to 0.1 TPM in at
-        # least 50% of samples.
-        # This threshold removes genes that have strong specificity to a few
-        # tissues, which might introduce error in subsequent analyses.
-        # This threshold also reduces the count of genes for subsequent
-        # analyses, hence increasing statistical power.
-        # Each sample must have signal greater than or equal to 0.1 TPM in at
-        # least 50% of genes.
-        # TCW 8 February 2020
-        # threshold ... proportion_gene ... proportion_sample ... genes ... samples
-        # 0.0           0.5                 0.5
-        # 0.1           0.1                 0.1
-        # 0.1           0.5                 0.1
-        # 0.1           0.5                 0.5                   15130     11775 <-- Priority!
-        # 1.0           0.1                 0.1
-        # 1.0           0.5                 0.1
-        # 1.0           0.5                 0.5
-        data_gene_signal_selection = select_samples_genes_signals_coverage(
-            threshold=0.1,
-            proportion_gene=0.5, # 0.5
-            proportion_sample=0.5, # 0.5
-            data_gene_signal=data_gene_signal_fill,
+        # Select genes and samples by signals and coverage.
+        if stringency == "loose":
+            # Each gene must have signal greater than or equal to 0.1 in at least
+            # 1% of samples.
+            # Each sample must have signal greater than or equal to 0.1 in at least
+            # 10% of genes.
+            data_gene_signal_selection = select_samples_genes_signals_coverage(
+                threshold=0.1,
+                proportion_gene=0.01, # 0.01
+                proportion_sample=0.1, # 0.1
+                data_gene_signal=data_gene_signal_fill,
+            )
+        elif stringency == "tight":
+            # Each gene must have signal greater than or equal to 0.1 TPM in at
+            # least 50% of samples.
+            # This threshold removes genes that have strong specificity to a few
+            # tissues, which might introduce error in subsequent analyses.
+            # This threshold also reduces the count of genes for subsequent
+            # analyses, hence increasing statistical power.
+            # Each sample must have signal greater than or equal to 0.1 TPM in at
+            # least 50% of genes.
+            # TCW 8 February 2020
+            # threshold ... proportion_gene ... proportion_sample ... genes ... samples
+            # 0.0           0.5                 0.5
+            # 0.1           0.1                 0.1
+            # 0.1           0.5                 0.1
+            # 0.1           0.5                 0.5                   15130     11775 <-- Priority!
+            # 1.0           0.1                 0.1
+            # 1.0           0.5                 0.1
+            # 1.0           0.5                 0.5
+            data_gene_signal_selection = select_samples_genes_signals_coverage(
+                threshold=0.1,
+                proportion_gene=0.5, # 0.5
+                proportion_sample=0.5, # 0.5
+                data_gene_signal=data_gene_signal_fill,
+            )
+        # Collect initial distribution of genes' signals for selection of signal
+        # threshold.
+        signals_final = normalize_collect_report_gene_signals(
+            data_gene_signal=data_gene_signal_selection,
+            threshold=math.log((0.1 + 1.0), 2) # pseudo count 1.0, 0.1 TPM
         )
-    # Collect initial distribution of genes' signals for selection of signal
-    # threshold.
-    signals_final = normalize_collect_report_gene_signals(
-        data_gene_signal=data_gene_signal_selection,
-        threshold=math.log((0.1 + 1.0), 2) # pseudo count 1.0, 0.1 TPM
-    )
-    # Extract identifiers of genes.
-    genes_selection = utility.collect_unique_elements(
-        elements_original=data_gene_signal_selection.index.tolist()
-    )
-    # Extract identifiers of samples.
-    samples_selection = utility.collect_unique_elements(
-        elements_original=data_gene_signal_selection.columns.tolist()
-    )
-    # Select samples, tissues, and persons from filtered genes' signals.
-    data_samples_tissues_persons_selection = select_samples_tissues_persons(
-        samples=samples_selection,
-        data_samples_tissues_persons=data_samples_tissues_persons,
-    )
-    # Extract identifiers of persons.
-    persons_selection = utility.collect_unique_elements(
-        elements_original=(
-            data_samples_tissues_persons_selection["person"].to_list()
-        )
-    )
-    # Summarize original counts of samples and genes.
-    summarize_samples_genes(
-        data_samples_tissues_persons=data_samples_tissues_persons_selection,
-        data_gene_signal=data_gene_signal_selection,
-    )
-    utility.print_terminal_partition(level=2)
-    print("count of genes: " + str(len(genes_selection)))
-    print("count of persons: " + str(len(persons_selection)))
-    print("count of samples: " + str(len(samples_selection)))
-    utility.print_terminal_partition(level=3)
 
-    # Compile information.
-    information = dict()
-    information["data_gene_annotation_gtex"] = data_gene_annotation_gtex
-    information["data_gene_annotation_gencode"] = data_gene_annotation_gencode
-    information["data_samples_tissues_persons"] = (
-        data_samples_tissues_persons_selection
-    )
-    information["data_gene_signal"] = data_gene_signal_selection
-    information["genes_gtex"] = genes_gtex
-    information["genes_selection"] = genes_selection
-    information["samples_gtex"] = samples_gtex
-    information["samples_selection"] = samples_selection
-    information["signals_initial"] = signals_initial
-    information["signals_final"] = signals_final
-    information["persons_selection"] = persons_selection
-    information["tissues_selection"] = tissues_selection
-    # Return information.
-    return information
+
+
+        # Extract identifiers of genes.
+        genes_selection = utility.collect_unique_elements(
+            elements_original=data_gene_signal_selection.index.tolist()
+        )
+        # Extract identifiers of samples.
+        samples_selection = utility.collect_unique_elements(
+            elements_original=data_gene_signal_selection.columns.tolist()
+        )
+        # Select samples, tissues, and persons from filtered genes' signals.
+        data_samples_tissues_persons_selection = select_samples_tissues_persons(
+            samples=samples_selection,
+            data_samples_tissues_persons=data_samples_tissues_persons,
+        )
+
+        # TODO: extract tissues selection from final data_samples_tissues_persons...
+
+
+
+        # Extract identifiers of persons.
+        persons_selection = utility.collect_unique_elements(
+            elements_original=(
+                data_samples_tissues_persons_selection["person"].to_list()
+            )
+        )
+        # Summarize original counts of samples and genes.
+        summarize_samples_genes(
+            samples_gtex=source["samples_gtex"],
+            data_samples_tissues_persons=data_samples_tissues_persons_selection,
+            data_gene_signal=data_gene_signal_selection,
+        )
+        utility.print_terminal_partition(level=2)
+        print("count of genes: " + str(len(genes_selection)))
+        print("count of persons: " + str(len(persons_selection)))
+        print("count of samples: " + str(len(samples_selection)))
+        utility.print_terminal_partition(level=3)
+
+        # Compile information.
+        information = dict()
+        information["data_gene_annotation_gtex"] = data_gene_annotation_gtex
+        information["data_gene_annotation_gencode"] = data_gene_annotation_gencode
+        information["data_samples_tissues_persons"] = (
+            data_samples_tissues_persons_selection
+        )
+        information["data_gene_signal"] = data_gene_signal_selection
+        information["genes_gtex"] = genes_gtex
+        information["genes_selection"] = genes_selection
+        information["samples_selection"] = samples_selection
+        information["signals_initial"] = signals_initial
+        information["signals_final"] = signals_final
+        information["persons_selection"] = persons_selection
+        information["tissues_selection"] = tissues_selection
+        # Return information.
+        return information
 
 
 ##########
@@ -1111,8 +1266,10 @@ def impute_persons_genotypes(
     data_samples_tissues_persons_selection=None,
 ):
     """
-    Extracts and organizes information about samples and genes for further
-    analysis.
+    Impute missing genotypes.
+
+    Calculate means of principal components on genotype across selection of
+    persons.
 
     arguments:
         persons (list<str>): identifiers of persons
@@ -1185,6 +1342,7 @@ def impute_persons_genotypes(
         lambda x: x.mean()
     )
     #imputations = series_imputation.to_dict()
+
     # Insert imputations to selections of persons and tissues.
     # This step should only fill missing values in genotype columns.
     # "Values not in the dict/Series/DataFrame will not be filled."
@@ -1297,7 +1455,7 @@ def extract_persons_properties(
                 "tissue_major",
                 "tissue_minor",
                 "facilities",
-                "batch_isolation",
+                "batch_extraction",
                 "batches_sequence",
             ],
             axis="columns",
@@ -1316,8 +1474,8 @@ def extract_persons_properties(
             values=data_original["facilities"].dropna().to_list(),
             delimiter=",",
         )
-        data_novel["batches_isolation"] = collect_person_unique_sample_values(
-            values=data_original["batch_isolation"].dropna().to_list(),
+        data_novel["batches_extraction"] = collect_person_unique_sample_values(
+            values=data_original["batch_extraction"].dropna().to_list(),
             delimiter=",",
         )
         data_novel["batches_sequence"] = collect_person_unique_sample_values(
@@ -1661,6 +1819,15 @@ def standardize_scale_variables(
 
     # Return information.
     return data
+
+
+# TODO: organize the "climate" variable
+# winter : 0
+# spring, fall: 1
+# summer: 2
+
+# TODO: change "batch_isolation" to "batch_extraction"
+#
 
 
 def organize_persons_properties(
@@ -2101,6 +2268,7 @@ def extract_organize_persons_properties(
     # - persons with samples for at least 10 of 20 sex-neutral tissues
     # 2. for regression analysis: persons_selection
     # - impute missing genotypes to maximize observations in regression
+    # - impute missing genotypes by mean across only persons_selection
     # 3. for heritability analysis: persons_genotype
     # - only include persons with valid genotypic (SNP) data
     # 4. for quantitative trait loci (QTL) analysis: persons_genotype
@@ -2322,6 +2490,80 @@ def prepare_persons_properties_summary(
 
 ##########
 # Product.
+
+
+def write_product_gene_annotation(
+    stringency=None,
+    dock=None,
+    information=None
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        stringency (str): category, loose or tight, of selection criteria
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", str(stringency))
+    path_gene_annotation = os.path.join(path_selection, "gene_annotation")
+    utility.create_directories(path_gene_annotation)
+
+    path_gene_annotation_gtex = os.path.join(
+        path_gene_annotation, "data_gene_annotation_gtex.pickle"
+    )
+    path_gene_annotation_gtex_text = os.path.join(
+        path_gene_annotation, "data_gene_annotation_gtex.tsv"
+    )
+    path_gene_annotation_gencode = os.path.join(
+        path_gene_annotation, "data_gene_annotation_gencode.pickle"
+    )
+    path_gene_annotation_gencode_text = os.path.join(
+        path_gene_annotation, "data_gene_annotation_gencode.tsv"
+    )
+
+    path_genes_gtex_annotation = os.path.join(
+        path_gene_annotation, "genes_gtex_annotation.pickle"
+    )
+
+    # Write information to file.
+    pandas.to_pickle(
+        information["data_gene_annotation_gtex"],
+        path_gene_annotation_gtex
+    )
+    pandas.to_pickle(
+        information["data_gene_annotation_gencode"],
+        path_gene_annotation_gencode
+    )
+    information["data_gene_annotation_gtex"].to_csv(
+        path_or_buf=path_gene_annotation_gtex_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+    information["data_gene_annotation_gencode"].to_csv(
+        path_or_buf=path_gene_annotation_gencode_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+
+    with open(path_genes_gtex_annotation, "wb") as file_product:
+        pickle.dump(information["genes_gtex_annotation"], file_product)
+
+    pass
+
+
+
+
 
 
 def write_product_heritability(
@@ -2613,28 +2855,12 @@ def write_product(
     path_selection = os.path.join(dock, "selection", str(stringency))
     utility.create_directories(path_selection)
 
-    path_gene_annotation_gtex = os.path.join(
-        path_selection, "data_gene_annotation_gtex.pickle"
-    )
-    path_gene_annotation_gtex_text = os.path.join(
-        path_selection, "data_gene_annotation_gtex.tsv"
-    )
-    path_gene_annotation_gencode = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
-    )
-    path_gene_annotation_gencode_text = os.path.join(
-        path_selection, "data_gene_annotation_gencode.tsv"
-    )
-
     path_gene_signal = os.path.join(
         path_selection, "data_gene_signal.pickle"
     )
     #path_gene_signal_factor = os.path.join(
     #    path_selection, "data_gene_signal_factor.pickle"
     #)
-    path_genes_gtex = os.path.join(
-        path_selection, "genes_gtex.pickle"
-    )
     path_genes_selection = os.path.join(
         path_selection, "genes_selection.pickle"
     )
@@ -2647,9 +2873,6 @@ def write_product(
     )
     path_samples_tissues_persons_text = os.path.join(
         path_selection, "data_samples_tissues_persons.tsv"
-    )
-    path_samples_gtex = os.path.join(
-        path_selection, "samples_gtex.pickle"
     )
     path_samples_selection = os.path.join(
         path_selection, "samples_selection.pickle"
@@ -2680,27 +2903,6 @@ def write_product(
     # Write information to file.
 
     pandas.to_pickle(
-        information["data_gene_annotation_gtex"],
-        path_gene_annotation_gtex
-    )
-    pandas.to_pickle(
-        information["data_gene_annotation_gencode"],
-        path_gene_annotation_gencode
-    )
-    information["data_gene_annotation_gtex"].to_csv(
-        path_or_buf=path_gene_annotation_gtex_text,
-        sep="\t",
-        header=True,
-        index=True,
-    )
-    information["data_gene_annotation_gencode"].to_csv(
-        path_or_buf=path_gene_annotation_gencode_text,
-        sep="\t",
-        header=True,
-        index=True,
-    )
-
-    pandas.to_pickle(
         information["data_gene_signal"],
         path_gene_signal
     )
@@ -2708,8 +2910,6 @@ def write_product(
     #    information["data_gene_signal_factor"],
     #    path_gene_signal_factor
     #)
-    with open(path_genes_gtex, "wb") as file_product:
-        pickle.dump(information["genes_gtex"], file_product)
     with open(path_genes_selection, "wb") as file_product:
         pickle.dump(information["genes_selection"], file_product)
     utility.write_file_text_list(
@@ -2788,56 +2988,86 @@ def execute_procedure(dock=None):
     path_selection = os.path.join(dock, "selection")
     utility.remove_directory(path=path_selection)
 
-    # Read source information from file.
-    source = read_source(dock=dock)
-    # Organize data.
-    data_gene_signal = organize_data_axes_indices(
-        data=source["data_gene_signal"]
+    # Enable automatic garbage collection to clear memory.
+    gc.enable()
+
+    ##################################################
+    ##################################################
+    ##################################################
+
+    # Select genes' annotations.
+    select_organize_genes_annotations(
+        stringency="tight",
+        dock=dock
     )
 
-    # Selection: tight.
-    # Select data for pantissue aggregate analysis.
-    # Criteria:
-    # 1. select genes on autosomes that encode proteins
-    # 2. select samples from whole tissues, not cell lines
-    # 3. select samples from tissues with coverage of >=100 samples
-    # 4. select samples from sex-neutral tissues
-    # 5. select genes with signal (>= 0.1 TPM) in >=50% of samples
-    # 6. select samples with signal (>= 0.1 TPM) in >=50% of genes
-    bin_selection = select_organize_samples_genes_signals(
-        data_gene_annotation_gtex=source["data_gene_annotation_gtex"],
-        data_gene_annotation_gencode=source["data_gene_annotation_gencode"],
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_signal=data_gene_signal,
-        stringency="tight",
-    )
-    # Organize information from selection of samples, genes, and signals.
-    bin_organization = extract_organize_persons_properties(
-        persons_selection=bin["persons_selection"],
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_samples_tissues_persons_selection=(
-            bin["data_samples_tissues_persons"]
-        ),
-        data_gene_signal=bin["data_gene_signal"],
-    )
-    # Prepare summary data about persons' properties.
-    summary = prepare_persons_properties_summary(
-        persons=bin["persons_selection"],
-        data_samples_tissues_persons=bin["data_samples_tissues_persons"],
-        data_persons_properties=organization["data_persons_properties"],
-    )
-    # Compile information.
-    information = dict()
-    information.update(bin_selection)
-    information.update(bin_organization)
-    information.update(summary)
+    # Collect garbage to clear memory.
+    gc.collect()
 
-    # Write product information to file.
-    write_product(
-        dock=dock,
+    ##################################################
+    ##################################################
+    ##################################################
+
+    # Select, samples, genes, and their signals.
+    select_organize_samples_genes_signals(
         stringency="tight",
-        information=information,
+        dock=dock
     )
+
+    # Collect garbage to clear memory.
+    gc.collect()
+
+
+    if False:
+
+        # Read source information from file.
+        source = read_source(dock=dock)
+
+        # Selection: tight.
+        # Select data for pantissue aggregate analysis.
+        # Criteria:
+        # 1. select genes on autosomes that encode proteins
+        # 2. select samples from whole tissues, not cell lines
+        # 3. select samples from tissues with coverage of >=100 samples
+        # 4. select samples from sex-neutral tissues
+        # 5. select genes with signal (>= 0.1 TPM) in >=50% of samples
+        # 6. select samples with signal (>= 0.1 TPM) in >=50% of genes
+        bin_selection = select_organize_samples_genes_signals(
+            data_gene_annotation_gtex=source["data_gene_annotation_gtex"],
+            data_gene_annotation_gencode=source["data_gene_annotation_gencode"],
+            data_samples_tissues_persons=source["data_samples_tissues_persons"],
+            data_gene_signal=data_gene_signal,
+            stringency="tight",
+        )
+
+        if False:
+            # Organize information from selection of samples, genes, and signals.
+            bin_organization = extract_organize_persons_properties(
+                persons_selection=bin["persons_selection"],
+                data_samples_tissues_persons=source["data_samples_tissues_persons"],
+                data_samples_tissues_persons_selection=(
+                    bin["data_samples_tissues_persons"]
+                ),
+                data_gene_signal=bin["data_gene_signal"],
+            )
+            # Prepare summary data about persons' properties.
+            summary = prepare_persons_properties_summary(
+                persons=bin["persons_selection"],
+                data_samples_tissues_persons=bin["data_samples_tissues_persons"],
+                data_persons_properties=organization["data_persons_properties"],
+            )
+            # Compile information.
+            information = dict()
+            information.update(bin_selection)
+            information.update(bin_organization)
+            information.update(summary)
+
+            # Write product information to file.
+            write_product(
+                dock=dock,
+                stringency="tight",
+                information=information,
+            )
 
     pass
 
