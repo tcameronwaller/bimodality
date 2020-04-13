@@ -2065,6 +2065,143 @@ def prepare_charts_sets_selection_genes_samples(
 
 
 ##########
+# Overlap in sets from selection of persons and their properties
+# Status: in progress
+
+
+def read_source_sets_selection_persons_properties(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(dock, "selection", "tight")
+    path_persons_properties = os.path.join(
+        path_selection, "persons_properties"
+    )
+    path_charts = os.path.join(
+        path_persons_properties, "charts"
+    )
+
+    path_persons_sets = os.path.join(
+        path_charts, "persons_sets.pickle"
+    )
+
+    # Read information from file.
+    with open(path_persons_sets, "rb") as file_source:
+        persons_sets = pickle.load(file_source)
+
+    # Compile and return information.
+    return {
+        "persons_sets": persons_sets,
+    }
+
+
+def plot_chart_sets_selection_persons_properties(
+    sets=None,
+    path=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        sets (dict<list<str>>): values in sets
+        path (str): path to directory and file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_overlap_sets(
+        sets=sets,
+        count=len(sets.keys()),
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_sets_selection_persons_properties(
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_sets_selection_persons_properties(dock=dock)
+
+    # Organize information.
+    sets_one = dict()
+    sets_one["gtex"] = source["persons_sets"]["original"]
+    sets_one["selection"] = source["persons_sets"]["selection"]
+    sets_one["genotype"] = source["persons_sets"]["genotype"]
+
+    sets_two = dict()
+    sets_two["ventilation"] = source["persons_sets"]["ventilation"]
+    sets_two["respiration"] = source["persons_sets"]["respiration"]
+    sets_two["inflammation"] = source["persons_sets"]["inflammation"]
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_selection = os.path.join(path_plot, "selection")
+    path_directory = os.path.join(path_selection, "persons_sets")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+    path_figure_one = os.path.join(path_directory, "one.svg")
+    path_figure_two = os.path.join(path_directory, "two.svg")
+
+    plot_chart_sets_selection_persons_properties(
+        sets=sets_one,
+        path=path_figure_one,
+    )
+    plot_chart_sets_selection_persons_properties(
+        sets=sets_two,
+        path=path_figure_two,
+    )
+
+    pass
+
+
+##########
 # Selection of principal components for regression
 # Status: working
 
@@ -6810,6 +6947,10 @@ def execute_procedure(dock=None):
     # Plot charts for sex, age, and hardiness of persons in GTEx cohort.
     #prepare_charts_persons_sex_age_hardiness(dock=dock)
 
+    # Plot charts of overlap between sets of persons by clinical categories.
+    prepare_charts_sets_selection_persons_properties(dock=dock)
+
+
 
     if False:
 
@@ -6908,12 +7049,12 @@ def execute_procedure(dock=None):
 
     # Plot charts, scatter plots, for components by genes' pan-tissue
     # signals across groups of persons.
-    prepare_charts_persons_genes_components(dock=dock)
+    #prepare_charts_persons_genes_components(dock=dock)
 
     # Plot charts for correlations between pairs of genes of interest from
     # Gene Ontology enrichment.
     # Chart is adjacency matrix heatmap.
-    prepare_charts_signals_genes_correlations_query(dock=dock)
+    #prepare_charts_signals_genes_correlations_query(dock=dock)
 
     # Plot charts, heatmaps, for multiple genes' pan-tissue signals across
     # persons along with those persons' properties.
@@ -6923,7 +7064,7 @@ def execute_procedure(dock=None):
     # (sex, age, body mass index, hardiness).
     # In other charts, sort order across columns depends on hierarchical
     # clustering.
-    prepare_charts_genes_signals_persons_properties(dock=dock)
+    #prepare_charts_genes_signals_persons_properties(dock=dock)
 
     if False:
 
