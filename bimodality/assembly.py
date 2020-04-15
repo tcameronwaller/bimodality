@@ -645,7 +645,8 @@ def determine_person_boolean_binary_any(
     data_person_attribute_private=None,
 ):
     """
-    Determines a person's categorical ancestry.
+    Determines a person's categorical annotation from or logic on multiple
+    binary variables.
 
     arguments:
         person (str): identifier of a person
@@ -739,7 +740,7 @@ def determine_sample_associations_attributes(
     # Access person attributes.
     person = extract_gtex_sample_person_identifier(sample=sample)
     sex_raw = data_person_attribute_private.at[person, "SEX"]
-    sex = translate_sex(value=sex_raw)
+    sex_text = translate_sex(value=sex_raw)
     decade = data_person_attribute.at[person, "AGE"]
     age = data_person_attribute_private.at[person, "AGE"]
     body = data_person_attribute_private.at[person, "BMI"]
@@ -749,6 +750,7 @@ def determine_sample_associations_attributes(
     season = translate_season(value=season_raw)
     delay = data_person_attribute_private.at[person, "TRDNISCH"]
     delay_start = data_person_attribute_private.at[person, "TRISCHD"]
+    delay_incision = data_person_attribute_private.at[person, "TRCHSTIND"]
     refrigeration = translate_binary_boolean(
         value=data_person_attribute_private.at[person, "DTHRFG"],
     )
@@ -758,8 +760,10 @@ def determine_sample_associations_attributes(
     refrigeration_unit = (
         data_person_attribute_private.at[person, "DTHRFGDU"]
     )
-    ventilation = translate_binary_boolean(
-        value=data_person_attribute_private.at[person, "DTHVNT"],
+    ventilation = determine_person_boolean_binary_any(
+        person=person,
+        variables=["DTHVNT", "TRVNTSR"],
+        data_person_attribute_private=data_person_attribute_private,
     )
     ventilation_duration = (
         data_person_attribute_private.at[person, "DTHVNTD"]
@@ -794,8 +798,8 @@ def determine_sample_associations_attributes(
         person=person,
         variables=[
             "MHABNWBC", "MHFVRU", "MHTEMPU", "MHARTHTS", "MHRA", "MHLAPTHU",
-            "MHASCITES", "MHLUPUS", "MHSCLRDRM", "MHENCEPHA", "MHPRKNSN",
-            "MHALZDMT", "MHALZHMR", "MHALS", "MHMS", "MHREYES"
+            "MHASCITES", "MHLUPUS", "MHSCLRDRM", "MHLVRDIS", "MHNEPH",
+            "MHPRKNSN", "MHALZHMR", "MHALZDMT", "MHDMNTIA", "MHALS", "MHMS"
         ],
         data_person_attribute_private=data_person_attribute_private,
     )
@@ -804,8 +808,12 @@ def determine_sample_associations_attributes(
         person=person,
         variables=[
             "MHFNGINF", "MHBCTINF", "MHSEPSIS", "MHPSBLDCLT", "MHOPPINF",
-            "MHOSTMYLTS", "MHGNRR12M", "MHSYPH12M", "MHINFLNE", "MHFLU",
-            "MHSARS", "MHSMLPXCT", "MHWNVCT", "MHWNVHX", "MHSTD", "MHMENINA",
+            "MHINFLNE", "MHOSTMYLTS", "MHGNRR12M", "MHSYPH12M", "LBPRRVDRL",
+            "LBRPR", "MHSTD", "MHENCEPHA", "MHFLU", "MHREYES", "MHSARS",
+            "MHMENINA", "MHRBSANML", "MHSMLPXCT", "MHHIVCT", "LBHIV1NT",
+            "LBHIVAB", "LBHIVO", "MHHEPCCT", "LBHCV1NT", "LBHBHCVAB",
+            "MHHEPBCT", "LBHBCABM", "LBHBCABT", "LBHBSAB", "LBHBSAG",
+            "MHWNVCT", "MHWNVHX", "LBCMVTAB", "LBEBVGAB", "LBEBVMAB"
         ],
         data_person_attribute_private=data_person_attribute_private,
     )
@@ -826,7 +834,7 @@ def determine_sample_associations_attributes(
         "tissue_minor": tissue_minor,
         "person": person,
         "ancestry": ancestry,
-        "sex": sex,
+        "sex_text": sex_text,
         "decade": decade,
         "age": age,
         "body": body,

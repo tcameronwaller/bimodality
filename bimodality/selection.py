@@ -1601,6 +1601,7 @@ def impute_samples_duration(
     indicator=None,
     duration=None,
     replacement=None,
+    report=None,
     data_samples_tissues_persons=None,
 ):
     """
@@ -1618,6 +1619,7 @@ def impute_samples_duration(
         indicator (str): name of column for Boolean indicator variable
         duration (str): name of column for float duration variable
         replacement (bool): whether to replace original duration columns
+        report (bool): whether to print reports
         data_samples_tissues_persons_selection (object): Pandas data frame of
             persons and tissues across selection samples
 
@@ -1630,12 +1632,83 @@ def impute_samples_duration(
 
     # Copy data.
     data_samples = data_samples_tissues_persons.copy(deep=True)
+    # Report.
+    if report:
+        # Copy data.
+        data_report = data_samples_tissues_persons.copy(deep=True)
+        # Organize data.
+        data_report.reset_index(
+            level=None,
+            inplace=True
+        )
+        columns = [
+            "person",
+            indicator,
+            duration,
+        ]
+        data_report = data_report.loc[
+            :, data_report.columns.isin(columns)
+        ]
+        data_report.drop_duplicates(
+            subset=None,
+            keep="first",
+            inplace=True,
+        )
+        data_report.set_index(
+            ["person"],
+            append=False,
+            drop=True,
+            inplace=True
+        )
+        counter_false = 0
+        counter_true = 0
+        counter_null = 0
+        counter_records = 0
+        records = data_report.to_dict("records")
+        for record in records:
+            counter_records += 1
+            if (
+                (record[indicator] == False) and (math.isnan(record[duration]))
+            ):
+                counter_false += 1
+            elif (
+                (record[indicator] == True) and (math.isnan(record[duration]))
+            ):
+                counter_true += 1
+            elif (
+                math.isnan(record[indicator]) and math.isnan(record[duration])
+            ):
+                counter_null += 1
+        utility.print_terminal_partition(level=2)
+        print("Extent of imputation in duration variables.")
+        print("Percentages are relative to counts of persons.")
+        utility.print_terminal_partition(level=3)
+        print(
+            "False indicators with missing duration: " +
+            str(round((counter_false / counter_records) * 100, 2)) + "%"
+        )
+        print("Impute with 0.0... obviously.")
+        utility.print_terminal_partition(level=3)
+        print(
+            "True indicators with missing duration: " +
+            str(round((counter_true / counter_records) * 100, 2)) + "%"
+        )
+        print("Impute with minimum value of duration.")
+        utility.print_terminal_partition(level=3)
+        print(
+            "Missing values of both indicator and duration: " +
+            str(round((counter_null / counter_records) * 100, 2)) + "%"
+        )
+        print("Impute with false and zero.")
+        pass
     # Impute.
     duration_imputation = str(duration + "_imputation")
     durations_nonzero = data_samples[duration].loc[
         data_samples[duration] > 0
     ].to_numpy()
     minimum = numpy.nanmin(durations_nonzero)
+    if report:
+        print("Minimal value of duration: " + str(minimum))
     data_samples[duration_imputation] = data_samples.apply(
         lambda row:
             0.0 if (
@@ -1644,7 +1717,10 @@ def impute_samples_duration(
             (minimum if (
                 (row[indicator] == True) and (math.isnan(row[duration]))
             ) else
-            row[duration]),
+            (0.0 if (
+                math.isnan(row[indicator]) and math.isnan(row[duration])
+            ) else
+            (row[duration]))),
         axis="columns",
     )
     # Organize data.
@@ -1661,6 +1737,304 @@ def impute_samples_duration(
             },
             inplace=True,
         )
+    # Return information.
+    return data_samples
+
+
+def correct_samples_duration(
+    indicator=None,
+    duration=None,
+    replacement=None,
+    report=None,
+    data_samples_tissues_persons=None,
+):
+    """
+    Correct duration variables across samples.
+
+    Relevant variables include indicators of a person's ventilation or
+    refrigeration.
+
+    If duration is 0.0 hours, then change indicator to false.
+
+    arguments:
+        indicator (str): name of column for Boolean indicator variable
+        duration (str): name of column for float duration variable
+        replacement (bool): whether to replace original duration columns
+        report (bool): whether to print reports
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues across selection samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues across samples
+
+    """
+
+    # Copy data.
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    # Report.
+    if report:
+        # Copy data.
+        data_report = data_samples_tissues_persons.copy(deep=True)
+        # Organize data.
+        data_report.reset_index(
+            level=None,
+            inplace=True
+        )
+        columns = [
+            "person",
+            indicator,
+            duration,
+        ]
+        data_report = data_report.loc[
+            :, data_report.columns.isin(columns)
+        ]
+        data_report.drop_duplicates(
+            subset=None,
+            keep="first",
+            inplace=True,
+        )
+        data_report.set_index(
+            ["person"],
+            append=False,
+            drop=True,
+            inplace=True
+        )
+        counter_error = 0
+        counter_null = 0
+        counter_records = 0
+        records = data_report.to_dict("records")
+        for record in records:
+            counter_records += 1
+            if (
+                (record[indicator] == True) and (record[duration] == 0)
+            ):
+                counter_error += 1
+            elif (
+                math.isnan(record[indicator]) and (record[duration] == 0)
+            ):
+                counter_null += 1
+        utility.print_terminal_partition(level=2)
+        print("Extent of correction of inconsistency in duration variables.")
+        print("Percentages are relative to counts of persons.")
+        utility.print_terminal_partition(level=3)
+        print(
+            "True indicators but zero durations: " +
+            str(round((counter_error / counter_records) * 100, 2)) + "%"
+        )
+        print("Prioritize duration variable, change indicator variable.")
+        utility.print_terminal_partition(level=3)
+        print(
+            "Missing indicators but zero durations: " +
+            str(round((counter_null / counter_records) * 100, 2)) + "%"
+        )
+        print("Prioritize duration variable, change indicator false.")
+        utility.print_terminal_partition(level=3)
+        pass
+    # Impute.
+    indicator_correction = str(indicator + "_correction")
+    data_samples[indicator_correction] = data_samples.apply(
+        lambda row:
+            False if (
+                (row[indicator] == True) and (row[duration] == 0)
+            ) else
+            (False if (
+                math.isnan(row[indicator]) and (row[duration] == 0)
+            ) else
+            (row[indicator])),
+        axis="columns",
+    )
+    # Organize data.
+    # Replace original duration column.
+    if replacement:
+        data_samples.drop(
+            labels=[indicator],
+            axis="columns",
+            inplace=True
+        )
+        data_samples.rename(
+            columns={
+                indicator_correction: indicator,
+            },
+            inplace=True,
+        )
+    # Return information.
+    return data_samples
+
+
+def impute_correct_samples_duration(
+    indicator=None,
+    duration=None,
+    replacement=None,
+    report=None,
+    data_samples_tissues_persons=None,
+):
+    """
+    Impute duration variables across samples.
+
+    Relevant variables include indicators of a person's ventilation or
+    refrigeration.
+
+    If indicator is false and duration is missing, then impute with a value of
+    0.0 for duration.
+    If indicator is true but corresponding duration is missing, then
+    impute with the minimal nonzero value of duration.
+
+    arguments:
+        indicator (str): name of column for Boolean indicator variable
+        duration (str): name of column for float duration variable
+        replacement (bool): whether to replace original duration columns
+        report (bool): whether to print reports
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues across selection samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues across samples
+
+    """
+
+    # Impute values
+    data_imputation = impute_samples_duration(
+        indicator=indicator,
+        duration=duration,
+        replacement=replacement,
+        report=report,
+        data_samples_tissues_persons=data_samples_tissues_persons,
+    )
+    # Correct values.
+    # Execute correction after imputation so as to change indicator variable to
+    # correspond with imputation value of zero for missing indicator.
+    if not replacement:
+        # Base corrections on any imputations.
+        duration_correction = str(duration + "_imputation")
+    else:
+        duration_correction = duration
+    data_correction = correct_samples_duration(
+        indicator=indicator,
+        duration=duration_correction,
+        replacement=replacement,
+        report=report,
+        data_samples_tissues_persons=data_imputation,
+    )
+    # Return information.
+    return data_correction
+
+
+def organize_samples_season_variables(
+    data_samples_tissues_persons=None,
+):
+    """
+    Organize variables that relate to the season of death.
+
+    arguments:
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues across selection samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues across samples
+
+    """
+
+    # Copy data.
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    # Climate.
+    # Seasons are cyclic.
+    # The climate variable represents the general climate in which the person
+    # died.
+    # Winter and summer seasons are opposite extremes in climate, with spring
+    # and fall in between.
+    data_samples["climate"] = data_samples["season"].apply(
+        lambda value:
+            0 if (value == "winter") else
+            (1 if ((value == "spring") or (value == "fall")) else
+            (2 if (value == "summer") else
+            (float("nan"))))
+    )
+    # Season sequence.
+    data_samples["season_sequence"] = data_samples["season"].apply(
+        lambda value:
+            0 if (value == "winter") else
+            (1 if (value == "spring") else
+            (2 if (value == "summer") else
+            (3 if (value == "fall") else
+            (float("nan")))))
+    )
+    # Season categorical binary variables.
+    data_samples["winter"] = data_samples["season"].apply(
+        lambda value: 1 if (value == "winter") else 0
+    )
+    data_samples["spring"] = data_samples["season"].apply(
+        lambda value: 1 if (value == "spring") else 0
+    )
+    data_samples["summer"] = data_samples["season"].apply(
+        lambda value: 1 if (value == "summer") else 0
+    )
+    data_samples["fall"] = data_samples["season"].apply(
+        lambda value: 1 if (value == "fall") else 0
+    )
+    # Return information.
+    return data_samples
+
+
+def organize_samples_sex_variables(
+    data_samples_tissues_persons=None,
+):
+    """
+    Organize variables that relate to the season of death.
+
+    arguments:
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues across selection samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues across samples
+
+    """
+
+    # Copy data.
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    # Climate.
+    # Seasons are cyclic.
+    # The climate variable represents the general climate in which the person
+    # died.
+    # Winter and summer seasons are opposite extremes in climate, with spring
+    # and fall in between.
+    data_samples["climate"] = data_samples["season"].apply(
+        lambda value:
+            0 if (value == "winter") else
+            (1 if ((value == "spring") or (value == "fall")) else
+            (2 if (value == "summer") else
+            (float("nan"))))
+    )
+    # Season sequence.
+    data_samples["season_sequence"] = data_samples["season"].apply(
+        lambda value:
+            0 if (value == "winter") else
+            (1 if (value == "spring") else
+            (2 if (value == "summer") else
+            (3 if (value == "fall") else
+            (float("nan")))))
+    )
+    # Season categorical binary variables.
+    data_samples["winter"] = data_samples["season"].apply(
+        lambda value: 1 if (value == "winter") else 0
+    )
+    data_samples["spring"] = data_samples["season"].apply(
+        lambda value: 1 if (value == "spring") else 0
+    )
+    data_samples["summer"] = data_samples["season"].apply(
+        lambda value: 1 if (value == "summer") else 0
+    )
+    data_samples["fall"] = data_samples["season"].apply(
+        lambda value: 1 if (value == "fall") else 0
+    )
     # Return information.
     return data_samples
 
@@ -1693,29 +2067,72 @@ def organize_samples_properties(
         data_samples_selection["steroid"] == True, :
     ].index.to_list()
 
-    # Refrigeration.
-    data_refrigeration = impute_samples_duration(
-        indicator="refrigeration",
-        duration="refrigeration_duration",
-        data_samples_tissues_persons=data_samples_selection,
-        replacement=False,
-    )
     # Ventilation.
-    data_ventilation = impute_samples_duration(
+    #print("Ventilation")
+    data_ventilation = impute_correct_samples_duration(
         indicator="ventilation",
         duration="ventilation_duration",
+        data_samples_tissues_persons=data_samples_selection,
+        replacement=True,
+        report=False,
+    )
+    # Refrigeration.
+    #print("Refrigeration")
+    data_refrigeration = impute_correct_samples_duration(
+        indicator="refrigeration",
+        duration="refrigeration_duration",
+        data_samples_tissues_persons=data_ventilation,
+        replacement=True,
+        report=False,
+    )
+    # Season.
+    data_season = organize_samples_season_variables(
         data_samples_tissues_persons=data_refrigeration,
-        replacement=False,
+    )
+    # Sex.
+    data_sex = organize_samples_sex_variables(
+        data_samples_tissues_persons=data_refrigeration,
     )
 
-    data_test = data_ventilation
+    # Organize variables for regression.
+    data_persons_properties["female"] = data_persons_properties.apply(
+        lambda row:
+            1 if (row["sex"] == "female") else
+            (0 if (row["sex"] == "male") else
+            float("nan")),
+        axis="columns",
+    )
 
-    # Organize ventilation and refrigeration variables.
-    # If a person did not receive ventilation or refrigeration, then change
-    # respective duration variables to 0.0.
 
-    # TODO: translate season to climate...
-    # TODO: do any other variable modifications...
+
+
+    data_test = data_season
+    data_test.reset_index(
+        level=None,
+        inplace=True
+    )
+    columns = [
+        "person",
+        "season",
+        "climate",
+        "season_sequence",
+        "winter",
+        "spring",
+        "summer",
+        "fall",
+    ]
+    data_test = data_test.loc[
+        :, data_test.columns.isin(columns)
+    ]
+    data_test.drop_duplicates(
+        subset=None,
+        keep="first",
+        inplace=True,
+    )
+    data_test = data_test[[*columns]]
+    print("testing testing testing")
+    print(data_test)
+
 
     # Specify directories and files.
     print("does this work")
@@ -2398,49 +2815,6 @@ def organize_persons_properties(
         prefix="batches_sequence",
         data_components=data_batches_sequence,
         data_collection=data_persons_properties,
-    )
-
-    # Organize variables for regression.
-    data_persons_properties["female"] = data_persons_properties.apply(
-        lambda row:
-            1 if (row["sex"] == "female") else
-            (0 if (row["sex"] == "male") else
-            float("nan")),
-        axis="columns",
-    )
-    data_persons_properties["season_sequence"] = data_persons_properties.apply(
-        lambda row:
-            1 if (row["season"] == "spring") else
-            (2 if (row["season"] == "summer") else
-            (3 if (row["season"] == "fall") else
-            (4 if (row["season"] == "winter") else
-            float("nan")))),
-        axis="columns",
-    )
-    data_persons_properties["climate"] = data_persons_properties.apply(
-        lambda row:
-            1 if (row["season"] == "summer") else
-            (2 if (row["season"] == "spring") else
-            (3 if (row["season"] == "fall") else
-            (4 if (row["season"] == "winter") else
-            float("nan")))),
-        axis="columns",
-    )
-    data_persons_properties["spring"] = data_persons_properties.apply(
-        lambda row: 1 if (row["season"] == "spring") else 0,
-        axis="columns",
-    )
-    data_persons_properties["summer"] = data_persons_properties.apply(
-        lambda row: 1 if (row["season"] == "summer") else 0,
-        axis="columns",
-    )
-    data_persons_properties["fall"] = data_persons_properties.apply(
-        lambda row: 1 if (row["season"] == "fall") else 0,
-        axis="columns",
-    )
-    data_persons_properties["winter"] = data_persons_properties.apply(
-        lambda row: 1 if (row["season"] == "winter") else 0,
-        axis="columns",
     )
 
     # Standardize the scales of specific variables for regression.
