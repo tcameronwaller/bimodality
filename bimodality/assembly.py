@@ -842,6 +842,7 @@ def determine_sample_associations_attributes(
         "season": season,
         "delay": delay,
         "delay_start": delay_start,
+        "delay_incision": delay_incision,
         "refrigeration": refrigeration,
         "refrigeration_duration": refrigeration_duration,
         "refrigeration_unit": refrigeration_unit,
