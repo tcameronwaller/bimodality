@@ -1985,7 +1985,7 @@ def organize_samples_sex_variables(
     data_samples_tissues_persons=None,
 ):
     """
-    Organize variables that relate to the season of death.
+    Organize variables that relate to biological sex.
 
     arguments:
         data_samples_tissues_persons_selection (object): Pandas data frame of
@@ -2000,40 +2000,18 @@ def organize_samples_sex_variables(
 
     # Copy data.
     data_samples = data_samples_tissues_persons.copy(deep=True)
-    # Climate.
-    # Seasons are cyclic.
-    # The climate variable represents the general climate in which the person
-    # died.
-    # Winter and summer seasons are opposite extremes in climate, with spring
-    # and fall in between.
-    data_samples["climate"] = data_samples["season"].apply(
+    # Sex.
+    data_samples["sex_x"] = data_samples["sex_text"].apply(
         lambda value:
-            0 if (value == "winter") else
-            (1 if ((value == "spring") or (value == "fall")) else
-            (2 if (value == "summer") else
-            (float("nan"))))
+            2 if (value == "female") else
+            (1 if (value == "male") else
+            float("nan"))
     )
-    # Season sequence.
-    data_samples["season_sequence"] = data_samples["season"].apply(
+    data_samples["sex_y"] = data_samples["sex_text"].apply(
         lambda value:
-            0 if (value == "winter") else
-            (1 if (value == "spring") else
-            (2 if (value == "summer") else
-            (3 if (value == "fall") else
-            (float("nan")))))
-    )
-    # Season categorical binary variables.
-    data_samples["winter"] = data_samples["season"].apply(
-        lambda value: 1 if (value == "winter") else 0
-    )
-    data_samples["spring"] = data_samples["season"].apply(
-        lambda value: 1 if (value == "spring") else 0
-    )
-    data_samples["summer"] = data_samples["season"].apply(
-        lambda value: 1 if (value == "summer") else 0
-    )
-    data_samples["fall"] = data_samples["season"].apply(
-        lambda value: 1 if (value == "fall") else 0
+            0 if (value == "female") else
+            (1 if (value == "male") else
+            float("nan"))
     )
     # Return information.
     return data_samples
@@ -2063,10 +2041,6 @@ def organize_samples_properties(
     )
     # Organize data.
 
-    persons_steroid = data_samples_selection.loc[
-        data_samples_selection["steroid"] == True, :
-    ].index.to_list()
-
     # Ventilation.
     #print("Ventilation")
     data_ventilation = impute_correct_samples_duration(
@@ -2091,79 +2065,13 @@ def organize_samples_properties(
     )
     # Sex.
     data_sex = organize_samples_sex_variables(
-        data_samples_tissues_persons=data_refrigeration,
+        data_samples_tissues_persons=data_season,
     )
-
-    # Organize variables for regression.
-    data_persons_properties["female"] = data_persons_properties.apply(
-        lambda row:
-            1 if (row["sex"] == "female") else
-            (0 if (row["sex"] == "male") else
-            float("nan")),
-        axis="columns",
-    )
+    # Return information.
+    return data_sex
 
 
-
-
-    data_test = data_season
-    data_test.reset_index(
-        level=None,
-        inplace=True
-    )
-    columns = [
-        "person",
-        "season",
-        "climate",
-        "season_sequence",
-        "winter",
-        "spring",
-        "summer",
-        "fall",
-    ]
-    data_test = data_test.loc[
-        :, data_test.columns.isin(columns)
-    ]
-    data_test.drop_duplicates(
-        subset=None,
-        keep="first",
-        inplace=True,
-    )
-    data_test = data_test[[*columns]]
-    print("testing testing testing")
-    print(data_test)
-
-
-    # Specify directories and files.
-    print("does this work")
-    path_dock = os.path.join("home", "tcameronwaller", "dock")
-    dock = "/home/tcameronwaller/dock/"
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_persons_properties = os.path.join(
-        path_selection, "persons_properties"
-    )
-    utility.create_directories(path_persons_properties)
-    path_test = os.path.join(
-        path_persons_properties, "test.tsv"
-    )
-    data_test.to_csv(
-        path_or_buf=path_test,
-        sep="\t",
-        header=True,
-        index=True,
-    )
-
-    if False:
-        # Return information.
-        return data_samples_organization
-
-
-
-
-
-
-
-def collect_person_unique_sample_values(
+def collect_persons_unique_values(
     values=None,
     delimiter=None,
 ):
@@ -2189,8 +2097,7 @@ def collect_person_unique_sample_values(
     values_unique = utility.collect_unique_elements(
         elements_original=values_strip
     )
-    values_string = delimiter.join(values_unique)
-    return values_string
+    return values_unique
 
 
 def extract_persons_properties(
@@ -2258,22 +2165,26 @@ def extract_persons_properties(
             keep="first",
             inplace=True,
         )
-        data_novel["tissues"] = collect_person_unique_sample_values(
+        delimiter = ","
+        data_novel["tissues"] = delimiter.join(collect_persons_unique_values(
             values=data_original["tissue_major"].dropna().to_list(),
             delimiter=",",
-        )
-        data_novel["facilities"] = collect_person_unique_sample_values(
-            values=data_original["facilities"].dropna().to_list(),
-            delimiter=",",
-        )
-        data_novel["batches_extraction"] = collect_person_unique_sample_values(
-            values=data_original["batch_extraction"].dropna().to_list(),
-            delimiter=",",
-        )
-        data_novel["batches_sequence"] = collect_person_unique_sample_values(
-            values=data_original["batches_sequence"].dropna().to_list(),
-            delimiter=",",
-        )
+        ))
+        data_novel["facilities"] = delimiter.join(
+            collect_persons_unique_values(
+                values=data_original["facilities"].dropna().to_list(),
+                delimiter=",",
+        ))
+        data_novel["batches_extraction"] = delimiter.join(
+            collect_persons_unique_values(
+                values=data_original["batch_extraction"].dropna().to_list(),
+                delimiter=",",
+        ))
+        data_novel["batches_sequence"] = delimiter.join(
+            collect_persons_unique_values(
+                values=data_original["batches_sequence"].dropna().to_list(),
+                delimiter=",",
+        ))
         data_collection = data_collection.append(
             data_novel,
             ignore_index=True,
@@ -2295,6 +2206,456 @@ def extract_persons_properties(
         utility.print_terminal_partition(level=2)
     # Return information.
     return data_collection
+
+
+def define_variables():
+    """
+    Defines a list of variables' names for regression analysis.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<list<str>>): names of independent variables for regression
+
+    """
+
+    # Categorical variables for which each person has multiple values.
+    # Reduce dimensionality for these variables.
+    category = [
+        "tissues",
+        "facilities",
+        "batches_extraction",
+        "batches_sequence",
+    ]
+    # Variables of raw values that might require standardization to adjust
+    # scale.
+    scale = [
+        "sex_y",
+        "age",
+        "body",
+        "hardiness",
+        "climate",
+        "delay",
+        "ventilation_duration",
+        "refrigeration_duration",
+    ]
+
+    # Variables that relate to hypotheses of interest.
+    hypothesis = [
+        "female_scale",
+        "age_scale",
+        "body_scale",
+        "hardiness_scale", # "hardiness_scale" or "hardiness"
+        "climate_scale", # "season_scale" or "season_sequence"
+    ]
+    # Variables that relate to genotype.
+    genotype = [
+        "genotype_1",
+        "genotype_2",
+        "genotype_3",
+        "genotype_4",
+        "genotype_5",
+        #"genotype_6", # <- omit
+        #"genotype_7", # <- omit
+        #"genotype_8", # <- omit
+        #"genotype_9", # <- omit
+        #"genotype_10", # <- omit
+    ]
+    # Variables that relate to technical methods.
+    technique = [
+        "delay_scale",
+
+        "tissues_1",
+        "tissues_2",
+        "tissues_3",
+        "tissues_4",
+        "tissues_5",
+        #"tissues_6", # <- omit
+        #"tissues_7", # <- omit
+        #"tissues_8", # <- omit
+        #"tissues_9", # <- omit
+        #"tissues_10", # <- omit
+
+        #"facilities_1", # <- omit due to multicollinearity
+        #"facilities_2", # <- omit due to multicollinearity
+        #"facilities_3", # <- omit
+
+        #"batches_extraction_1",
+        #"batches_extraction_2",
+        #"batches_extraction_3",
+        #"batches_extraction_4", # <- omit
+        #"batches_extraction_5", # <- omit
+        #"batches_extraction_6", # <- omit
+        #"batches_extraction_7", # <- omit
+        #"batches_extraction_8", # <- omit
+        #"batches_extraction_9", # <- omit
+        #"batches_extraction_10", # <- omit
+
+        "batches_sequence_1",
+        "batches_sequence_2",
+        "batches_sequence_3",
+        "batches_sequence_4",
+        "batches_sequence_5",
+        #"batches_sequence_6", # <- omit
+        #"batches_sequence_7", # <- omit
+        #"batches_sequence_8", # <- omit
+        #"batches_sequence_9", # <- omit
+        #"batches_sequence_10", # <- omit
+    ]
+
+    # Compile variables.
+
+    # Regression.
+    independence = list()
+    independence.extend(hypothesis)
+    independence.extend(genotype)
+    independence.extend(technique)
+
+    # Heritability.
+    heritability_simple = list()
+    heritability_simple.extend(technique)
+    heritability_complex = list()
+    heritability_complex.extend(hypothesis)
+    heritability_complex.extend(technique)
+
+    # Quantitative Trait Loci (QTL).
+    trait = list()
+    trait.extend(hypothesis)
+    trait.extend(technique)
+
+    # Compile information.
+    information = dict()
+    information["category"] = category
+    information["scale"] = scale
+    information["hypothesis"] = hypothesis
+    information["genotype"] = genotype
+    information["technique"] = technique
+    information["independence"] = independence
+    information["heritability_simple"] = heritability_simple
+    information["heritability_complex"] = heritability_complex
+    information["trait"] = trait
+
+    # Return information.
+    return information
+
+
+def expand_persons_categories_matrix(
+    category=None,
+    values=None,
+    delimiter=None,
+    data=None,
+):
+    """
+    Expands a person's categorical properties to a binary matrix.
+
+    arguments:
+        category (str): name of a categorical property
+        values (list<str>): all unique values of the categorical property
+            across persons
+        delimiter (str): character for separation of values
+        data (object): Pandas data frame of persons' properties
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of a binary matrix
+
+    """
+
+    # Copy data.
+    data = data.copy(deep=True)
+    # Iterate on persons.
+    persons = data.index.to_list()
+    data_collection = pandas.DataFrame()
+    for person in persons:
+        # Create an empty matrix with values of zero for all categories.
+        data_empty = pandas.DataFrame(
+            numpy.int(0),
+            index=[0],
+            columns=values
+        )
+        # Adjust matrix to match person's values of the categorical property.
+        data_person = data_empty.copy(deep=True)
+        data_person["person"] = person
+        # Iterate on the person's values of the categorical property.
+        values_person_raw = data.at[person, category]
+        values_person = values_person_raw.split(delimiter)
+        for value in values_person:
+            data_person[value] = 1
+        # Collect person's values.
+        data_collection = data_collection.append(
+            data_person,
+            ignore_index=True,
+        )
+    # Organize data.
+    data_collection.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_collection.drop(
+        labels="index",
+        axis="columns",
+        inplace=True
+    )
+    data_collection.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    # Return information.
+    return data_collection
+
+
+def reduce_dimensionality_categorical_variable(
+    variable=None,
+    data_persons_properties_raw=None,
+    report=None,
+):
+    """
+    Organizes information about persons.
+
+    arguments:
+        variable (dict<list<str>>): names of categorical variable
+        data_persons_properties_raw (object): Pandas data frame of persons'
+            properties
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict): collection of information from dimensionality reduction
+
+    """
+
+    # Copy data.
+    data_raw = data_persons_properties_raw.copy(deep=True)
+    # Extract and collect all unique values of facilities and batches across
+    # all persons.
+    values = collect_persons_unique_values(
+        values=data_raw[variable].dropna().to_list(),
+        delimiter=",",
+    )
+    # Create two-dimensional matrices to represent persons' categories.
+    # Persons have values of zero (False) or one (True) to indicate whether
+    # they had a sample in each category.
+    data_matrix = expand_persons_categories_matrix(
+        category=variable,
+        values=values,
+        delimiter=",",
+        data=data_raw,
+    )
+    # Reduce dimensionality.
+    # Count of principal components to keep.
+    if len(values) > 20:
+        components = 20
+    else:
+        components = len(values)
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("Variable: " + str(variable))
+        print("Count of unique values: " + str(len(values)))
+        utility.print_terminal_partition(level=2)
+    # Principal components.
+    report_dimension = utility.calculate_principal_components(
+        data=data_matrix,
+        components=components,
+        report=report,
+    )
+    # Return information.
+    return report_dimension
+
+
+def insert_components(
+    prefix=None,
+    data_components=None,
+    data_collection=None,
+):
+    """
+    Inserts principal components of a property into a data frame.
+
+    arguments:
+        prefix (str): name to use as a prefix for components
+        data_components (object): Pandas data frame of a property's principal
+            components across observations
+        data_collection (object): Pandas data frame in which to insert the
+            property's principal components
+
+    raises:
+
+    returns:
+        (object): Pandas data frame including property's principal components
+
+    """
+
+    # Copy data.
+    data_components = data_components.copy(deep=True)
+    data_collection = data_collection.copy(deep=True)
+    # Change names of columns for property's principal components.
+    components = data_components.shape[1]
+    translations = dict()
+    for count in range(components):
+        original = ("component_" + str(count + 1))
+        novel = (prefix + "_" + str(count + 1))
+        translations[original] = novel
+    data_components.rename(
+        columns=translations,
+        inplace=True,
+    )
+    # Insert components.
+    data_combination = data_collection.join(
+        data_components,
+        how="left",
+    )
+    # Return information.
+    return data_combination
+
+
+def organize_persons_category_dimensionality(
+    variables=None,
+    data_persons_properties_raw=None,
+    report=None,
+):
+    """
+    Organizes information about persons.
+
+    arguments:
+        variables (list<str>): names of categorical variables
+        data_persons_properties_raw (object): Pandas data frame of persons'
+            properties
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict): collection of information
+
+    """
+
+    # Copy data.
+    data_raw = data_persons_properties_raw.copy(deep=True)
+    data_collection = data_persons_properties_raw.copy(deep=True)
+    # Organize dimensionality reduction on categorical variables.
+    components_data = dict()
+    variances_data = dict()
+    for variable in variables:
+        # Reduce dimensionality of categorical variable's values.
+        report_dimension = reduce_dimensionality_categorical_variable(
+            variable=variable,
+            data_persons_properties_raw=data_raw,
+            report=report,
+        )
+        components_data[variable] = (
+            report_dimension["data_observations_components"]
+        )
+        variances_data[variable] = (
+            report_dimension["data_components_variances"]
+        )
+        # Introduce variable's principal components to persons' properties.
+        data_collection = insert_components(
+            prefix=variable,
+            data_components=report_dimension["data_observations_components"],
+            data_collection=data_collection,
+        )
+    # Compile information.
+    bin = dict()
+    bin["data_persons_properties_dimension"] = data_collection
+    bin["components_data"] = components_data
+    bin["variances_data"] = variances_data
+    # Return information.
+    return bin
+
+
+def standardize_scale_variables(
+    variables=None,
+    data_persons_properties=None,
+):
+    """
+    Standardizes variables' values to z-score scale.
+
+    arguments:
+        variables (list<str>): names of numerical variables
+        data_persons_properties_raw (object): Pandas data frame of persons'
+            properties
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of information about persons
+
+    """
+
+    # Copy data.
+    data = data_persons_properties.copy(deep=True)
+    # Iterate on variables.
+    for variable in variables:
+        variable_scale = str(variable + ("_scale"))
+        data[variable] = data[variable].astype(numpy.float32)
+        data[variable_scale] = data[variable].pipe(
+            lambda series: scipy.stats.zscore(
+                series.to_numpy(),
+                axis=0,
+                ddof=1, # Sample standard deviation.
+                nan_policy="omit",
+            ),
+        )
+        pass
+    # Return information.
+    return data
+
+
+def organize_persons_properties(
+    variables=None,
+    data_persons_properties_raw=None,
+    report=None,
+):
+    """
+    Organizes information about persons.
+
+    arguments:
+        variables (dict<list<str>>): names of independent variables for
+            regression
+        data_persons_properties_raw (object): Pandas data frame of persons'
+            properties
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of information about persons
+
+    """
+
+    # Copy data.
+    data_raw = data_persons_properties_raw.copy(deep=True)
+    # Organize dimensionality reduction on categorical variables.
+    bin_category = organize_persons_category_dimensionality(
+        variables=variables["category"],
+        data_persons_properties_raw=data_raw,
+        report=report,
+    )
+    # Standardize the scales of specific variables for regression.
+    data_persons_properties_scale = standardize_scale_variables(
+        variables=variables["scale"],
+        data_persons_properties=bin_category[
+            "data_persons_properties_dimension"
+        ],
+    )
+    # Compile information.
+    information = dict()
+    information["data_persons_properties"] = data_persons_properties_scale
+    information["components_data"] = bin_category["components_data"]
+    information["variances_data"] = bin_category["variances_data"]
+    # Return information.
+    return information
+
+
+
+
+
 
 
 def organize_persons_properties_sets(
@@ -2422,547 +2783,7 @@ def organize_persons_properties_sets(
 
 
 
-
-
-
-# Extract information about samples, tissues, and persons.
-
-
-# Persons' genotypes
-
-# Organize persons' properties as covariates.
-
-
-def collect_persons_unique_values(
-    values=None,
-    delimiter=None,
-):
-    """
-    Collects unique values from a person's samples.
-
-    arguments:
-        values (list<str>): values from a person's samples
-        delimiter (str): character for separation of values
-
-    raises:
-
-    returns:
-        (str): values
-
-    """
-
-    #values_valid = list(filter(lambda value: not math.isnan(value), values))
-    #values_type = list(map(lambda value: str(value), values_valid))
-    values_combination = delimiter.join(values)
-    values_split = values_combination.split(delimiter)
-    values_strip = list(map(lambda value: value.strip(), values_split))
-    values_unique = utility.collect_unique_elements(
-        elements_original=values_strip
-    )
-    return values_unique
-
-
-def expand_persons_categories_matrix(
-    category=None,
-    values=None,
-    delimiter=None,
-    data=None,
-):
-    """
-    Expands a person's categorical properties to a binary matrix.
-
-    arguments:
-        category (str): name of a categorical property
-        values (list<str>): all unique values of the categorical property
-            across persons
-        delimiter (str): character for separation of values
-        data (object): Pandas data frame of persons' properties
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of a binary matrix
-
-    """
-
-    # Iterate on persons.
-    persons = data.index.to_list()
-    data_collection = pandas.DataFrame()
-    for person in persons:
-        # Create an empty matrix with values of zero for all facilities or
-        # batches.
-        data_empty = pandas.DataFrame(
-            numpy.int(0),
-            index=[0],
-            columns=values
-        )
-        # Adjust matrix to match person's values of the categorical property.
-        data_person = data_empty.copy(deep=True)
-        data_person["person"] = person
-        # Iterate on the person's values of the categorical property.
-        values_person_raw = data.at[person, category]
-        values_person = values_person_raw.split(delimiter)
-        for value in values_person:
-            data_person[value] = 1
-
-        # Collect person's values.
-        data_collection = data_collection.append(
-            data_person,
-            ignore_index=True,
-        )
-
-    # Organize data.
-    data_collection.reset_index(
-        level=None,
-        inplace=True
-    )
-    data_collection.drop(
-        labels="index",
-        axis="columns",
-        inplace=True
-    )
-    data_collection.set_index(
-        ["person"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    # Return information.
-    return data_collection
-
-
-def organize_persons_properties_categories(
-    data_persons_properties_raw=None,
-):
-    """
-    Organizes information about persons' categorical properties.
-
-    arguments:
-        data_persons_properties_raw (object): Pandas data frame of persons'
-            properties
-
-    raises:
-
-    returns:
-        (dict): information about persons' categorical properties
-
-    """
-
-    # Organize data.
-    data_copy = data_persons_properties_raw.copy(deep=True)
-
-    # Extract and collect all unique values of facilities and batches across
-    # all persons.
-    tissues = collect_persons_unique_values(
-        values=data_copy["tissues"].dropna().to_list(),
-        delimiter=",",
-    )
-    facilities = collect_persons_unique_values(
-        values=data_copy["facilities"].dropna().to_list(),
-        delimiter=",",
-    )
-    batches_isolation = collect_persons_unique_values(
-        values=data_copy["batches_isolation"].dropna().to_list(),
-        delimiter=",",
-    )
-    batches_sequence = collect_persons_unique_values(
-        values=data_copy["batches_sequence"].dropna().to_list(),
-        delimiter=",",
-    )
-
-    # Summarize facilities and batches.
-    utility.print_terminal_partition(level=2)
-    print("Count of unique tissues: " + str(len(tissues)))
-    print("Count of unique facilities: " + str(len(facilities)))
-    print("Count of unique isolation batches: " + str(len(batches_isolation)))
-    print("Count of unique read batches: " + str(len(batches_sequence)))
-    utility.print_terminal_partition(level=2)
-
-    # Create two-dimensional matrices to represent persons' categories.
-    # Persons have values of zero (False) or one (True) to indicate whether
-    # they had a sample in each facility or batch.
-    data_tissues = expand_persons_categories_matrix(
-        category="tissues",
-        values=tissues,
-        delimiter=",",
-        data=data_copy,
-    )
-    data_facilities = expand_persons_categories_matrix(
-        category="facilities",
-        values=facilities,
-        delimiter=",",
-        data=data_copy,
-    )
-    data_batches_isolation = expand_persons_categories_matrix(
-        category="batches_isolation",
-        values=batches_isolation,
-        delimiter=",",
-        data=data_copy,
-    )
-    data_batches_sequence = expand_persons_categories_matrix(
-        category="batches_sequence",
-        values=batches_sequence,
-        delimiter=",",
-        data=data_copy,
-    )
-    # Merge batches to a single matrix.
-    data_batches = data_batches_isolation.join(
-        data_batches_sequence,
-        how="left",
-        on="person"
-    )
-
-    # Reduce dimensionality.
-    utility.print_terminal_partition(level=2)
-    print("tissues")
-    report_tissues = utility.calculate_principal_components(
-        data=data_tissues,
-        components=20,
-        report=True,
-    )
-    utility.print_terminal_partition(level=2)
-    print("facilities")
-    report_facilities = utility.calculate_principal_components(
-        data=data_facilities,
-        components=4,
-        report=True,
-    )
-    utility.print_terminal_partition(level=2)
-    print("batches_isolation")
-    report_batches_isolation = utility.calculate_principal_components(
-        data=data_batches_isolation,
-        components=20,
-        report=True,
-    )
-    utility.print_terminal_partition(level=2)
-    print("batches_sequence")
-    report_batches_sequence = utility.calculate_principal_components(
-        data=data_batches_sequence,
-        components=20,
-        report=True,
-    )
-    utility.print_terminal_partition(level=2)
-    print("batches")
-    report_batches = utility.calculate_principal_components(
-        data=data_batches,
-        components=20,
-        report=True,
-    )
-
-    # Compile information.
-    information = dict()
-    information["tissues"] = report_tissues
-    information["facilities"] = report_facilities
-    information["batches_isolation"] = report_batches_isolation
-    information["batches_sequence"] = report_batches_sequence
-    information["batches"] = report_batches
-    # Return information.
-    return information
-
-
-def insert_components(
-    prefix=None,
-    data_components=None,
-    data_collection=None,
-):
-    """
-    Inserts principal components of a property into a data frame.
-
-    arguments:
-        prefix (str): name to use as a prefix for components
-        data_components (object): Pandas data frame of a property's principal
-            components across observations
-        data_collection (object): Pandas data frame in which to insert the
-            property's principal components
-
-    raises:
-
-    returns:
-        (object): Pandas data frame including property's principal components
-
-    """
-
-    # Copy data.
-    data_components = data_components.copy(deep=True)
-    data_collection = data_collection.copy(deep=True)
-
-    # Change names of columns for property's principal components.
-    components = data_components.shape[1]
-    translations = dict()
-    for count in range(components):
-        original = ("component_" + str(count + 1))
-        novel = (prefix + "_" + str(count + 1))
-        translations[original] = novel
-    data_components.rename(
-        columns=translations,
-        inplace=True,
-    )
-
-    # Insert components.
-    data_combination = data_collection.join(
-        data_components,
-        how="left",
-    )
-
-    return data_combination
-
-
-def standardize_scale_variables(
-    variables=None,
-    data_persons_properties=None,
-):
-    """
-    Standardizes variables' values to z-score scale.
-
-    arguments:
-        variables (list<str>): names of independent variables for regression
-        data_persons_properties_raw (object): Pandas data frame of persons'
-            properties
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of information about persons
-
-    """
-
-    # Copy data.
-    data = data_persons_properties.copy(deep=True)
-
-    # Iterate on variables.
-    for variable in variables:
-
-        # Standardize variable's values.
-        if variable == "season_sequence":
-            variable_scale = "season_scale"
-        else:
-            variable_scale = str(variable + ("_scale"))
-        data[variable] = data[variable].astype(numpy.float32)
-        data[variable_scale] = data[variable].pipe(
-            lambda series: scipy.stats.zscore(
-                series.to_numpy(),
-                axis=0,
-                ddof=1, # Sample standard deviation.
-                nan_policy="omit",
-            ),
-        )
-        pass
-
-    # Return information.
-    return data
-
-
-
-def organize_persons_properties(
-    variables=None,
-    data_persons_properties_raw=None,
-):
-    """
-    Organizes information about persons.
-
-    arguments:
-        variables (dict<list<str>>): names of independent variables for
-            regression
-        data_persons_properties_raw (object): Pandas data frame of persons'
-            properties
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of information about persons
-
-    """
-
-    # Organize data.
-    data_persons_properties = data_persons_properties_raw.copy(deep=True)
-    # Transform and reduce dimensionality on persons' categorical properties.
-    bin = organize_persons_properties_categories(
-        data_persons_properties_raw=data_persons_properties_raw,
-    )
-    data_tissues = bin["tissues"]["data_observations_components"]
-    data_tissues_variance = bin["tissues"]["data_components_variances"]
-    data_facilities = bin["facilities"]["data_observations_components"]
-    data_facilities_variance = bin["facilities"]["data_components_variances"]
-    data_batches_isolation = bin["batches_isolation"][
-        "data_observations_components"
-    ]
-    data_batches_isolation_variance = bin["batches_isolation"][
-        "data_components_variances"
-    ]
-    data_batches_sequence = bin["batches_sequence"][
-        "data_observations_components"
-    ]
-    data_batches_sequence_variance = bin["batches_sequence"][
-        "data_components_variances"
-    ]
-    # Replace persons' raw properties.
-    data_persons_properties = insert_components(
-        prefix="tissues",
-        data_components=data_tissues,
-        data_collection=data_persons_properties,
-    )
-    data_persons_properties = insert_components(
-        prefix="facilities",
-        data_components=data_facilities,
-        data_collection=data_persons_properties,
-    )
-    data_persons_properties = insert_components(
-        prefix="batches_isolation",
-        data_components=data_batches_isolation,
-        data_collection=data_persons_properties,
-    )
-    data_persons_properties = insert_components(
-        prefix="batches_sequence",
-        data_components=data_batches_sequence,
-        data_collection=data_persons_properties,
-    )
-
-    # Standardize the scales of specific variables for regression.
-    data_persons_properties_scale = standardize_scale_variables(
-        variables=variables["standardization"],
-        data_persons_properties=data_persons_properties,
-    )
-
-    # Compile information.
-    information = dict()
-    information["data_persons_properties"] = data_persons_properties_scale
-    information["data_tissues_variance"] = data_tissues_variance
-    information["data_facilities_variance"] = data_facilities_variance
-    information["data_batches_isolation_variance"] = (
-        data_batches_isolation_variance
-    )
-    information["data_batches_sequence_variance"] = (
-        data_batches_sequence_variance
-    )
-
-    # Return information.
-    return information
-
-
 # Organize covariates for heritability analysis.
-
-
-def define_regression_variables():
-    """
-    Defines a list of variables' names for regression analysis.
-
-    arguments:
-
-    raises:
-
-    returns:
-        (dict<list<str>>): names of independent variables for regression
-
-    """
-
-    # Variables of raw values that might require standardization to adjust
-    # scale.
-    standardization = [
-        "female",
-        "age",
-        "body",
-        "hardiness",
-        "season_sequence",
-        "climate",
-        "delay",
-    ]
-
-    # Variables that relate to hypotheses of interest.
-    hypothesis = [
-        "female_scale",
-        "age_scale",
-        "body_scale",
-        "hardiness_scale", # "hardiness_scale" or "hardiness"
-        "climate_scale", # "season_scale" or "season_sequence"
-    ]
-    # Variables that relate to genotype.
-    genotype = [
-        "genotype_1",
-        "genotype_2",
-        "genotype_3",
-        "genotype_4",
-        "genotype_5",
-        #"genotype_6", # <- omit
-        #"genotype_7", # <- omit
-        #"genotype_8", # <- omit
-        #"genotype_9", # <- omit
-        #"genotype_10", # <- omit
-    ]
-    # Variables that relate to technical methods.
-    technique = [
-        "delay_scale",
-
-        "tissues_1",
-        "tissues_2",
-        "tissues_3",
-        "tissues_4",
-        "tissues_5",
-        #"tissues_6", # <- omit
-        #"tissues_7", # <- omit
-        #"tissues_8", # <- omit
-        #"tissues_9", # <- omit
-        #"tissues_10", # <- omit
-
-        #"facilities_1", # <- omit due to multicollinearity
-        #"facilities_2", # <- omit due to multicollinearity
-        #"facilities_3", # <- omit
-
-        #"batches_isolation_1",
-        #"batches_isolation_2",
-        #"batches_isolation_3",
-        #"batches_isolation_4", # <- omit
-        #"batches_isolation_5", # <- omit
-        #"batches_isolation_6", # <- omit
-        #"batches_isolation_7", # <- omit
-        #"batches_isolation_8", # <- omit
-        #"batches_isolation_9", # <- omit
-        #"batches_isolation_10", # <- omit
-
-        "batches_sequence_1",
-        "batches_sequence_2",
-        "batches_sequence_3",
-        "batches_sequence_4",
-        "batches_sequence_5",
-        #"batches_sequence_6", # <- omit
-        #"batches_sequence_7", # <- omit
-        #"batches_sequence_8", # <- omit
-        #"batches_sequence_9", # <- omit
-        #"batches_sequence_10", # <- omit
-    ]
-
-    # Compile variables.
-
-    # Regression.
-    independence = list()
-    independence.extend(hypothesis)
-    independence.extend(genotype)
-    independence.extend(technique)
-
-    # Heritability.
-    heritability_simple = list()
-    heritability_simple.extend(technique)
-    heritability_complex = list()
-    heritability_complex.extend(hypothesis)
-    heritability_complex.extend(technique)
-
-    # Quantitative Trait Loci (QTL).
-    trait = list()
-    trait.extend(hypothesis)
-    trait.extend(technique)
-
-    # Compile information.
-    information = dict()
-    information["standardization"] = standardization
-    information["hypothesis"] = hypothesis
-    information["genotype"] = genotype
-    information["technique"] = technique
-    information["independence"] = independence
-    information["heritability_simple"] = heritability_simple
-    information["heritability_complex"] = heritability_complex
-    information["trait"] = trait
-
-    # Return information.
-    return information
 
 
 def organize_heritability_variables(
@@ -3096,15 +2917,8 @@ def organize_quantitative_trait_loci_variables(
 # TODO: 1. regression (all 631 persons with imputed genotypes)
 # TODO: 2. heritability and trait with only the 555 or whatever persons with valid genotypes
 
-
-# TODO: organize the "climate" variable
-# winter : 0
-# spring, fall: 1
-# summer: 2
-
 # TODO: change "batch_isolation" to "batch_extraction"
 #
-
 
 def extract_organize_persons_properties(
     stringency=None,
@@ -3166,6 +2980,9 @@ def extract_organize_persons_properties(
         dock=dock,
     )
 
+    ##########
+    ##########
+    ##########
     # Enhance person's properties within sample data before collapsing to
     # persons.
 
@@ -3177,29 +2994,42 @@ def extract_organize_persons_properties(
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         report=True,
     )
-
     # Impute genotypes for selection persons for regression analysis.
     data_samples_imputation = impute_persons_genotypes(
         data_samples_tissues_persons_selection=(
             source["data_samples_tissues_persons_selection"]
         ),
     )
-
     # Organize persons' properties across samples.
     data_samples_organization = organize_samples_properties(
         data_samples_tissues_persons_selection=data_samples_imputation,
     )
 
+    ##########
+    ##########
+    ##########
+    # Collapse sample data to persons' properties.
+
+    # Extract information about persons' properties.
+    data_persons_properties_raw = extract_persons_properties(
+        data_samples_tissues_persons=data_samples_organization,
+        report=True,
+    )
+    # Define variables.
+    variables = define_variables()
+    # Organize persons' properties.
+    # Expand categorical variables and reduce dimensionality.
+    bin_organization = organize_persons_properties(
+        variables=variables,
+        data_persons_properties_raw=data_persons_properties_raw,
+        report=True,
+    )
+    utility.print_terminal_partition(level=2)
+    print("data_persons_properties")
+    print(bin_organization["data_persons_properties"])
 
 
     if False:
-        # Extract information about persons' properties.
-        data_persons_properties_raw = extract_persons_properties(
-            data_samples_tissues_persons=(
-                source["data_samples_tissues_persons_selection"]
-            ),
-            report=True,
-        )
 
         # TODO:... eventually, this function should be at the end...
         # TODO: place this function within a larger function to organize data for all charts
@@ -3213,6 +3043,7 @@ def extract_organize_persons_properties(
 
         # Compile information.
         information = dict()
+        information["persons_selection_genotype"] = persons_selection_genotype
         information["data_samples_tissues_persons_imputation"] = (
             data_samples_imputation
         )
@@ -3251,9 +3082,6 @@ def extract_organize_persons_properties(
         # Select persons.
 
 
-        # Define variables.
-        variables = define_regression_variables()
-
         # TODO: here is a critical point... for imputation, I want all the persons...
 
         # Split up this procedure by persons considered...
@@ -3274,16 +3102,6 @@ def extract_organize_persons_properties(
         ##########
         #bin_trait =
 
-
-        # Expand covariates.
-        # Prepare covariates for regression.
-        bin = organize_persons_properties(
-            variables=variables,
-            data_persons_properties_raw=data_persons_properties_raw,
-        )
-        utility.print_terminal_partition(level=2)
-        print("data_persons_properties")
-        print(bin["data_persons_properties"])
 
         # Organize information for heritability analysis.
         simple = organize_heritability_variables(
@@ -3308,8 +3126,8 @@ def extract_organize_persons_properties(
 
             "data_tissues_variance": bin["data_tissues_variance"],
             "data_facilities_variance": bin["data_facilities_variance"],
-            "data_batches_isolation_variance": bin[
-                "data_batches_isolation_variance"
+            "data_batches_extraction_variance": bin[
+                "data_batches_extraction_variance"
             ],
             "data_batches_sequence_variance": bin[
                 "data_batches_sequence_variance"
@@ -3953,8 +3771,8 @@ def write_product_charts(
     path_data_facilities_variance = os.path.join(
         path_selection, "data_facilities_variance.pickle"
     )
-    path_data_batches_isolation_variance = os.path.join(
-        path_selection, "data_batches_isolation_variance.pickle"
+    path_data_batches_extraction_variance = os.path.join(
+        path_selection, "data_batches_extraction_variance.pickle"
     )
     path_data_batches_sequence_variance = os.path.join(
         path_selection, "data_batches_sequence_variance.pickle"
@@ -3992,8 +3810,8 @@ def write_product_charts(
         path_data_facilities_variance,
     )
     pandas.to_pickle(
-        information["data_batches_isolation_variance"],
-        path_data_batches_isolation_variance,
+        information["data_batches_extraction_variance"],
+        path_data_batches_extraction_variance,
     )
     pandas.to_pickle(
         information["data_batches_sequence_variance"],
