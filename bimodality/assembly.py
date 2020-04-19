@@ -16,6 +16,7 @@ import math
 import statistics
 import pickle
 import gc
+import functools
 
 # Relevant
 
@@ -232,6 +233,173 @@ def summarize_raw_data_sample(
     print(data_sample_attribute.iloc[0:10, 0:7])
 
     pass
+
+
+def organize_sample_attribute_source_data(
+    data_sample_attribute=None,
+    data_sample_attribute_private=None,
+    data_person_attribute=None,
+    data_person_attribute_private=None,
+    data_person_ancestry=None,
+    data_genotype_component_gcta=None,
+    data_genotype_component_plink=None,
+    data_tissues_major=None,
+    data_tissues_minor=None,
+):
+    """
+    Organizes source data for sample attributes.
+
+    arguments:
+        data_sample_attribute (object): Pandas data frame of public attributes
+            for all samples
+        data_sample_attribute_private (object): Pandas data frame of private
+            attributes for all samples
+        data_person_attribute (object): Pandas data frame of public attributes
+            for persons
+        data_person_attribute_private (object): Pandas data frame of private
+            attributes for persons
+        data_person_ancestry (object): Pandas data frame of ancestry for
+            persons
+        data_genotype_component_gcta (object): Pandas data frame of principal
+            components from genotypes for persons, as calculated in GCTA
+        data_genotype_component_plink (object): Pandas data frame of principal
+            components from genotypes for persons, as calculated in PLINK2
+        data_tissues_major (object): Pandas data frame of translations for
+            names of major tissues
+        data_tissues_minor (object): Pandas data frame of translations for
+            names of minor tissues
+
+    raises:
+
+    returns:
+        (dict): collection of data
+
+    """
+
+    # Organize data.
+    bin = dict()
+    bin["data_sample_attribute"] = data_sample_attribute.set_index(
+        ["SAMPID"],
+        append=False,
+        drop=True,
+        inplace=False
+    )
+    bin["data_sample_attribute_private"] = (
+        data_sample_attribute_private.set_index(
+            ["SAMPID"],
+            append=False,
+            drop=True,
+            inplace=False
+    ))
+    bin["data_person_attribute"] = data_person_attribute.set_index(
+        ["SUBJID"],
+        append=False,
+        drop=True,
+        inplace=False
+    )
+    bin["data_person_attribute_private"] = (
+        data_person_attribute_private.set_index(
+            ["SUBJID"],
+            append=False,
+            drop=True,
+            inplace=False
+    ))
+    bin["data_person_ancestry"] = data_person_ancestry.set_index(
+        ["IID"],
+        append=False,
+        drop=True,
+        inplace=False
+    )
+    bin["data_genotype_component_gcta"] = (
+        data_genotype_component_gcta.set_index(
+            ["person"],
+            append=False,
+            drop=True,
+            inplace=False
+    ))
+    bin["data_genotype_component_plink"] = (
+        data_genotype_component_plink.set_index(
+            ["person"],
+            append=False,
+            drop=True,
+            inplace=False
+    ))
+    bin["data_tissues_major"] = data_tissues_major.set_index(
+        ["source"],
+        append=False,
+        drop=True,
+        inplace=False
+    )
+    bin["data_tissues_minor"] = data_tissues_minor.set_index(
+        ["source"],
+        append=False,
+        drop=True,
+        inplace=False
+    )
+    # Return information.
+    return bin
+
+
+def organize_person_health_variables_collections(
+    variables_health=None,
+    data_person_attribute=None,
+    data_person_attribute_private=None,
+    report=None,
+):
+    """
+    Associates samples, tissues, and persons and collects their attributes.
+
+    arguments:
+        variables_health (dict<list<str>>): names of variables
+        data_person_attribute (object): Pandas data frame of public attributes
+            for persons
+        data_person_attribute_private (object): Pandas data frame of private
+            attributes for persons
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict): collection of data
+
+    """
+
+    # Copy data.
+    data_private = data_person_attribute_private.copy(deep=True)
+    # Select data for each collection of variables.
+    bin = dict()
+    for collection in variables_health.keys():
+        # Select relevant variables.
+        data_selection = data_private.loc[
+            :, data_private.columns.isin(variables_health[collection])
+        ]
+        # Rename index.
+        data_selection.rename_axis(
+            index="person",
+            axis="index",
+            copy=False,
+            inplace=True,
+        )
+        # Translate values.
+        bin[collection] = data_selection.applymap(
+            lambda value: translate_binary_boolean(
+                value=value,
+                translation="binary",
+            )
+        )
+        # Report.
+        if report:
+            utility.print_terminal_partition(level=2)
+            print("Collections of persons' health variables.")
+            print("Collection: " + str(collection))
+            utility.print_terminal_partition(level=2)
+            print("before translation...")
+            print(data_selection)
+            utility.print_terminal_partition(level=3)
+            print("after translation...")
+            print(bin[collection])
+    # Return information.
+    return bin
 
 
 def extract_gtex_sample_person_identifier(sample=None):
@@ -605,12 +773,64 @@ def extract_person_genotypes(
     return information
 
 
-def translate_binary_boolean(value=None):
+def define_person_binary_health_variables():
+    """
+    Defines a list of variables' names.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<list<str>>): names of variables
+
+    """
+
+    # Respiratory disorders.
+    respiration = [
+        "MHCOPD", "MHCLRD", "MHCOUGHU", "MHSMKSTS", "MHASTHMA", "MHSRCDSS",
+        "MHPNMNIA", "MHPNMIAB", "MHTBHX",
+    ]
+    # Inflammatory disorders.
+    inflammation = [
+        "MHABNWBC", "MHFVRU", "MHTEMPU", "MHARTHTS", "MHRA", "MHLAPTHU",
+        "MHASCITES", "MHLUPUS", "MHSCLRDRM", "MHLVRDIS", "MHNEPH", "MHPRKNSN",
+        "MHALZHMR", "MHALZDMT", "MHDMNTIA", "MHALS", "MHMS",
+    ]
+    # Infections.
+    infection = [
+        "MHFNGINF", "MHBCTINF", "MHSEPSIS", "MHPSBLDCLT", "MHOPPINF",
+        "MHINFLNE", "MHOSTMYLTS", "MHGNRR12M", "MHSYPH12M", "LBPRRVDRL",
+        "LBRPR", "MHSTD", "MHENCEPHA", "MHFLU", "MHREYES", "MHSARS",
+        "MHMENINA", "MHRBSANML", "MHSMLPXCT", "MHHIVCT", "LBHIV1NT", "LBHIVAB",
+        "LBHIVO", "MHHEPCCT", "LBHCV1NT", "LBHBHCVAB", "MHHEPBCT", "LBHBCABM",
+        "LBHBCABT", "LBHBSAB", "LBHBSAG", "MHWNVCT", "MHWNVHX", "LBCMVTAB",
+        "LBEBVGAB", "LBEBVMAB",
+    ]
+    # Steroids.
+    steroid = [
+        "MHHGH", "MHSTRDLT",
+    ]
+    # Compile information.
+    bin = dict()
+    bin["respiration"] = respiration
+    bin["inflammation"] = inflammation
+    bin["infection"] = infection
+    bin["steroid"] = steroid
+    # Return information.
+    return bin
+
+
+def translate_binary_boolean(
+    value=None,
+    translation=None,
+):
     """
     Translates values of a binary boolean variable.
 
     arguments:
         value (int): value of variable from GTEx
+        translation (str): translation, either binary or boolean
 
     raises:
 
@@ -619,24 +839,37 @@ def translate_binary_boolean(value=None):
 
     """
 
+    # Translate values.
     if isinstance(value, str):
         if (str(value).strip().lower() == "yes"):
-            translation = True
+            if translation == "binary":
+                value_translation = 1
+            elif translation == "boolean":
+                value_translation = True
         elif (str(value).strip().lower() == "no"):
-            translation = False
+            if translation == "binary":
+                value_translation = 0
+            elif translation == "boolean":
+                value_translation = False
         else:
-            translation = float("nan")
+            value_translation = float("nan")
     elif (isinstance(value, int) or isinstance(value, float)):
         # Accommodate floats or inexact entries.
-        if (value > 0.5):
-            translation = True
-        elif (value < 0.5):
-            translation = False
+        if (0.5 < value and value < 1.5):
+            if translation == "binary":
+                value_translation = 1
+            elif translation == "boolean":
+                value_translation = True
+        elif (0 <= value and value <= 0.5):
+            if translation == "binary":
+                value_translation = 0
+            elif translation == "boolean":
+                value_translation = False
         else:
-            translation = float("nan")
+            value_translation = float("nan")
     else:
-        translation = float("nan")
-    return translation
+        value_translation = float("nan")
+    return value_translation
 
 
 def determine_person_boolean_binary_any(
@@ -662,22 +895,32 @@ def determine_person_boolean_binary_any(
 
     """
 
-    # Collect values of variables.
-    values = list()
+    # Collect raw values of variables.
+    values_raw = list()
     for variable in variables:
         value = data_person_attribute_private.at[person, variable]
-        values.append(value)
-    values_true = list(map(
-        lambda value: translate_binary_boolean(value=value), values
+        values_raw.append(value)
+    # Translate raw values.
+    values_translation = list(map(
+        lambda value: translate_binary_boolean(
+            value=value, translation="boolean"), values_raw
     ))
-    values_false = list(map(
-        lambda value: not translate_binary_boolean(value=value), values
+    # Remove missing values.
+    # Missing values evaluate to true.
+    values_valid_true = list(filter(
+        lambda value: not math.isnan(value),
+        values_translation
+    ))
+    # Invert values.
+    values_valid_false = list(map(
+        lambda value: not value, values_valid_true
     ))
     # Determine whether any of the values represent true.
-    if any(values_true):
-        match = True
-    elif any(values_false):
-        match = False
+    if len(values_valid_true) > 0:
+        if any(values_valid_true):
+            match = True
+        elif any(values_valid_false):
+            match = False
     else:
         match = float("nan")
     return match
@@ -685,6 +928,7 @@ def determine_person_boolean_binary_any(
 
 def determine_sample_associations_attributes(
     sample=None,
+    variables_health=None,
     data_sample_attribute=None,
     data_sample_attribute_private=None,
     data_person_attribute=None,
@@ -700,6 +944,7 @@ def determine_sample_associations_attributes(
 
     arguments:
         sample (str): identifier of a sample
+        variables_health (dict<list<str>>): names of variables
         data_sample_attribute (object): Pandas data frame of public attributes
             for all samples
         data_sample_attribute_private (object): Pandas data frame of private
@@ -753,6 +998,7 @@ def determine_sample_associations_attributes(
     delay_incision = data_person_attribute_private.at[person, "TRCHSTIND"]
     refrigeration = translate_binary_boolean(
         value=data_person_attribute_private.at[person, "DTHRFG"],
+        translation="boolean",
     )
     refrigeration_duration = (
         data_person_attribute_private.at[person, "DTHRFGD"]
@@ -760,10 +1006,13 @@ def determine_sample_associations_attributes(
     refrigeration_unit = (
         data_person_attribute_private.at[person, "DTHRFGDU"]
     )
-    ventilation = determine_person_boolean_binary_any(
-        person=person,
-        variables=["DTHVNT", "TRVNTSR"],
-        data_person_attribute_private=data_person_attribute_private,
+    ventilation = translate_binary_boolean(
+        value=data_person_attribute_private.at[person, "DTHVNT"],
+        translation="boolean",
+    )
+    ventilation_verification = translate_binary_boolean(
+        value=data_person_attribute_private.at[person, "TRVNTSR"],
+        translation="boolean",
     )
     ventilation_duration = (
         data_person_attribute_private.at[person, "DTHVNTD"]
@@ -787,40 +1036,25 @@ def determine_sample_associations_attributes(
     # Determine persons' history of respiratory conditions.
     respiration = determine_person_boolean_binary_any(
         person=person,
-        variables=[
-            "MHCOPD", "MHCLRD", "MHCOUGHU", "MHSMKSTS", "MHASTHMA", "MHSRCDSS",
-            "MHPNMNIA", "MHPNMIAB", "MHTBHX"
-        ],
+        variables=variables_health["respiration"],
         data_person_attribute_private=data_person_attribute_private,
     )
     # Determine persons' history of chronic inflammation.
     inflammation = determine_person_boolean_binary_any(
         person=person,
-        variables=[
-            "MHABNWBC", "MHFVRU", "MHTEMPU", "MHARTHTS", "MHRA", "MHLAPTHU",
-            "MHASCITES", "MHLUPUS", "MHSCLRDRM", "MHLVRDIS", "MHNEPH",
-            "MHPRKNSN", "MHALZHMR", "MHALZDMT", "MHDMNTIA", "MHALS", "MHMS"
-        ],
+        variables=variables_health["inflammation"],
         data_person_attribute_private=data_person_attribute_private,
     )
     # Determine persons' history of infection.
     infection = determine_person_boolean_binary_any(
         person=person,
-        variables=[
-            "MHFNGINF", "MHBCTINF", "MHSEPSIS", "MHPSBLDCLT", "MHOPPINF",
-            "MHINFLNE", "MHOSTMYLTS", "MHGNRR12M", "MHSYPH12M", "LBPRRVDRL",
-            "LBRPR", "MHSTD", "MHENCEPHA", "MHFLU", "MHREYES", "MHSARS",
-            "MHMENINA", "MHRBSANML", "MHSMLPXCT", "MHHIVCT", "LBHIV1NT",
-            "LBHIVAB", "LBHIVO", "MHHEPCCT", "LBHCV1NT", "LBHBHCVAB",
-            "MHHEPBCT", "LBHBCABM", "LBHBCABT", "LBHBSAB", "LBHBSAG",
-            "MHWNVCT", "MHWNVHX", "LBCMVTAB", "LBEBVGAB", "LBEBVMAB"
-        ],
+        variables=variables_health["infection"],
         data_person_attribute_private=data_person_attribute_private,
     )
     # Determine persons' history of steroid use.
     steroid = determine_person_boolean_binary_any(
         person=person,
-        variables=["MHHGH", "MHSTRDLT"],
+        variables=variables_health["steroid"],
         data_person_attribute_private=data_person_attribute_private,
     )
 
@@ -847,6 +1081,7 @@ def determine_sample_associations_attributes(
         "refrigeration_duration": refrigeration_duration,
         "refrigeration_unit": refrigeration_unit,
         "ventilation": ventilation,
+        "ventilation_verification": ventilation_verification,
         "ventilation_duration": ventilation_duration,
         "ventilation_unit": ventilation_unit,
         "respiration": respiration,
@@ -860,6 +1095,7 @@ def determine_sample_associations_attributes(
 
 def collect_samples_tissues_persons(
     samples=None,
+    variables_health=None,
     data_sample_attribute=None,
     data_sample_attribute_private=None,
     data_person_attribute=None,
@@ -875,6 +1111,7 @@ def collect_samples_tissues_persons(
 
     arguments:
         samples (list<str>): identifiers of samples with signals for genes
+        variables_health (dict<list<str>>): names of variables
         data_sample_attribute (object): Pandas data frame of public attributes
             for all samples
         data_sample_attribute_private (object): Pandas data frame of private
@@ -901,66 +1138,12 @@ def collect_samples_tissues_persons(
 
     """
 
-    # Organize data.
-    data_sample_attribute.set_index(
-        ["SAMPID"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data_sample_attribute_private.set_index(
-        ["SAMPID"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data_person_attribute.set_index(
-        ["SUBJID"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data_person_attribute_private.set_index(
-        ["SUBJID"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data_person_ancestry.set_index(
-        ["IID"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data_genotype_component_gcta.set_index(
-        ["person"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data_genotype_component_plink.set_index(
-        ["person"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data_tissues_major.set_index(
-        ["source"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    data_tissues_minor.set_index(
-        ["source"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
     # Collect tissues and persons for each sample.
     samples_tissues_persons = list()
     for sample in samples:
         record = determine_sample_associations_attributes(
             sample=sample,
+            variables_health=variables_health,
             data_sample_attribute=data_sample_attribute,
             data_sample_attribute_private=data_sample_attribute_private,
             data_person_attribute=data_person_attribute,
@@ -1062,9 +1245,9 @@ def organize_samples_tissues_persons(
     #headers = source["data_gene_signal"].columns.to_list()
     # Exclude name and description.
     #samples = headers[2:]
-    # Collect information about samples.
-    samples_tissues_persons = collect_samples_tissues_persons(
-        samples=source["samples_gtex"],
+
+    # Organize source data.
+    bin_data = organize_sample_attribute_source_data(
         data_person_attribute=source["data_person_attribute"],
         data_person_attribute_private=source["data_person_attribute_private"],
         data_person_ancestry=source["data_person_ancestry"],
@@ -1074,6 +1257,37 @@ def organize_samples_tissues_persons(
         data_sample_attribute_private=source["data_sample_attribute_private"],
         data_tissues_major=source["data_tissues_major"],
         data_tissues_minor=source["data_tissues_minor"],
+    )
+    # Define collections of health variables for persons.
+    variables_health = define_person_binary_health_variables()
+    # Organize collections of health variables across persons.
+    bin_health = organize_person_health_variables_collections(
+        variables_health=variables_health,
+        data_person_attribute=bin_data["data_person_attribute"],
+        data_person_attribute_private=(
+            bin_data["data_person_attribute_private"]
+        ),
+        report=False,
+    )
+    # Collect information about samples.
+    samples_tissues_persons = collect_samples_tissues_persons(
+        samples=source["samples_gtex"],
+        variables_health=variables_health,
+        data_person_attribute=bin_data["data_person_attribute"],
+        data_person_attribute_private=(
+            bin_data["data_person_attribute_private"]
+        ),
+        data_person_ancestry=bin_data["data_person_ancestry"],
+        data_genotype_component_gcta=bin_data["data_genotype_component_gcta"],
+        data_genotype_component_plink=(
+            bin_data["data_genotype_component_plink"]
+        ),
+        data_sample_attribute=bin_data["data_sample_attribute"],
+        data_sample_attribute_private=(
+            bin_data["data_sample_attribute_private"]
+        ),
+        data_tissues_major=bin_data["data_tissues_major"],
+        data_tissues_minor=bin_data["data_tissues_minor"],
     )
     data_samples_tissues_persons = utility.convert_records_to_dataframe(
         records=samples_tissues_persons
@@ -1109,6 +1323,7 @@ def organize_samples_tissues_persons(
     information = {
         "data_samples_tissues_persons": data_samples_tissues_persons,
         "data_genotype_variance_plink": data_genotype_variance_plink,
+        "collections_health_variables": bin_health,
     }
 
     #Write product information to file.
@@ -2018,9 +2233,11 @@ def write_product_sample(dock=None, information=None):
     path_samples_tissues_persons_text = os.path.join(
         path_assembly, "data_samples_tissues_persons.tsv"
     )
-
     path_genotype_variance_plink = os.path.join(
         path_assembly, "data_genotype_variance_plink.pickle"
+    )
+    path_collections_health = os.path.join(
+        path_assembly, "collections_health_variables.pickle"
     )
 
     # Write information to file.
@@ -2034,11 +2251,12 @@ def write_product_sample(dock=None, information=None):
         header=True,
         index=True,
     )
-
     pandas.to_pickle(
         information["data_genotype_variance_plink"],
         path_genotype_variance_plink
     )
+    with open(path_collections_health, "wb") as file_product:
+        pickle.dump(information["collections_health_variables"], file_product)
 
     pass
 
@@ -2221,7 +2439,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize genes' annotations.
-    organize_genes_annotations(dock=dock)
+    #organize_genes_annotations(dock=dock)
 
     # Collect garbage to clear memory.
     gc.collect()
@@ -2241,7 +2459,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize genes' signals.
-    organize_genes_signals(dock=dock)
+    #organize_genes_signals(dock=dock)
 
     # Collect garbage to clear memory.
     gc.collect()

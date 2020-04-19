@@ -433,6 +433,7 @@ def plot_heatmap_asymmetric_groups(
     data=None,
     fonts=None,
     colors=None,
+    title_signal=None,
 ):
     """
     Creates a figure of a chart of type heatmap.
@@ -459,6 +460,7 @@ def plot_heatmap_asymmetric_groups(
             to columns and rows that will be transposed in heatmap
         fonts (dict<object>): references to definitions of font properties
         colors (dict<tuple>): references to definitions of color properties
+        title_signal (str): title for color bar on main chart
 
     raises:
 
@@ -523,7 +525,7 @@ def plot_heatmap_asymmetric_groups(
             wspace=0.05,
             height_ratios=[1, 10],
             width_ratios=[50, 1],
-            left=0.09,
+            left=0.1,
             right=0.94,
             top=0.94,
             bottom=0.05,
@@ -697,7 +699,7 @@ def plot_heatmap_asymmetric_groups(
         use_gridspec=True,
     )
     bar_value.ax.set_ylabel(
-        "genes' pan-tissue signals across persons",
+        title_signal,
         rotation=-90,
         ha="center",
         va="bottom",
@@ -1504,6 +1506,735 @@ def write_figure_png(path=None, figure=None):
 
 ##################################################
 # Procedures
+
+
+##########
+# Selection of health history variables for persons respiration, inflammation,
+# infection, and steroid.
+# heatmaps
+# Status: working
+
+
+def read_source_persons_health_variables(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_collections_health = os.path.join(
+        dock, "assembly", "sample", "collections_health_variables.pickle"
+    )
+    path_persons_selection = os.path.join(
+        dock, "selection", "tight", "samples_genes_signals", "persons.pickle"
+    )
+    path_persons_sets = os.path.join(
+        dock, "selection", "tight", "persons_properties", "charts",
+        "persons_sets.pickle"
+    )
+    path_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", "regression",
+        "data_persons_properties.pickle"
+    )
+
+    # Read information from file.
+    with open(path_collections_health, "rb") as file_source:
+        collections_health_variables = pickle.load(file_source)
+    with open(path_persons_selection, "rb") as file_source:
+        persons_selection = pickle.load(file_source)
+    with open(path_persons_sets, "rb") as file_source:
+        persons_sets = pickle.load(file_source)
+    data_persons_properties = pandas.read_pickle(path_persons_properties)
+    # Compile and return information.
+    return {
+        "collections_health_variables": collections_health_variables,
+        "persons_selection": persons_selection,
+        "persons_sets": persons_sets,
+        "data_persons_properties": data_persons_properties,
+    }
+
+
+def organize_persons_health_variables(
+    property=None,
+    type=None,
+    sequence=None,
+    persons=None,
+    data_persons_properties=None,
+    health_collection=None,
+    data_health_collection=None,
+):
+    """
+    Organize information for chart.
+
+    Notice that the data have features (health variables) across columns and
+    instances (persons) across rows.
+
+    Sequence of genes across rows depends on hierarchical cluster by their
+    similarities across persons.
+    Sequence of persons across columns depends either on sort by values of
+    property or on hierarchical cluster by their similarities across genes.
+
+    arguments:
+        property (str): name of feature from persons' properties to use for
+            groups
+        type (str): type of property, category or continuity
+        sequence (str): method for sequence of persons, sort by property's
+            values or cluster by similarities across genes
+        persons (list<str>): identifiers of persons
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+        health_collection (str): name of collection of health variables
+        data_health_collection (object): Pandas data frame of health variables
+            across persons
+
+    raises:
+
+    returns:
+        (dict): information for chart
+
+    """
+
+    # Copy data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+    data_health_collection = data_health_collection.copy(deep=True)
+    # Organize health variables.
+    # Select data for persons.
+    data_health_selection = data_health_collection.loc[
+        data_health_collection.index.isin(persons), :
+    ]
+    # Replace missing values with zero.
+    data_health_selection.fillna(
+        value=0.0,
+        #axis="columns",
+        inplace=True,
+    )
+    # Cluster data.
+    # Cluster features.
+    data_health_cluster = utility.cluster_data_columns(
+        data=data_health_selection,
+    )
+    # Cluster or sort instances.
+    if sequence == "cluster":
+        data_health_sequence = utility.cluster_data_rows(
+            data=data_health_cluster,
+        )
+    elif sequence == "sort":
+        data_health_sequence = data_health_cluster
+    # Organize properties.
+    if type == "category":
+        data_persons_properties["property"], properties = pandas.factorize(
+            data_persons_properties[property],
+            sort=True
+        )
+        properties = list(properties)
+    elif type == "continuity":
+        data_persons_properties["property"] = data_persons_properties[property]
+        properties = None
+    data_persons_properties = data_persons_properties.loc[
+        :, data_persons_properties.columns.isin(["property", property])
+    ]
+    data_hybrid = data_health_sequence.join(
+        data_persons_properties,
+        how="left",
+        on="person"
+    )
+    # Determine whether to sort by persons' values of property.
+    if sequence == "sort":
+        data_hybrid.sort_values(
+            by=["property"],
+            axis="index",
+            ascending=True,
+            inplace=True,
+        )
+    # Remove the column for the named property.
+    data_hybrid.drop(
+        labels=[property],
+        axis="columns",
+        inplace=True
+    )
+    # Compile information.
+    bin = dict()
+    bin["properties"] = properties
+    bin["data"] = data_hybrid
+    # Return information
+    return bin
+
+
+def plot_chart_persons_health_variables(
+    name=None,
+    property=None,
+    type=None,
+    properties=None,
+    data=None,
+    path_directory=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        name (str): name of file and chart
+        property (str): name of feature from persons' properties to use for
+            groups
+        type (str): type of property, category or continuity
+        properties (list<str>): unique values of property
+        data (object): Pandas data frame of a gene's aggregate, pantissue
+            signals across tissues and persons
+        path_directory (str): path for directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define file name.
+    path_figure = os.path.join(
+        path_directory, str(name + ".png")
+    )
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+    # Create figure.
+    figure = plot_heatmap_asymmetric_groups(
+        title=name,
+        property=property,
+        type=type,
+        properties=properties,
+        data=data,
+        fonts=fonts,
+        colors=colors,
+        title_signal="persons' health history variables",
+    )
+    # Write figure.
+    write_figure_png(
+        path=path_figure,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_persons_health_variables_variable(
+    property=None,
+    type=None,
+    persons=None,
+    data_persons_properties=None,
+    health_collection=None,
+    data_health_collection=None,
+    path_sort=None,
+    path_cluster=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        property (str): name of feature from persons' properties to use for
+            groups
+        type (str): type of property, category or continuity
+        persons (list<str>): identifiers of persons
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+        health_collection (str): name of collection of health variables
+        data_health_collection (object): Pandas data frame of health variables
+            across persons
+        path_sort (str): path to directory
+        path_cluster (str): path to directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Organize data.
+    # Sort persons by their pantissue aggregate signals for the gene.
+    # The same order is important to compare the heatmap to the histogram.
+    bin = organize_persons_health_variables(
+        property=property,
+        type=type,
+        sequence="sort",
+        persons=persons,
+        data_persons_properties=data_persons_properties,
+        health_collection=health_collection,
+        data_health_collection=data_health_collection,
+    )
+    # Create charts for the gene.
+    plot_chart_persons_health_variables(
+        name=str(health_collection + "_" + property),
+        property=property,
+        type=type,
+        properties=bin["properties"],
+        data=bin["data"],
+        path_directory=path_sort,
+    )
+
+    # Organize data.
+    # Sort persons by their pantissue aggregate signals for the gene.
+    # The same order is important to compare the heatmap to the histogram.
+    bin = organize_persons_health_variables(
+        property=property,
+        type=type,
+        sequence="cluster",
+        persons=persons,
+        data_persons_properties=data_persons_properties,
+        health_collection=health_collection,
+        data_health_collection=data_health_collection,
+    )
+    # Create charts for the gene.
+    plot_chart_persons_health_variables(
+        name=str(health_collection + "_" + property),
+        property=property,
+        type=type,
+        properties=bin["properties"],
+        data=bin["data"],
+        path_directory=path_cluster,
+    )
+    pass
+
+
+def prepare_charts_persons_health_variables(
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_persons_health_variables(dock=dock)
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_assembly = os.path.join(path_plot, "assembly")
+    path_persons_health = os.path.join(
+        path_assembly, "persons_health_variables"
+    )
+    path_sort = os.path.join(
+        path_persons_health, "sort_persons"
+    )
+    path_cluster = os.path.join(
+        path_persons_health, "cluster_persons"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_persons_health)
+    utility.create_directories(path=path_sort)
+    utility.create_directories(path=path_cluster)
+
+    # Iterate on categorical and ordinal groups of properties.
+    properties = list()
+    properties.append(dict(name="sex_text", type="category"))
+    properties.append(dict(name="age", type="continuity"))
+    properties.append(dict(name="body", type="continuity"))
+    properties.append(dict(name="hardiness", type="continuity"))
+    properties.append(dict(name="climate", type="continuity"))
+    properties.append(dict(name="ventilation", type="category"))
+    properties.append(dict(name="refrigeration", type="category"))
+    # Iterate on collections of health variables.
+    for collection in source["collections_health_variables"]:
+        # Iterate on categorical variables.
+        for property in properties:
+            # Prepare charts for genes.
+            prepare_charts_persons_health_variables_variable(
+                property=property["name"],
+                type=property["type"],
+                persons=source["persons_sets"]["selection"],
+                data_persons_properties=source["data_persons_properties"],
+                health_collection=collection,
+                data_health_collection=(
+                    source["collections_health_variables"][collection]
+                ),
+                path_sort=path_sort,
+                path_cluster=path_cluster,
+            )
+            pass
+    pass
+
+
+##########
+# Selection of health history variables for persons respiration, inflammation,
+# infection, and steroid.
+# heatmaps
+# Status: working
+
+
+def read_source_persons_properties_adjacency(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_collections_health = os.path.join(
+        dock, "assembly", "sample", "collections_health_variables.pickle"
+    )
+    path_persons_selection = os.path.join(
+        dock, "selection", "tight", "samples_genes_signals", "persons.pickle"
+    )
+    path_persons_sets = os.path.join(
+        dock, "selection", "tight", "persons_properties", "charts",
+        "persons_sets.pickle"
+    )
+    path_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", "regression",
+        "data_persons_properties.pickle"
+    )
+
+    # Read information from file.
+    with open(path_collections_health, "rb") as file_source:
+        collections_health_variables = pickle.load(file_source)
+    with open(path_persons_selection, "rb") as file_source:
+        persons_selection = pickle.load(file_source)
+    with open(path_persons_sets, "rb") as file_source:
+        persons_sets = pickle.load(file_source)
+    data_persons_properties = pandas.read_pickle(path_persons_properties)
+    # Compile and return information.
+    return {
+        "collections_health_variables": collections_health_variables,
+        "persons_selection": persons_selection,
+        "persons_sets": persons_sets,
+        "data_persons_properties": data_persons_properties,
+    }
+
+
+def organize_persons_properties_adjacency(
+    property=None,
+    type=None,
+    sequence=None,
+    persons=None,
+    data_persons_properties=None,
+    health_collection=None,
+    data_health_collection=None,
+):
+    """
+    Organize information for chart.
+
+    Notice that the data have features (health variables) across columns and
+    instances (persons) across rows.
+
+    Sequence of genes across rows depends on hierarchical cluster by their
+    similarities across persons.
+    Sequence of persons across columns depends either on sort by values of
+    property or on hierarchical cluster by their similarities across genes.
+
+    arguments:
+        property (str): name of feature from persons' properties to use for
+            groups
+        type (str): type of property, category or continuity
+        sequence (str): method for sequence of persons, sort by property's
+            values or cluster by similarities across genes
+        persons (list<str>): identifiers of persons
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+        health_collection (str): name of collection of health variables
+        data_health_collection (object): Pandas data frame of health variables
+            across persons
+
+    raises:
+
+    returns:
+        (dict): information for chart
+
+    """
+
+    # Copy data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+    data_health_collection = data_health_collection.copy(deep=True)
+    # Organize health variables.
+    # Select data for persons.
+    data_health_selection = data_health_collection.loc[
+        data_health_collection.index.isin(persons), :
+    ]
+    # Replace missing values with zero.
+    data_health_selection.fillna(
+        value=0.0,
+        #axis="columns",
+        inplace=True,
+    )
+    # Cluster data.
+    # Cluster features.
+    data_health_cluster = utility.cluster_data_columns(
+        data=data_health_selection,
+    )
+    # Cluster or sort instances.
+    if sequence == "cluster":
+        data_health_sequence = utility.cluster_data_rows(
+            data=data_health_cluster,
+        )
+    elif sequence == "sort":
+        data_health_sequence = data_health_cluster
+    # Organize properties.
+    if type == "category":
+        data_persons_properties["property"], properties = pandas.factorize(
+            data_persons_properties[property],
+            sort=True
+        )
+        properties = list(properties)
+    elif type == "continuity":
+        data_persons_properties["property"] = data_persons_properties[property]
+        properties = None
+    data_persons_properties = data_persons_properties.loc[
+        :, data_persons_properties.columns.isin(["property", property])
+    ]
+    data_hybrid = data_health_sequence.join(
+        data_persons_properties,
+        how="left",
+        on="person"
+    )
+    # Determine whether to sort by persons' values of property.
+    if sequence == "sort":
+        data_hybrid.sort_values(
+            by=["property"],
+            axis="index",
+            ascending=True,
+            inplace=True,
+        )
+    # Remove the column for the named property.
+    data_hybrid.drop(
+        labels=[property],
+        axis="columns",
+        inplace=True
+    )
+    # Compile information.
+    bin = dict()
+    bin["properties"] = properties
+    bin["data"] = data_hybrid
+    # Return information
+    return bin
+
+
+def plot_chart_persons_properties_adjacency(
+    name=None,
+    property=None,
+    type=None,
+    properties=None,
+    data=None,
+    path_directory=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        name (str): name of file and chart
+        property (str): name of feature from persons' properties to use for
+            groups
+        type (str): type of property, category or continuity
+        properties (list<str>): unique values of property
+        data (object): Pandas data frame of a gene's aggregate, pantissue
+            signals across tissues and persons
+        path_directory (str): path for directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define file name.
+    path_figure = os.path.join(
+        path_directory, str(name + ".png")
+    )
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+    # Create figure.
+    figure = plot_heatmap_asymmetric_groups(
+        title=name,
+        property=property,
+        type=type,
+        properties=properties,
+        data=data,
+        fonts=fonts,
+        colors=colors,
+        title_signal="persons' health history variables",
+    )
+    # Write figure.
+    write_figure_png(
+        path=path_figure,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_persons_properties_adjacency_property(
+    property=None,
+    type=None,
+    persons=None,
+    data_persons_properties=None,
+    health_collection=None,
+    data_health_collection=None,
+    path_sort=None,
+    path_cluster=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        property (str): name of feature from persons' properties to use for
+            groups
+        type (str): type of property, category or continuity
+        persons (list<str>): identifiers of persons
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+        health_collection (str): name of collection of health variables
+        data_health_collection (object): Pandas data frame of health variables
+            across persons
+        path_sort (str): path to directory
+        path_cluster (str): path to directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Organize data.
+    # Sort persons by their pantissue aggregate signals for the gene.
+    # The same order is important to compare the heatmap to the histogram.
+    bin = organize_persons_health_variables(
+        property=property,
+        type=type,
+        sequence="sort",
+        persons=persons,
+        data_persons_properties=data_persons_properties,
+        health_collection=health_collection,
+        data_health_collection=data_health_collection,
+    )
+    # Create charts for the gene.
+    plot_chart_persons_health_variables(
+        name=str(health_collection + "_" + property),
+        property=property,
+        type=type,
+        properties=bin["properties"],
+        data=bin["data"],
+        path_directory=path_sort,
+    )
+
+    # Organize data.
+    # Sort persons by their pantissue aggregate signals for the gene.
+    # The same order is important to compare the heatmap to the histogram.
+    bin = organize_persons_health_variables(
+        property=property,
+        type=type,
+        sequence="cluster",
+        persons=persons,
+        data_persons_properties=data_persons_properties,
+        health_collection=health_collection,
+        data_health_collection=data_health_collection,
+    )
+    # Create charts for the gene.
+    plot_chart_persons_health_variables(
+        name=str(health_collection + "_" + property),
+        property=property,
+        type=type,
+        properties=bin["properties"],
+        data=bin["data"],
+        path_directory=path_cluster,
+    )
+    pass
+
+
+def prepare_charts_persons_properties_adjacency(
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_persons_properties_adjacency(dock=dock)
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_assembly = os.path.join(path_plot, "assembly")
+    path_persons_properties = os.path.join(
+        path_assembly, "persons_properties"
+    )
+    path_sort = os.path.join(
+        path_persons_properties, "sort_persons"
+    )
+    path_cluster = os.path.join(
+        path_persons_properties, "cluster_persons"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_persons_properties)
+    utility.create_directories(path=path_sort)
+    utility.create_directories(path=path_cluster)
+
+    # Iterate on categorical and ordinal groups of properties.
+    properties = list()
+    properties.append(dict(name="sex_text", type="category"))
+    properties.append(dict(name="age", type="continuity"))
+    properties.append(dict(name="body", type="continuity"))
+    properties.append(dict(name="hardiness", type="continuity"))
+    properties.append(dict(name="climate", type="continuity"))
+    properties.append(dict(name="ventilation", type="category"))
+    properties.append(dict(name="refrigeration", type="category"))
+    # Iterate on collections of health variables.
+    for collection in source["collections_health_variables"]:
+        # Iterate on categorical variables.
+        for property in properties:
+            # Prepare charts for genes.
+            prepare_charts_persons_health_variables_variable(
+                property=property["name"],
+                type=property["type"],
+                persons=source["persons_sets"]["selection"],
+                data_persons_properties=source["data_persons_properties"],
+                health_collection=collection,
+                data_health_collection=(
+                    source["collections_health_variables"][collection]
+                ),
+                path_sort=path_sort,
+                path_cluster=path_cluster,
+            )
+            pass
+    pass
+
+
+
 
 
 ##########
@@ -4180,6 +4911,7 @@ def plot_chart_genes_signals_tissues_persons(
         data=data,
         fonts=fonts,
         colors=colors,
+        title_signal="genes' pan-tissue signals across persons",
     )
     # Write figure.
     write_figure_png(
@@ -4627,6 +5359,7 @@ def plot_chart_genes_signals_persons_properties(
         data=data,
         fonts=fonts,
         colors=colors,
+        title_signal="genes' pan-tissue signals across persons",
     )
     # Write figure.
     write_figure_png(
@@ -6942,13 +7675,30 @@ def execute_procedure(dock=None):
     ##########
     ##########
     ##########
+    # Assembly procedure
+
+    # Plot charts, heatmaps, for values of GTEx clinical health variables
+    # across persons.
+    # Clinical health variables will be across rows, and persons will be across
+    # columns.
+    # Sort order across rows depends on hierarchical clustering.
+    # Sort order across columns depends on hierarchical clustering.
+    #prepare_charts_persons_health_variables(dock=dock)
+
+    # Plot charts, heatmaps, for adjacent summaries of properties across
+    # persons.
+    #prepare_charts_persons_properties_adjacency(dock=dock)
+
+    ##########
+    ##########
+    ##########
     # Selection procedure
 
     # Plot charts for sex, age, and hardiness of persons in GTEx cohort.
     #prepare_charts_persons_sex_age_hardiness(dock=dock)
 
     # Plot charts of overlap between sets of persons by clinical categories.
-    prepare_charts_sets_selection_persons_properties(dock=dock)
+    #prepare_charts_sets_selection_persons_properties(dock=dock)
 
 
 

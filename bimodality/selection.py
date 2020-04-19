@@ -18,6 +18,7 @@ import pickle
 import itertools
 import copy
 import gc
+import time
 
 # Relevant
 
@@ -1597,6 +1598,160 @@ def impute_persons_genotypes(
     return data_samples_selection
 
 
+def define_variables():
+    """
+    Defines a list of variables' names for regression analysis.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<list<str>>): names of independent variables for regression
+
+    """
+
+
+    # Logical variables to convert to binary.
+    binary = [
+        "respiration",
+        "inflammation",
+        "infection",
+        "steroid",
+        "ventilation",
+        "refrigeration",
+    ]
+    # Categorical variables for which each person has multiple values.
+    # Reduce dimensionality for these variables.
+    category = [
+        "tissues",
+        "facilities",
+        "batches_extraction",
+        "batches_sequence",
+    ]
+    # Variables of raw values that might require standardization to adjust
+    # scale.
+    scale = [
+        "sex_y",
+        "age",
+        "body",
+        "climate",
+        "hardiness",
+        "respiration_binary",
+        "inflammation_binary",
+        "infection_binary",
+        "steroid_binary",
+        "delay",
+        "ventilation_duration",
+        "refrigeration_duration",
+        "refrigeration_binary",
+    ]
+    # Variables that relate to hypotheses of interest.
+    hypothesis = [
+        "sex_y_scale",
+        "age_scale",
+        "body_scale",
+        "climate_scale",
+        "hardiness_scale",
+        "respiration_binary_scale",
+        "inflammation_binary_scale",
+        #"infection_binary_scale", # omit because all persons are True
+        #"steroid_binary_scale", # omit because very few persons are True
+        "ventilation_duration_scale",
+    ]
+    # Variables that relate to genotype.
+    genotype = [
+        "genotype_1",
+        "genotype_2",
+        "genotype_3",
+        "genotype_4",
+        "genotype_5",
+        #"genotype_6", # <- omit
+        #"genotype_7", # <- omit
+        #"genotype_8", # <- omit
+        #"genotype_9", # <- omit
+        #"genotype_10", # <- omit
+    ]
+    # Variables that relate to technical methods.
+    technique = [
+        "refrigeration_binary_scale", # Use the binary since duration had so many missing values
+        "delay_scale",
+
+        "tissues_1",
+        "tissues_2",
+        "tissues_3",
+        "tissues_4",
+        "tissues_5",
+        #"tissues_6", # <- omit
+        #"tissues_7", # <- omit
+        #"tissues_8", # <- omit
+        #"tissues_9", # <- omit
+        #"tissues_10", # <- omit
+
+        #"facilities_1", # <- omit due to multicollinearity
+        #"facilities_2", # <- omit due to multicollinearity
+        #"facilities_3", # <- omit
+
+        #"batches_extraction_1",
+        #"batches_extraction_2",
+        #"batches_extraction_3",
+        #"batches_extraction_4", # <- omit
+        #"batches_extraction_5", # <- omit
+        #"batches_extraction_6", # <- omit
+        #"batches_extraction_7", # <- omit
+        #"batches_extraction_8", # <- omit
+        #"batches_extraction_9", # <- omit
+        #"batches_extraction_10", # <- omit
+
+        #"batches_sequence_1",
+        #"batches_sequence_2",
+        #"batches_sequence_3",
+        #"batches_sequence_4",
+        #"batches_sequence_5",
+        #"batches_sequence_6", # <- omit
+        #"batches_sequence_7", # <- omit
+        #"batches_sequence_8", # <- omit
+        #"batches_sequence_9", # <- omit
+        #"batches_sequence_10", # <- omit
+    ]
+
+    # Compile variables.
+
+    # Regression.
+    regression = list()
+    regression.extend(hypothesis)
+    regression.extend(genotype)
+    regression.extend(technique)
+
+    # Heritability.
+    heritability_simple = list()
+    heritability_simple.extend(technique)
+    heritability_complex = list()
+    heritability_complex.extend(hypothesis)
+    heritability_complex.extend(technique)
+
+    # Quantitative Trait Loci (QTL).
+    trait = list()
+    trait.extend(hypothesis)
+    trait.extend(technique)
+
+    # Compile information.
+    information = dict()
+    information["binary"] = binary
+    information["category"] = category
+    information["scale"] = scale
+    information["hypothesis"] = hypothesis
+    information["genotype"] = genotype
+    information["technique"] = technique
+    information["regression"] = regression
+    #information["heritability_simple"] = heritability_simple
+    #information["heritability_complex"] = heritability_complex
+    #information["trait"] = trait
+
+    # Return information.
+    return information
+
+
 def impute_samples_duration(
     indicator=None,
     duration=None,
@@ -2017,13 +2172,51 @@ def organize_samples_sex_variables(
     return data_samples
 
 
+def convert_samples_logical_variables_binary(
+    variables=None,
+    data_samples_tissues_persons=None,
+):
+    """
+    Organize variables that relate to biological sex.
+
+    arguments:
+        variables (list<str>): names of logical variables
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues across selection samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues across samples
+
+    """
+
+    # Copy data.
+    data = data_samples_tissues_persons.copy(deep=True)
+    # Iterate on variables.
+    for variable in variables:
+        variable_binary = str(variable + ("_binary"))
+        data[variable_binary] = data[variable].apply(
+            lambda value:
+                0 if (value == False) else
+                (1 if (value == True) else
+                float("nan"))
+        )
+        pass
+    # Return information.
+    return data
+
+
 def organize_samples_properties(
+    variables=None,
     data_samples_tissues_persons_selection=None,
 ):
     """
     Organize persons' properties across samples.
 
     arguments:
+        variables (dict<list<str>>): names of independent variables for
+            regression
         data_samples_tissues_persons_selection (object): Pandas data frame of
             persons and tissues across selection samples
 
@@ -2067,8 +2260,13 @@ def organize_samples_properties(
     data_sex = organize_samples_sex_variables(
         data_samples_tissues_persons=data_season,
     )
+    # Convert logical variables to binary representation for regressions.
+    data_binary = convert_samples_logical_variables_binary(
+        variables=variables["binary"],
+        data_samples_tissues_persons=data_sex,
+    )
     # Return information.
-    return data_sex
+    return data_binary
 
 
 def collect_persons_unique_values(
@@ -2206,139 +2404,6 @@ def extract_persons_properties(
         utility.print_terminal_partition(level=2)
     # Return information.
     return data_collection
-
-
-def define_variables():
-    """
-    Defines a list of variables' names for regression analysis.
-
-    arguments:
-
-    raises:
-
-    returns:
-        (dict<list<str>>): names of independent variables for regression
-
-    """
-
-    # Categorical variables for which each person has multiple values.
-    # Reduce dimensionality for these variables.
-    category = [
-        "tissues",
-        "facilities",
-        "batches_extraction",
-        "batches_sequence",
-    ]
-    # Variables of raw values that might require standardization to adjust
-    # scale.
-    scale = [
-        "sex_y",
-        "age",
-        "body",
-        "hardiness",
-        "climate",
-        "delay",
-        "ventilation_duration",
-        "refrigeration_duration",
-    ]
-
-    # Variables that relate to hypotheses of interest.
-    hypothesis = [
-        "female_scale",
-        "age_scale",
-        "body_scale",
-        "hardiness_scale", # "hardiness_scale" or "hardiness"
-        "climate_scale", # "season_scale" or "season_sequence"
-    ]
-    # Variables that relate to genotype.
-    genotype = [
-        "genotype_1",
-        "genotype_2",
-        "genotype_3",
-        "genotype_4",
-        "genotype_5",
-        #"genotype_6", # <- omit
-        #"genotype_7", # <- omit
-        #"genotype_8", # <- omit
-        #"genotype_9", # <- omit
-        #"genotype_10", # <- omit
-    ]
-    # Variables that relate to technical methods.
-    technique = [
-        "delay_scale",
-
-        "tissues_1",
-        "tissues_2",
-        "tissues_3",
-        "tissues_4",
-        "tissues_5",
-        #"tissues_6", # <- omit
-        #"tissues_7", # <- omit
-        #"tissues_8", # <- omit
-        #"tissues_9", # <- omit
-        #"tissues_10", # <- omit
-
-        #"facilities_1", # <- omit due to multicollinearity
-        #"facilities_2", # <- omit due to multicollinearity
-        #"facilities_3", # <- omit
-
-        #"batches_extraction_1",
-        #"batches_extraction_2",
-        #"batches_extraction_3",
-        #"batches_extraction_4", # <- omit
-        #"batches_extraction_5", # <- omit
-        #"batches_extraction_6", # <- omit
-        #"batches_extraction_7", # <- omit
-        #"batches_extraction_8", # <- omit
-        #"batches_extraction_9", # <- omit
-        #"batches_extraction_10", # <- omit
-
-        "batches_sequence_1",
-        "batches_sequence_2",
-        "batches_sequence_3",
-        "batches_sequence_4",
-        "batches_sequence_5",
-        #"batches_sequence_6", # <- omit
-        #"batches_sequence_7", # <- omit
-        #"batches_sequence_8", # <- omit
-        #"batches_sequence_9", # <- omit
-        #"batches_sequence_10", # <- omit
-    ]
-
-    # Compile variables.
-
-    # Regression.
-    independence = list()
-    independence.extend(hypothesis)
-    independence.extend(genotype)
-    independence.extend(technique)
-
-    # Heritability.
-    heritability_simple = list()
-    heritability_simple.extend(technique)
-    heritability_complex = list()
-    heritability_complex.extend(hypothesis)
-    heritability_complex.extend(technique)
-
-    # Quantitative Trait Loci (QTL).
-    trait = list()
-    trait.extend(hypothesis)
-    trait.extend(technique)
-
-    # Compile information.
-    information = dict()
-    information["category"] = category
-    information["scale"] = scale
-    information["hypothesis"] = hypothesis
-    information["genotype"] = genotype
-    information["technique"] = technique
-    information["independence"] = independence
-    information["heritability_simple"] = heritability_simple
-    information["heritability_complex"] = heritability_complex
-    information["trait"] = trait
-
-    # Return information.
-    return information
 
 
 def expand_persons_categories_matrix(
@@ -2637,7 +2702,8 @@ def organize_persons_properties(
         data_persons_properties_raw=data_raw,
         report=report,
     )
-    # Standardize the scales of specific variables for regression.
+    # Standardize the scales of numerical variables for regression.
+    # These variables are on ordinal or ratio (continuous) scales.
     data_persons_properties_scale = standardize_scale_variables(
         variables=variables["scale"],
         data_persons_properties=bin_category[
@@ -2648,7 +2714,7 @@ def organize_persons_properties(
     information = dict()
     information["data_persons_properties"] = data_persons_properties_scale
     information["components_data"] = bin_category["components_data"]
-    information["variances_data"] = bin_category["variances_data"]
+    information["category_variances_data"] = bin_category["variances_data"]
     # Return information.
     return information
 
@@ -2780,8 +2846,8 @@ def organize_persons_properties_sets(
     # Return information.
     return bin
 
-
-
+###################################################
+# TODO: Still need to organize code for heritability covariates and QTL covariates....
 
 # Organize covariates for heritability analysis.
 
@@ -2911,6 +2977,8 @@ def organize_quantitative_trait_loci_variables(
     return data_transposition
 
 
+###############################################################################33
+
 # TODO: within this function...
 # TODO: organize persons_selection and persons_genotype
 # TODO: calculate covariate principal components using only the relevant persons
@@ -3000,8 +3068,11 @@ def extract_organize_persons_properties(
             source["data_samples_tissues_persons_selection"]
         ),
     )
+    # Define variables.
+    variables = define_variables()
     # Organize persons' properties across samples.
     data_samples_organization = organize_samples_properties(
+        variables=variables,
         data_samples_tissues_persons_selection=data_samples_imputation,
     )
 
@@ -3010,13 +3081,26 @@ def extract_organize_persons_properties(
     ##########
     # Collapse sample data to persons' properties.
 
+    #####################
+    # TODO: I need to accommodate different persons for different analyses...
+    # 1. persons_selection for basic regression
+    # 2. persons_genotype for heritability and QTL...
+    # TODO: Plan
+    # organize "extract_persons_properties" and "organize_persons_properties"
+    # within a larger function that also accepts "persons_selection" or "persons_selection_genotype"
+    # to subset sample data before organizing properties...
+
+    if False:
+        data_samples_ventilation = data_samples_organization.loc[
+            data_samples_organization["ventilation"] == True, :
+        ]
+        print(data_samples_ventilation)
+
     # Extract information about persons' properties.
     data_persons_properties_raw = extract_persons_properties(
         data_samples_tissues_persons=data_samples_organization,
         report=True,
     )
-    # Define variables.
-    variables = define_variables()
     # Organize persons' properties.
     # Expand categorical variables and reduce dimensionality.
     bin_organization = organize_persons_properties(
@@ -3028,33 +3112,42 @@ def extract_organize_persons_properties(
     print("data_persons_properties")
     print(bin_organization["data_persons_properties"])
 
+    bin_regression = dict()
+    bin_regression["persons"] = source["persons_selection"]
+    bin_regression["data_persons_properties"] = bin_organization["data_persons_properties"]
 
-    if False:
+    bin_heritability = dict()
+    bin_trait = dict()
 
-        # TODO:... eventually, this function should be at the end...
-        # TODO: place this function within a larger function to organize data for all charts
-        # Organize information about persons for charts.
-        persons_sets = organize_persons_properties_sets(
-            persons_selection=source["persons_selection"],
-            data_samples_tissues_persons=source["data_samples_tissues_persons"],
-            data_persons_properties=data_persons_properties_raw,
-            report=True,
-        )
 
-        # Compile information.
-        information = dict()
-        information["persons_selection_genotype"] = persons_selection_genotype
-        information["data_samples_tissues_persons_imputation"] = (
-            data_samples_imputation
-        )
-        information["persons_sets"] = persons_sets
-        # Write product information to file.
-        write_product_persons_properties(
-            stringency=stringency,
-            dock=dock,
-            information=information
-        )
-        pass
+    # TODO:... eventually, this function should be at the end...
+    # TODO: place this function within a larger function to organize data for all charts
+    # Organize information about persons for charts.
+    persons_sets = organize_persons_properties_sets(
+        persons_selection=source["persons_selection"],
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_persons_properties=data_persons_properties_raw,
+        report=True,
+    )
+
+    # Compile information.
+    information = dict()
+    information["persons_selection_genotype"] = persons_selection_genotype
+    information["data_samples_tissues_persons_imputation"] = (
+        data_samples_imputation
+    )
+    information["category_variances_data"] = (
+        bin_organization["category_variances_data"]
+    )
+    information["persons_sets"] = persons_sets
+    information["bin_regression"] = bin_regression
+    # Write product information to file.
+    write_product_persons_properties(
+        stringency=stringency,
+        dock=dock,
+        information=information
+    )
+    pass
 
 
 
@@ -3483,7 +3576,6 @@ def write_product_samples_genes_signals(
     pass
 
 
-
 def write_product_persons_properties_charts(
     dock=None,
     stringency=None,
@@ -3525,6 +3617,49 @@ def write_product_persons_properties_charts(
     pass
 
 
+def write_product_persons_properties_analysis_regression(
+    path_parent=None,
+    information=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        path_parent (str): path to parent directory
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_directory = os.path.join(
+        path_parent, "regression"
+    )
+    utility.create_directories(path_directory)
+
+    path_data_persons_properties = os.path.join(
+        path_directory, "data_persons_properties.pickle"
+    )
+    information["data_persons_properties"].to_pickle(
+        path=path_data_persons_properties
+    )
+
+    path_data_persons_properties_text = os.path.join(
+        path_directory, "data_persons_properties.tsv"
+    )
+    information["data_persons_properties"].to_csv(
+        path_or_buf=path_data_persons_properties_text,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+
+    pass
+
+
 def write_product_persons_properties(
     dock=None,
     stringency=None,
@@ -3545,13 +3680,6 @@ def write_product_persons_properties(
 
     """
 
-    # Information for plotting charts.
-    write_product_persons_properties_charts(
-        stringency=stringency,
-        dock=dock,
-        information=information
-    )
-
     # Specify directories and files.
     path_selection = os.path.join(dock, "selection", str(stringency))
     path_persons_properties = os.path.join(
@@ -3559,16 +3687,17 @@ def write_product_persons_properties(
     )
     utility.create_directories(path_persons_properties)
 
-    path_test = os.path.join(
-        path_charts, "test.tsv"
+    # Information for plotting charts.
+    write_product_persons_properties_charts(
+        stringency=stringency,
+        dock=dock,
+        information=information
     )
-    information["data_samples_tissues_persons"].to_csv(
-        path_or_buf=path_samples_tissues_persons_text,
-        sep="\t",
-        header=True,
-        index=True,
+    # Information for subsequent analyses.
+    write_product_persons_properties_analysis_regression(
+        path_parent=path_persons_properties,
+        information=information["bin_regression"]
     )
-
 
 
     if False:
@@ -4017,6 +4146,10 @@ def execute_procedure(dock=None):
             stringency="tight",
             dock=dock
         )
+        utility.print_terminal_partition(level=2)
+        print("Completed selection of gene annotations.")
+        # Pause procedure.
+        time.sleep(60.0)
 
     # Collect garbage to clear memory.
     gc.collect()
@@ -4031,6 +4164,10 @@ def execute_procedure(dock=None):
             stringency="tight",
             dock=dock
         )
+        utility.print_terminal_partition(level=2)
+        print("Completed selection of genes, samples, signals.")
+        # Pause procedure.
+        time.sleep(60.0)
 
     # Collect garbage to clear memory.
     gc.collect()

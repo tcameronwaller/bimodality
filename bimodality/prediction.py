@@ -66,15 +66,19 @@ def read_source(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
     )
-    path_persons_properties = os.path.join(
-        path_selection, "data_persons_properties.pickle"
-    )
+
     path_genes_selection = os.path.join(
-        path_selection, "genes_selection.pickle"
+        dock, "selection", "tight", "samples_genes_signals",
+        "genes.pickle"
+    )
+
+    path_data_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", "regression",
+        "data_persons_properties.pickle"
     )
 
     path_candidacy = os.path.join(dock, "candidacy")
@@ -85,15 +89,14 @@ def read_source(
         path_candidacy, "genes_multimodal.pickle"
     )
 
-    path_distribution = os.path.join(dock, "distribution")
-    path_collection = os.path.join(path_distribution, "collection")
     path_data_signals_genes_persons = os.path.join(
-        path_collection, "data_signals_genes_persons.pickle"
+        dock, "distribution", "collection",
+        "data_signals_genes_persons.pickle"
     )
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_persons_properties = pandas.read_pickle(path_persons_properties)
+    data_persons_properties = pandas.read_pickle(path_data_persons_properties)
     with open(path_genes_selection, "rb") as file_source:
         genes_selection = pickle.load(file_source)
     with open(path_genes_unimodal, "rb") as file_source:
@@ -417,8 +420,10 @@ def regress_signal_ordinary_residuals(
         #)
         parameters = dict()
         probabilities = dict()
+        inflations = dict()
         parameters["intercept_parameter"] = float("nan")
         probabilities["intercept_probability"] = float("nan")
+        inflations["intercept_inflation"] = float("nan")
         for variable in independence:
             parameter = str(variable + ("_parameter"))
             parameters[parameter] = float("nan")
@@ -440,7 +445,7 @@ def regress_signal_ordinary_residuals(
         summary.update(parameters)
         summary.update(probabilities)
         summary.update(inflations)
-        residuals = numpy.empty()
+        residuals = numpy.empty(0)
     # Compile information.
     bin = dict()
     bin["report"] = summary
@@ -454,6 +459,7 @@ def regress_cases(
     variables=None,
     data_variables=None,
     data_gene_annotation=None,
+    report=None,
 ):
     """
     Drives iterative regression across cases.
@@ -465,6 +471,7 @@ def regress_cases(
         data_variables (object): Pandas data frame of dependent and independent
             variables
         data_gene_annotation (object): Pandas data frame of genes' annotations
+        report (bool): whether to print reports
 
     raises:
 
@@ -477,11 +484,18 @@ def regress_cases(
     # TODO: I need to collect residuals...
 
     # Regress.
+    count_total = len(cases)
     records = list()
     residuals_genes = dict()
+    counter = 0
     for case in cases:
-        #utility.print_terminal_partition(level=1)
-        #print(case)
+        # Report.
+        counter += 1
+        if report:
+            #print("count " + str(counter) + ": " + str(case))
+            percentage = (counter / count_total) * 100
+            if (percentage % 10 == 0):
+                print("complete cases: " + str(round(percentage)) + "%")
         bin_case = regress_signal_ordinary_residuals(
             dependence=case,
             independence=variables,
@@ -1577,52 +1591,60 @@ def execute_procedure(
         dock=dock,
     )
     # Define variables for regression.
-    variables = selection.define_regression_variables()
+    variables = selection.define_variables()
     utility.print_terminal_partition(level=3)
     print(
         "Count of independent variables: " +
-        str(len(variables["independence"]))
+        str(len(variables["regression"]))
     )
     print(
         "Count of hypothesis (non technical) variables: " +
         str(len(variables["hypothesis"]))
     )
 
-    # Calculate correlation coefficients between pairs of independent
-    # variables.
-    pairs = list()
-    pairs.append(("hardiness_scale", "age_scale"))
-    pairs.append(("hardiness_scale", "body_scale"))
-    pairs.append(("hardiness_scale", "season_scale"))
-    pairs.append(("hardiness_scale", "delay_scale"))
-    pairs.append(("tissues_1", "facilities_1"))
-    pairs.append(("tissues_1", "facilities_2"))
-    pairs.append(("delay_scale", "facilities_1"))
-    pairs.append(("delay_scale", "facilities_2"))
-    calculate_report_independent_variable_correlations(
-        pairs=pairs,
-        data_persons_properties=source["data_persons_properties"],
-        method="spearman",
-    )
+    if False:
+        # Calculate correlation coefficients between pairs of independent
+        # variables.
+        pairs = list()
+        pairs.append(("hardiness_scale", "age_scale"))
+        pairs.append(("hardiness_scale", "body_scale"))
+        pairs.append(("hardiness_scale", "season_scale"))
+        pairs.append(("hardiness_scale", "delay_scale"))
+        pairs.append(("tissues_1", "facilities_1"))
+        pairs.append(("tissues_1", "facilities_2"))
+        pairs.append(("delay_scale", "facilities_1"))
+        pairs.append(("delay_scale", "facilities_2"))
+        calculate_report_independent_variable_correlations(
+            pairs=pairs,
+            data_persons_properties=source["data_persons_properties"],
+            method="spearman",
+        )
+
 
     # Organize dependent and independent variables for regression analysis.
     data_variables = organize_dependent_independent_variables(
-        variables=variables["independence"],
+        variables=variables["regression"],
         data_persons_properties=source["data_persons_properties"],
         data_signals_genes_persons=source["data_signals_genes_persons"],
     )
 
+    utility.print_terminal_partition(level=1)
+    print("data_variables")
+    utility.print_terminal_partition(level=2)
+    print(data_variables)
+
     # Regress each gene's signal across persons.
     # Iterate on genes.
-    #genes_iteration = random.sample(source["genes_selection"], 100)
+    #genes_iteration = random.sample(source["genes_selection"], 1000)
     genes_iteration = source["genes_selection"]#[0:100]
     #genes_iteration = source["genes_unimodal"]
     #genes_iteration = source["genes_multimodal"]
     bin_regression = regress_cases(
         cases=genes_iteration,
-        variables=variables["independence"],
+        variables=variables["regression"],
         data_variables=data_variables,
         data_gene_annotation=source["data_gene_annotation"],
+        report=True,
     )
     utility.print_terminal_partition(level=2)
     print("data_regression_genes")
@@ -1631,7 +1653,7 @@ def execute_procedure(
     # Summarize regression quality.
     # Report means of statistics across independent models.
     report_regression_models_quality(
-        variables=variables["independence"],
+        variables=variables["regression"],
         data_regression_models=bin_regression["data_regression_genes"],
     )
 
@@ -1645,7 +1667,7 @@ def execute_procedure(
     # Adjust probabilities for multiple hypothesis tests.
     # Calculate false discovery rate by Benjamini-Hochberg's method.
     data_regression_genes_discovery = calculate_regression_discoveries(
-        variables=variables["independence"],
+        variables=variables["regression"],
         threshold=0.05,
         data=bin_regression["data_regression_genes"],
     )
@@ -1752,7 +1774,7 @@ def execute_procedure(
         genes_selection=source["genes_selection"],
         genes_unimodal=source["genes_unimodal"],
         genes_multimodal=source["genes_multimodal"],
-        variables=variables["independence"],
+        variables=variables["regression"],
         data_regression_genes=data_regression_genes_discovery,
     )
 
