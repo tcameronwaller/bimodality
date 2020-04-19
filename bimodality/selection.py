@@ -2719,11 +2719,6 @@ def organize_persons_properties(
     return information
 
 
-
-
-
-
-
 def organize_persons_properties_sets(
     persons_selection=None,
     data_samples_tissues_persons=None,
@@ -2752,33 +2747,38 @@ def organize_persons_properties_sets(
     data_samples = data_samples_tissues_persons.copy(deep=True)
     data_persons = data_persons_properties.copy(deep=True)
     # Organize data.
-    persons_original = utility.collect_unique_elements(
+    bin = dict()
+    bin["gtex"] = utility.collect_unique_elements(
         elements_original=data_samples["person"].to_list()
     )
-    persons_original_genotype = extract_persons_genotype(
-        persons=persons_original,
+    bin["gtex_genotype"] = extract_persons_genotype(
+        persons=bin["gtex"],
         data_samples_tissues_persons=data_samples,
     )
-    persons_selection_genotype = extract_persons_genotype(
+    bin["selection"] = persons_selection
+    bin["selection_genotype"] = extract_persons_genotype(
         persons=persons_selection,
         data_samples_tissues_persons=data_samples,
     )
-    persons_ventilation = data_persons_properties.loc[
+    bin["ventilation"] = data_persons_properties.loc[
         data_persons_properties["ventilation"] == True, :
     ].index.to_list()
-    persons_respiration = data_persons_properties.loc[
+    bin["non_ventilation"] = data_persons_properties.loc[
+        data_persons_properties["ventilation"] == False, :
+    ].index.to_list()
+    bin["respiration"] = data_persons_properties.loc[
         data_persons_properties["respiration"] == True, :
     ].index.to_list()
-    persons_inflammation = data_persons_properties.loc[
+    bin["inflammation"] = data_persons_properties.loc[
         data_persons_properties["inflammation"] == True, :
     ].index.to_list()
-    persons_infection = data_persons_properties.loc[
+    bin["infection"] = data_persons_properties.loc[
         data_persons_properties["infection"] == True, :
     ].index.to_list()
-    persons_steroid = data_persons_properties.loc[
+    bin["steroid"] = data_persons_properties.loc[
         data_persons_properties["steroid"] == True, :
     ].index.to_list()
-    persons_refrigeration = data_persons_properties.loc[
+    bin["refrigeration"] = data_persons_properties.loc[
         data_persons_properties["refrigeration"] == True, :
     ].index.to_list()
 
@@ -2791,60 +2791,132 @@ def organize_persons_properties_sets(
         utility.print_terminal_partition(level=2)
         print(
             "Count of original persons in GTEx cohort: " +
-            str(len(persons_original))
+            str(len(bin["gtex"]))
         )
         print(
             "Count of persons from selection by samples and tissues: " +
-            str(len(persons_selection))
+            str(len(bin["selection"]))
         )
         print(
             "Count of original persons with valid genotypes: " +
-            str(len(persons_original_genotype))
+            str(len(bin["gtex_genotype"]))
         )
         print(
             "Count of selection persons with valid genotypes: " +
-            str(len(persons_selection_genotype))
+            str(len(bin["selection_genotype"]))
         )
         print(
             "Count of persons on ventilation: " +
-            str(len(persons_ventilation))
+            str(len(bin["ventilation"]))
         )
         print(
             "Count of persons with respiratory difficulties: " +
-            str(len(persons_respiration))
+            str(len(bin["respiration"]))
         )
         print(
             "Count of persons on inflammation: " +
-            str(len(persons_inflammation))
+            str(len(bin["inflammation"]))
         )
         print(
             "Count of persons on infection: " +
-            str(len(persons_infection))
+            str(len(bin["infection"]))
         )
         print(
             "Count of persons on steroids: " +
-            str(len(persons_steroid))
+            str(len(bin["steroid"]))
         )
         print(
             "Count of persons on refrigeration after death: " +
-            str(len(persons_refrigeration))
+            str(len(bin["refrigeration"]))
         )
         utility.print_terminal_partition(level=2)
-
-
-    # Compile information.
-    bin = dict()
-    bin["original"] = persons_original
-    bin["selection"] = persons_selection
-    bin["genotype"] = persons_selection_genotype
-    bin["ventilation"] = persons_ventilation
-    bin["respiration"] = persons_respiration
-    bin["inflammation"] = persons_inflammation
-    bin["infection"] = persons_infection
-    bin["steroid"] = persons_steroid
-    bin["refrigeration"] = persons_refrigeration
     # Return information.
     return bin
+
+
+
+def organize_contingency_table_sex_cmv_ebv(
+    persons_selection=None,
+    data_persons_properties=None,
+    report=None,
+):
+    """
+    Extracts identifiers of persons with valid genotypes.
+
+    arguments:
+        persons_selection (list<str>): identifiers of persons from selection
+        data_persons_properties (object): Pandas data frame of persons'
+            properties
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict): information for charts about persons' properties
+
+    """
+
+    # TODO: use pandas.crosstab()
+
+    # Copy data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+    # Organize data.
+    # Select data for persons.
+    data_persons = data_persons_properties.loc[
+        data_persons_properties.index.isin(persons_selection), :
+    ]
+    data_properties = data_persons.loc[
+        :, data_persons.columns.isin(["sex_text", "cmv_ebv"])
+    ]
+
+    # Replace missing values with zero.
+    data_properties.fillna(
+        value=False,
+        #axis="columns",
+        inplace=True,
+    )
+
+    # Contingency table.
+    data_contingency = pandas.crosstab(
+        data_properties["sex_text"],
+        data_properties["cmv_ebv"],
+        rownames=["sex_text"],
+        colnames=["cmv_ebv"],
+    )
+    utility.print_terminal_partition(level=1)
+    print(data_contingency)
+
+    #scipy.stats.chi2_contingency()
+
+
+    # CMV and EBV.
+    persons_male = data_persons_properties.loc[
+        data_persons_properties["sex_text"] == "male", :
+    ].index.to_list()
+    persons_female = data_persons_properties.loc[
+        data_persons_properties["sex_text"] == "female", :
+    ].index.to_list()
+    male_cmv = data_persons_properties.loc[
+        data_persons_properties["sex_text"] == "male", :
+    ].index.to_list()
+
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print(
+            "Organization of information for charts about persons' properties."
+        )
+        utility.print_terminal_partition(level=2)
+        print(
+            "Count of original persons in GTEx cohort: " +
+            str(len(bin["gtex"]))
+        )
+        utility.print_terminal_partition(level=2)
+    # Return information.
+    return bin
+
+
+
 
 ###################################################
 # TODO: Still need to organize code for heritability covariates and QTL covariates....
@@ -3126,6 +3198,12 @@ def extract_organize_persons_properties(
     persons_sets = organize_persons_properties_sets(
         persons_selection=source["persons_selection"],
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_persons_properties=data_persons_properties_raw,
+        report=True,
+    )
+
+    data_sex_cmv_ebv = organize_contingency_table_sex_cmv_ebv(
+        persons_selection=source["persons_selection"],
         data_persons_properties=data_persons_properties_raw,
         report=True,
     )
@@ -4149,7 +4227,7 @@ def execute_procedure(dock=None):
         utility.print_terminal_partition(level=2)
         print("Completed selection of gene annotations.")
         # Pause procedure.
-        time.sleep(60.0)
+        #time.sleep(60.0)
 
     # Collect garbage to clear memory.
     gc.collect()
@@ -4167,7 +4245,7 @@ def execute_procedure(dock=None):
         utility.print_terminal_partition(level=2)
         print("Completed selection of genes, samples, signals.")
         # Pause procedure.
-        time.sleep(60.0)
+        #time.sleep(60.0)
 
     # Collect garbage to clear memory.
     gc.collect()

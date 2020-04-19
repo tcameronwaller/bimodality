@@ -807,6 +807,9 @@ def define_person_binary_health_variables():
         "LBHBCABT", "LBHBSAB", "LBHBSAG", "MHWNVCT", "MHWNVHX", "LBCMVTAB",
         "LBEBVGAB", "LBEBVMAB",
     ]
+    cmv_ebv = [
+        "LBCMVTAB", "LBEBVGAB", "LBEBVMAB",
+    ]
     # Steroids.
     steroid = [
         "MHHGH", "MHSTRDLT",
@@ -816,6 +819,7 @@ def define_person_binary_health_variables():
     bin["respiration"] = respiration
     bin["inflammation"] = inflammation
     bin["infection"] = infection
+    bin["cmv_ebv"] = cmv_ebv
     bin["steroid"] = steroid
     # Return information.
     return bin
@@ -1051,6 +1055,11 @@ def determine_sample_associations_attributes(
         variables=variables_health["infection"],
         data_person_attribute_private=data_person_attribute_private,
     )
+    cmv_ebv = determine_person_boolean_binary_any(
+        person=person,
+        variables=variables_health["cmv_ebv"],
+        data_person_attribute_private=data_person_attribute_private,
+    )
     # Determine persons' history of steroid use.
     steroid = determine_person_boolean_binary_any(
         person=person,
@@ -1087,6 +1096,7 @@ def determine_sample_associations_attributes(
         "respiration": respiration,
         "inflammation": inflammation,
         "infection": infection,
+        "cmv_ebv": cmv_ebv,
         "steroid": steroid,
     }
     information.update(genotypes)
