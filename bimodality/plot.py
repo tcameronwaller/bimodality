@@ -526,7 +526,7 @@ def plot_heatmap_asymmetric_groups(
             wspace=0.05,
             height_ratios=[1, 10],
             width_ratios=[50, 1],
-            left=0.1,
+            left=0.12,
             right=0.94,
             top=0.94,
             bottom=0.05,
@@ -1628,13 +1628,10 @@ def organize_persons_health_variables(
     data_health_cluster = utility.cluster_data_columns(
         data=data_health_selection,
     )
-    # Cluster or sort instances.
-    if sequence == "cluster":
-        data_health_sequence = utility.cluster_data_rows(
-            data=data_health_cluster,
-        )
-    elif sequence == "sort":
-        data_health_sequence = data_health_cluster
+    # Cluster instances.
+    data_health_sequence = utility.cluster_data_rows(
+        data=data_health_cluster,
+    )
     # Organize properties.
     if type == "category":
         data_persons_properties["property"], properties = pandas.factorize(
@@ -1994,13 +1991,10 @@ def organize_persons_properties_adjacency(
     data_cluster = utility.cluster_data_columns(
         data=data_scale,
     )
-    # Cluster or sort instances.
-    if sequence == "cluster":
-        data_sequence = utility.cluster_data_rows(
-            data=data_cluster,
-        )
-    elif sequence == "sort":
-        data_sequence = data_cluster
+    # Cluster instances.
+    data_sequence = utility.cluster_data_rows(
+        data=data_cluster,
+    )
     # Organize properties.
     if properties[master]["type"] == "category":
         data_sequence["property"], values_category = pandas.factorize(
@@ -2207,8 +2201,8 @@ def prepare_charts_persons_properties_adjacency(
     utility.create_directories(path=path_cluster)
 
     # Define persons of interest.
-    #persons = source["persons_sets"]["selection"]
-    persons = source["persons_sets"]["non_ventilation"]
+    persons = source["persons_sets"]["selection"]
+    #persons = source["persons_sets"]["non_ventilation"]
 
     # Iterate on categorical and ordinal groups of properties.
     properties = dict()
@@ -2221,13 +2215,22 @@ def prepare_charts_persons_properties_adjacency(
     properties["inflammation_binary"] = dict(
         name="inflammation", type="binary"
     )
-    #properties["infection_binary"] = dict(name="infection", type="binary")
+    properties["infection_binary"] = dict(name="infection", type="binary")
+    properties["mononucleosis_binary"] = dict(
+        name="mononucleosis", type="binary"
+    )
     properties["steroid_binary"] = dict(name="steroid", type="binary")
-    #properties["ventilation_binary"] = dict(name="ventilation", type="binary")
+    properties["ventilation_binary"] = dict(name="ventilation", type="binary")
+    #properties["ventilation_duration"] = dict(
+    #    name="vent_dur", type="continuity"
+    #)
     properties["delay"] = dict(name="delay", type="continuity")
     properties["refrigeration_binary"] = dict(
         name="refrigeration", type="binary"
     )
+    #properties["refrigeration_duration"] = dict(
+    #    name="refrig_dur", type="continuity"
+    #)
     # Iterate on categorical variables.
     for property in properties.keys():
         # Prepare charts for genes.
@@ -5157,15 +5160,17 @@ def read_source_genes_signals_persons_properties(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
-    )
-    path_persons_properties = os.path.join(
-        path_selection, "data_persons_properties.pickle"
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
     )
     path_genes_selection = os.path.join(
-        path_selection, "genes_selection.pickle"
+        dock, "selection", "tight", "samples_genes_signals",
+        "genes.pickle"
+    )
+    path_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", "regression",
+        "data_persons_properties.pickle"
     )
 
     path_distribution = os.path.join(dock, "distribution")
@@ -5179,6 +5184,10 @@ def read_source_genes_signals_persons_properties(
         path_candidacy, "genes_multimodal.pickle"
     )
 
+    path_prediction_genes_sets = os.path.join(
+        dock, "prediction", "sets.pickle"
+    )
+
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     data_persons_properties = pandas.read_pickle(path_persons_properties)
@@ -5189,6 +5198,10 @@ def read_source_genes_signals_persons_properties(
         genes_selection = pickle.load(file_source)
     with open(path_genes_multimodal, "rb") as file_source:
         genes_multimodal = pickle.load(file_source)
+
+    with open(path_prediction_genes_sets, "rb") as file_source:
+        prediction_genes_sets = pickle.load(file_source)
+
 
     genes_query_population = (
         integration.read_source_annotation_query_genes_set(
@@ -5204,6 +5217,7 @@ def read_source_genes_signals_persons_properties(
         "genes_selection": genes_selection,
         "genes_multimodal": genes_multimodal,
         "genes_query_population": genes_query_population,
+        "prediction_genes_sets": prediction_genes_sets,
     }
 
 
@@ -5274,13 +5288,9 @@ def organize_genes_signals_persons_properties(
     data_signals_cluster = utility.cluster_data_columns(
         data=data_signals_selection,
     )
-    if sequence == "cluster":
-        data_signals_sequence = utility.cluster_data_rows(
-            data=data_signals_cluster,
-        )
-    elif sequence == "sort":
-        data_signals_sequence = data_signals_cluster
-
+    data_signals_sequence = utility.cluster_data_rows(
+        data=data_signals_cluster,
+    )
     # Organize properties.
     if type == "category":
         data_persons_properties["property"], properties = pandas.factorize(
@@ -5481,9 +5491,9 @@ def prepare_charts_genes_signals_persons_properties(
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
-    path_candidacy = os.path.join(path_plot, "candidacy")
+    path_integration = os.path.join(path_plot, "integration")
     path_persons_properties = os.path.join(
-        path_candidacy, "persons_properties"
+        path_integration, "persons_properties"
     )
     path_sort = os.path.join(
         path_persons_properties, "sort_persons"
@@ -5496,12 +5506,19 @@ def prepare_charts_genes_signals_persons_properties(
     utility.create_directories(path=path_sort)
     utility.create_directories(path=path_cluster)
 
+    # Define genes of interest.
+    #genes_interest = source["genes_query_population"]
+    #genes_interest = (
+    #    source["prediction_genes_sets"]["selection"]["sex_y_scale"]
+    #)
+    genes_interest = source["prediction_genes_sets"]["multimodal"]["age_scale"]
+
     # Iterate on categorical and ordinal groups of variables.
     variables = list()
-    variables.append(dict(name="sex", type="category"))
+    variables.append(dict(name="sex_text", type="category"))
     variables.append(dict(name="age", type="continuity"))
-    variables.append(dict(name="body", type="continuity"))
-    variables.append(dict(name="hardiness", type="continuity"))
+    #variables.append(dict(name="body", type="continuity"))
+    #variables.append(dict(name="hardiness", type="continuity"))
     #variables.append(dict(name="season_sequence", type="continuity"))
     # Iterate on categorical variables.
     for variable in variables:
@@ -5509,7 +5526,7 @@ def prepare_charts_genes_signals_persons_properties(
         prepare_charts_genes_signals_persons_properties_variable(
             property=variable["name"],
             type=variable["type"],
-            genes_query=source["genes_query_population"],
+            genes_query=genes_interest,
             genes_selection=source["genes_selection"],
             data_gene_annotation=source["data_gene_annotation"],
             data_persons_properties=source["data_persons_properties"],
@@ -7692,11 +7709,11 @@ def execute_procedure(dock=None):
     # columns.
     # Sort order across rows depends on hierarchical clustering.
     # Sort order across columns depends on hierarchical clustering.
-    prepare_charts_persons_health_variables(dock=dock)
+    #prepare_charts_persons_health_variables(dock=dock)
 
     # Plot charts, heatmaps, for adjacent summaries of properties across
     # persons.
-    prepare_charts_persons_properties_adjacency(dock=dock)
+    #prepare_charts_persons_properties_adjacency(dock=dock)
 
     ##########
     ##########
@@ -7823,7 +7840,7 @@ def execute_procedure(dock=None):
     # (sex, age, body mass index, hardiness).
     # In other charts, sort order across columns depends on hierarchical
     # clustering.
-    #prepare_charts_genes_signals_persons_properties(dock=dock)
+    prepare_charts_genes_signals_persons_properties(dock=dock)
 
     if False:
 

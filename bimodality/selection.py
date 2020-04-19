@@ -1350,7 +1350,8 @@ def read_source_persons_properties(
     )
 
     path_persons = os.path.join(
-        path_samples_genes_signals, "persons.pickle"
+        dock, "selection", str(stringency), "samples_genes_signals",
+        "persons.pickle"
     )
 
     # Read information from file.
@@ -1617,6 +1618,7 @@ def define_variables():
         "respiration",
         "inflammation",
         "infection",
+        "mononucleosis",
         "steroid",
         "ventilation",
         "refrigeration",
@@ -1640,6 +1642,7 @@ def define_variables():
         "respiration_binary",
         "inflammation_binary",
         "infection_binary",
+        "mononucleosis_binary",
         "steroid_binary",
         "delay",
         "ventilation_duration",
@@ -1656,6 +1659,7 @@ def define_variables():
         "respiration_binary_scale",
         "inflammation_binary_scale",
         #"infection_binary_scale", # omit because all persons are True
+        "mononucleosis_binary_scale",
         #"steroid_binary_scale", # omit because very few persons are True
         "ventilation_duration_scale",
     ]
@@ -2673,6 +2677,7 @@ def standardize_scale_variables(
 
 
 def organize_persons_properties(
+    persons=None,
     variables=None,
     data_persons_properties_raw=None,
     report=None,
@@ -2681,6 +2686,7 @@ def organize_persons_properties(
     Organizes information about persons.
 
     arguments:
+        persons (list<str>): identifiers of persons
         variables (dict<list<str>>): names of independent variables for
             regression
         data_persons_properties_raw (object): Pandas data frame of persons'
@@ -2696,10 +2702,14 @@ def organize_persons_properties(
 
     # Copy data.
     data_raw = data_persons_properties_raw.copy(deep=True)
+    # Select data for persons.
+    data_raw_persons = data_raw.loc[
+        data_raw.index.isin(persons), :
+    ]
     # Organize dimensionality reduction on categorical variables.
     bin_category = organize_persons_category_dimensionality(
         variables=variables["category"],
-        data_persons_properties_raw=data_raw,
+        data_persons_properties_raw=data_raw_persons,
         report=report,
     )
     # Standardize the scales of numerical variables for regression.
@@ -2835,8 +2845,9 @@ def organize_persons_properties_sets(
 
 
 
-def organize_contingency_table_sex_cmv_ebv(
+def organize_contingency_table_chi(
     persons_selection=None,
+    variables_contingency=None,
     data_persons_properties=None,
     report=None,
 ):
@@ -2845,6 +2856,7 @@ def organize_contingency_table_sex_cmv_ebv(
 
     arguments:
         persons_selection (list<str>): identifiers of persons from selection
+        variables_contingency (list<str>): names of variables for contingency
         data_persons_properties (object): Pandas data frame of persons'
             properties
         report (bool): whether to print reports
@@ -2866,55 +2878,58 @@ def organize_contingency_table_sex_cmv_ebv(
         data_persons_properties.index.isin(persons_selection), :
     ]
     data_properties = data_persons.loc[
-        :, data_persons.columns.isin(["sex_text", "cmv_ebv"])
+        :, data_persons.columns.isin(variables_contingency)
     ]
-
     # Replace missing values with zero.
     data_properties.fillna(
         value=False,
         #axis="columns",
         inplace=True,
     )
-
     # Contingency table.
     data_contingency = pandas.crosstab(
-        data_properties["sex_text"],
-        data_properties["cmv_ebv"],
-        rownames=["sex_text"],
-        colnames=["cmv_ebv"],
+        data_properties[variables_contingency[0]],
+        data_properties[variables_contingency[1]],
+        rownames=[variables_contingency[0]],
+        colnames=[variables_contingency[1]],
     )
-    utility.print_terminal_partition(level=1)
-    print(data_contingency)
-
-    #scipy.stats.chi2_contingency()
-
-
-    # CMV and EBV.
-    persons_male = data_persons_properties.loc[
-        data_persons_properties["sex_text"] == "male", :
-    ].index.to_list()
-    persons_female = data_persons_properties.loc[
-        data_persons_properties["sex_text"] == "female", :
-    ].index.to_list()
-    male_cmv = data_persons_properties.loc[
-        data_persons_properties["sex_text"] == "male", :
-    ].index.to_list()
-
+    (chi2, probability, freedom, expectation) = scipy.stats.chi2_contingency(
+        data_contingency.to_numpy(),
+        correction=True,
+    )
     # Report.
     if report:
         utility.print_terminal_partition(level=2)
         print(
-            "Organization of information for charts about persons' properties."
+            "Contingency table and Chi2 test for independence."
         )
-        utility.print_terminal_partition(level=2)
         print(
-            "Count of original persons in GTEx cohort: " +
-            str(len(bin["gtex"]))
+            str(variables_contingency[0]) + " versus " +
+            str(variables_contingency[1])
         )
         utility.print_terminal_partition(level=2)
-    # Return information.
-    return bin
+        print(data_contingency)
+        print(data_contingency.to_numpy())
+        utility.print_terminal_partition(level=3)
+        print("chi2: " + str(chi2))
+        print("probability: " + str(probability))
 
+        if False:
+            # CMV and EBV.
+            persons_male = data_persons_properties.loc[
+                data_persons_properties["sex_text"] == "male", :
+            ].index.to_list()
+            print("persons male: " + str(len(persons_male)))
+            persons_female = data_persons_properties.loc[
+                data_persons_properties["sex_text"] == "female", :
+            ].index.to_list()
+            print("persons female: " + str(len(persons_female)))
+            persons_cmv_ebv = data_persons_properties.loc[
+                data_persons_properties["cmv_ebv"] == True, :
+            ].index.to_list()
+            print("persons cmv_ebv: " + str(len(persons_cmv_ebv)))
+
+    pass
 
 
 
@@ -3162,20 +3177,23 @@ def extract_organize_persons_properties(
     # within a larger function that also accepts "persons_selection" or "persons_selection_genotype"
     # to subset sample data before organizing properties...
 
-    if False:
-        data_samples_ventilation = data_samples_organization.loc[
-            data_samples_organization["ventilation"] == True, :
-        ]
-        print(data_samples_ventilation)
-
     # Extract information about persons' properties.
     data_persons_properties_raw = extract_persons_properties(
         data_samples_tissues_persons=data_samples_organization,
         report=True,
     )
+    # Organize information about sets of persons.
+    persons_sets = organize_persons_properties_sets(
+        persons_selection=source["persons_selection"],
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_persons_properties=data_persons_properties_raw,
+        report=True,
+    )
+
     # Organize persons' properties.
     # Expand categorical variables and reduce dimensionality.
     bin_organization = organize_persons_properties(
+        persons=persons_sets["ventilation"],
         variables=variables,
         data_persons_properties_raw=data_persons_properties_raw,
         report=True,
@@ -3191,22 +3209,27 @@ def extract_organize_persons_properties(
     bin_heritability = dict()
     bin_trait = dict()
 
-
-    # TODO:... eventually, this function should be at the end...
-    # TODO: place this function within a larger function to organize data for all charts
-    # Organize information about persons for charts.
-    persons_sets = organize_persons_properties_sets(
+    # Contingency tables and chi2.
+    # Test on persons_selection and on persons_ventilation.
+    organize_contingency_table_chi(
         persons_selection=source["persons_selection"],
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        variables_contingency=["ventilation", "sex_text"],
+        data_persons_properties=data_persons_properties_raw,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=source["persons_selection"],
+        variables_contingency=["ventilation", "mononucleosis"],
+        data_persons_properties=data_persons_properties_raw,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["ventilation"],
+        variables_contingency=["sex_text", "mononucleosis"],
         data_persons_properties=data_persons_properties_raw,
         report=True,
     )
 
-    data_sex_cmv_ebv = organize_contingency_table_sex_cmv_ebv(
-        persons_selection=source["persons_selection"],
-        data_persons_properties=data_persons_properties_raw,
-        report=True,
-    )
 
     # Compile information.
     information = dict()
