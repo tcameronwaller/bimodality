@@ -1658,7 +1658,7 @@ def define_variables():
         "hardiness_scale",
         "respiration_binary_scale",
         "inflammation_binary_scale",
-        #"infection_binary_scale", # omit because all persons are True
+        #"infection_binary_scale", # omit because most persons are True
         "mononucleosis_binary_scale",
         #"steroid_binary_scale", # omit because very few persons are True
         "ventilation_duration_scale",

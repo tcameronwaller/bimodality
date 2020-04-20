@@ -687,6 +687,8 @@ def calculate_regression_discoveries(
 
 def select_genes_by_association_regression_variables(
     variables=None,
+    threshold_r_square=None,
+    count_selection=None,
     genes=None,
     data_regression_genes=None,
 ):
@@ -696,6 +698,9 @@ def select_genes_by_association_regression_variables(
     arguments:
         variables (list<str>): names of independent regression variables for
             which to select genes by significant association
+        threshold_r_square (float): threshold by r square
+        count_selection (int): count of genes with greatest and least values
+            of variable's regression parameter to keep
         genes (list<str>): identifiers of genes
         data_regression_genes (object): Pandas data frame of parameters and
             statistics from regressions across cases
@@ -708,16 +713,48 @@ def select_genes_by_association_regression_variables(
 
     """
 
-    # Select regression data for specific genes.
-    data = data_regression_genes.copy(deep=True)
-    data_genes = data.loc[data.index.isin(genes), :]
+    # Copy data.
+    data_regression = data_regression_genes.copy(deep=True)
+    # Select regression data for genes of interest.
+    data_genes = data_regression.loc[data_regression.index.isin(genes), :]
+    # Select regression data by threshold on r square.
+    data_threshold_r = data_genes.loc[
+        data_genes["r_square"] >= threshold_r_square, :
+    ]
     # Select genes that associate significantly with each variable.
     sets = dict()
     for variable in variables:
         significance = str(variable + ("_significance"))
-        data_temporary = data_genes.copy(deep=True)
-        data_variable = data_temporary.loc[data_temporary[significance], :]
-        sets[variable] = data_variable.index.to_list()
+        parameter = str(variable + ("_parameter"))
+        data_copy = data_threshold_r.copy(deep=True)
+        data_copy = data_copy.loc[
+            :, data_copy.columns.isin([significance, parameter])
+        ]
+        # Select regression data by significance of the variable.
+        data_significance = data_copy.loc[data_copy[significance], :]
+        # Select regression data by rankings on the variable's parameter.
+        data_descent = data_significance.sort_values(
+            by=[parameter],
+            axis="index",
+            ascending=False,
+            inplace=False,
+        )
+        genes_positive = data_descent.iloc[
+            0:count_selection, :
+        ].index.to_list()
+        data_ascent = data_significance.sort_values(
+            by=[parameter],
+            axis="index",
+            ascending=True,
+            inplace=False,
+        )
+        genes_negative = data_ascent.iloc[
+            0:count_selection, :
+        ].index.to_list()
+        genes_positive.extend(genes_negative)
+        sets[variable] = utility.collect_unique_elements(
+            elements_original=genes_positive
+        )
         pass
     # Return information.
     return sets
@@ -725,6 +762,8 @@ def select_genes_by_association_regression_variables(
 
 def select_genes_by_group_association(
     variables=None,
+    threshold_r_square=None,
+    count_selection=None,
     genes_selection=None,
     genes_unimodal=None,
     genes_multimodal=None,
@@ -736,6 +775,9 @@ def select_genes_by_group_association(
     arguments:
         variables (list<str>): names of independent regression variables for
             which to select genes by significant association
+        threshold_r_square (float): threshold by r square
+        count_selection (int): count of genes with greatest and least values
+            of variable's regression parameter to keep
         genes_selection (list<str>): identifiers of all genes that pass filters
             in selection procedure
         genes_unimodal (list<str>): identifiers of genes with pan-tissue
@@ -758,16 +800,22 @@ def select_genes_by_group_association(
     sets = dict()
     sets["selection"] = select_genes_by_association_regression_variables(
         variables=variables,
+        threshold_r_square=threshold_r_square,
+        count_selection=count_selection,
         genes=genes_selection,
         data_regression_genes=data_regression_genes,
     )
     sets["unimodal"] = select_genes_by_association_regression_variables(
         variables=variables,
+        threshold_r_square=threshold_r_square,
+        count_selection=count_selection,
         genes=genes_unimodal,
         data_regression_genes=data_regression_genes,
     )
     sets["multimodal"] = select_genes_by_association_regression_variables(
         variables=variables,
+        threshold_r_square=threshold_r_square,
+        count_selection=count_selection,
         genes=genes_multimodal,
         data_regression_genes=data_regression_genes,
     )
@@ -859,7 +907,11 @@ def scale_data_columns(
     )
     return data_scale
 
-
+# Obsolete
+# Select regression parameters and probabilities that are biologically
+# relevant.
+# Scale regression parameters across genes.
+# The purpose of this scaling is to simplify comparison in chart.
 def select_scale_regression_parameters(
     variables=None,
     data_regression_genes=None,
@@ -1682,6 +1734,8 @@ def execute_procedure(
         genes_selection=source["genes_selection"],
         genes_unimodal=source["genes_unimodal"],
         genes_multimodal=source["genes_multimodal"],
+        threshold_r_square=0.1,
+        count_selection=30,
         data_regression_genes=data_regression_genes_discovery,
     )
     utility.print_terminal_partition(level=2)
@@ -1730,44 +1784,6 @@ def execute_procedure(
         str(len(bin_multimodal_associations["genes_prediction"]))
     )
 
-    if False:
-        # Select regression parameters and probabilities that are biologically
-        # relevant.
-        # Scale regression parameters across genes.
-        # The purpose of this scaling is to simplify comparison in chart.
-        data_regression_genes_scale = select_scale_regression_parameters(
-            variables=variables["hypothesis"],
-            data_regression_genes=bin_regression["data_regression_genes"],
-        )
-        utility.print_terminal_partition(level=2)
-        print("data_regression_genes_scale")
-        print(data_regression_genes_scale)
-
-        # Separate regression information by sets of genes.
-        bin = separate_regression_gene_sets(
-            genes_selection=source["genes_selection"],
-            genes_unimodal=source["genes_unimodal"],
-            genes_multimodal=source["genes_multimodal"],
-            data_regression_genes=data_regression_genes_scale,
-        )
-        utility.print_terminal_partition(level=2)
-        print(
-            "Regression genes, original: " +
-            str(bin_regression["data_regression_genes"].shape[0])
-        )
-        print(
-            "Regression genes, selection: " +
-            str(bin["data_regression_genes_selection_scale"].shape[0])
-        )
-        print(
-            "Regression genes, unimodal: " +
-            str(bin["data_regression_genes_unimodal_scale"].shape[0])
-        )
-        print(
-            "Regression genes, multimodal: " +
-            str(bin["data_regression_genes_multimodal_scale"].shape[0])
-        )
-
     # Prepare and report summary of regression model across all genes.
     utility.print_terminal_partition(level=2)
     summarize_regression(
@@ -1789,17 +1805,6 @@ def execute_procedure(
     information["genes_multimodal_prediction"] = (
         bin_multimodal_associations["genes_prediction"]
     )
-
-    if False:
-        information["data_regression_genes_selection_scale"] = (
-            bin["data_regression_genes_selection_scale"]
-        )
-        information["data_regression_genes_unimodal_scale"] = (
-            bin["data_regression_genes_unimodal_scale"]
-        )
-        information["data_regression_genes_multimodal_scale"] = (
-            bin["data_regression_genes_multimodal_scale"]
-        )
     # Write product information to file.
     write_product(dock=dock, information=information)
 
