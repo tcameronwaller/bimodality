@@ -38,6 +38,39 @@ import utility
 # Functionality
 
 
+
+
+
+def useful_argument_annotations(
+    group=None,
+    paths=None,
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        persons (list<str>): identifiers of persons
+        group (str): group of persons, either selection or ventilation
+        data_persons_properties (object): Pandas data frame of persons and
+            their relevant properties
+        data_families_persons (object): Pandas data frame of persons'
+            identifiers and families' identifiers
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    pass
+
+
+
+
 def read_source(dock=None):
     """
     Reads and organizes source information from file
@@ -54,22 +87,30 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_samples_tissues_persons = os.path.join(
-        path_selection, "data_samples_tissues_persons.pickle"
+    path_data_samples_tissues_persons = os.path.join(
+        dock, "selection", "tight", "samples_genes_signals",
+        "data_samples_tissues_persons.pickle"
     )
-    path_gene_signal = os.path.join(
-        path_selection, "data_gene_signal.pickle"
+    path_data_gene_signal = os.path.join(
+        dock, "selection", "tight", "samples_genes_signals",
+        "data_gene_signal.pickle"
+    )
+    path_persons_sets = os.path.join(
+        dock, "selection", "tight", "persons_properties",
+        "persons_sets.pickle",
     )
     # Read information from file.
     data_samples_tissues_persons = pandas.read_pickle(
-        path_samples_tissues_persons
+        path_data_samples_tissues_persons
     )
-    data_gene_signal = pandas.read_pickle(path_gene_signal)
+    data_gene_signal = pandas.read_pickle(path_data_gene_signal)
+    with open(path_persons_sets, "rb") as file_source:
+        persons_sets = pickle.load(file_source)
     # Compile and return information.
     return {
         "data_samples_tissues_persons": data_samples_tissues_persons,
         "data_gene_signal": data_gene_signal,
+        "persons_sets": persons_sets,
     }
 
 
@@ -94,14 +135,33 @@ def associate_factors(
 
     """
 
+    # Organize samples.
+    # Organize data.
+    data_samples_tissues_persons.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_samples = data_samples_tissues_persons.loc[
+        :, data_samples_tissues_persons.columns.isin([
+            "sample", "tissue_major", "tissue_minor", "person"
+        ])
+    ]
+    data_samples.set_index(
+        ["sample"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
     # Transpose data structure.
     # Organize genes across columns and samples across rows.
     data_transposition = data_gene_signal.transpose(copy=True)
     # Associate samples to persons and tissues.
-    data_factor = assembly.associate_samples_persons_tissues(
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        data_gene_sample=data_transposition,
+    data_factor = data_transposition.join(
+        data_samples,
+        how="left",
+        on="sample"
     )
+    # Return information.
     return data_factor
 
 
@@ -129,22 +189,11 @@ def split_genes_signals(
 
     """
 
-    # Split genes' signals across tissues and patients by gene.
-    utility.print_terminal_partition(level=2)
-    print(
-        "Split of genes' signals across samples by gene."
-    )
-
     # Associate samples to factors.
-    utility.print_terminal_partition(level=2)
-    print(
-        "Association of samples to factors."
-    )
     data_factor = associate_factors(
         data_samples_tissues_persons=data_samples_tissues_persons,
         data_gene_signal=data_gene_signal,
     )
-    print(data_factor)
     # Organize data.
     data_factor.reset_index(
         level=None,
@@ -183,30 +232,17 @@ def split_genes_signals(
     #This option is inefficient and overloads memory.
     # Instead, slice the data by columns for genes.
 
-    utility.print_terminal_partition(level=2)
-    print("Split data by columns for genes.")
-    print("Count of genes: " + str(len(data_factor.columns.to_list())))
-
     # Collect data frames by gene.
     genes_samples_signals = dict()
     for gene in data_factor.columns.to_list():
         data_gene = data_factor[gene].to_frame(name="signal")
         genes_samples_signals[gene] = data_gene
-        if gene == "ENSG00000231925":
-            print(gene)
-            print(data_gene)
-
-    print("Count of data by genes: " + str(len(genes_samples_signals.keys())))
-    # Access data by gene.
-    print("Access data for a single gene.")
-    print(genes_samples_signals["ENSG00000231925"])
-
     # Return information.
     return genes_samples_signals
 
 
-def summarize_gene_samples_signals(
-    data_gene_samples_signals=None,
+def summarize_genes_samples_signals(
+    genes_samples_signals=None,
 ):
     """
     Summarize information about a gene's samples and signals.
@@ -222,36 +258,142 @@ def summarize_gene_samples_signals(
 
     """
 
-    print(data_gene_samples_signals)
+    # Report.
+    utility.print_terminal_partition(level=2)
+    print("Count of data by genes: " + str(len(genes_samples_signals.keys())))
+    print("Access data for a single gene.")
+    utility.print_terminal_partition(level=2)
+    data = genes_samples_signals["ENSG00000231925"]
+    print(data)
     utility.print_terminal_partition(level=2)
     print("Determine counts of persons and tissues.")
     print("Split gene's signals by person.")
-    groups = data_gene_samples_signals.groupby("person")
+    groups = data.groupby("person")
     persons = len(groups)
     print("Count of groups by person: " + str(persons))
-    # Count of persons = 710
     print("Split gene's signals by major tissue category.")
-    groups = data_gene_samples_signals.groupby("tissue_major")
+    groups = data.groupby("tissue_major")
     tissues = len(groups)
     print("Count of groups by tissue: " + str(tissues))
-    # Count of tissues = 20
+    pass
+
+
+def select_samples_signals_persons(
+    persons=None,
+    data_samples_tissues_persons=None,
+    data_gene_signal=None,
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        persons (list<str>): identifiers of persons
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues across samples
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+
+    """
+
+    # Copy data.
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    data_signals = data_gene_signal.copy(deep=True)
+    # Select samples.
+    data_samples_persons = data_samples.loc[
+        data_samples["person"].isin(persons), :
+    ]
+    samples = data_samples_persons.index.to_list()
+    # Select signals.
+    data_signal_persons = data_signals.loc[
+        :, data_signals.columns.isin(samples)
+    ]
+    # Collect information.
+    bin = dict()
+    bin["data_samples_tissues_persons"] = data_samples_persons
+    bin["data_gene_signal"] = data_signal_persons
+    # Return information.
+    return bin
+
+
+def split_report_write_genes_signals(
+    persons=None,
+    data_samples_tissues_persons=None,
+    data_gene_signal=None,
+    path_directory=None,
+    report=None,
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        persons (list<str>): identifiers of persons
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues across samples
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+        path_directory (str): path to directory for product directories and
+            files
+        report (bool): whether to print reports about the selection
+
+    raises:
+
+    returns:
+
+    """
+
+    # Select samples for relevant persons.
+    bin = select_samples_signals_persons(
+        persons=persons,
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_signal=data_gene_signal,
+    )
+    # Split genes' signals across tissues and patients by gene.
+    genes_samples_signals = split_genes_signals(
+        data_samples_tissues_persons=bin["data_samples_tissues_persons"],
+        data_gene_signal=bin["data_gene_signal"],
+    )
+
+    # Organize genes' identifiers.
+    # Format of genes' identifiers needs to be readable by Bash as an array.
+    genes = list(genes_samples_signals.keys())
+    # Summarize information for a single gene.
+    # Access data for single gene for demonstration.
+    if report:
+        summarize_genes_samples_signals(
+            genes_samples_signals=genes_samples_signals,
+        )
+    # Write the entire collection of all genes' signals to a single file.
+    # Also write each gene's signals to a separate file.
+    # Conserve memory in parallel pipeline by reading data for each gene
+    # separately.
     # Compile information.
     information = {
-        "persons": persons,
-        "tissues": tissues,
+        "genes": genes,
+        "genes_samples_signals": genes_samples_signals,
     }
-    # Return information.
-    return information
+    # Write product information to file.
+    write_product(
+        information=information,
+        path_directory=path_directory,
+    )
+    pass
 
 
-def write_product(dock=None, information=None):
+def write_product(
+    information=None,
+    path_directory=None,
+):
     """
     Writes product information to file.
 
     arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
+        information (dict): information to write to file
+        path_directory (str): path to directory for product directories and
+            files
 
     raises:
 
@@ -260,58 +402,22 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_split = os.path.join(dock, "split")
-    utility.create_directory(path_split)
-
+    utility.create_directories(path_directory)
     path_genes = os.path.join(
-        path_split, "genes.pickle"
+        path_directory, "genes.pickle"
     )
-    path_genes_text = os.path.join(
-        path_split, "genes.txt"
-    )
-    path_persons = os.path.join(
-        path_split, "persons.pickle"
-    )
-    path_tissues = os.path.join(
-        path_split, "tissues.pickle"
-    )
-    path_signal = os.path.join(
-        path_split, "genes_samples_signals.pickle"
-    )
-    path_signal_test = os.path.join(
-        path_split, "genes_samples_signals_test.json"
-    )
-    path_demo = os.path.join(
-        path_split, "demonstration_gene_samples_signals.pickle"
+    path_genes_samples_signals = os.path.join(
+        path_directory, "genes_samples_signals.pickle"
     )
     # Write information to file.
-
-    # List of genes needs to be easy to read in Bash.
-    utility.write_file_text_list(
-        elements=information["genes"],
-        delimiter="\n",
-        path_file=path_genes_text
-    )
     with open(path_genes, "wb") as file_product:
         pickle.dump(information["genes"], file_product)
-    with open(path_persons, "wb") as file_product:
-        pickle.dump(information["persons"], file_product)
-    with open(path_tissues, "wb") as file_product:
-        pickle.dump(information["tissues"], file_product)
-    with open(path_signal, "wb") as file_product:
+    with open(path_genes_samples_signals, "wb") as file_product:
         pickle.dump(information["genes_samples_signals"], file_product)
-
-    #with open(path_signal_test, "wb") as file_product:
-    #    json.dump(information["genes_samples_signals"], file_product)
-
-    pandas.to_pickle(
-        information["data_gene_samples_signals"],
-        path_demo
-    )
 
     # Write separate files for genes.
     # Specify directories and files.
-    path_collection = os.path.join(path_split, "collection")
+    path_collection = os.path.join(path_directory, "collection")
     utility.create_directory(path_collection)
     # Iterate on genes.
     for gene in information["genes"]:
@@ -351,44 +457,20 @@ def execute_procedure(dock=None):
     # Read source information from file.
     source = read_source(dock=dock)
 
-    # Summary.
-    print(source["data_gene_signal"].iloc[0:10, 0:10])
-    print(source["data_gene_signal"].shape)
-
-    # Split genes' signals across tissues and patients by gene.
-    genes_samples_signals = split_genes_signals(
+    split_report_write_genes_signals(
+        persons=source["persons_sets"]["selection"],
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        data_gene_signal=source["data_gene_signal"]
+        data_gene_signal=source["data_gene_signal"],
+        path_directory=os.path.join(dock, "split", "selection"),
+        report=True,
     )
-
-    # Organize genes' identifiers.
-    # Format of genes' identifiers needs to be readable by Bash as an array.
-    genes = source["data_gene_signal"].index.to_list()
-    print("count of genes: " + str(len(genes)))
-
-    # Summarize information for a single gene.
-    # Access data for single gene for demonstration.
-    data_gene_samples_signals = genes_samples_signals["ENSG00000231925"]
-    persons_tissues = summarize_gene_samples_signals(
-        data_gene_samples_signals=data_gene_samples_signals
+    split_report_write_genes_signals(
+        persons=source["persons_sets"]["ventilation"],
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_signal=source["data_gene_signal"],
+        path_directory=os.path.join(dock, "split", "ventilation"),
+        report=True,
     )
-
-    # Write the entire collection of all genes' signals to a single file.
-    # Also write each gene's signals to a separate file.
-    # Conserve memory in parallel pipeline by reading data for each gene
-    # separately.
-
-    # Compile information.
-    information = {
-        "genes": genes,
-        "persons": persons_tissues["persons"],
-        "tissues": persons_tissues["tissues"],
-        "genes_samples_signals": genes_samples_signals,
-        "data_gene_samples_signals": data_gene_samples_signals,
-    }
-
-    #Write product information to file.
-    write_product(dock=dock, information=information)
 
     pass
 

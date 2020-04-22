@@ -1349,7 +1349,7 @@ def read_source_persons_properties(
         path_samples_genes_signals, "data_samples_tissues_persons.pickle"
     )
 
-    path_persons = os.path.join(
+    path_persons_selection = os.path.join(
         dock, "selection", str(stringency), "samples_genes_signals",
         "persons.pickle"
     )
@@ -1361,8 +1361,8 @@ def read_source_persons_properties(
     data_samples_tissues_persons_selection = pandas.read_pickle(
         path_samples_tissues_persons_selection
     )
-    with open(path_persons, "rb") as file_source:
-        persons = pickle.load(file_source)
+    with open(path_persons_selection, "rb") as file_source:
+        persons_selection = pickle.load(file_source)
 
     # Compile and return information.
     return {
@@ -1370,7 +1370,7 @@ def read_source_persons_properties(
         "data_samples_tissues_persons_selection": (
             data_samples_tissues_persons_selection
         ),
-        "persons_selection": persons,
+        "persons_selection": persons_selection,
     }
 
 
@@ -1691,27 +1691,29 @@ def define_variables():
         #"tissues_8", # <- omit
         #"tissues_9", # <- omit
         #"tissues_10", # <- omit
+    ]
+    # Variables that relate to batch.
+    batch = [
+        "facilities_1", # <- omit due to multicollinearity
+        "facilities_2", # <- omit due to multicollinearity
+        "facilities_3", # <- omit
 
-        #"facilities_1", # <- omit due to multicollinearity
-        #"facilities_2", # <- omit due to multicollinearity
-        #"facilities_3", # <- omit
-
-        #"batches_extraction_1",
-        #"batches_extraction_2",
-        #"batches_extraction_3",
-        #"batches_extraction_4", # <- omit
-        #"batches_extraction_5", # <- omit
+        "batches_extraction_1",
+        "batches_extraction_2",
+        "batches_extraction_3",
+        "batches_extraction_4",
+        "batches_extraction_5",
         #"batches_extraction_6", # <- omit
         #"batches_extraction_7", # <- omit
         #"batches_extraction_8", # <- omit
         #"batches_extraction_9", # <- omit
         #"batches_extraction_10", # <- omit
 
-        #"batches_sequence_1",
-        #"batches_sequence_2",
-        #"batches_sequence_3",
-        #"batches_sequence_4",
-        #"batches_sequence_5",
+        "batches_sequence_1",
+        "batches_sequence_2",
+        "batches_sequence_3",
+        "batches_sequence_4",
+        "batches_sequence_5",
         #"batches_sequence_6", # <- omit
         #"batches_sequence_7", # <- omit
         #"batches_sequence_8", # <- omit
@@ -1728,11 +1730,9 @@ def define_variables():
     regression.extend(technique)
 
     # Heritability.
-    heritability_simple = list()
-    heritability_simple.extend(technique)
-    heritability_complex = list()
-    heritability_complex.extend(hypothesis)
-    heritability_complex.extend(technique)
+    heritability = list()
+    heritability.extend(hypothesis)
+    heritability.extend(technique)
 
     # Quantitative Trait Loci (QTL).
     trait = list()
@@ -1747,10 +1747,10 @@ def define_variables():
     information["hypothesis"] = hypothesis
     information["genotype"] = genotype
     information["technique"] = technique
+    information["batch"] = batch
     information["regression"] = regression
-    #information["heritability_simple"] = heritability_simple
-    #information["heritability_complex"] = heritability_complex
-    #information["trait"] = trait
+    information["heritability"] = heritability
+    information["trait"] = trait
 
     # Return information.
     return information
@@ -2676,6 +2676,132 @@ def standardize_scale_variables(
     return data
 
 
+def organize_heritability_information(
+    variables=None,
+    data_persons_properties=None,
+):
+    """
+    Organizes information about families and persons for heritability analysis.
+
+    As the data from GTEx do not include families, generate distinct families
+    for each person for use in heritability analysis in GCTA.
+
+    arguments:
+        variables (list<str>): collection of independent variables for
+            analyses
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+
+    raises:
+
+    returns:
+        (dict): information for heritability analysis
+    """
+
+    # Introduce empty identifiers for families for compatibility with Plink and
+    # GCTA.
+    # Organize data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+    data_persons_properties["family"] = 0
+    data_persons_properties.reset_index(
+        level=None,
+        inplace=True
+    )
+    # Extract families and persons.
+    data_copy = data_persons_properties.copy(deep=True)
+    data_families_persons = data_copy.loc[
+        :, data_copy.columns.isin(["person", "family"])
+    ]
+    data_families_persons = data_families_persons[[
+        "family",
+        "person",
+    ]]
+
+    # Do not use categorical covariates in heritability analysis.
+    # These would use GCTA's "--covar" flag.
+    # Instead, use the quantitative adaptations.
+
+    # Extract quantitative covariates.
+    columns = copy.deepcopy(variables)
+    columns.insert(0, "person")
+    columns.insert(0, "family")
+    data_copy = data_persons_properties.copy(deep=True)
+    data_persons_variables = data_copy.loc[
+        :, data_copy.columns.isin(columns)
+    ]
+    data_persons_variables = data_persons_variables[[*columns]]
+
+    # Compile information.
+    information = {
+        "data_families_persons": data_families_persons,
+        "data_persons_variables": data_persons_variables,
+    }
+    # Return information.
+    return information
+
+
+# TODO: Still need to organize code for heritability covariates and QTL covariates....
+# Organize covariates for quantitative trait loci (QTL) analysis.
+
+def organize_quantitative_trait_loci_variables(
+    variables=None,
+    data_persons_properties=None,
+):
+    """
+    Organizes information about persons for quantitative trait loci (QTL)
+    analysis.
+
+    arguments:
+        variables (list<str>): names of variables for regression
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons' variables for quantitative
+            trait loci analysis
+    """
+
+    # Copy data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+
+    # Extract quantitative covariates.
+    columns = copy.deepcopy(variables)
+    data_persons_variables = data_persons_properties.loc[
+        :, data_persons_properties.columns.isin(columns)
+    ]
+
+    # Transpose columns to rows and rows to columns.
+    # Organize variables across rows and persons across columns.
+    data_transposition = data_persons_variables.transpose(copy=True)
+    data_transposition.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_transposition.rename_axis(
+        index="",
+        axis="index",
+        copy=False,
+        inplace=True
+    )
+    data_transposition.rename_axis(
+        columns="",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    data_transposition.rename(
+        columns={
+            "index": "id",
+        },
+        inplace=True,
+    )
+
+    # Return information.
+    return data_transposition
+
+
 def organize_persons_properties(
     persons=None,
     variables=None,
@@ -2687,8 +2813,8 @@ def organize_persons_properties(
 
     arguments:
         persons (list<str>): identifiers of persons
-        variables (dict<list<str>>): names of independent variables for
-            regression
+        variables (dict<list<str>>): collections of independent variables for
+            analyses
         data_persons_properties_raw (object): Pandas data frame of persons'
             properties
         report (bool): whether to print reports
@@ -2720,11 +2846,22 @@ def organize_persons_properties(
             "data_persons_properties_dimension"
         ],
     )
+    # Organize information for heritability analysis.
+    bin_heritability = organize_heritability_information(
+        variables=variables["heritability"],
+        data_persons_properties=data_persons_properties_scale,
+    )
+    # Organize information for quantitative trait loci (QTL) analysis.
+    data_persons_variables_trait = organize_quantitative_trait_loci_variables(
+        variables=variables["trait"],
+        data_persons_properties=data_persons_properties_scale,
+    )
     # Compile information.
     information = dict()
     information["data_persons_properties"] = data_persons_properties_scale
     information["components_data"] = bin_category["components_data"]
     information["category_variances_data"] = bin_category["variances_data"]
+    information["bin_heritability"] = bin_heritability
     # Return information.
     return information
 
@@ -2932,148 +3069,10 @@ def organize_contingency_table_chi(
     pass
 
 
-
-###################################################
-# TODO: Still need to organize code for heritability covariates and QTL covariates....
-
-# Organize covariates for heritability analysis.
-
-
-def organize_heritability_variables(
-    variables=None,
-    data_persons_properties=None,
-):
-    """
-    Organizes information about families and persons for heritability analysis.
-
-    As the data from GTEx do not include families, generate distinct families
-    for each person for use in heritability analysis in GCTA.
-
-    arguments:
-        variables (list<str>): names of variables for regression
-        data_persons_properties (object): Pandas data frame of persons and
-            their properties
-
-    raises:
-
-    returns:
-        (dict): information for heritability analysis
-    """
-
-    # Introduce empty identifiers for families for compatibility with Plink and
-    # GCTA.
-    # Organize data.
-    data_persons_properties = data_persons_properties.copy(deep=True)
-    data_persons_properties["family"] = 0
-    data_persons_properties.reset_index(
-        level=None,
-        inplace=True
-    )
-    # Extract families and persons.
-    data_copy = data_persons_properties.copy(deep=True)
-    data_families_persons = data_copy.loc[
-        :, data_copy.columns.isin(["person", "family"])
-    ]
-    data_families_persons = data_families_persons[[
-        "family",
-        "person",
-    ]]
-
-    # Do not use categorical covariates in heritability analysis.
-    # These would use GCTA's "--covar" flag.
-    # Instead, use the quantitative adaptations.
-
-    # Extract quantitative covariates.
-    columns = copy.deepcopy(variables)
-    columns.insert(0, "person")
-    columns.insert(0, "family")
-    data_copy = data_persons_properties.copy(deep=True)
-    data_persons_variables = data_copy.loc[
-        :, data_copy.columns.isin(columns)
-    ]
-    data_persons_variables = data_persons_variables[[*columns]]
-
-    # Compile information.
-    information = {
-        "data_families_persons": data_families_persons,
-        "data_persons_variables": data_persons_variables,
-    }
-    # Return information.
-    return information
-
-
-# Organize covariates for quantitative trait loci (QTL) analysis.
-
-
-def organize_quantitative_trait_loci_variables(
-    variables=None,
-    data_persons_properties=None,
-):
-    """
-    Organizes information about persons for quantitative trait loci (QTL)
-    analysis.
-
-    arguments:
-        variables (list<str>): names of variables for regression
-        data_persons_properties (object): Pandas data frame of persons and
-            their properties
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of persons' variables for quantitative
-            trait loci analysis
-    """
-
-    # Copy data.
-    data_persons_properties = data_persons_properties.copy(deep=True)
-
-    # Extract quantitative covariates.
-    columns = copy.deepcopy(variables)
-    data_persons_variables = data_persons_properties.loc[
-        :, data_persons_properties.columns.isin(columns)
-    ]
-
-    # Transpose columns to rows and rows to columns.
-    # Organize variables across rows and persons across columns.
-    data_transposition = data_persons_variables.transpose(copy=True)
-    data_transposition.reset_index(
-        level=None,
-        inplace=True
-    )
-    data_transposition.rename_axis(
-        index="",
-        axis="index",
-        copy=False,
-        inplace=True
-    )
-    data_transposition.rename_axis(
-        columns="",
-        axis="columns",
-        copy=False,
-        inplace=True
-    )
-    data_transposition.rename(
-        columns={
-            "index": "id",
-        },
-        inplace=True,
-    )
-
-    # Return information.
-    return data_transposition
-
-
-###############################################################################33
-
-# TODO: within this function...
-# TODO: organize persons_selection and persons_genotype
-# TODO: calculate covariate principal components using only the relevant persons
-# TODO: 1. regression (all 631 persons with imputed genotypes)
-# TODO: 2. heritability and trait with only the 555 or whatever persons with valid genotypes
-
-# TODO: change "batch_isolation" to "batch_extraction"
-#
+# TODO: from this function, execute the stuff that doesn't change between groups of persons
+# ... like read in the source data
+# TODO: call a function "extract_organize_persons_properties_group" for persons_selection and persons_ventilation
+# ... associate genotype PCs from PLINK on correct subset to respective persons
 
 def extract_organize_persons_properties(
     stringency=None,
@@ -3192,22 +3191,18 @@ def extract_organize_persons_properties(
 
     # Organize persons' properties.
     # Expand categorical variables and reduce dimensionality.
-    bin_organization = organize_persons_properties(
+    bin_persons_selection = organize_persons_properties(
+        persons=persons_sets["selection"],
+        variables=variables,
+        data_persons_properties_raw=data_persons_properties_raw,
+        report=True,
+    )
+    bin_persons_ventilation = organize_persons_properties(
         persons=persons_sets["ventilation"],
         variables=variables,
         data_persons_properties_raw=data_persons_properties_raw,
         report=True,
     )
-    utility.print_terminal_partition(level=2)
-    print("data_persons_properties")
-    print(bin_organization["data_persons_properties"])
-
-    bin_regression = dict()
-    bin_regression["persons"] = source["persons_selection"]
-    bin_regression["data_persons_properties"] = bin_organization["data_persons_properties"]
-
-    bin_heritability = dict()
-    bin_trait = dict()
 
     # Contingency tables and chi2.
     # Test on persons_selection and on persons_ventilation.
@@ -3233,110 +3228,18 @@ def extract_organize_persons_properties(
 
     # Compile information.
     information = dict()
-    information["persons_selection_genotype"] = persons_selection_genotype
     information["data_samples_tissues_persons_imputation"] = (
         data_samples_imputation
     )
-    information["category_variances_data"] = (
-        bin_organization["category_variances_data"]
-    )
     information["persons_sets"] = persons_sets
-    information["bin_regression"] = bin_regression
+    information["bin_persons_selection"] = bin_persons_selection
+    information["bin_persons_ventilation"] = bin_persons_ventilation
     # Write product information to file.
     write_product_persons_properties(
         stringency=stringency,
         dock=dock,
         information=information
     )
-    pass
-
-
-
-
-
-
-    if False:
-        # Copy data.
-        data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
-        data_samples_tissues_persons_selection = (
-            data_samples_tissues_persons_selection.copy(deep=True)
-        )
-        data_gene_signal = data_gene_signal.copy(deep=True)
-
-        if False:
-            # Transpose data structure.
-            # Organize genes across columns and samples across rows.
-            data_transposition = data_gene_signal.transpose(copy=True)
-            # Associate samples to persons and tissues.
-            data_gene_signal_factor = assembly.associate_samples_persons_tissues(
-                data_samples_tissues_persons=data_samples_tissues_persons,
-                data_gene_sample=data_transposition,
-            )
-
-        # Select persons.
-
-
-        # TODO: here is a critical point... for imputation, I want all the persons...
-
-        # Split up this procedure by persons considered...
-
-
-        ##########
-        # Regression
-        ##########
-        #bin_regression =
-
-        ##########
-        # Heritability
-        ##########
-        #bin_heritability =
-
-        ##########
-        # Quantitative trait loci (QTL)
-        ##########
-        #bin_trait =
-
-
-        # Organize information for heritability analysis.
-        simple = organize_heritability_variables(
-            variables=variables["heritability_simple"],
-            data_persons_properties=bin["data_persons_properties"],
-        )
-        complex = organize_heritability_variables(
-            variables=variables["heritability_complex"],
-            data_persons_properties=bin["data_persons_properties"],
-        )
-
-        # Organize information for quantitative trait loci (QTL) analysis.
-        data_persons_variables_trait = organize_quantitative_trait_loci_variables(
-            variables=variables["trait"],
-            data_persons_properties=bin["data_persons_properties"],
-        )
-
-        # Compile information.
-        information = {
-            "data_persons_properties_raw": data_persons_properties_raw,
-            "data_persons_properties": bin["data_persons_properties"],
-
-            "data_tissues_variance": bin["data_tissues_variance"],
-            "data_facilities_variance": bin["data_facilities_variance"],
-            "data_batches_extraction_variance": bin[
-                "data_batches_extraction_variance"
-            ],
-            "data_batches_sequence_variance": bin[
-                "data_batches_sequence_variance"
-            ],
-
-            "data_families_persons": simple["data_families_persons"],
-            "data_persons_variables_simple": simple["data_persons_variables"],
-            "data_persons_variables_complex": complex["data_persons_variables"],
-
-            "data_persons_variables_trait": data_persons_variables_trait,
-
-        }
-        # Return information.
-        return information
-
     pass
 
 
@@ -3707,18 +3610,11 @@ def write_product_persons_properties_charts(
     )
     utility.create_directories(path_charts)
 
-    path_persons_sets = os.path.join(
-        path_charts, "persons_sets.pickle"
-    )
-
-    # Write information to file.
-    with open(path_persons_sets, "wb") as file_product:
-        pickle.dump(information["persons_sets"], file_product)
-
     pass
 
 
-def write_product_persons_properties_analysis_regression(
+
+def write_product_persons_properties_heritability(
     path_parent=None,
     information=None,
 ):
@@ -3737,9 +3633,74 @@ def write_product_persons_properties_analysis_regression(
 
     # Specify directories and files.
     path_directory = os.path.join(
-        path_parent, "regression"
+        path_parent, "heritability"
     )
     utility.create_directories(path_directory)
+
+    path_data_families_persons = os.path.join(
+        path_directory, "data_families_persons.pickle"
+    )
+    path_families_persons_text = os.path.join(
+        path_directory, "families_persons.tsv"
+    )
+    path_persons_variables = os.path.join(
+        path_directory, "persons_variables.tsv"
+    )
+
+    # Write information to file.
+    pandas.to_pickle(
+        information["data_families_persons"],
+        path_data_families_persons
+    )
+    information["data_families_persons"].to_csv(
+        path_or_buf=path_families_persons_text,
+        sep="\t",
+        na_rep="NA",
+        header=False,
+        index=False,
+    )
+    information["data_persons_variables"].to_csv(
+        path_or_buf=path_persons_variables,
+        sep="\t",
+        na_rep="NA",
+        header=False,
+        index=False,
+    )
+    pass
+
+
+
+
+def write_product_persons_properties_persons_group(
+    path_parent=None,
+    group=None,
+    information=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        path_parent (str): path to parent directory
+        group (str): group of persons
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_directory = os.path.join(
+        path_parent, group
+    )
+    utility.create_directories(path_directory)
+
+    # Information for subsequent analyses.
+    write_product_persons_properties_heritability(
+        path_parent=path_directory,
+        information=information["bin_heritability"]
+    )
 
     path_data_persons_properties = os.path.join(
         path_directory, "data_persons_properties.pickle"
@@ -3747,7 +3708,6 @@ def write_product_persons_properties_analysis_regression(
     information["data_persons_properties"].to_pickle(
         path=path_data_persons_properties
     )
-
     path_data_persons_properties_text = os.path.join(
         path_directory, "data_persons_properties.tsv"
     )
@@ -3795,119 +3755,29 @@ def write_product_persons_properties(
         information=information
     )
     # Information for subsequent analyses.
-    write_product_persons_properties_analysis_regression(
+    write_product_persons_properties_persons_group(
         path_parent=path_persons_properties,
-        information=information["bin_regression"]
+        group="selection",
+        information=information["bin_persons_selection"]
     )
-
-
-    if False:
-        # Specify directories and files.
-        path_selection = os.path.join(dock, "selection", str(stringency))
-        path_persons_properties = os.path.join(
-            path_selection, "persons_properties"
-        )
-        path_charts = os.path.join(
-            path_persons_properties, "charts"
-        )
-        utility.create_directories(path_charts)
-
-        path_persons_sets = os.path.join(
-            path_charts, "persons_sets.pickle"
-        )
-
-        # Write information to file.
-        with open(path_persons_sets, "wb") as file_product:
-            pickle.dump(information["persons_sets"], file_product)
-
-    pass
-
-
-
-
-
-
-def write_product_heritability(
-    dock=None,
-    stringency=None,
-    model=None,
-    information=None,
-):
-    """
-    Writes product information to file.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-        stringency (str): category, loose or tight, of selection criteria
-        model (str): category, simple or complex, of regression model
-        information (object): information to write to file.
-
-    raises:
-
-    returns:
-
-    """
-
+    write_product_persons_properties_persons_group(
+        path_parent=path_persons_properties,
+        group="ventilation",
+        information=information["bin_persons_ventilation"]
+    )
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", str(stringency))
-    utility.create_directories(path_selection)
-
-    # Variables for heritability analysis.
-    path_heritability = os.path.join(
-        path_selection, "heritability", str(model)
+    path_persons_sets = os.path.join(
+        path_persons_properties, "persons_sets.pickle"
     )
-    utility.create_directories(path_heritability)
-    path_families_persons = os.path.join(
-        path_heritability, "data_families_persons.pickle"
-    )
-    path_families_persons_text = os.path.join(
-        path_heritability, "families_persons.tsv"
-    )
-    path_persons_variables = os.path.join(
-        path_heritability, "persons_variables.tsv"
-    )
-
     # Write information to file.
-    if model == "simple":
-        pandas.to_pickle(
-            information["data_families_persons"],
-            path_families_persons
-        )
-        information["data_families_persons"].to_csv(
-            path_or_buf=path_families_persons_text,
-            sep="\t",
-            na_rep="NA",
-            header=False,
-            index=False,
-        )
-        information["data_persons_variables_simple"].to_csv(
-            path_or_buf=path_persons_variables,
-            sep="\t",
-            na_rep="NA",
-            header=False,
-            index=False,
-        )
-    elif model == "complex":
-        pandas.to_pickle(
-            information["data_families_persons"],
-            path_families_persons
-        )
-        information["data_families_persons"].to_csv(
-            path_or_buf=path_families_persons_text,
-            sep="\t",
-            na_rep="NA",
-            header=False,
-            index=False,
-        )
-        information["data_persons_variables_complex"].to_csv(
-            path_or_buf=path_persons_variables,
-            sep="\t",
-            na_rep="NA",
-            header=False,
-            index=False,
-        )
+    with open(path_persons_sets, "wb") as file_product:
+        pickle.dump(information["persons_sets"], file_product)
+
     pass
+
+
+
+
 
 
 def write_product_trait(

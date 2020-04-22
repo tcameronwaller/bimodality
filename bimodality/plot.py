@@ -4322,13 +4322,19 @@ def read_source_genes_persons_signals_initial(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
     )
     path_genes_selection = os.path.join(
-        path_selection, "genes_selection.pickle"
+        dock, "selection", "tight", "samples_genes_signals",
+        "genes.pickle"
     )
+    path_persons_sets = os.path.join(
+        dock, "selection", "tight", "persons_properties", "charts",
+        "persons_sets.pickle"
+    )
+
     path_candidacy = os.path.join(dock, "candidacy")
     path_genes_unimodal = os.path.join(
         path_candidacy, "genes_unimodal.pickle"
@@ -4341,6 +4347,8 @@ def read_source_genes_persons_signals_initial(
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
     with open(path_genes_selection, "rb") as file_source:
         genes_selection = pickle.load(file_source)
+    with open(path_persons_sets, "rb") as file_source:
+        persons_sets = pickle.load(file_source)
     with open(path_genes_unimodal, "rb") as file_source:
         genes_unimodal = pickle.load(file_source)
     with open(path_genes_multimodal, "rb") as file_source:
@@ -4354,6 +4362,7 @@ def read_source_genes_persons_signals_initial(
     return {
         "data_gene_annotation": data_gene_annotation,
         "genes_selection": genes_selection,
+        "persons_sets": persons_sets,
         "genes_unimodal": genes_unimodal,
         "genes_multimodal": genes_multimodal,
         "genes_query": genes_query,
@@ -4479,60 +4488,52 @@ def prepare_charts_genes_persons_signals(
     utility.create_directories(path=path_multimodal)
     utility.create_directories(path=path_query)
 
-    # Iterate on genes.
-    for gene in source_initial["genes_unimodal"]:
-        # Access gene's name.
-        name = assembly.access_gene_name(
-            identifier=gene,
-            data_gene_annotation=source_initial["data_gene_annotation"],
-        )
-        # Read source information from file.
-        source_gene = read_source_genes_persons_signals(
-            gene=gene,
-            dock=dock
-        )
-        # Access information.
-        data_gene_persons_signals = source_gene["data_gene_persons_signals"]
-        # Distribution of gene's signals across persons.
-        values = data_gene_persons_signals["value"].to_list()
-        # Create charts for the gene.
-        path_gene_figure = os.path.join(path_unimodal, str(name + ".svg"))
-        plot_chart_genes_persons_signals(
-            gene=gene,
-            name=name,
-            values=values,
-            path=path_gene_figure
-        )
-        pass
-
-    for gene in source_initial["genes_multimodal"]:
-        # Access gene's name.
-        name = assembly.access_gene_name(
-            identifier=gene,
-            data_gene_annotation=source_initial["data_gene_annotation"],
-        )
-        # Read source information from file.
-        source_gene = read_source_genes_persons_signals(
-            gene=gene,
-            dock=dock
-        )
-        # Access information.
-        data_gene_persons_signals = source_gene["data_gene_persons_signals"]
-        # Distribution of gene's signals across persons.
-        values = data_gene_persons_signals["value"].to_list()
-        # Create charts for the gene.
-        path_gene_figure = os.path.join(path_multimodal, str(name + ".svg"))
-        plot_chart_genes_persons_signals(
-            gene=gene,
-            name=name,
-            values=values,
-            path=path_gene_figure
-        )
-        pass
+    persons_interest = source_initial["persons_sets"]["ventilation"]
 
     # Plot charts for genes of interest.
-    for gene in source_initial["genes_query"]:
+    #genes_interest = source_initial["genes_query"]
+    genes_interest = [
+        "ENSG00000129757", # CDKN1C
+        "ENSG00000140807", # NKD1
+        "ENSG00000159216", # RUNX1
+        "ENSG00000244694", # PTCHD4
+        "ENSG00000134333", # LDHA
+        "ENSG00000114388", # NPRL2
+    ]
+    for gene in genes_interest:
         if gene in source_initial["genes_selection"]:
+            # Access gene's name.
+            name = assembly.access_gene_name(
+                identifier=gene,
+                data_gene_annotation=source_initial["data_gene_annotation"],
+            )
+            # Read source information from file.
+            source_gene = read_source_genes_persons_signals(
+                gene=gene,
+                dock=dock
+            )
+            # Access information.
+            data_signals = source_gene["data_gene_persons_signals"]
+            # Select data for persons of interest.
+            data_signals_selection = data_signals.loc[
+                data_signals.index.isin(persons_interest), :
+            ]
+            # Distribution of gene's signals across persons.
+            values = data_signals_selection["value"].to_list()
+            print("values: " + str(len(values)))
+            # Create charts for the gene.
+            path_gene_figure = os.path.join(path_query, str(name + ".svg"))
+            plot_chart_genes_persons_signals(
+                gene=gene,
+                name=name,
+                values=values,
+                path=path_gene_figure
+            )
+            pass
+
+    if False:
+        # Iterate on genes.
+        for gene in source_initial["genes_unimodal"]:
             # Access gene's name.
             name = assembly.access_gene_name(
                 identifier=gene,
@@ -4548,7 +4549,7 @@ def prepare_charts_genes_persons_signals(
             # Distribution of gene's signals across persons.
             values = data_gene_persons_signals["value"].to_list()
             # Create charts for the gene.
-            path_gene_figure = os.path.join(path_query, str(name + ".svg"))
+            path_gene_figure = os.path.join(path_unimodal, str(name + ".svg"))
             plot_chart_genes_persons_signals(
                 gene=gene,
                 name=name,
@@ -4557,6 +4558,30 @@ def prepare_charts_genes_persons_signals(
             )
             pass
 
+        for gene in source_initial["genes_multimodal"]:
+            # Access gene's name.
+            name = assembly.access_gene_name(
+                identifier=gene,
+                data_gene_annotation=source_initial["data_gene_annotation"],
+            )
+            # Read source information from file.
+            source_gene = read_source_genes_persons_signals(
+                gene=gene,
+                dock=dock
+            )
+            # Access information.
+            data_gene_persons_signals = source_gene["data_gene_persons_signals"]
+            # Distribution of gene's signals across persons.
+            values = data_gene_persons_signals["value"].to_list()
+            # Create charts for the gene.
+            path_gene_figure = os.path.join(path_multimodal, str(name + ".svg"))
+            plot_chart_genes_persons_signals(
+                gene=gene,
+                name=name,
+                values=values,
+                path=path_gene_figure
+            )
+            pass
     pass
 
 
@@ -7800,9 +7825,11 @@ def execute_procedure(dock=None):
         ##########
         # Distribution procedure
 
-        # Plot charts of distributions of genes' pan-tissue aggregate signals
-        # across persons.
-        prepare_charts_genes_persons_signals(dock=dock)
+    # Plot charts of distributions of genes' pan-tissue aggregate signals
+    # across persons.
+    prepare_charts_genes_persons_signals(dock=dock)
+
+    if False:
 
         # Plot charts of distributions of each modality measure's scores across
         # genes.
@@ -7813,9 +7840,6 @@ def execute_procedure(dock=None):
         ##########
         ##########
         # Candidacy procedure
-
-    if False:
-
 
         # Plot charts of overlap between sets in selection of genes by bimodality.
         prepare_charts_gene_sets_candidacy(dock=dock)

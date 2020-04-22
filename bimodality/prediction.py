@@ -1642,6 +1642,19 @@ def execute_procedure(
     source = read_source(
         dock=dock,
     )
+
+    # Organize data and regress cases.
+    bin_regression = organize_data_regress_cases_report(
+        variables_independence=variables["regression"],
+        genes=genes_iteration,
+        data_persons_properties=source["data_persons_properties"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+        data_gene_annotation=source["data_gene_annotation"],
+    )
+
+
+
+
     # Define variables for regression.
     variables = selection.define_variables()
     utility.print_terminal_partition(level=3)
@@ -1735,7 +1748,7 @@ def execute_procedure(
         genes_unimodal=source["genes_unimodal"],
         genes_multimodal=source["genes_multimodal"],
         threshold_r_square=0.1,
-        count_selection=30,
+        count_selection=3000,
         data_regression_genes=data_regression_genes_discovery,
     )
     utility.print_terminal_partition(level=2)

@@ -60,28 +60,36 @@ def initialize_directories(dock=None):
 
     """
 
-    # Define paths to directories.
-    path_distribution = os.path.join(dock, "distribution")
-    path_genes = os.path.join(path_distribution, "genes")
-    path_collection = os.path.join(path_distribution, "collection")
-    path_trait = os.path.join(path_collection, "trait")
-
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_distribution)
-
-    # Initialize directories.
-    utility.create_directory(path_distribution)
-    utility.create_directory(path_genes)
-    utility.create_directory(path_collection)
-    utility.create_directory(path_trait)
-
-    # Collect information.
+    # Collect paths.
     paths = dict()
-    paths["distribution"] = path_distribution
-    paths["genes"] = path_genes
-    paths["collection"] = path_collection
-    paths["trait"] = path_trait
-
+    # Define paths to directories.
+    paths["dock"] = dock
+    paths["distribution"] = os.path.join(paths["dock"], "distribution")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=paths["distribution"])
+    utility.create_directory(path=paths["distribution"])
+    # Define paths for groups of persons.
+    groups = list()
+    groups.append("selection")
+    groups.append("ventilation")
+    for group in groups:
+        paths[group] = dict()
+        paths[group]["persons"] = os.path.join(
+            paths["distribution"], str("persons_" + group)
+        )
+        paths[group]["genes"] = os.path.join(
+            paths[group]["persons"], "genes"
+        )
+        paths[group]["collection"] = os.path.join(
+            paths[group]["persons"], "collection"
+        )
+        paths[group]["trait"] = os.path.join(
+            paths[group]["persons"], "trait"
+        )
+        # Initialize directories.
+        utility.create_directories(path=paths[group]["genes"])
+        utility.create_directories(path=paths[group]["collection"])
+        utility.create_directories(path=paths[group]["trait"])
     # Return information.
     return paths
 
@@ -91,12 +99,14 @@ def initialize_directories(dock=None):
 
 
 def read_source_initial(
+    group=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -108,43 +118,56 @@ def read_source_initial(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
     path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
     )
-    path_persons_families = os.path.join(
-        path_selection, "heritability", "simple",
-        "data_families_persons.pickle"
+    path_genes_selection = os.path.join(
+        dock, "selection", "tight", "samples_genes_signals",
+        "genes.pickle"
     )
-    path_genes = os.path.join(
-        path_selection, "genes_selection.pickle"
+    path_persons_sets = os.path.join(
+        dock, "selection", "tight", "persons_properties",
+        "persons_sets.pickle"
+    )
+    path_data_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", group,
+        "data_persons_properties.pickle"
+    )
+    path_data_families_persons = os.path.join(
+        dock, "selection", "tight", "persons_properties", group,
+        "heritability", "data_families_persons.pickle"
     )
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_persons_families = pandas.read_pickle(path_persons_families)
-    with open(path_genes, "rb") as file_source:
-        genes = pickle.load(file_source)
-    #genes = utility.read_file_text_list(
-    #    delimiter="\n",
-    #    path_file=path_genes,
-    #)
+    with open(path_genes_selection, "rb") as file_source:
+        genes_selection = pickle.load(file_source)
+    with open(path_persons_sets, "rb") as file_source:
+        persons_sets = pickle.load(file_source)
+    data_persons_properties = pandas.read_pickle(path_data_persons_properties)
+    data_families_persons = pandas.read_pickle(path_data_families_persons)
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
-        "data_persons_families": data_persons_families,
-        "genes": genes,
+        "genes_selection": genes_selection,
+        "persons": persons_sets[group],
+        "data_persons_properties": data_persons_properties,
+        "data_families_persons": data_families_persons,
     }
 
 
+# TODO: I think I should make this read separate collections for different person selections...
 def read_source(
     gene=None,
+    group=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        gene (str): identifier of single gene for which to execute the process.
+        gene (str): identifier of single gene for which to execute the process
+        group (str): group of persons, either selection or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -158,7 +181,9 @@ def read_source(
     # Specify directories and files.
     path_split = os.path.join(dock, "split")
     path_collection = os.path.join(path_split, "collection")
-    path_gene = os.path.join(path_collection, (gene + ".pickle"))
+    path_gene = os.path.join(
+        dock, "split", group, "collection", (gene + ".pickle")
+    )
     # Read information from file.
     data_gene_samples_signals = pandas.read_pickle(path_gene)
     # Compile and return information.
@@ -1825,7 +1850,7 @@ def prepare_describe_distribution(
 
 def extract_gene_persons_signals(
     data_gene_persons_signals=None,
-    data_persons_families=None,
+    data_families_persons=None,
 ):
     """
     Extracts information about a gene's distribution of pan-tissue signals
@@ -1836,7 +1861,7 @@ def extract_gene_persons_signals(
     arguments:
         data_gene_persons_signals (object): Pandas data frame of a gene's
             aggregate, pan-tissue signals across persons
-        data_persons_families (object): Pandas data frame of families and persons
+        data_families_persons (object): Pandas data frame of families and persons
 
     raises:
 
@@ -1847,12 +1872,12 @@ def extract_gene_persons_signals(
     """
 
     # Copy data before modification.
-    data_persons_families = data_persons_families.copy(deep=True)
+    data_families_persons = data_families_persons.copy(deep=True)
 
     # Treat the complete table of families and persons as master.
     # Introduce missing values for persons without valid signals.
     # Join
-    data_gene_families_persons_signals = data_persons_families.join(
+    data_gene_families_persons_signals = data_families_persons.join(
         data_gene_persons_signals,
         how="left",
         on="person"
@@ -2018,6 +2043,7 @@ def prepare_gene_report(
 
 def write_product_gene(
     gene=None,
+    group=None,
     information=None,
     paths=None,
 ):
@@ -2026,6 +2052,7 @@ def write_product_gene(
 
     arguments:
         gene (str): identifier of single gene for which to execute the process
+        group (str): group of persons, either selection or ventilation
         information (object): information to write to file
         paths (dict<str>): collection of paths to directories for procedure's
             files
@@ -2038,7 +2065,7 @@ def write_product_gene(
 
     ##########
     # Specify directories and files.
-    path_gene = os.path.join(paths["genes"], gene)
+    path_gene = os.path.join(paths[group]["genes"], gene)
     utility.create_directory(path_gene)
 
     # General
@@ -2198,6 +2225,7 @@ def write_product_gene(
 
 
 def write_product_collection(
+    group=None,
     information=None,
     paths=None,
 ):
@@ -2205,6 +2233,7 @@ def write_product_collection(
     Writes product information to file.
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         information (object): information to write to file
         paths (dict<str>): collection of paths to directories for procedure's
             files
@@ -2217,22 +2246,22 @@ def write_product_collection(
 
     # Specify directories and files.
     path_data_signals_genes_persons = os.path.join(
-        paths["collection"], "data_signals_genes_persons.pickle"
+        paths[group]["collection"], "data_signals_genes_persons.pickle"
     )
     path_genes_scores = os.path.join(
-        paths["collection"], "genes_scores.pickle"
+        paths[group]["collection"], "genes_scores.pickle"
     )
     path_scores = os.path.join(
-        paths["collection"], "scores.pickle"
+        paths[group]["collection"], "scores.pickle"
     )
     path_data_report = os.path.join(
-        paths["collection"], "data_gene_report.pickle"
+        paths[group]["collection"], "data_gene_report.pickle"
     )
     path_data_report_text = os.path.join(
-        paths["collection"], "data_gene_report.tsv"
+        paths[group]["collection"], "data_gene_report.tsv"
     )
     path_data_signals_genes_persons_trait = os.path.join(
-        paths["trait"], "data_signals_genes_persons_trait.tsv"
+        paths[group]["trait"], "data_signals_genes_persons_trait.tsv"
     )
 
     # Write information to file.
@@ -2267,42 +2296,8 @@ def write_product_collection(
 # Collection
 
 
-def read_collection_initial(
-    dock=None
-):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
-    )
-    path_persons_properties = os.path.join(
-        path_selection, "data_persons_properties.pickle"
-    )
-    # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_persons_properties = pandas.read_pickle(path_persons_properties)
-    # Compile and return information.
-    return {
-        "data_gene_annotation": data_gene_annotation,
-        "data_persons_properties": data_persons_properties,
-    }
-
-
 def read_collection_signals_gene_persons(
+    group=None,
     gene=None,
     paths=None
 ):
@@ -2310,6 +2305,7 @@ def read_collection_signals_gene_persons(
     Reads and organizes source information from file
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         gene (str): identifier of single gene for which to execute the process.
         paths (dict<str>): collection of paths to directories for procedure's
             files
@@ -2322,7 +2318,7 @@ def read_collection_signals_gene_persons(
     """
 
     # Specify directories and files.
-    path_gene = os.path.join(paths["genes"], gene)
+    path_gene = os.path.join(paths[group]["genes"], gene)
     path_data_gene_persons_signals = os.path.join(
         path_gene, "data_gene_persons_signals.pickle"
     )
@@ -2338,6 +2334,7 @@ def read_collection_signals_gene_persons(
 
 
 def read_collect_signals_genes_persons(
+    group=None,
     genes=None,
     paths=None,
 ):
@@ -2345,6 +2342,7 @@ def read_collect_signals_genes_persons(
     Collects genes' pantissue signals across persons.
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         genes (list<str>): identifiers of genes
         paths (dict<str>): collection of paths to directories for procedure's
             files
@@ -2378,6 +2376,7 @@ def read_collect_signals_genes_persons(
     for gene in genes:
         # Read source information from file.
         source_gene = read_collection_signals_gene_persons(
+            group=group,
             gene=gene,
             paths=paths
         )
@@ -2389,6 +2388,7 @@ def read_collect_signals_genes_persons(
 
 
 def read_collect_organize_signals_genes_persons(
+    group=None,
     genes=None,
     data_persons_properties=None,
     paths=None,
@@ -2397,6 +2397,7 @@ def read_collect_organize_signals_genes_persons(
     Collects genes' pantissue signals across persons.
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         genes (list<str>): identifiers of genes
         data_persons_properties (object): Pandas data frame of persons and
             their properties
@@ -2418,7 +2419,7 @@ def read_collect_organize_signals_genes_persons(
     )
     data_collection = data_collection.loc[
         :, data_collection.columns.isin([
-            "person", "sex"
+            "person", "sex_text"
         ])
     ]
     data_collection.drop_duplicates(
@@ -2437,6 +2438,7 @@ def read_collect_organize_signals_genes_persons(
     # Collect aggregate, pantissue signals across persons for all priority
     # genes.
     collection_signals = read_collect_signals_genes_persons(
+        group=group,
         genes=genes,
         paths=paths,
     )
@@ -2463,7 +2465,7 @@ def read_collect_organize_signals_genes_persons(
 
     # Organize data.
     data_collection.drop(
-        labels="sex",
+        labels="sex_text",
         axis="columns",
         inplace=True
     )
@@ -2492,6 +2494,7 @@ def read_collect_organize_signals_genes_persons(
 
 
 def read_collect_genes_scores(
+    group=None,
     genes=None,
     paths=None,
 ):
@@ -2512,6 +2515,7 @@ def read_collect_genes_scores(
     -- coefficient (dict)
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         genes (list<str>): identifiers of genes
         paths (dict<str>): collection of paths to directories for procedure's
             files
@@ -2537,7 +2541,7 @@ def read_collect_genes_scores(
     # Iterate on genes.
     for gene in genes:
         # Specify directories and files.
-        path_gene = os.path.join(paths["genes"], gene)
+        path_gene = os.path.join(paths[group]["genes"], gene)
         path_scores = os.path.join(
             path_gene, "scores.pickle"
         )
@@ -2567,6 +2571,7 @@ def read_collect_genes_scores(
 
 
 def read_collect_gene_report(
+    group=None,
     genes=None,
     paths=None,
 ):
@@ -2574,6 +2579,7 @@ def read_collect_gene_report(
     Collects information about genes.
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         genes (list<str>): identifiers of genes
         paths (dict<str>): collection of paths to directories for procedure's
             files
@@ -2590,7 +2596,7 @@ def read_collect_gene_report(
     # Iterate on directories for genes.
     for gene in genes:
         # Specify directories and files.
-        path_gene = os.path.join(paths["genes"], gene)
+        path_gene = os.path.join(paths[group]["genes"], gene)
         path_report = os.path.join(
             path_gene, "report.pickle"
         )
@@ -2755,29 +2761,29 @@ def organize_persons_genes_signals_quantitative_trait_loci(
 
 
 def read_collect_write_iterations(
+    group=None,
     genes=None,
+    data_gene_annotation=None,
+    data_persons_properties=None,
     paths=None,
-    dock=None,
 ):
     """
     Reads, collects, and writes information from iterations.
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         genes (list<str>): identifiers of genes
         data_gene_annotation (object): Pandas data frame of genes' annotations
+        data_persons_properties (object): Pandas data frame of persons and
+            their relevant properties
         paths (dict<str>): collection of paths to directories for procedure's
             files
-        dock (str): path to root or dock directory for source and product
-            directories and files
 
     raises:
 
     returns:
 
     """
-
-    # Read source information from file.
-    source = read_collection_initial(dock=dock)
 
     # Report process.
     utility.print_terminal_partition(level=1)
@@ -2791,7 +2797,7 @@ def read_collect_write_iterations(
     utility.print_terminal_partition(level=3)
     print("Check that directories exist for all genes to collect.")
     genes_distribution = utility.extract_subdirectory_names(
-        path=paths["genes"]
+        path=paths[group]["genes"]
     )
     match_distribution = utility.compare_lists_by_inclusion(
         list_one=genes_distribution,
@@ -2805,18 +2811,21 @@ def read_collect_write_iterations(
 
     # Genes' pantissue signals across persons.
     data_signals_genes_persons = read_collect_organize_signals_genes_persons(
+        group=group,
         genes=genes_distribution,
-        data_persons_properties=source["data_persons_properties"],
+        data_persons_properties=data_persons_properties,
         paths=paths,
     )
 
     # Genes' scores.
     genes_scores = read_collect_genes_scores(
+        group=group,
         genes=genes_distribution,
         paths=paths,
     )
     # Report of genes' distributions.
     data_report = read_collect_gene_report(
+        group=group,
         genes=genes_distribution,
         paths=paths,
     )
@@ -2827,7 +2836,7 @@ def read_collect_write_iterations(
     data_signals_genes_persons_trait = (
         organize_persons_genes_signals_quantitative_trait_loci(
             data_signals_genes_persons=data_signals_genes_persons,
-            data_gene_annotation=source["data_gene_annotation"],
+            data_gene_annotation=data_gene_annotation,
     ))
 
     # Compile information.
@@ -2841,6 +2850,7 @@ def read_collect_write_iterations(
     )
     # Write product information to file.
     write_product_collection(
+        group=group,
         information=information,
         paths=paths,
     )
@@ -2853,26 +2863,25 @@ def read_collect_write_iterations(
 
 def execute_procedure(
     gene=None,
+    group=None,
     data_gene_samples_signals=None,
-    data_persons_families=None,
+    data_families_persons=None,
     data_gene_annotation=None,
     paths=None,
-    dock=None
 ):
     """
     Function to execute module's main behavior.
 
     arguments:
         gene (str): identifier of gene
+        group (str): group of persons, either selection or ventilation
         data_gene_samples_signals (object): Pandas data frame of a gene's
             signals across samples
-        data_persons_families (object): Pandas data frame of person's
+        data_families_persons (object): Pandas data frame of person's
             identifiers and families' identifiers
         data_gene_annotation (object): Pandas data frame of genes' annotations
         paths (dict<str>): collection of paths to directories for procedure's
             files
-        dock (str): path to root or dock directory for source and product
-            directories and files
 
     raises:
 
@@ -2903,7 +2912,7 @@ def execute_procedure(
         data_gene_persons_signals=(
             bins["bin_aggregation"]["data_gene_persons_signals"]
         ),
-        data_persons_families=data_persons_families,
+        data_families_persons=data_families_persons,
     )
 
     # Report
@@ -2941,6 +2950,7 @@ def execute_procedure(
     # Write product information to file.
     write_product_gene(
         gene=gene,
+        group=group,
         information=information,
         paths=paths,
     )
@@ -2964,63 +2974,23 @@ def execute_procedure_local(dock=None):
 
     utility.print_terminal_partition(level=1)
     print("... Distribution procedure ...")
-
     # Report date and time.
     utility.print_terminal_partition(level=3)
     start = datetime.datetime.now()
     print(start)
     utility.print_terminal_partition(level=3)
-
     # Initialize directories.
     paths = initialize_directories(dock=dock)
 
-    # Read source information from file.
-    source = read_source_initial(
-        dock=dock
-    )
-    print("count of genes: " + str(len(source["genes"])))
-
-    # Specify genes on which to iterate.
-    #genes_iteration = random.sample(source["genes"], 250)
-    genes_iteration = source["genes"]#[0:100]
-
-    # Execute procedure for a single gene.
-    if False:
-        report = execute_procedure_local_sub(
-            gene="ENSG00000231925", # TAPBP
-            data_persons_families=source["data_persons_families"],
-            data_gene_annotation=source["data_gene_annotation"],
-            dock=dock,
-        )
-    # Set up partial function for iterative execution.
-    # Each iteration uses a different sequential value of the "gene" variable
-    # with the same value of the "dock" variable.
-    execute_procedure_gene = functools.partial(
-        execute_procedure_local_sub,
-        data_persons_families=source["data_persons_families"],
-        data_gene_annotation=source["data_gene_annotation"],
+    # Execute procedure for each group of persons.
+    execute_procedure_local_group(
+        group="selection",
         paths=paths,
-        dock=dock,
     )
-    # Initialize multiprocessing pool.
-    #pool = multiprocessing.Pool(processes=os.cpu_count())
-    pool = multiprocessing.Pool(processes=8)
-    # Iterate on genes.
-    report = pool.map(
-        execute_procedure_gene,
-        genes_iteration,
-    )
-
-    # Pause procedure.
-    time.sleep(10.0)
-
-    # Read, collect, and write information from iterations.
-    read_collect_write_iterations(
-        genes=genes_iteration,
+    execute_procedure_local_group(
+        group="ventilation",
         paths=paths,
-        dock=dock,
     )
-
     # Report date and time.
     utility.print_terminal_partition(level=3)
     end = datetime.datetime.now()
@@ -3031,25 +3001,87 @@ def execute_procedure_local(dock=None):
     pass
 
 
+def execute_procedure_local_group(
+    group=None,
+    paths=None,
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        group (str): group of persons, either selection or ventilation
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Report.
+    utility.print_terminal_partition(level=1)
+    print("... Distribution procedure for: " + str(group) + " persons...")
+
+    # Read source information from file.
+    source = read_source_initial(
+        group=group,
+        dock=paths["dock"],
+    )
+    print("count of genes: " + str(len(source["genes_selection"])))
+    # Specify genes on which to iterate.
+    #genes_iteration = random.sample(source["genes_selection"], 250)
+    genes_iteration = source["genes_selection"]#[0:100]
+
+    # Set up partial function for iterative execution.
+    # Each iteration uses a different sequential value of the "gene" variable
+    # with the same value of the "dock" variable.
+    execute_procedure_gene = functools.partial(
+        execute_procedure_local_sub,
+        group=group,
+        data_families_persons=source["data_families_persons"],
+        data_gene_annotation=source["data_gene_annotation"],
+        paths=paths,
+    )
+    # Initialize multiprocessing pool.
+    #pool = multiprocessing.Pool(processes=os.cpu_count())
+    pool = multiprocessing.Pool(processes=8)
+    # Iterate on genes.
+    report = pool.map(
+        execute_procedure_gene,
+        genes_iteration,
+    )
+    # Pause procedure.
+    time.sleep(10.0)
+    # Read, collect, and write information from iterations.
+    read_collect_write_iterations(
+        group=group,
+        genes=genes_iteration,
+        data_persons_properties=source["data_persons_properties"],
+        data_gene_annotation=source["data_gene_annotation"],
+        paths=paths,
+    )
+    pass
+
+
 def execute_procedure_local_sub(
     gene=None,
-    data_persons_families=None,
+    group=None,
+    data_families_persons=None,
     data_gene_annotation=None,
     paths=None,
-    dock=None
 ):
     """
     Function to execute module's main behavior.
 
     arguments:
         gene (str): identifier of single gene for which to execute the process
-        data_persons_families (object): Pandas data frame of persons'
+        group (str): group of persons, either selection or ventilation
+        data_families_persons (object): Pandas data frame of persons'
             identifiers and families' identifiers
         data_gene_annotation (object): Pandas data frame of genes' annotations
         paths (dict<str>): collection of paths to directories for procedure's
             files
-        dock (str): path to root or dock directory for source and product
-            directories and files
 
     raises:
 
@@ -3060,21 +3092,22 @@ def execute_procedure_local_sub(
     # Read source information from file.
     source = read_source(
         gene=gene,
-        dock=dock
+        group=group,
+        dock=paths["dock"],
     )
 
     # Execute procedure.
     execute_procedure(
         gene=gene,
+        group=group,
         data_gene_samples_signals=source["data_gene_samples_signals"],
-        data_persons_families=data_persons_families,
+        data_families_persons=data_families_persons,
         data_gene_annotation=data_gene_annotation,
         paths=paths,
-        dock=dock
     )
 
     # Report progress.
-    directories = os.listdir(paths["genes"])
+    directories = os.listdir(paths[group]["genes"])
     count = len(directories)
     if (count % 10 == 0):
         print("complete genes: " + str(len(directories)))
