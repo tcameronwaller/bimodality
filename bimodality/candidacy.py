@@ -40,13 +40,70 @@ import assembly
 # Functionality
 
 
+
+##########
+# Initialization
+
+
+def initialize_directories(dock=None):
+    """
+    Initialize directories for procedure's product files.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (dict<str>): collection of paths to directories for procedure's files
+
+    """
+
+    # Collect paths.
+    paths = dict()
+    # Define paths to directories.
+    paths["dock"] = dock
+    paths["candidacy"] = os.path.join(paths["dock"], "candidacy")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=paths["candidacy"])
+    utility.create_directory(path=paths["candidacy"])
+    # Define paths for groups of persons.
+    groups = list()
+    groups.append("selection")
+    groups.append("ventilation")
+    for group in groups:
+        paths[group] = dict()
+        paths[group]["threshold"] = os.path.join(
+            paths["candidacy"], group, "threshold"
+        )
+        paths[group]["multimodal"] = os.path.join(
+            paths["candidacy"], group, "multimodal"
+        )
+        paths[group]["unimodal"] = os.path.join(
+            paths["candidacy"], group, "unimodal"
+        )
+        paths[group]["other"] = os.path.join(
+            paths["candidacy"], group, "other"
+        )
+        # Initialize directories.
+        utility.create_directories(path=paths[group]["threshold"])
+        utility.create_directories(path=paths[group]["multimodal"])
+        utility.create_directories(path=paths[group]["unimodal"])
+        utility.create_directories(path=paths[group]["other"])
+    # Return information.
+    return paths
+
+
 def read_source(
+    group=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -58,40 +115,33 @@ def read_source(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
+    path_data_gene_annotation = os.path.join(
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
     )
     path_genes_selection = os.path.join(
-        path_selection, "genes_selection.pickle"
+        dock, "selection", "tight", "samples_genes_signals",
+        "genes.pickle"
     )
 
     # Use genes' bimodality measures from distribution procedure (not those
     # from the probability procedure) because here we want the raw values
     # before standardization.
-    path_distribution = os.path.join(dock, "distribution")
     path_distribution_genes = os.path.join(
-        path_distribution, "genes"
-    )
-
-    path_distribution_collection = os.path.join(
-        path_distribution, "collection"
+        dock, "distribution", group, "genes"
     )
     path_genes_scores = os.path.join(
-        path_distribution_collection, "genes_scores.pickle"
+        dock, "distribution", group, "collection", "genes_scores.pickle"
     )
     path_scores = os.path.join(
-        path_distribution_collection, "scores.pickle"
+        dock, "distribution", group, "collection", "scores.pickle"
     )
-    path_data_report = os.path.join(
-        path_distribution_collection, "data_gene_report.pickle"
-    )
-    path_data_report_text = os.path.join(
-        path_distribution_collection, "data_gene_report.tsv"
+    path_data_distribution_report = os.path.join(
+        dock, "distribution", group, "collection", "data_gene_report.pickle"
     )
 
     # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
     with open(path_genes_selection, "rb") as file_source:
         genes_selection = pickle.load(file_source)
     genes_distribution = utility.extract_subdirectory_names(
@@ -101,7 +151,9 @@ def read_source(
         genes_scores = pickle.load(file_source)
     with open(path_scores, "rb") as file_source:
         scores = pickle.load(file_source)
-    data_distribution_report = pandas.read_pickle(path_data_report)
+    data_distribution_report = pandas.read_pickle(
+        path_data_distribution_report
+    )
 
     # Compile and return information.
     return {
@@ -137,7 +189,7 @@ def report_modality_measure_correlations(
 
     # Calculate correlations between gene pairs of their pantissue signals
     # across persons.
-    correlations = utility.calculate_pairwise_correlations(
+    correlations = utility.collect_pairwise_correlations_pobabilities(
         method="spearman",
         features=measures,
         data=data_distribution_report,
@@ -192,12 +244,6 @@ def select_genes_by_modality_measures_ranks(
 
     # Organize data.
     data = data_distribution_report.copy(deep=True)
-    data.set_index(
-        ["identifier"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
     # Calculate count of genes to select from least and greatest extremes.
     count_total = data_distribution_report.shape[0]
     count_least = round(proportion_least * count_total)
@@ -832,14 +878,19 @@ def old_execution_method():
 # Product
 
 
-def write_product(dock=None, information=None):
+def write_product(
+    group=None,
+    information=None,
+    paths=None,
+):
     """
     Writes product information to file.
 
     arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files.
+        group (str): group of persons, either selection or ventilation
         information (object): information to write to file.
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
 
     raises:
 
@@ -848,49 +899,44 @@ def write_product(dock=None, information=None):
     """
 
     # Specify directories and files.
-    path_candidacy = os.path.join(dock, "candidacy")
-    utility.create_directory(path_candidacy)
-
     path_measures_thresholds = os.path.join(
-        path_candidacy, "measures_thresholds.pickle"
+        paths[group]["threshold"], "measures_thresholds.pickle"
     )
     path_sets_unimodal = os.path.join(
-        path_candidacy, "sets_unimodal.pickle"
+        paths[group]["unimodal"], "sets_unimodal.pickle"
     )
     path_sets_multimodal = os.path.join(
-        path_candidacy, "sets_multimodal.pickle"
+        paths[group]["multimodal"], "sets_multimodal.pickle"
     )
-
     path_genes_unimodal = os.path.join(
-        path_candidacy, "genes_unimodal.pickle"
+        paths[group]["unimodal"], "genes_unimodal.pickle"
     )
     path_genes_unimodal_text = os.path.join(
-        path_candidacy, "genes_unimodal.txt"
+        paths[group]["unimodal"], "genes_unimodal.txt"
     )
     path_genes_multimodal = os.path.join(
-        path_candidacy, "genes_multimodal.pickle"
+        paths[group]["multimodal"], "genes_multimodal.pickle"
     )
     path_genes_multimodal_text = os.path.join(
-        path_candidacy, "genes_multimodal.txt"
+        paths[group]["multimodal"], "genes_multimodal.txt"
     )
     path_genes_other = os.path.join(
-        path_candidacy, "genes_other.pickle"
+        paths[group]["other"], "genes_other.pickle"
     )
     path_genes_other_text = os.path.join(
-        path_candidacy, "genes_other.txt"
+        paths[group]["other"], "genes_other.txt"
     )
-
     path_data_genes_unimodal = os.path.join(
-        path_candidacy, "data_genes_unimodal.pickle"
+        paths[group]["unimodal"], "data_genes_unimodal.pickle"
     )
     path_data_genes_unimodal_text = os.path.join(
-        path_candidacy, "data_genes_unimodal.tsv"
+        paths[group]["unimodal"], "data_genes_unimodal.tsv"
     )
     path_data_genes_multimodal = os.path.join(
-        path_candidacy, "data_genes_multimodal.pickle"
+        paths[group]["multimodal"], "data_genes_multimodal.pickle"
     )
     path_data_genes_multimodal_text = os.path.join(
-        path_candidacy, "data_genes_multimodal.tsv"
+        paths[group]["multimodal"], "data_genes_multimodal.tsv"
     )
 
     # Write information to file.
@@ -951,20 +997,17 @@ def write_product(dock=None, information=None):
     pass
 
 
-
-###############################################################################
-# Procedure
-
-
-def execute_procedure(
-    dock=None
+def select_report_write_candidate_modality_genes_group(
+    group=None,
+    paths=None,
 ):
     """
     Function to execute module's main behavior.
 
     arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
+        group (str): group of persons, either selection or ventilation
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
 
     raises:
 
@@ -972,22 +1015,28 @@ def execute_procedure(
 
     """
 
-    # Remove previous files to avoid version or batch confusion.
-    path_candidacy = os.path.join(dock, "candidacy")
-    utility.remove_directory(path=path_candidacy)
+    # Report.
+    utility.print_terminal_partition(level=1)
+    print("... Candidacy procedure for: " + str(group) + " persons...")
+    utility.print_terminal_partition(level=2)
 
     # Read source information from file.
-    source = read_source(dock=dock)
+    source = read_source(
+        group=group,
+        dock=paths["dock"],
+    )
     print(source["data_distribution_report"])
 
     # Set measures of modality.
     measures = list(source["scores"].keys())
 
     # Describe correlations between pairs of modality measures.
-    report_modality_measure_correlations(
-        measures=measures,
-        data_distribution_report=source["data_distribution_report"],
-    )
+
+    if False:
+        report_modality_measure_correlations(
+            measures=measures,
+            data_distribution_report=source["data_distribution_report"],
+        )
 
     # Select genes with least and greatest values of each measure of modality.
     # Use less stringency for unimodal genes in order to select those that are
@@ -996,7 +1045,7 @@ def execute_procedure(
     utility.print_terminal_partition(level=2)
     selection = select_genes_by_modality_measures_ranks(
         proportion_least=0.15,
-        proportion_greatest=0.005,
+        proportion_greatest=0.01,
         measures=measures,
         data_distribution_report=source["data_distribution_report"],
     )
@@ -1103,8 +1152,49 @@ def execute_procedure(
         "sets_unimodal": bin_genes_unimodal["sets_genes_measures"],
         "sets_multimodal": bin_genes_multimodal["sets_genes_measures"],
     }
-    #Write product information to file.
-    write_product(dock=dock, information=information)
+
+    # Write product information to file.
+    write_product(
+        group=group,
+        information=information,
+        paths=paths,
+    )
+
+    pass
+
+
+###############################################################################
+# Procedure
+
+
+def execute_procedure(
+    dock=None
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Initialize directories.
+    paths = initialize_directories(dock=dock)
+
+    # Call procedures for each group.
+    select_report_write_candidate_modality_genes_group(
+        group="selection",
+        paths=paths,
+    )
+    select_report_write_candidate_modality_genes_group(
+        group="ventilation",
+        paths=paths,
+    )
 
     pass
 

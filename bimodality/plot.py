@@ -1552,7 +1552,7 @@ def read_source_persons_health_variables(
         dock, "selection", "tight", "samples_genes_signals", "persons.pickle"
     )
     path_persons_sets = os.path.join(
-        dock, "selection", "tight", "persons_properties", "charts",
+        dock, "selection", "tight", "persons_properties",
         "persons_sets.pickle"
     )
     path_persons_properties = os.path.join(
@@ -1909,7 +1909,7 @@ def read_source_persons_properties_adjacency(
         dock, "selection", "tight", "samples_genes_signals", "persons.pickle"
     )
     path_persons_sets = os.path.join(
-        dock, "selection", "tight", "persons_properties", "charts",
+        dock, "selection", "tight", "persons_properties",
         "persons_sets.pickle"
     )
     path_persons_properties = os.path.join(
@@ -2254,7 +2254,132 @@ def prepare_charts_persons_properties_adjacency(
     pass
 
 
+##########
+# Distributions of each bimodality measure's scores across genes
+# Status: working
 
+
+def read_source_ventilation_duration_distribution(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process.
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_data_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", "selection",
+        "data_persons_properties.pickle"
+    )
+
+    # Read information from file.
+    data_persons_properties = pandas.read_pickle(path_data_persons_properties)
+
+    # Compile and return information.
+    return {
+        "data_persons_properties": data_persons_properties,
+    }
+
+
+def plot_chart_ventilation_duration_distribution(
+    values=None,
+    path_directory=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        values (list<float>): values
+        threshold (float): value of threshold for which to draw line
+        path_directory (str): path to directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Specify directories and files.
+    path_file = os.path.join(
+        path_directory, "ventilation_duration.svg"
+    )
+
+    # Create figure.
+    figure = plot_distribution_histogram(
+        series=values,
+        name="",
+        bin_method="count",
+        bin_count=70,
+        label_bins="duration on ventilation (hours)",
+        label_counts="counts of persons per bin",
+        fonts=fonts,
+        colors=colors,
+        line=False,
+        position=1,
+        text="",
+    )
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_chart_ventilation_duration_distribution(
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_ventilation_duration_distribution(dock=dock)
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_assembly = os.path.join(path_plot, "assembly")
+    path_directory = os.path.join(
+        path_assembly, "ventilation_duration"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    # Prepare charts.
+    plot_chart_ventilation_duration_distribution(
+        values=source["data_persons_properties"]["ventilation_duration"].to_list(),
+        path_directory=path_directory
+    )
+
+    pass
 
 
 ##########
@@ -4331,16 +4456,15 @@ def read_source_genes_persons_signals_initial(
         "genes.pickle"
     )
     path_persons_sets = os.path.join(
-        dock, "selection", "tight", "persons_properties", "charts",
+        dock, "selection", "tight", "persons_properties",
         "persons_sets.pickle"
     )
 
-    path_candidacy = os.path.join(dock, "candidacy")
     path_genes_unimodal = os.path.join(
-        path_candidacy, "genes_unimodal.pickle"
+        dock, "candidacy", group, "unimodal", "genes_unimodal.pickle"
     )
     path_genes_multimodal = os.path.join(
-        path_candidacy, "genes_multimodal.pickle"
+        dock, "candidacy", group, "multimodal", "genes_multimodal.pickle"
     )
 
     # Read information from file.
@@ -5202,7 +5326,7 @@ def read_source_genes_signals_persons_properties(
         "genes.pickle"
     )
     path_persons_sets = os.path.join(
-        dock, "selection", "tight", "persons_properties", "charts",
+        dock, "selection", "tight", "persons_properties",
         "persons_sets.pickle"
     )
     path_persons_properties = os.path.join(
@@ -7791,6 +7915,10 @@ def execute_procedure(dock=None):
     # persons.
     #prepare_charts_persons_properties_adjacency(dock=dock)
 
+    # Plot chart, histogram, for distribution of values of ventilation
+    # duration.
+    prepare_chart_ventilation_duration_distribution(dock=dock)
+
     ##########
     ##########
     ##########
@@ -7827,7 +7955,7 @@ def execute_procedure(dock=None):
 
     # Plot charts of distributions of genes' pan-tissue aggregate signals
     # across persons.
-    prepare_charts_genes_persons_signals(dock=dock)
+    #prepare_charts_genes_persons_signals(dock=dock)
 
     if False:
 
@@ -7892,6 +8020,16 @@ def execute_procedure(dock=None):
         # pan-tissue signals across persons.
         prepare_charts_genes_regression_residuals(dock=dock)
 
+    # Plot charts, heatmaps, for multiple genes' pan-tissue signals across
+    # persons along with those persons' properties.
+    # Genes will be across rows, and persons will be across columns.
+    # Sort order across rows depends on hierarchical clustering.
+    # In some charts, sort order across columns depends on persons' properties
+    # (sex, age, body mass index, hardiness).
+    # In other charts, sort order across columns depends on hierarchical
+    # clustering.
+    prepare_charts_genes_signals_persons_properties(dock=dock)
+
 
         ##########
         ##########
@@ -7906,16 +8044,6 @@ def execute_procedure(dock=None):
     # Gene Ontology enrichment.
     # Chart is adjacency matrix heatmap.
     #prepare_charts_signals_genes_correlations_query(dock=dock)
-
-    # Plot charts, heatmaps, for multiple genes' pan-tissue signals across
-    # persons along with those persons' properties.
-    # Genes will be across rows, and persons will be across columns.
-    # Sort order across rows depends on hierarchical clustering.
-    # In some charts, sort order across columns depends on persons' properties
-    # (sex, age, body mass index, hardiness).
-    # In other charts, sort order across columns depends on hierarchical
-    # clustering.
-    prepare_charts_genes_signals_persons_properties(dock=dock)
 
     if False:
 

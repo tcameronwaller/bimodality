@@ -74,17 +74,14 @@ def initialize_directories(dock=None):
     groups.append("ventilation")
     for group in groups:
         paths[group] = dict()
-        paths[group]["persons"] = os.path.join(
-            paths["distribution"], str("persons_" + group)
-        )
         paths[group]["genes"] = os.path.join(
-            paths[group]["persons"], "genes"
+            paths["distribution"], group, "genes"
         )
         paths[group]["collection"] = os.path.join(
-            paths[group]["persons"], "collection"
+            paths["distribution"], group, "collection"
         )
         paths[group]["trait"] = os.path.join(
-            paths[group]["persons"], "trait"
+            paths["distribution"], group, "trait"
         )
         # Initialize directories.
         utility.create_directories(path=paths[group]["genes"])

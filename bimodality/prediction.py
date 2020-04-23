@@ -48,13 +48,61 @@ import assembly
 # Functionality
 
 
+##########
+# Initialization
+
+
+def initialize_directories(dock=None):
+    """
+    Initialize directories for procedure's product files.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (dict<str>): collection of paths to directories for procedure's files
+
+    """
+
+    # Collect paths.
+    paths = dict()
+    # Define paths to directories.
+    paths["dock"] = dock
+    paths["prediction"] = os.path.join(paths["dock"], "prediction")
+    # Remove previous files to avoid version or batch confusion.
+    #utility.remove_directory(path=paths["prediction"])
+    #utility.create_directory(path=paths["prediction"])
+    # Define paths for groups of persons.
+    groups = list()
+    groups.append("selection")
+    groups.append("ventilation")
+    for group in groups:
+        paths[group] = dict()
+        paths[group]["regression"] = os.path.join(
+            paths["prediction"], group, "regression"
+        )
+        paths[group]["genes"] = os.path.join(
+            paths["prediction"], group, "genes"
+        )
+        # Initialize directories.
+        utility.create_directories(path=paths[group]["regression"])
+        utility.create_directories(path=paths[group]["genes"])
+    # Return information.
+    return paths
+
+
 def read_source(
+    group=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -66,36 +114,33 @@ def read_source(
     """
 
     # Specify directories and files.
-    path_gene_annotation = os.path.join(
+    path_data_gene_annotation = os.path.join(
         dock, "selection", "tight", "gene_annotation",
         "data_gene_annotation_gencode.pickle"
     )
-
     path_genes_selection = os.path.join(
         dock, "selection", "tight", "samples_genes_signals",
         "genes.pickle"
     )
-
     path_data_persons_properties = os.path.join(
-        dock, "selection", "tight", "persons_properties", "regression",
+        dock, "selection", "tight", "persons_properties", group,
         "data_persons_properties.pickle"
     )
 
-    path_candidacy = os.path.join(dock, "candidacy")
-    path_genes_unimodal = os.path.join(
-        path_candidacy, "genes_unimodal.pickle"
-    )
-    path_genes_multimodal = os.path.join(
-        path_candidacy, "genes_multimodal.pickle"
-    )
-
     path_data_signals_genes_persons = os.path.join(
-        dock, "distribution", "collection",
+        dock, "distribution", group, "collection",
         "data_signals_genes_persons.pickle"
     )
 
+    path_genes_unimodal = os.path.join(
+        dock, "candidacy", group, "unimodal", "genes_unimodal.pickle"
+    )
+    path_genes_multimodal = os.path.join(
+        dock, "candidacy", group, "multimodal", "genes_multimodal.pickle"
+    )
+
     # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
     data_persons_properties = pandas.read_pickle(path_data_persons_properties)
     with open(path_genes_selection, "rb") as file_source:
         genes_selection = pickle.load(file_source)
@@ -116,6 +161,39 @@ def read_source(
         "genes_unimodal": genes_unimodal,
         "genes_multimodal": genes_multimodal,
         "data_signals_genes_persons": data_signals_genes_persons,
+    }
+
+
+def read_source_regression(
+    group=None,
+    paths=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        group (str): group of persons, either selection or ventilation
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_data_regression_genes = os.path.join(
+        paths[group]["regression"], "data_regression_genes.pickle"
+    )
+    # Read information from file.
+    data_regression_genes = pandas.read_pickle(
+        path_data_regression_genes
+    )
+    # Compile and return information.
+    return {
+        "data_regression_genes": data_regression_genes,
     }
 
 
@@ -603,10 +681,6 @@ def report_regression_models_quality(
     pass
 
 
-##########
-# Process
-
-
 def calculate_regression_discoveries(
     variables=None,
     threshold=None,
@@ -680,9 +754,222 @@ def calculate_regression_discoveries(
     return data_discovery
 
 
-# TODO: I need...
-# 1. lists of multimodal genes that associate to each hypothetical variable
-# 2. list of multimodal genes that associate with any hypothetical variable
+def summarize_regression(
+    variables=None,
+    genes_selection=None,
+    genes_unimodal=None,
+    genes_multimodal=None,
+    data_regression_genes=None,
+):
+    """
+    Summarizes a regression model's parameters across multiple independent
+    instances.
+
+    arguments:
+        variables (list<str>): names of independent regression variables for
+            which to select genes by significant association
+        genes_selection (list<str>): identifiers of all genes that pass filters
+            in selection procedure
+        genes_unimodal (list<str>): identifiers of genes with pan-tissue
+            signals that have unimodal distribution across persons
+        genes_multimodal (list<str>): identifiers of genes with pan-tissue
+            signals that have nonunimodal distribution across persons
+        data_regression_genes (object): Pandas data frame of parameters and
+            statistics from regressions across cases
+
+    raises:
+
+    returns:
+
+    """
+
+    utility.print_terminal_partition(level=2)
+    # Organize data.
+    data = data_regression_genes.copy(deep=True)
+    sets = dict()
+    sets["genes_selection"] = genes_selection
+    sets["genes_unimodal"] = genes_unimodal
+    sets["genes_multimodal"] = genes_multimodal
+
+    # Iterate on sets of genes.
+    for set in sets:
+        utility.print_terminal_partition(level=1)
+        print(set)
+        genes = sets[set]
+        count_total = len(genes)
+        print("count: " + str(count_total))
+        data_set = data.copy(deep=True)
+        data_set = data_set.loc[data_set.index.isin(genes), :]
+        # Report mean model descriptors.
+        utility.print_terminal_partition(level=2)
+        descriptors = [
+            "freedom",
+            "observations",
+            "r_square",
+            "r_square_adjust",
+            "log_likelihood",
+            "akaike",
+            "bayes",
+        ]
+        data_descriptors = data_set.copy(deep=True)
+        data_descriptors = data_descriptors.loc[
+            :, data_descriptors.columns.isin(descriptors)
+        ]
+        data_descriptors = data_descriptors[[*descriptors]]
+        data_descriptors_mean = data_descriptors.aggregate(statistics.mean)
+        print("Model descriptors...")
+        print(data_descriptors_mean)
+
+        # Iterate on independent variables.
+        utility.print_terminal_partition(level=2)
+        for variable in variables:
+            #utility.print_terminal_partition(level=3)
+            significance = str(variable + ("_significance"))
+            data_significant = data_set.copy(deep=True)
+            data_significant = data_significant.loc[
+                data_significant[significance], :
+            ]
+            count_significant = data_significant.shape[0]
+            percentage = round((count_significant / count_total) * 100, 1)
+            print(variable + ": " + str(percentage) + "%")
+
+            pass
+    pass
+
+
+def organize_data_regress_cases_report(
+    genes_regression=None,
+    genes_selection=None,
+    genes_unimodal=None,
+    genes_multimodal=None,
+    variables_regression=None,
+    data_persons_properties=None,
+    data_signals_genes_persons=None,
+    data_gene_annotation=None,
+    report=None,
+):
+    """
+    Organizes and combines information about dependent and independent
+    variables for regression.
+
+    arguments:
+        genes_regression (list<str>): identifiers of genes
+        genes_selection (list<str>): identifiers of all genes that pass filters
+            in selection procedure
+        genes_unimodal (list<str>): identifiers of genes with pan-tissue
+            signals that have unimodal distribution across persons
+        genes_multimodal (list<str>): identifiers of genes with pan-tissue
+            signals that have nonunimodal distribution across persons
+        variables_regression (list<str>): names of independent variables for
+            regression
+        data_persons_properties (object): Pandas data frame of persons and
+            their relevant properties
+        data_signals_genes_persons (object): Pandas data frame of pan-tissue
+            signals across genes and persons
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        report (bool): whether to print reports
+
+
+    raises:
+
+    returns:
+
+    """
+
+    if False:
+        # Calculate correlation coefficients between pairs of independent
+        # variables.
+        pairs = list()
+        pairs.append(("hardiness_scale", "age_scale"))
+        pairs.append(("hardiness_scale", "body_scale"))
+        pairs.append(("hardiness_scale", "season_scale"))
+        pairs.append(("hardiness_scale", "delay_scale"))
+        pairs.append(("tissues_1", "facilities_1"))
+        pairs.append(("tissues_1", "facilities_2"))
+        pairs.append(("delay_scale", "facilities_1"))
+        pairs.append(("delay_scale", "facilities_2"))
+        calculate_report_independent_variable_correlations(
+            pairs=pairs,
+            data_persons_properties=source["data_persons_properties"],
+            method="spearman",
+        )
+
+    if report:
+        utility.print_terminal_partition(level=3)
+        print("genes for regression: " + str(len(genes_regression)))
+        utility.print_terminal_partition(level=3)
+
+    # Organize dependent and independent variables for regression analysis.
+    data_variables = organize_dependent_independent_variables(
+        variables=variables_regression,
+        data_persons_properties=data_persons_properties,
+        data_signals_genes_persons=data_signals_genes_persons,
+    )
+
+    utility.print_terminal_partition(level=1)
+    print("data_variables")
+    utility.print_terminal_partition(level=2)
+    print(data_variables)
+
+    # Regress each gene's signal across persons.
+    # Iterate on genes.
+    bin_regression = regress_cases(
+        cases=genes_regression,
+        variables=variables_regression,
+        data_variables=data_variables,
+        data_gene_annotation=data_gene_annotation,
+        report=True,
+    )
+    utility.print_terminal_partition(level=2)
+    print("data_regression_genes")
+    print(bin_regression["data_regression_genes"])
+
+    # Summarize regression quality.
+    # Report means of statistics across independent models.
+    report_regression_models_quality(
+        variables=variables_regression,
+        data_regression_models=bin_regression["data_regression_genes"],
+    )
+
+    # Review.
+    # 4 February 2020
+    # Model statistics match in the individual regression's summary and in the
+    # compilation across cases.
+    # Independent variables' parameters and probabilities match in the
+    # individual regression's summary and in the compilation across cases.
+
+    # Adjust probabilities for multiple hypothesis tests.
+    # Calculate false discovery rate by Benjamini-Hochberg's method.
+    data_regression_genes_discovery = calculate_regression_discoveries(
+        variables=variables_regression,
+        threshold=0.05,
+        data=bin_regression["data_regression_genes"],
+    )
+    utility.print_terminal_partition(level=2)
+    print("data_regression_genes_discovery")
+    print(data_regression_genes_discovery)
+
+    # Prepare and report summary of regression model across all genes.
+    if report:
+        summarize_regression(
+            genes_selection=genes_selection,
+            genes_unimodal=genes_unimodal,
+            genes_multimodal=genes_multimodal,
+            variables=variables_regression,
+            data_regression_genes=data_regression_genes_discovery,
+        )
+
+    # Compile information.
+    bin = dict()
+    bin["residuals_genes"] = bin_regression["residuals_genes"]
+    bin["data_regression_genes"] = bin_regression["data_regression_genes"]
+    bin["data_regression_genes_discovery"] = data_regression_genes_discovery
+    # Return information.
+    return bin
+
+
+##########
+# Sets
 
 
 def select_genes_by_association_regression_variables(
@@ -823,19 +1110,14 @@ def select_genes_by_group_association(
     return sets
 
 
-def organize_genes_association(
-    variables=None,
-    set=None,
-    collections=None,
+def collect_union_sets_genes(
+    sets=None,
 ):
     """
     Selects and scales regression parameters.
 
     arguments:
-        variables (list<str>): names of independent regression variables for
-            which to select genes by significant association
-        set (str): name of a set of genes
-        collections (dict<dict<list<str>>>): sets of genes that associate
+        sets (dict<dict<list<str>>>): sets of genes that associate
             significantly to variables in regression
 
     raises:
@@ -846,272 +1128,66 @@ def organize_genes_association(
 
     """
 
-    # Select genes from each group that associate significantly with each
-    # variable.
-    sets = copy.deepcopy(collections[set])
-    # Iterate on variables.
-    union = list()
-    for variable in variables:
-        union.extend(sets[variable])
-        pass
-    # Include in sets.
-    sets["union"] = utility.collect_unique_elements(
-        elements_original=union
-    )
-    # Select genes that associate significantly with any hypothetical variable.
-    genes_prediction = utility.select_elements_by_sets(
-        names=variables,
-        sets=sets,
-        count=1,
-    )
-    # Compile information.
-    bin = dict()
-    bin["sets"] = sets
-    bin["genes_prediction"] = genes_prediction
+    sets = copy.deepcopy(sets)
+    for group in sets.keys():
+        for variable in sets[group].keys():
+            union = list()
+            union.extend(sets[group][variable])
+        sets[group]["union"] = utility.collect_unique_elements(
+            elements_original=union
+        )
     # Return information.
-    return bin
+    return sets
 
 
-##########
-# Scale
-
-
-# TODO: this function is obsolete anyway...
-# TODO: it also uses the older version of calculating standard score...
-def scale_data_columns(
-    columns=None,
-    data=None,
-):
-    """
-    Calculates the standard (z-score) of values within specific columns.
-
-    arguments:
-        columns (list<str>): names of columns for which to scale values
-        data (object): Pandas data frame
-
-    raises:
-
-    returns:
-        (object): Pandas data frame
-
-    """
-
-    # Calculate standard score.
-    # This method inserts missing values if the standard deviation is zero.
-    data = data.copy(deep=True)
-    data_scale = data.apply(
-        lambda column: (
-            ((column - column.mean()) / column.std())
-        ) if column.name in columns else column,
-        axis="index",
-    )
-    return data_scale
-
-# Obsolete
-# Select regression parameters and probabilities that are biologically
-# relevant.
-# Scale regression parameters across genes.
-# The purpose of this scaling is to simplify comparison in chart.
-def select_scale_regression_parameters(
+def report_association_variables_sets_genes(
     variables=None,
-    data_regression_genes=None,
+    sets=None,
+    genes_selection=None,
+    genes_unimodal=None,
+    genes_multimodal=None,
 ):
     """
     Selects and scales regression parameters.
 
     arguments:
-        variables (list<str>): names of independent regression variables to
-            select and scale
-        data_regression_genes (object): Pandas data frame of parameters and
-            statistics from regressions across cases
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of parameters and statistics from
-            regressions across cases
-
-    """
-
-    # Select relevant variables.
-    columns = list()
-    for variable in variables:
-        columns.append(str(variable + ("_parameter")))
-        columns.append(str(variable + ("_probability")))
-        columns.append(str(variable + ("_discovery")))
-        columns.append(str(variable + ("_significance")))
-        pass
-    data_selection = data_regression_genes.copy(deep=True)
-    data_selection = data_selection.loc[
-        :, data_selection.columns.isin(columns)
-    ]
-    # Scale regression parameters across genes.
-    parameters = list()
-    for variable in variables:
-        parameters.append(str(variable + ("_parameter")))
-        pass
-    data_scale = scale_data_columns(
-        columns=parameters,
-        data=data_selection,
-    )
-    # Summarize standardization.
-    data_mean = data_scale.aggregate(
-        lambda x: x.mean(),
-        axis="index"
-    )
-    utility.print_terminal_partition(level=2)
-    print("Mean")
-    print(data_mean)
-    data_deviation = data_scale.aggregate(
-        lambda x: x.std(),
-        axis="index"
-    )
-    utility.print_terminal_partition(level=2)
-    print("Standard deviation")
-    print(data_deviation)
-
-    # Return information.
-    return data_scale
-
-
-def separate_regression_gene_sets(
-    genes_selection=None,
-    genes_unimodal=None,
-    genes_multimodal=None,
-    data_regression_genes=None,
-):
-    """
-    Drives iterative regression across cases.
-
-    arguments:
-        genes_selection (list<str>): identifiers of genes
-        genes_unimodal (list<str>): identifiers of genes
-        genes_multimodal (list<str>): identifiers of genes
-        data_regression_genes (object): Pandas data frame of parameters and
-            statistics from regressions across cases
-
-    raises:
-
-    returns:
-        (dict): regression information across sets of genes
-
-    """
-
-    # Select regression data for specific genes.
-    data_selection = data_regression_genes.copy(deep=True)
-    data_selection = data_selection.loc[
-        data_selection.index.isin(genes_selection), :
-    ]
-    data_unimodal = data_regression_genes.copy(deep=True)
-    data_unimodal = data_unimodal.loc[
-        data_unimodal.index.isin(genes_unimodal), :
-    ]
-    data_multimodal = data_regression_genes.copy(deep=True)
-    data_multimodal = data_multimodal.loc[
-        data_multimodal.index.isin(genes_multimodal), :
-    ]
-
-    # Compile information.
-    information = dict()
-    information["data_regression_genes_selection_scale"] = data_selection
-    information["data_regression_genes_unimodal_scale"] = data_unimodal
-    information["data_regression_genes_multimodal_scale"] = data_multimodal
-    # Return information.
-    return information
-
-
-def summarize_regression(
-    variables=None,
-    genes_selection=None,
-    genes_unimodal=None,
-    genes_multimodal=None,
-    data_regression_genes=None,
-):
-    """
-    Summarizes a regression model's parameters across multiple independent
-    instances.
-
-    arguments:
-        variables (list<str>): names of independent regression variables for
-            which to select genes by significant association
+        variables (list<str>): names of independent regression variables
+        sets (dict<dict<list<str>>>): sets of genes that associate
+            significantly to variables in regression
         genes_selection (list<str>): identifiers of all genes that pass filters
             in selection procedure
         genes_unimodal (list<str>): identifiers of genes with pan-tissue
             signals that have unimodal distribution across persons
         genes_multimodal (list<str>): identifiers of genes with pan-tissue
             signals that have nonunimodal distribution across persons
-        data_regression_genes (object): Pandas data frame of parameters and
-            statistics from regressions across cases
 
     raises:
 
     returns:
+        (dict<dict<list<str>>>): sets of genes that associate significantly to
+            variables in regression
 
     """
 
+    sets = copy.deepcopy(sets)
     utility.print_terminal_partition(level=2)
-    # Organize data.
-    data = data_regression_genes.copy(deep=True)
-    sets = dict()
-    sets["genes_selection"] = genes_selection
-    sets["genes_unimodal"] = genes_unimodal
-    sets["genes_multimodal"] = genes_multimodal
-
-    # Iterate on sets of genes.
-    for set in sets:
-        utility.print_terminal_partition(level=1)
-        print(set)
-        genes = sets[set]
-        count_total = len(genes)
-        print("count: " + str(count_total))
-        data_set = data.copy(deep=True)
-        data_set = data_set.loc[data_set.index.isin(genes), :]
-        # Report mean model descriptors.
-        utility.print_terminal_partition(level=2)
-        descriptors = [
-            "freedom",
-            "observations",
-            "r_square",
-            "r_square_adjust",
-            "log_likelihood",
-            "akaike",
-            "bayes",
-        ]
-        data_descriptors = data_set.copy(deep=True)
-        data_descriptors = data_descriptors.loc[
-            :, data_descriptors.columns.isin(descriptors)
-        ]
-        data_descriptors = data_descriptors[[*descriptors]]
-        data_descriptors_mean = data_descriptors.aggregate(statistics.mean)
-        print("Model descriptors...")
-        print(data_descriptors_mean)
-
-        # Iterate on independent variables.
-        utility.print_terminal_partition(level=2)
-        for variable in variables:
-            #utility.print_terminal_partition(level=3)
-            significance = str(variable + ("_significance"))
-            data_significant = data_set.copy(deep=True)
-            data_significant = data_significant.loc[
-                data_significant[significance], :
-            ]
-            count_significant = data_significant.shape[0]
-            percentage = round((count_significant / count_total) * 100, 1)
-            print(variable + ": " + str(percentage) + "%")
-
-            pass
+    print("Counts of genes.")
+    print("selection genes: " + str(len(genes_selection)))
+    print("unimodal genes: " + str(len(genes_unimodal)))
+    print("multimodal genes: " + str(len(genes_multimodal)))
+    utility.print_terminal_partition(level=3)
+    print("Counts of genes that associate significantly with each variable.")
+    for variable in variables:
+        utility.print_terminal_partition(level=3)
+        print(variable)
+        print("selection genes: " + str(len(sets["selection"][variable])))
+        #print(sets["selection"][variable])
+        print("unimodal genes: " + str(len(sets["unimodal"][variable])))
+        print(sets["unimodal"][variable])
+        print("multimodal genes: " + str(len(sets["multimodal"][variable])))
+        print(sets["multimodal"][variable])
+        pass
     pass
-
-
-##########
-# ...
-
-# TODO: I need to plot residuals...
-
-
-
-
-
 
 
 ##########
@@ -1427,7 +1503,7 @@ def calculate_mean_tissue_pairwise_correlations(
     return data_gene_mean_correlations
 
 
-########## Keep these functions
+########## Keep these functions#
 # Analysis of Variance (ANOVA)
 
 
@@ -1523,18 +1599,19 @@ def evaluate_variance_by_binary_groups(
 # Write.
 
 
-def write_product(
-    dock=None,
-    information=None
+def write_product_regression(
+    group=None,
+    information=None,
+    paths=None,
 ):
     """
     Writes product information to file.
 
     arguments:
-        gene (str): identifier of a single gene
-        dock (str): path to root or dock directory for source and product
-            directories and files
-        information (object): information to write to file
+        group (str): group of persons, either selection or ventilation
+        information (object): information to write to file.
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
 
     raises:
 
@@ -1543,75 +1620,158 @@ def write_product(
     """
 
     # Specify directories and files.
-    path_prediction = os.path.join(dock, "prediction")
-    utility.create_directory(path_prediction)
-
     path_residuals_genes = os.path.join(
-        path_prediction, "residuals_genes.pickle"
+        paths[group]["regression"], "residuals_genes.pickle"
     )
-
     path_data_regression_genes = os.path.join(
-        path_prediction, "data_regression_genes.pickle"
+        paths[group]["regression"], "data_regression_genes.pickle"
     )
     path_data_regression_genes_text = os.path.join(
-        path_prediction, "data_regression_genes.tsv"
-    )
-
-    path_sets = os.path.join(
-        path_prediction, "sets.pickle"
-    )
-    path_genes_prediction = os.path.join(
-        path_prediction, "genes_prediction.pickle"
-    )
-    path_genes_multimodal_prediction = os.path.join(
-        path_prediction, "genes_multimodal_prediction.pickle"
-    )
-
-    path_data_regression_genes_selection_scale = os.path.join(
-        path_prediction, "data_regression_genes_selection_scale.pickle"
-    )
-    path_data_regression_genes_unimodal_scale = os.path.join(
-        path_prediction, "data_regression_genes_unimodal_scale.pickle"
-    )
-    path_data_regression_genes_multimodal_scale = os.path.join(
-        path_prediction, "data_regression_genes_multimodal_scale.pickle"
+        paths[group]["regression"], "data_regression_genes.tsv"
     )
 
     # Write information to file.
     with open(path_residuals_genes, "wb") as file_product:
         pickle.dump(information["residuals_genes"], file_product)
     pandas.to_pickle(
-        information["data_regression_genes"],
+        information["data_regression_genes_discovery"],
         path_data_regression_genes
     )
-    information["data_regression_genes"].to_csv(
+    information["data_regression_genes_discovery"].to_csv(
         path_or_buf=path_data_regression_genes_text,
         sep="\t",
         header=True,
         index=True,
     )
-    with open(path_sets, "wb") as file_product:
-        pickle.dump(information["sets"], file_product)
-    with open(path_genes_prediction, "wb") as file_product:
-        pickle.dump(information["genes_prediction"], file_product)
-    with open(path_genes_multimodal_prediction, "wb") as file_product:
-        pickle.dump(information["genes_multimodal_prediction"], file_product)
-
-    if False:
-        pandas.to_pickle(
-            information["data_regression_genes_selection_scale"],
-            path_data_regression_genes_selection_scale
-        )
-        pandas.to_pickle(
-            information["data_regression_genes_unimodal_scale"],
-            path_data_regression_genes_unimodal_scale
-        )
-        pandas.to_pickle(
-            information["data_regression_genes_multimodal_scale"],
-            path_data_regression_genes_multimodal_scale
-        )
 
     pass
+
+
+def write_product_genes(
+    group=None,
+    information=None,
+    paths=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        group (str): group of persons, either selection or ventilation
+        information (object): information to write to file.
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_sets_genes = os.path.join(
+        paths[group]["genes"], "sets_genes.pickle"
+    )
+    # Write information to file.
+    with open(path_sets_genes, "wb") as file_product:
+        pickle.dump(information["sets_genes"], file_product)
+
+    pass
+
+
+def organize_data_regress_cases_report_write(
+    group=None,
+    paths=None,
+):
+    """
+    Organizes and combines information about dependent and independent
+    variables for regression.
+
+    arguments:
+        group (str): group of persons, either selection or ventilation
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Report.
+    utility.print_terminal_partition(level=1)
+    print("... Prediction procedure for: " + str(group) + " persons...")
+    utility.print_terminal_partition(level=2)
+
+    # Read source information from file.
+    source = read_source(
+        group=group,
+        dock=paths["dock"],
+    )
+    # Define variables for regression.
+    variables = selection.define_variables()
+
+    # Organize data, regress across cases, report, return summaries.
+    if False:
+        #genes_regression = random.sample(source["genes_selection"], 100)
+        genes_regression = source["genes_selection"]#[0:100]
+        bin_regression = organize_data_regress_cases_report(
+            variables_regression=variables["regression"],
+            genes_regression=genes_regression,
+            genes_selection=source["genes_selection"],
+            genes_unimodal=source["genes_unimodal"],
+            genes_multimodal=source["genes_multimodal"],
+            data_persons_properties=source["data_persons_properties"],
+            data_signals_genes_persons=source["data_signals_genes_persons"],
+            data_gene_annotation=source["data_gene_annotation"],
+            report=True,
+        )
+        write_product_regression(
+            group=group,
+            information=bin_regression,
+            paths=paths,
+        )
+
+    # Select and organize sets of genes by their associations and overlap
+    # with modality sets.
+    # Select genes with significant association with each hypothetical
+    # variable of interest.
+    if True:
+        source_regression = read_source_regression(
+            group=group,
+            paths=paths,
+        )
+        sets_genes = select_genes_by_group_association(
+            variables=variables["hypothesis"],
+            genes_selection=source["genes_selection"],
+            genes_unimodal=source["genes_unimodal"],
+            genes_multimodal=source["genes_multimodal"],
+            threshold_r_square=0.1,
+            count_selection=3000,
+            data_regression_genes=source_regression["data_regression_genes"],
+        )
+        sets_genes = collect_union_sets_genes(
+            sets=sets_genes
+        )
+        report_association_variables_sets_genes(
+            variables=variables["hypothesis"],
+            sets=sets_genes,
+            genes_selection=source["genes_selection"],
+            genes_unimodal=source["genes_unimodal"],
+            genes_multimodal=source["genes_multimodal"],
+        )
+        # Compile information.
+        bin_sets = dict()
+        bin_sets["sets_genes"] = sets_genes
+        write_product_genes(
+            group=group,
+            information=bin_sets,
+            paths=paths,
+        )
+
+
+    pass
+
+
 
 
 ###############################################################################
@@ -1634,193 +1794,17 @@ def execute_procedure(
 
     """
 
-    # Remove previous files to avoid version or batch confusion.
-    path_prediction = os.path.join(dock, "prediction")
-    utility.remove_directory(path=path_prediction)
-
-    # Read source information from file.
-    source = read_source(
-        dock=dock,
-    )
-
+    # Initialize directories.
+    paths = initialize_directories(dock=dock)
     # Organize data and regress cases.
-    bin_regression = organize_data_regress_cases_report(
-        variables_independence=variables["regression"],
-        genes=genes_iteration,
-        data_persons_properties=source["data_persons_properties"],
-        data_signals_genes_persons=source["data_signals_genes_persons"],
-        data_gene_annotation=source["data_gene_annotation"],
+    organize_data_regress_cases_report_write(
+        group="selection",
+        paths=paths,
     )
-
-
-
-
-    # Define variables for regression.
-    variables = selection.define_variables()
-    utility.print_terminal_partition(level=3)
-    print(
-        "Count of independent variables: " +
-        str(len(variables["regression"]))
+    organize_data_regress_cases_report_write(
+        group="ventilation",
+        paths=paths,
     )
-    print(
-        "Count of hypothesis (non technical) variables: " +
-        str(len(variables["hypothesis"]))
-    )
-
-    if False:
-        # Calculate correlation coefficients between pairs of independent
-        # variables.
-        pairs = list()
-        pairs.append(("hardiness_scale", "age_scale"))
-        pairs.append(("hardiness_scale", "body_scale"))
-        pairs.append(("hardiness_scale", "season_scale"))
-        pairs.append(("hardiness_scale", "delay_scale"))
-        pairs.append(("tissues_1", "facilities_1"))
-        pairs.append(("tissues_1", "facilities_2"))
-        pairs.append(("delay_scale", "facilities_1"))
-        pairs.append(("delay_scale", "facilities_2"))
-        calculate_report_independent_variable_correlations(
-            pairs=pairs,
-            data_persons_properties=source["data_persons_properties"],
-            method="spearman",
-        )
-
-
-    # Organize dependent and independent variables for regression analysis.
-    data_variables = organize_dependent_independent_variables(
-        variables=variables["regression"],
-        data_persons_properties=source["data_persons_properties"],
-        data_signals_genes_persons=source["data_signals_genes_persons"],
-    )
-
-    utility.print_terminal_partition(level=1)
-    print("data_variables")
-    utility.print_terminal_partition(level=2)
-    print(data_variables)
-
-    # Regress each gene's signal across persons.
-    # Iterate on genes.
-    #genes_iteration = random.sample(source["genes_selection"], 1000)
-    genes_iteration = source["genes_selection"]#[0:100]
-    #genes_iteration = source["genes_unimodal"]
-    #genes_iteration = source["genes_multimodal"]
-    bin_regression = regress_cases(
-        cases=genes_iteration,
-        variables=variables["regression"],
-        data_variables=data_variables,
-        data_gene_annotation=source["data_gene_annotation"],
-        report=True,
-    )
-    utility.print_terminal_partition(level=2)
-    print("data_regression_genes")
-    print(bin_regression["data_regression_genes"])
-
-    # Summarize regression quality.
-    # Report means of statistics across independent models.
-    report_regression_models_quality(
-        variables=variables["regression"],
-        data_regression_models=bin_regression["data_regression_genes"],
-    )
-
-    # Review.
-    # 4 February 2020
-    # Model statistics match in the individual regression's summary and in the
-    # compilation across cases.
-    # Independent variables' parameters and probabilities match in the
-    # individual regression's summary and in the compilation across cases.
-
-    # Adjust probabilities for multiple hypothesis tests.
-    # Calculate false discovery rate by Benjamini-Hochberg's method.
-    data_regression_genes_discovery = calculate_regression_discoveries(
-        variables=variables["regression"],
-        threshold=0.05,
-        data=bin_regression["data_regression_genes"],
-    )
-    utility.print_terminal_partition(level=2)
-    print("data_regression_genes_discovery")
-    print(data_regression_genes_discovery)
-
-    # Select genes with significant association with each hypothetical
-    # variable of interest.
-    sets = select_genes_by_group_association(
-        variables=variables["hypothesis"],
-        genes_selection=source["genes_selection"],
-        genes_unimodal=source["genes_unimodal"],
-        genes_multimodal=source["genes_multimodal"],
-        threshold_r_square=0.1,
-        count_selection=3000,
-        data_regression_genes=data_regression_genes_discovery,
-    )
-    utility.print_terminal_partition(level=2)
-    print("Counts of genes.")
-    print("selection genes: " + str(len(source["genes_selection"])))
-    print("unimodal genes: " + str(len(source["genes_unimodal"])))
-    print("multimodal genes: " + str(len(source["genes_multimodal"])))
-    utility.print_terminal_partition(level=3)
-    print("Counts of genes that associate significantly with each variable.")
-    for variable in variables["hypothesis"]:
-        utility.print_terminal_partition(level=3)
-        print(variable)
-        print("selection genes: " + str(len(sets["selection"][variable])))
-        #print(sets["selection"][variable])
-        print("unimodal genes: " + str(len(sets["unimodal"][variable])))
-        print(sets["unimodal"][variable])
-        print("multimodal genes: " + str(len(sets["multimodal"][variable])))
-        print(sets["multimodal"][variable])
-        pass
-
-    # Organize multimodal genes that associate with each hypothetical variable.
-    bin_selection_associations = organize_genes_association(
-        variables=variables["hypothesis"],
-        set="selection",
-        collections=sets,
-    )
-
-    # Organize multimodal genes that associate with each hypothetical variable.
-    bin_multimodal_associations = organize_genes_association(
-        variables=variables["hypothesis"],
-        set="multimodal",
-        collections=sets,
-    )
-    utility.print_terminal_partition(level=1)
-    print(
-        "Multimodal genes that associate significantly with any " +
-        "variable."
-    )
-    utility.print_terminal_partition(level=2)
-    print(
-        "union: " + str(len(bin_multimodal_associations["sets"]["union"]))
-    )
-    utility.print_terminal_partition(level=2)
-    print(
-        "genes_prediction: " +
-        str(len(bin_multimodal_associations["genes_prediction"]))
-    )
-
-    # Prepare and report summary of regression model across all genes.
-    utility.print_terminal_partition(level=2)
-    summarize_regression(
-        genes_selection=source["genes_selection"],
-        genes_unimodal=source["genes_unimodal"],
-        genes_multimodal=source["genes_multimodal"],
-        variables=variables["regression"],
-        data_regression_genes=data_regression_genes_discovery,
-    )
-
-    # Compile information.
-    information = dict()
-    information["residuals_genes"] = bin_regression["residuals_genes"]
-    information["data_regression_genes"] = data_regression_genes_discovery
-    information["sets"] = sets
-    information["genes_prediction"] = (
-        bin_selection_associations["genes_prediction"]
-    )
-    information["genes_multimodal_prediction"] = (
-        bin_multimodal_associations["genes_prediction"]
-    )
-    # Write product information to file.
-    write_product(dock=dock, information=information)
-
     pass
 
 

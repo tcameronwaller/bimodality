@@ -1601,7 +1601,7 @@ def impute_persons_genotypes(
 
 def define_variables():
     """
-    Defines a list of variables' names for regression analysis.
+    Defines a list of variables' names for analyses.
 
     arguments:
 
@@ -1611,7 +1611,6 @@ def define_variables():
         (dict<list<str>>): names of independent variables for regression
 
     """
-
 
     # Logical variables to convert to binary.
     binary = [
@@ -1644,10 +1643,11 @@ def define_variables():
         "infection_binary",
         "mononucleosis_binary",
         "steroid_binary",
-        "delay",
+        "ventilation_binary",
         "ventilation_duration",
-        "refrigeration_duration",
         "refrigeration_binary",
+        "refrigeration_duration",
+        "delay",
     ]
     # Variables that relate to hypotheses of interest.
     hypothesis = [
@@ -3219,8 +3219,27 @@ def extract_organize_persons_properties(
         report=True,
     )
     organize_contingency_table_chi(
+        persons_selection=source["persons_selection"],
+        variables_contingency=["inflammation", "ventilation"],
+        data_persons_properties=data_persons_properties_raw,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=source["persons_selection"],
+        variables_contingency=["inflammation", "mononucleosis"],
+        data_persons_properties=data_persons_properties_raw,
+        report=True,
+    )
+
+    organize_contingency_table_chi(
         persons_selection=persons_sets["ventilation"],
         variables_contingency=["sex_text", "mononucleosis"],
+        data_persons_properties=data_persons_properties_raw,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["ventilation"],
+        variables_contingency=["sex_text", "inflammation"],
         data_persons_properties=data_persons_properties_raw,
         report=True,
     )
@@ -3613,7 +3632,6 @@ def write_product_persons_properties_charts(
     pass
 
 
-
 def write_product_persons_properties_heritability(
     path_parent=None,
     information=None,
@@ -3667,8 +3685,6 @@ def write_product_persons_properties_heritability(
         index=False,
     )
     pass
-
-
 
 
 def write_product_persons_properties_persons_group(
