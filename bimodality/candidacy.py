@@ -1045,7 +1045,7 @@ def select_report_write_candidate_modality_genes_group(
     utility.print_terminal_partition(level=2)
     selection = select_genes_by_modality_measures_ranks(
         proportion_least=0.15,
-        proportion_greatest=0.01,
+        proportion_greatest=0.025, # 0.01, 0.025
         measures=measures,
         data_distribution_report=source["data_distribution_report"],
     )

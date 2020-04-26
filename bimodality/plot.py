@@ -4617,12 +4617,7 @@ def prepare_charts_genes_persons_signals(
     # Plot charts for genes of interest.
     #genes_interest = source_initial["genes_query"]
     genes_interest = [
-        "ENSG00000129757", # CDKN1C
-        "ENSG00000140807", # NKD1
-        "ENSG00000159216", # RUNX1
-        "ENSG00000244694", # PTCHD4
-        "ENSG00000134333", # LDHA
-        "ENSG00000114388", # NPRL2
+        "ENSG00000115590", # IL1R2
     ]
     for gene in genes_interest:
         if gene in source_initial["genes_selection"]:
@@ -5299,13 +5294,15 @@ def prepare_charts_genes_signals_tissues_persons(
 # Status: working
 
 
-def read_source_genes_signals_persons_properties(
+def read_source_prediction_genes_signals_persons_properties(
+    group=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -5317,86 +5314,123 @@ def read_source_genes_signals_persons_properties(
     """
 
     # Specify directories and files.
-    path_gene_annotation = os.path.join(
+    path_data_gene_annotation = os.path.join(
         dock, "selection", "tight", "gene_annotation",
         "data_gene_annotation_gencode.pickle"
     )
-    path_genes_selection = os.path.join(
-        dock, "selection", "tight", "samples_genes_signals",
-        "genes.pickle"
-    )
-    path_persons_sets = os.path.join(
-        dock, "selection", "tight", "persons_properties",
-        "persons_sets.pickle"
-    )
-    path_persons_properties = os.path.join(
-        dock, "selection", "tight", "persons_properties", "regression",
+    path_data_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", group,
         "data_persons_properties.pickle"
     )
-
-    path_distribution = os.path.join(dock, "distribution")
-    path_collection = os.path.join(path_distribution, "collection")
     path_data_signals_genes_persons = os.path.join(
-        path_collection, "data_signals_genes_persons.pickle"
+        dock, "distribution", group, "collection",
+        "data_signals_genes_persons.pickle"
     )
-
-    path_candidacy = os.path.join(dock, "candidacy")
-    path_genes_multimodal = os.path.join(
-        path_candidacy, "genes_multimodal.pickle"
+    path_sets_genes = os.path.join(
+        dock, "prediction", group, "genes", "sets_genes.pickle"
     )
-
-    path_prediction_genes_sets = os.path.join(
-        dock, "prediction", "sets.pickle"
-    )
-    path_data_regression_genes = os.path.join(
-        dock, "prediction", "data_regression_genes.pickle"
-    )
-
 
     # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_persons_properties = pandas.read_pickle(path_persons_properties)
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
+    data_persons_properties = pandas.read_pickle(path_data_persons_properties)
     data_signals_genes_persons = pandas.read_pickle(
         path_data_signals_genes_persons
     )
-    with open(path_genes_selection, "rb") as file_source:
-        genes_selection = pickle.load(file_source)
-    with open(path_genes_multimodal, "rb") as file_source:
-        genes_multimodal = pickle.load(file_source)
-    with open(path_persons_sets, "rb") as file_source:
-        persons_sets = pickle.load(file_source)
-
-
-    with open(path_prediction_genes_sets, "rb") as file_source:
-        prediction_genes_sets = pickle.load(file_source)
-    data_regression_genes = pandas.read_pickle(
-        path_data_regression_genes
-    )
-
+    with open(path_sets_genes, "rb") as file_source:
+        sets_genes = pickle.load(file_source)
     genes_query_population = (
         integration.read_source_annotation_query_genes_set(
             set="population",
             dock=dock,
     ))
-
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
         "data_persons_properties": data_persons_properties,
         "data_signals_genes_persons": data_signals_genes_persons,
-        "genes_selection": genes_selection,
-        "persons_sets": persons_sets,
-        "genes_multimodal": genes_multimodal,
+        "sets_genes": sets_genes,
         "genes_query_population": genes_query_population,
-        "prediction_genes_sets": prediction_genes_sets,
-        "data_regression_genes": data_regression_genes,
     }
 
 
-def organize_genes_signals_persons_properties(
+def organize_prediction_signals_properties_sort_cluster(
+    type=None,
+    sequence=None,
+    data=None,
+):
+    """
+    Organize sort and cluster of data.
+
+    arguments:
+        type (str): type of property, category or continuity
+        sequence (str): method for sequence of persons, sort by property's
+            values or cluster by similarities across genes
+        data (object): Pandas data frame of pan-tissue signals across genes and
+            persons with property
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of pan-tissue signals across genes and
+            persons with property
+
+    """
+
+    if (sequence == "sort"):
+        data.sort_values(
+            by=["property"],
+            axis="index",
+            ascending=True,
+            inplace=True,
+        )
+        data_cluster_columns = utility.cluster_data_columns(
+            data=data,
+        )
+        if (type == "category"):
+            data_cluster_columns.reset_index(
+                level=None,
+                inplace=True
+            )
+            data_cluster_columns.set_index(
+                ["person", "property"],
+                append=False,
+                drop=True,
+                inplace=True
+            )
+            data_cluster_rows = utility.cluster_data_rows_by_group(
+                group="property",
+                index="person",
+                data=data_cluster_columns,
+            )
+            # Organize data.
+            data_cluster_rows.reset_index(
+                level=None,
+                inplace=True
+            )
+            data_cluster_rows.set_index(
+                ["person"],
+                append=False,
+                drop=True,
+                inplace=True
+            )
+            data_sequence = data_cluster_rows.copy(deep=True)
+        else:
+            data_sequence = data_cluster_columns.copy(deep=True)
+    elif (sequence == "cluster"):
+        data_cluster_columns = utility.cluster_data_columns(
+            data=data,
+        )
+        data_cluster_rows = utility.cluster_data_rows(
+            data=data_cluster_columns,
+        )
+        data_sequence = data_cluster_rows.copy(deep=True)
+    # Return information.
+    return data_sequence
+
+
+def organize_prediction_genes_signals_persons_properties(
     property=None,
     type=None,
-    persons=None,
     sequence=None,
     genes_query=None,
     data_gene_annotation=None,
@@ -5418,11 +5452,9 @@ def organize_genes_signals_persons_properties(
         property (str): name of feature from persons' properties to use for
             groups
         type (str): type of property, category or continuity
-        persons (list<str>): identifiers of persons
         sequence (str): method for sequence of persons, sort by property's
             values or cluster by similarities across genes
         genes_query (list<str>): identifiers of genes
-        genes_selection (list<str>): identifiers of genes
         data_gene_annotation (object): Pandas data frame of genes' annotations
         data_persons_properties (object): Pandas data frame of persons and
             their properties
@@ -5445,15 +5477,8 @@ def organize_genes_signals_persons_properties(
     data_signals_genes = data_signals_genes_persons.loc[
         :, data_signals_genes_persons.columns.isin(genes_query)
     ]
-    # Select data for persons.
-    data_signals_selection = data_signals_genes.loc[
-        data_signals_genes.index.isin(persons), :
-    ]
-    data_persons_properties = data_persons_properties.loc[
-        data_persons_properties.index.isin(persons), :
-    ]
     # Translate identifiers of genes.
-    identifiers = data_signals_selection.columns.to_list()
+    identifiers = data_signals_genes.columns.to_list()
     translations = dict()
     for identifier in identifiers:
         translations[identifier] = assembly.access_gene_name(
@@ -5461,16 +5486,9 @@ def organize_genes_signals_persons_properties(
             data_gene_annotation=data_gene_annotation,
         )
         pass
-    data_signals_selection.rename(
+    data_signals_genes.rename(
         columns=translations,
         inplace=True,
-    )
-    # Cluster data.
-    data_signals_cluster = utility.cluster_data_columns(
-        data=data_signals_selection,
-    )
-    data_signals_sequence = utility.cluster_data_rows(
-        data=data_signals_cluster,
     )
     # Organize properties.
     if type == "category":
@@ -5485,34 +5503,31 @@ def organize_genes_signals_persons_properties(
     data_persons_properties = data_persons_properties.loc[
         :, data_persons_properties.columns.isin(["property", property])
     ]
-    data_hybrid = data_signals_sequence.join(
+    data_hybrid = data_signals_genes.join(
         data_persons_properties,
         how="left",
         on="person"
     )
-    # Determine whether to sort by persons' values of property.
-    if sequence == "sort":
-        data_hybrid.sort_values(
-            by=["property"],
-            axis="index",
-            ascending=True,
-            inplace=True,
-        )
-    # Remove the column for aggregate, pantissue signals.
     data_hybrid.drop(
         labels=[property],
         axis="columns",
         inplace=True
     )
+    # Sort and cluster data.
+    data_hybrid_sequence = organize_prediction_signals_properties_sort_cluster(
+        type=type,
+        sequence=sequence,
+        data=data_hybrid,
+    )
     # Compile information.
     bin = dict()
     bin["properties"] = properties
-    bin["data"] = data_hybrid
+    bin["data"] = data_hybrid_sequence
     # Return information
     return bin
 
 
-def plot_chart_genes_signals_persons_properties(
+def plot_chart_prediction_genes_signals_persons_properties(
     name=None,
     property=None,
     type=None,
@@ -5569,12 +5584,10 @@ def plot_chart_genes_signals_persons_properties(
     pass
 
 
-def prepare_charts_genes_signals_persons_properties_variable(
+def prepare_charts_prediction_genes_signals_persons_properties_variable(
     property=None,
     type=None,
-    persons=None,
     genes_query=None,
-    genes_selection=None,
     data_gene_annotation=None,
     data_persons_properties=None,
     data_signals_genes_persons=None,
@@ -5588,9 +5601,7 @@ def prepare_charts_genes_signals_persons_properties_variable(
         property (str): name of feature from persons' properties to use for
             groups
         type (str): type of property, category or continuity
-        persons (list<str>): identifiers of persons
         genes_query (list<str>): identifiers of genes
-        genes_selection (list<str>): identifiers of genes
         data_gene_annotation (object): Pandas data frame of genes' annotations
         data_persons_properties (object): Pandas data frame of persons and
             their properties
@@ -5608,10 +5619,9 @@ def prepare_charts_genes_signals_persons_properties_variable(
     # Organize data.
     # Sort persons by their pantissue aggregate signals for the gene.
     # The same order is important to compare the heatmap to the histogram.
-    bin = organize_genes_signals_persons_properties(
+    bin_sort = organize_prediction_genes_signals_persons_properties(
         property=property,
         type=type,
-        persons=persons,
         sequence="sort",
         genes_query=genes_query,
         data_gene_annotation=data_gene_annotation,
@@ -5619,22 +5629,21 @@ def prepare_charts_genes_signals_persons_properties_variable(
         data_signals_genes_persons=data_signals_genes_persons,
     )
     # Create charts for the gene.
-    plot_chart_genes_signals_tissues_persons(
+    plot_chart_prediction_genes_signals_persons_properties(
         name=property,
         property=property,
         type=type,
-        properties=bin["properties"],
-        data=bin["data"],
+        properties=bin_sort["properties"],
+        data=bin_sort["data"],
         path_directory=path_sort,
     )
 
     # Organize data.
     # Sort persons by their pantissue aggregate signals for the gene.
     # The same order is important to compare the heatmap to the histogram.
-    bin = organize_genes_signals_persons_properties(
+    bin_cluster = organize_prediction_genes_signals_persons_properties(
         property=property,
         type=type,
-        persons=persons,
         sequence="cluster",
         genes_query=genes_query,
         data_gene_annotation=data_gene_annotation,
@@ -5642,18 +5651,99 @@ def prepare_charts_genes_signals_persons_properties_variable(
         data_signals_genes_persons=data_signals_genes_persons,
     )
     # Create charts for the gene.
-    plot_chart_genes_signals_tissues_persons(
+    plot_chart_prediction_genes_signals_persons_properties(
         name=property,
         property=property,
         type=type,
-        properties=bin["properties"],
-        data=bin["data"],
+        properties=bin_cluster["properties"],
+        data=bin_cluster["data"],
         path_directory=path_cluster,
     )
     pass
 
 
-def prepare_charts_genes_signals_persons_properties(
+def prepare_charts_prediction_genes_signals_persons_properties_group(
+    group=None,
+    dock=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        group (str): group of persons, either selection or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    print("group: " + group)
+    # Read source information from file.
+    source = read_source_prediction_genes_signals_persons_properties(
+        group=group,
+        dock=dock,
+    )
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    path_prediction = os.path.join(path_plot, "prediction")
+    path_persons_properties = os.path.join(
+        path_prediction, "persons_properties"
+    )
+    path_sort = os.path.join(
+        path_persons_properties, group, "sort_persons"
+    )
+    path_cluster = os.path.join(
+        path_persons_properties, group, "cluster_persons"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_sort)
+    utility.remove_directory(path=path_cluster)
+    utility.create_directories(path=path_sort)
+    utility.create_directories(path=path_cluster)
+
+    # Specify combinations of parameters for charts.
+    parameters = list()
+    parameters.append(dict(
+        name="sex", set="sex_y_scale", property="sex_text",
+        type="category",
+    ))
+    #parameters.append(dict(
+    #    name="respiration", set="respiration_binary_scale",
+    #    property="respiration", type="category",
+    #))
+    #parameters.append(dict(
+    #    name="climate", set="climate_scale",
+    #    property="climate", type="category",
+    #))
+    parameters.append(dict(
+        name="age", set="age_scale",
+        property="age_grade", type="category",
+    ))
+    parameters.append(dict(
+        name="ventilation", set="ventilation_duration_scale",
+        property="ventilation_duration_grade", type="category",
+    ))
+    for parameter in parameters:
+        # Prepare charts for genes.
+        prepare_charts_prediction_genes_signals_persons_properties_variable(
+            property=parameter["property"],
+            type=parameter["type"],
+            genes_query=source["sets_genes"]["multimodal"][parameter["set"]],
+            data_gene_annotation=source["data_gene_annotation"],
+            data_persons_properties=source["data_persons_properties"],
+            data_signals_genes_persons=source["data_signals_genes_persons"],
+            path_sort=path_sort,
+            path_cluster=path_cluster,
+        )
+        pass
+    pass
+
+
+
+def prepare_charts_prediction_genes_signals_persons_properties(
     dock=None
 ):
     """
@@ -5669,72 +5759,14 @@ def prepare_charts_genes_signals_persons_properties(
 
     """
 
-    # Read source information from file.
-    source = read_source_genes_signals_persons_properties(dock=dock)
-
-    # Specify directories and files.
-    path_plot = os.path.join(dock, "plot")
-    utility.create_directory(path_plot)
-    path_integration = os.path.join(path_plot, "integration")
-    path_persons_properties = os.path.join(
-        path_integration, "persons_properties"
+    prepare_charts_prediction_genes_signals_persons_properties_group(
+        group="selection",
+        dock=dock,
     )
-    path_sort = os.path.join(
-        path_persons_properties, "sort_persons"
+    prepare_charts_prediction_genes_signals_persons_properties_group(
+        group="ventilation",
+        dock=dock,
     )
-    path_cluster = os.path.join(
-        path_persons_properties, "cluster_persons"
-    )
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_persons_properties)
-    utility.create_directories(path=path_sort)
-    utility.create_directories(path=path_cluster)
-
-    variables_regression = selection.define_variables()
-    sets = prediction.select_genes_by_group_association(
-        variables=variables_regression["hypothesis"],
-        genes_selection=source["genes_selection"],
-        genes_unimodal=list(),
-        genes_multimodal=list(),
-        threshold_r_square=0.15,
-        count_selection=25,
-        data_regression_genes=source["data_regression_genes"],
-    )
-
-    # Define genes of interest.
-    #genes_interest = source["genes_query_population"]
-    #genes_interest = sets["selection"]["sex_y_scale"]
-    #genes_interest = sets["selection"]["age_scale"]
-    #genes_interest = sets["selection"]["respiration_binary_scale"]
-    genes_interest = sets["selection"]["ventilation_duration_scale"]
-    utility.print_terminal_partition(level=2)
-    print(len(genes_interest))
-
-    # Iterate on categorical and ordinal groups of variables.
-    variables = list()
-    #variables.append(dict(name="sex_text", type="category"))
-    #variables.append(dict(name="age", type="continuity"))
-    #variables.append(dict(name="respiration", type="category"))
-    variables.append(dict(name="ventilation_duration", type="continuity"))
-    # Iterate on categorical variables.
-
-    # TODO: I need to specify the persons of interest here...
-
-    for variable in variables:
-        # Prepare charts for genes.
-        prepare_charts_genes_signals_persons_properties_variable(
-            property=variable["name"],
-            type=variable["type"],
-            persons=source["persons_sets"]["ventilation"],
-            genes_query=genes_interest,
-            genes_selection=source["genes_selection"],
-            data_gene_annotation=source["data_gene_annotation"],
-            data_persons_properties=source["data_persons_properties"],
-            data_signals_genes_persons=source["data_signals_genes_persons"],
-            path_sort=path_sort,
-            path_cluster=path_cluster,
-        )
-        pass
     pass
 
 
@@ -8028,7 +8060,7 @@ def execute_procedure(dock=None):
     # (sex, age, body mass index, hardiness).
     # In other charts, sort order across columns depends on hierarchical
     # clustering.
-    prepare_charts_genes_signals_persons_properties(dock=dock)
+    prepare_charts_prediction_genes_signals_persons_properties(dock=dock)
 
 
         ##########

@@ -2078,6 +2078,55 @@ def cluster_data_rows(
     return data_cluster
 
 
+def cluster_data_rows_by_group(
+    group=None,
+    index=None,
+    data=None,
+):
+    """
+    Clusters instances on rows by their similarities across features on
+    columns.
+
+    arguments:
+        group (str): name of column to use for groups
+        index (str): name of column to use for index during cluster
+        data (object): Pandas data frame of values
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of values
+
+    """
+
+    data = data.copy(deep=True)
+    groups = data.groupby(
+        level=[group],
+    )
+    data_collection = pandas.DataFrame()
+    for name, data_group in groups:
+        data_group = data_group.copy(deep=True)
+        data_group.reset_index(
+            level=None,
+            inplace=True
+        )
+        data_group.set_index(
+            [index],
+            append=False,
+            drop=True,
+            inplace=True
+        )
+        data_cluster = cluster_data_rows(
+            data=data_group,
+        )
+        data_collection = data_collection.append(
+            data_cluster,
+            ignore_index=False,
+        )
+    # Return information.
+    return data_collection
+
+
 def filter_features_by_threshold_outer_count(
     data=None,
     threshold_high=None,

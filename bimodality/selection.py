@@ -1630,6 +1630,12 @@ def define_variables():
         "batches_extraction",
         "batches_sequence",
     ]
+    # Categorical variables for which each person has multiple values.
+    # Reduce dimensionality for these variables.
+    stratification = [
+        "age",
+        "ventilation_duration",
+    ]
     # Variables of raw values that might require standardization to adjust
     # scale.
     scale = [
@@ -1743,6 +1749,7 @@ def define_variables():
     information = dict()
     information["binary"] = binary
     information["category"] = category
+    information["stratification"] = stratification
     information["scale"] = scale
     information["hypothesis"] = hypothesis
     information["genotype"] = genotype
@@ -2265,6 +2272,7 @@ def organize_samples_properties(
         data_samples_tissues_persons=data_season,
     )
     # Convert logical variables to binary representation for regressions.
+    # Assume that missing values indicate a false logical value.
     data_binary = convert_samples_logical_variables_binary(
         variables=variables["binary"],
         data_samples_tissues_persons=data_sex,
@@ -2408,6 +2416,251 @@ def extract_persons_properties(
         utility.print_terminal_partition(level=2)
     # Return information.
     return data_collection
+
+
+def determine_stratification_bin_thresholds(
+    bin=None,
+    values_sort=None,
+    indices=None,
+    thresholds=None,
+    report=None,
+):
+    """
+    Determine values of thresholds for three stratification bins.
+    Lower and upper thresholds for a bin cannot be identical.
+
+    arguments:
+        bin (list<float>): proportions for one stratification bin
+        values_sort (list<float>): values of continuous variable in ascending
+            sort order
+        indices (list<list<int>>): indices for each low and high threshold
+        thresholds (list<list<float>>): thresholds for bins
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (list<list<int>>, list<list<float>>): indices, thresholds
+
+    """
+
+    # Count total values.
+    count_total = len(values_sort)
+
+    # Low threshold.
+    count_low = round(bin[0] * count_total)
+    if (count_low == 0):
+        index_low = 0
+    else:
+        index_low = (count_low - 1)
+    value_low = values_sort[index_low]
+    # Ensure that low threshold is at least as great as the previous bin's high
+    # threshold.
+    if len(thresholds) > 0:
+        if (value_low < thresholds[-1][1]):
+            value_low = thresholds[-1][1]
+
+    # High threshold.
+    count_high = round(bin[1] * count_total)
+    index_high = (count_high - 1)
+    value_high = values_sort[index_high]
+    # Ensure that high threshold is greater than low threshold.
+    if value_low == value_high:
+        # Iterate on values until finding the next greater value.
+        while values_sort[index_high] == value_low:
+            index_high += 1
+        value_high = values_sort[index_high]
+
+    # Collect indices.
+    indices_bin = list()
+    indices_bin.append(index_low)
+    indices_bin.append(index_high)
+    indices.append(indices_bin)
+    # Collect thresholds.
+    thresholds_bin = list()
+    thresholds_bin.append(value_low)
+    thresholds_bin.append(value_high)
+    thresholds.append(thresholds_bin)
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=4)
+        print("count_low: " + str(count_low))
+        print("index_low: " + str(index_low))
+        print("value_low: " + str(value_low))
+        print("count_high: " + str(count_high))
+        print("index_high: " + str(index_high))
+        print("value_high: " + str(value_high))
+    # Return information.
+    return indices, thresholds
+
+
+def collect_stratification_bins_thresholds(
+    values=None,
+    bins=None,
+    report=None,
+):
+    """
+    Determine values of thresholds for three stratification bins.
+    Lower and upper thresholds for a bin cannot be identical.
+
+    arguments:
+        values (list<float>): values of continuous variable
+        bins (list<list<float>>): proportions for three stratification bins
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (list<list<int>>): values of thresholds for each stratification bin
+
+    """
+
+    # Organize values.
+    values = copy.deepcopy(values)
+    values_sort = sorted(values, reverse=False)
+    # Collect thresholds.
+    indices = list()
+    thresholds = list()
+    for bin in bins:
+        # Determine low and high thresholds for bin.
+        indices, thresholds = determine_stratification_bin_thresholds(
+            bin=bin,
+            values_sort=values_sort,
+            indices=indices,
+            thresholds=thresholds,
+            report=report,
+        )
+    # Return information.
+    return thresholds
+
+
+def determine_stratification_bin(
+    value=None,
+    thresholds=None,
+):
+    """
+    Stratify persons to ordinal bins by their values of continuous variables.
+
+    arguments:
+        value (float): value of continuous variable
+        thresholds (list<list<int>>): values of thresholds for each
+            stratification bin
+
+    raises:
+
+    returns:
+        (int): integer bin
+
+    """
+
+    if not math.isnan(value):
+        if (thresholds[0][0] <= value and value < thresholds[0][1]):
+            return 0
+        elif (thresholds[1][0] <= value and value < thresholds[1][1]):
+            return 1
+        elif (thresholds[2][0] <= value and value <= thresholds[2][1]):
+            return 2
+        else:
+            return float("nan")
+    else:
+        return float("nan")
+
+
+def stratify_persons_continuous_variable_ordinal(
+    variable=None,
+    bins=None,
+    data_persons_properties=None,
+    report=None,
+):
+    """
+    Stratify persons to ordinal bins by their values of continuous variables.
+
+    arguments:
+        variable (str): name of continuous variable for stratification
+        bins (list<list<float>>): proportions for three stratification bins
+        data_persons_properties (object): Pandas data frame of persons'
+            properties
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of information about persons
+
+    """
+
+    # Copy data.
+    data = data_persons_properties.copy(deep=True)
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("variable: " + str(variable))
+        utility.print_terminal_partition(level=2)
+    # Determine thresholds for stratification bins.
+    thresholds = collect_stratification_bins_thresholds(
+        values=data[variable].to_list(),
+        bins=bins,
+        report=report,
+    )
+    # Determine bins.
+    variable_grade = str(variable + ("_grade"))
+    data[variable_grade] = data[variable].apply(
+        lambda value:
+            determine_stratification_bin(
+                value=value,
+                thresholds=thresholds,
+            )
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        for threshold in thresholds:
+            print("low threshold: " + str(threshold[0]))
+            print("high threshold: " + str(threshold[1]))
+            utility.print_terminal_partition(level=3)
+    # Return information.
+    return data
+
+
+def stratify_persons_continuous_variables_ordinal(
+    data_persons_properties=None,
+    report=None,
+):
+    """
+    Stratify persons to ordinal bins by their values of continuous variables.
+
+    arguments:
+        data_persons_properties (object): Pandas data frame of persons'
+            properties
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of information about persons
+
+    """
+
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=1)
+        print("Stratification bin thresholds...")
+    # Age.
+    data_age = stratify_persons_continuous_variable_ordinal(
+        variable="age",
+        bins=[[0.0, 0.3], [0.3, 0.7], [0.7, 1.0]],
+        data_persons_properties=data_persons_properties,
+        report=report,
+    )
+    # Ventilation duration.
+    data_ventilation = stratify_persons_continuous_variable_ordinal(
+        variable="ventilation_duration",
+        bins=[[0.0, 0.3], [0.3, 0.7], [0.7, 1.0]],
+        data_persons_properties=data_age,
+        report=report,
+    )
+    # Return information.
+    return data_ventilation
 
 
 def expand_persons_categories_matrix(
@@ -2832,10 +3085,16 @@ def organize_persons_properties(
     data_raw_persons = data_raw.loc[
         data_raw.index.isin(persons), :
     ]
+    # Stratify persons to ordinal bins by their values of continuous variables.
+    # Variables age and ventilation duration.
+    data_stratification = stratify_persons_continuous_variables_ordinal(
+        data_persons_properties=data_raw_persons,
+        report=report,
+    )
     # Organize dimensionality reduction on categorical variables.
     bin_category = organize_persons_category_dimensionality(
         variables=variables["category"],
-        data_persons_properties_raw=data_raw_persons,
+        data_persons_properties_raw=data_stratification,
         report=report,
     )
     # Standardize the scales of numerical variables for regression.
