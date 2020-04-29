@@ -93,6 +93,11 @@ def read_source_sample(dock=None):
         path_customization, "translation_tissues_minor.tsv"
     )
 
+    path_data_person_smoke = os.path.join(
+        dock, "annotation_2020-04-28", "smoke",
+        "data_person_smoke_threshold-1-year.csv",
+    )
+
     # Signal
     path_gene_signal = os.path.join(path_access, "signal_gene.gct")
 
@@ -119,6 +124,11 @@ def read_source_sample(dock=None):
         sep="\t",
         header=9,
         low_memory=False,
+    )
+    data_person_smoke = pandas.read_csv(
+        path_data_person_smoke,
+        sep="\t",
+        header=0,
     )
     data_person_ancestry = pandas.read_csv(
         path_person_ancestry,
@@ -183,6 +193,7 @@ def read_source_sample(dock=None):
         "data_sample_attribute_private": data_sample_attribute_private,
         "data_person_attribute": data_person_attribute,
         "data_person_attribute_private": data_person_attribute_private,
+        "data_person_smoke": data_person_smoke,
         "data_person_ancestry": data_person_ancestry,
         "data_genotype_component_gcta": data_genotype_component_gcta,
         "data_genotype_component_plink": data_genotype_component_plink,
@@ -240,6 +251,7 @@ def organize_sample_attribute_source_data(
     data_sample_attribute_private=None,
     data_person_attribute=None,
     data_person_attribute_private=None,
+    data_person_smoke=None,
     data_person_ancestry=None,
     data_genotype_component_gcta=None,
     data_genotype_component_plink=None,
@@ -258,6 +270,8 @@ def organize_sample_attribute_source_data(
             for persons
         data_person_attribute_private (object): Pandas data frame of private
             attributes for persons
+        data_person_smoke (object): Pandas data frame of curation annotation of
+            person's status of smoke usage
         data_person_ancestry (object): Pandas data frame of ancestry for
             persons
         data_genotype_component_gcta (object): Pandas data frame of principal
@@ -299,6 +313,13 @@ def organize_sample_attribute_source_data(
     )
     bin["data_person_attribute_private"] = (
         data_person_attribute_private.set_index(
+            ["SUBJID"],
+            append=False,
+            drop=True,
+            inplace=False
+    ))
+    bin["data_person_smoke"] = (
+        data_person_smoke.set_index(
             ["SUBJID"],
             append=False,
             drop=True,
@@ -788,14 +809,18 @@ def define_person_binary_health_variables():
 
     # Respiratory disorders.
     respiration = [
-        "MHCOPD", "MHCLRD", "MHCOUGHU", "MHSMKSTS", "MHASTHMA", "MHSRCDSS",
+        "MHCOPD", "MHCLRD", "MHCOUGHU", "MHASTHMA", "MHSRCDSS",
         "MHPNMNIA", "MHPNMIAB", "MHTBHX",
     ]
     # Inflammatory disorders.
     inflammation = [
-        "MHABNWBC", "MHFVRU", "MHTEMPU", "MHARTHTS", "MHRA", "MHLAPTHU",
+        "MHFVRU", "MHTEMPU", "MHARTHTS", "MHRA", "MHLAPTHU",
         "MHASCITES", "MHLUPUS", "MHSCLRDRM", "MHLVRDIS", "MHNEPH", "MHPRKNSN",
         "MHALZHMR", "MHALZDMT", "MHDMNTIA", "MHALS", "MHMS",
+    ]
+    # Abnormal white blood cell count.
+    leukocyte = [
+        "MHABNWBC",
     ]
     # Infections.
     infection = [
@@ -804,8 +829,7 @@ def define_person_binary_health_variables():
         "LBRPR", "MHSTD", "MHENCEPHA", "MHFLU", "MHREYES", "MHSARS",
         "MHMENINA", "MHRBSANML", "MHSMLPXCT", "MHHIVCT", "LBHIV1NT", "LBHIVAB",
         "LBHIVO", "MHHEPCCT", "LBHCV1NT", "LBHBHCVAB", "MHHEPBCT", "LBHBCABM",
-        "LBHBCABT", "LBHBSAB", "LBHBSAG", "MHWNVCT", "MHWNVHX", "LBCMVTAB",
-        "LBEBVGAB", "LBEBVMAB",
+        "LBHBCABT", "LBHBSAB", "LBHBSAG", "MHWNVCT", "MHWNVHX",
     ]
     # Infectious mononucleosis.
     # Reactivation of CMV or EBV.
@@ -820,6 +844,7 @@ def define_person_binary_health_variables():
     bin = dict()
     bin["respiration"] = respiration
     bin["inflammation"] = inflammation
+    bin["leukocyte"] = leukocyte
     bin["infection"] = infection
     bin["mononucleosis"] = mononucleosis
     bin["steroid"] = steroid
@@ -939,6 +964,7 @@ def determine_sample_associations_attributes(
     data_sample_attribute_private=None,
     data_person_attribute=None,
     data_person_attribute_private=None,
+    data_person_smoke=None,
     data_person_ancestry=None,
     data_genotype_component_gcta=None,
     data_genotype_component_plink=None,
@@ -959,6 +985,8 @@ def determine_sample_associations_attributes(
             for persons
         data_person_attribute_private (object): Pandas data frame of private
             attributes for persons
+        data_person_smoke (object): Pandas data frame of curation annotation of
+            person's status of smoke usage
         data_person_ancestry (object): Pandas data frame of ancestry for
             persons
         data_genotype_component_gcta (object): Pandas data frame of principal
@@ -1045,10 +1073,17 @@ def determine_sample_associations_attributes(
         variables=variables_health["respiration"],
         data_person_attribute_private=data_person_attribute_private,
     )
+    # Determine persons' history of respiratory conditions.
+    smoke = data_person_smoke.at[person, "smoke"]
     # Determine persons' history of chronic inflammation.
     inflammation = determine_person_boolean_binary_any(
         person=person,
         variables=variables_health["inflammation"],
+        data_person_attribute_private=data_person_attribute_private,
+    )
+    leukocyte = determine_person_boolean_binary_any(
+        person=person,
+        variables=variables_health["leukocyte"],
         data_person_attribute_private=data_person_attribute_private,
     )
     # Determine persons' history of infection.
@@ -1096,7 +1131,9 @@ def determine_sample_associations_attributes(
         "ventilation_duration": ventilation_duration,
         "ventilation_unit": ventilation_unit,
         "respiration": respiration,
+        "smoke": smoke,
         "inflammation": inflammation,
+        "leukocyte": leukocyte,
         "infection": infection,
         "mononucleosis": mononucleosis,
         "steroid": steroid,
@@ -1112,6 +1149,7 @@ def collect_samples_tissues_persons(
     data_sample_attribute_private=None,
     data_person_attribute=None,
     data_person_attribute_private=None,
+    data_person_smoke=None,
     data_person_ancestry=None,
     data_genotype_component_gcta=None,
     data_genotype_component_plink=None,
@@ -1132,6 +1170,8 @@ def collect_samples_tissues_persons(
             for persons
         data_person_attribute_private (object): Pandas data frame of private
             attributes for persons
+        data_person_smoke (object): Pandas data frame of curation annotation of
+            person's status of smoke usage
         data_person_ancestry (object): Pandas data frame of ancestry for
             persons
         data_genotype_component_gcta (object): Pandas data frame of principal
@@ -1160,6 +1200,7 @@ def collect_samples_tissues_persons(
             data_sample_attribute_private=data_sample_attribute_private,
             data_person_attribute=data_person_attribute,
             data_person_attribute_private=data_person_attribute_private,
+            data_person_smoke=data_person_smoke,
             data_person_ancestry=data_person_ancestry,
             data_genotype_component_gcta=data_genotype_component_gcta,
             data_genotype_component_plink=data_genotype_component_plink,
@@ -1262,6 +1303,7 @@ def organize_samples_tissues_persons(
     bin_data = organize_sample_attribute_source_data(
         data_person_attribute=source["data_person_attribute"],
         data_person_attribute_private=source["data_person_attribute_private"],
+        data_person_smoke=source["data_person_smoke"],
         data_person_ancestry=source["data_person_ancestry"],
         data_genotype_component_gcta=source["data_genotype_component_gcta"],
         data_genotype_component_plink=source["data_genotype_component_plink"],
@@ -1289,6 +1331,7 @@ def organize_samples_tissues_persons(
         data_person_attribute_private=(
             bin_data["data_person_attribute_private"]
         ),
+        data_person_smoke=(bin_data["data_person_smoke"]),
         data_person_ancestry=bin_data["data_person_ancestry"],
         data_genotype_component_gcta=bin_data["data_genotype_component_gcta"],
         data_genotype_component_plink=(

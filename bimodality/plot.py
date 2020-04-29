@@ -428,79 +428,282 @@ def plot_heatmap(
     return figure
 
 
-def plot_heatmap_asymmetric_groups(
-    title=None,
-    property=None,
+# Asymmetric heatmap with master and main panels
+
+
+def organize_data_master_main_sort_cluster(
     type=None,
-    properties=None,
+    sequence=None,
     data=None,
-    fonts=None,
-    colors=None,
-    title_signal=None,
 ):
     """
-    Creates a figure of a chart of type heatmap.
-
-    Data must have observations across rows.
-    Data's observations must already be in sort order.
-    Data must have features across columns.
-    Data must also have a single column of name "group".
-    Values in column "group" must be integers.
-
-    The chart will organize features across rows and observations across
-    columns.
-    The chart will represent integer values of the group of each observation in
-    a separate chart across columns.
-
+    Organize sort and cluster of data.
 
     arguments:
-        title (str): title for chart
-        property (str): name of feature from persons' properties to use for
-            groups
         type (str): type of property, category or continuity
-        properties (list<str>): unique values of property
-        data (object): Pandas data frame of quantitative values with mappings
-            to columns and rows that will be transposed in heatmap
-        fonts (dict<object>): references to definitions of font properties
-        colors (dict<tuple>): references to definitions of color properties
-        title_signal (str): title for color bar on main chart
+        sequence (str): method for sequence of persons, sort by property's
+            values or cluster by similarities across genes
+        data (object): Pandas data frame of pan-tissue signals across genes and
+            persons with property
 
     raises:
 
     returns:
-        (object): figure object
+        (object): Pandas data frame of pan-tissue signals across genes and
+            persons with property
 
     """
 
-    # Organize data.
+    if (sequence == "sort"):
+        data.sort_values(
+            by=["master"],
+            axis="index",
+            ascending=True,
+            inplace=True,
+        )
+        data_cluster_columns = utility.cluster_data_columns(
+            data=data,
+        )
+        if (type == "category"):
+            data_cluster_columns.reset_index(
+                level=None,
+                inplace=True
+            )
+            data_cluster_columns.set_index(
+                ["person", "master"],
+                append=False,
+                drop=True,
+                inplace=True
+            )
+            data_cluster_rows = utility.cluster_data_rows_by_group(
+                group="master",
+                index="person",
+                data=data_cluster_columns,
+            )
+            # Organize data.
+            data_cluster_rows.reset_index(
+                level=None,
+                inplace=True
+            )
+            data_cluster_rows.set_index(
+                ["person"],
+                append=False,
+                drop=True,
+                inplace=True
+            )
+            data_sequence = data_cluster_rows.copy(deep=True)
+        else:
+            data_sequence = data_cluster_columns.copy(deep=True)
+    elif (sequence == "cluster"):
+        data_cluster_columns = utility.cluster_data_columns(
+            data=data,
+        )
+        data_cluster_rows = utility.cluster_data_rows(
+            data=data_cluster_columns,
+        )
+        data_sequence = data_cluster_rows.copy(deep=True)
+    # Return information.
+    return data_sequence
+
+
+# translate any gene IDs to names before sending data_main to the standardized organization function
+# -> do this within a separate "organize_..." function for each plot type?
+# -> also drop all non-master columns from data_persons_properties when data_master and data_main are both the same...
+
+# sequence <- whether to sort or cluster data's rows
+# data_master
+# master <- column from data_master for sort and master chart
+# type_master <- type of master variable...
+# data_main <- same as data_master (both persons properties) for the properties chart
+# data_main columns selection (either genes or properties)
+# scale_unit_main <- whether to scale all data_main columns 0 to 1
+
+def organize_data_master_main(
+    data_master=None,
+    master=None,
+    type_master=None,
+    data_main=None,
+    type_main=None,
+    columns_main=None,
+    scale_unit_main=None,
+    index=None,
+    sequence=None,
+):
+    """
+    Organize information to sort multiple main data variables by a single
+    master variable.
+
+    Data have features across columns and instances across rows.
+
+    Sequence of features depends on hierarchical cluster by their
+    similarities across instances.
+    Sequence of instances depends either on sort by values of master variable
+    or on hierarchical cluster by their similarities across features.
+
+    arguments:
+        data_master (object): Pandas data frame including master variable
+            across instances that match those of data_main
+        master (str): name of feature in data_master that is master variable
+        type_master (str): type of master variable, category, binary, ordinal,
+            or continuous
+        data_main (object): Pandas data frame of feature variables across
+            instances that match those of data_master
+        type_main (str): type of main variables, category, binary, ordinal,
+            continuous, or continuous_divergent
+        columns_main (list<str>): names of columns in data_main to select
+        scale_unit_main (bool): whether to scale variables in data_main to unit
+            distribution between 0 and 1
+        index (str): name of index that is common between data_master and
+            data_main
+        sequence (str): method to determine sequence of instances, sort by
+            master variable's values or cluster by similarities across features
+
+
+
+        property (str): name of feature from persons' properties to use for
+            groups
+        type (str): type of property, category or continuity
+        genes_query (list<str>): identifiers of genes
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+        data_signals_genes_persons (object): Pandas data frame of pan-tissue
+            signals across genes and persons
+
+    raises:
+
+    returns:
+        (dict): information for chart
+
+    """
+
     # Copy data.
-    #data_selection = data.iloc[:, :]
-    data_property = data.copy(deep=True)
-    data_value = data.copy(deep=True)
-    # Groups.
-    property_values = data_property["property"].to_list()
-    # Map data's columns to heatmap's rows.
-    # Map data's rows to heatmap's columns.
-    data_value.drop(
-        labels=["property"],
+    data_master = data_master.copy(deep=True)
+    data_main = data_main.copy(deep=True)
+
+    # Organize signals.
+    # Select data for query genes.
+    data_signals_genes = data_signals_genes_persons.loc[
+        :, data_signals_genes_persons.columns.isin(genes_query)
+    ]
+    # Organize properties.
+    if type == "category":
+        data_master["master"], labels_categories_master = pandas.factorize(
+            data_master[master],
+            sort=True
+        )
+        labels_categories_master = list(labels_categories_master)
+    elif type == "continuity":
+        data_master["master"] = data_master[master]
+        labels_categories_master = list()
+    data_master = data_master.loc[
+        :, data_master.columns.isin(["master", master])
+    ]
+    data_hybrid = data_main.join(
+        data_master,
+        how="left",
+        on=index
+    )
+    data_hybrid.drop(
+        labels=[master],
         axis="columns",
         inplace=True
     )
-    labels_rows = data_value.columns.to_list()
-    labels_columns = data_value.index.to_list()
-    matrix = numpy.transpose(data_value.to_numpy())
+    # Sort and cluster data.
+    data_hybrid_sequence = organize_data_master_main_sort_cluster(
+        type=type,
+        sequence=sequence,
+        data=data_hybrid,
+    )
+    # Compile information.
+    bin = dict()
+    bin["labels_categories_master"] = labels_categories_master
+    bin["data"] = data_hybrid_sequence
+    # Return information
+    return bin
+
+
+
+
+
+def organize_heatmap_asymmetric_master_main_data(
+    data=None,
+):
+    """
+    Organizes data for chart.
+
+    arguments:
+        data (object): Pandas data frame of quantitative values with mappings
+            to columns and rows that will be transposed in heatmap
+
+    raises:
+
+    returns:
+        (dict): collection of information for chart
+
+    """
+
+    # Copy data.
+    data_master = data.copy(deep=True)
+    data_main = data.copy(deep=True)
+    # Groups.
+    values_master = data_master["master"].to_list()
+    values_master_unique = utility.collect_unique_elements(
+        elements_original=values_master,
+    )
+    # Map data's columns to heatmap's rows.
+    # Map data's rows to heatmap's columns.
+    data_main.drop(
+        labels=["master"],
+        axis="columns",
+        inplace=True
+    )
+    labels_rows_main = data_main.columns.to_list()
+    labels_columns_main = data_main.index.to_list()
+    matrix_main = numpy.transpose(data_main.to_numpy())
     # Determine maximal and minimal values.
-    minimum_property = round(min(property_values), 2)
-    maximum_property = round(max(property_values), 2)
-    #utility.print_terminal_partition(level=2)
-    #print(minimum_property)
-    #print(maximum_property)
-    array = matrix.flatten()
-    minimum_value = round(numpy.nanmin(array), 2)
-    maximum_value = round(numpy.nanmax(array), 2)
-    #utility.print_terminal_partition(level=3)
-    #print(minimum_value)
-    #print(maximum_value)
+    minimum_master = round(min(values_master), 2)
+    maximum_master = round(max(values_master), 2)
+    array_main = matrix_main.flatten()
+    minimum_main = round(numpy.nanmin(array_main), 2)
+    maximum_main = round(numpy.nanmax(array_main), 2)
+
+    # Collect information.
+    bin = dict()
+    bin["data_master"] = data_master
+    bin["values_master"] = values_master
+    bin["values_master_unique"] = values_master_unique
+    bin["minimum_master"] = minimum_master
+    bin["maximum_master"] = maximum_master
+    bin["data_main"] = data_main
+    bin["matrix_main"] = matrix_main
+    bin["minimum_main"] = minimum_main
+    bin["maximum_main"] = maximum_main
+    bin["labels_rows_main"] = labels_rows_main
+    bin["labels_columns_main"] = labels_columns_main
+    # Return information.
+    return bin
+
+
+def initialize_heatmap_asymmetric_master_main_figure_axes(
+    title=None,
+    fonts=None,
+    colors=None,
+):
+    """
+    Creates a figure of a chart of type heatmap.
+
+    arguments:
+        title (str): title for chart
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+
+    raises:
+
+    returns:
+        (object, object): instances of figure and axes objects
+
+    """
 
     # Create figure.
     figure = matplotlib.pyplot.figure(
@@ -528,40 +731,80 @@ def plot_heatmap_asymmetric_groups(
             wspace=0.05,
             height_ratios=[1, 10],
             width_ratios=[50, 1],
-            left=0.12,
+            left=0.11,
             right=0.94,
             top=0.94,
             bottom=0.05,
         ),
     )
+    # Return information.
+    return figure, axes
 
-    ##########
-    # Top axes.
-    if (type == "category"):
+
+def organize_heatmap_asymmetric_master_main_top(
+    title_subordinate=None,
+    label=None,
+    type=None,
+    values=None,
+    values_unique=None,
+    labels_categories=None,
+    minimum=None,
+    maximum=None,
+    fonts=None,
+    colors=None,
+    axes=None,
+    figure=None,
+):
+    """
+    Organizes top panel of figure.
+
+    arguments:
+        title_subordinate (str): subordinate title for top right of figure
+        label (str): label for master heatmap
+        type (str): type of property, category or continuity
+        values (list): values of property
+        values_unique (list): unique values of property
+        labels_categories (list<str>): labels for categorical ticks
+        minimum (float): minimal value of property
+        maximum (float): maximal value of property
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+        axes (object): instance axis object
+        figure (object): instance figure object
+
+    raises:
+
+    returns:
+        (object): figure object
+
+    """
+
+    # Define color map and labels.
+    if ((type == "category") or (type == "binary") or (type == "ordinal")):
         #color_map = matplotlib.colors.ListedColormap(
         #    [colors["blue"], colors["orange"]], 2
         #)
-        color_map = matplotlib.pyplot.get_cmap("GnBu", len(properties))
-        axis_property_labels = properties
-    elif type == "binary":
-        color_map = matplotlib.pyplot.get_cmap("GnBu", 2)
-        axis_property_labels = [minimum_property, maximum_property]
-    elif type == "continuity":
+        color_map = matplotlib.pyplot.get_cmap("GnBu", len(values_unique))
+        ticks = values_unique
+        labels_ticks = labels_categories
+    elif (type == "continuous"):
         color_map = "GnBu"
-        axis_property_labels = [minimum_property, maximum_property]
-    image_property = axes[0, 0].imshow(
-        [property_values],
+        ticks = [minimum, maximum]
+        labels_ticks = [minimum, maximum]
+    # Initialize chart.
+    image = axes[0, 0].imshow(
+        [values],
         cmap=color_map,
-        vmin=minimum_property,
-        vmax=maximum_property,
+        vmin=minimum,
+        vmax=maximum,
         aspect="auto",
         origin="upper",
         # Extent: (left, right, bottom, top)
-        extent=(-0.5, (len(property_values) - 0.5), (1 + 0.5), -0.5),
+        extent=(-0.5, (len(values) - 0.5), (1 + 0.5), -0.5),
     )
     axes[0, 0].set_yticks(numpy.arange(1))
     axes[0, 0].set_yticklabels(
-        [str(property)],
+        [str(label)],
         #minor=False,
         ha="right", # horizontal alignment
         va="center", # vertical alignment
@@ -571,7 +814,7 @@ def plot_heatmap_asymmetric_groups(
         fontproperties=fonts["properties"]["four"]
     )
     axes[0, 0].set_xlabel(
-        "persons' property",
+        str(title_subordinate),
         rotation=0,
         ha="right",
         va="bottom",
@@ -602,15 +845,15 @@ def plot_heatmap_asymmetric_groups(
         #labelcolor=colors["black"],
     )
     # Create legend for color map.
-    bar_property = figure.colorbar(
-        image_property,
+    bar = figure.colorbar(
+        image,
         cax=axes[0, 1],
-        ticks=[minimum_property, maximum_property],
+        ticks=ticks,
         orientation="vertical",
         use_gridspec=True,
     )
-    bar_property.ax.set_yticklabels(
-        axis_property_labels,
+    bar.ax.set_yticklabels(
+        labels_ticks,
         #minor=False,
         ha="left", # horizontal alignment
         va="bottom", # vertical alignment
@@ -619,7 +862,7 @@ def plot_heatmap_asymmetric_groups(
         color=colors["black"],
         fontproperties=fonts["properties"]["four"]
     )
-    bar_property.ax.tick_params(
+    bar.ax.tick_params(
         axis="both",
         which="both", # major, minor, or both
         direction="out",
@@ -638,28 +881,80 @@ def plot_heatmap_asymmetric_groups(
         #labelsize=fonts["values"]["four"]["size"],
         #labelcolor=colors["black"],
     )
+    pass
 
 
-    ##########
-    # Bottom axes.
+def organize_heatmap_asymmetric_master_main_bottom(
+    label=None,
+    type=None,
+    matrix=None,
+    minimum=None,
+    maximum=None,
+    labels_rows=None,
+    labels_columns=None,
+    fonts=None,
+    colors=None,
+    axes=None,
+    figure=None,
+):
+    """
+    Organizes top panel of figure.
 
-    # Represent data as a color grid.
-    two_slope_normalization = matplotlib.colors.TwoSlopeNorm(
-        vmin=minimum_value,
-        vcenter=0.0,
-        vmax=maximum_value,
-    )
-    image_value = axes[1, 0].imshow(
+    arguments:
+        label (str): label for main heatmap scale
+        type (str): type of property, category, binary, ordinal, continuous, or
+            continuous_divergent
+        matrix (array<array>): values of properties
+        minimum (float): minimal value of property
+        maximum (float): maximal value of property
+        labels_rows (list<str>): labels for matrix rows
+        labels_columns (list<str>): labels for matrix columns
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+        axes (object): instance axis object
+        figure (object): instance figure object
+
+    raises:
+
+    returns:
+        (object): figure object
+
+    """
+
+    # Define color map and labels.
+    if (
+        (type == "category") or
+        (type == "binary") or
+        (type == "ordinal") or
+        (type == "continuous")
+    ):
+        color_map = "RdPu"
+        scale = matplotlib.colors.Normalize(
+            vmin=minimum,
+            vmax=maximum,
+        )
+        ticks = [minimum, maximum]
+        labels_ticks = [minimum, maximum]
+    elif (type == "continuous_divergent"):
+        color_map = "PuOr"
+        scale = matplotlib.colors.TwoSlopeNorm(
+            vmin=minimum,
+            vcenter=0.0,
+            vmax=maximum,
+        )
+        ticks = [minimum, 0.0, maximum]
+        labels_ticks = [minimum, 0.0, maximum]
+
+    # Initialize chart.
+    image = axes[1, 0].imshow(
         matrix,
-        cmap="PuOr", # sequential: "RdPu", diverging: "PuOr"
-        #vmin=minimum_value,
-        #vmax=maximum_value,
+        cmap=color_map, # sequential: "RdPu", diverging: "PuOr"
         aspect="auto", # "auto", "equal"
         origin="upper", # "lower" or "upper"
         # Extent: (left, right, bottom, top)
         #extent=(-0.5, (matrix.shape[1] - 0.5), (matrix.shape[0] - 0.5), -0.5),
         alpha=1.0,
-        norm=two_slope_normalization,
+        norm=scale,
         filternorm=True,
         resample=True,
     )
@@ -703,15 +998,15 @@ def plot_heatmap_asymmetric_groups(
         fontproperties=fonts["properties"][size_count]
     )
     # Create legend for color map.
-    bar_value = figure.colorbar(
-        image_value,
+    bar = figure.colorbar(
+        image,
         cax=axes[1, 1],
-        ticks=[minimum_value, maximum_value],
+        ticks=ticks,
         orientation="vertical",
         use_gridspec=True,
     )
-    bar_value.ax.set_ylabel(
-        title_signal,
+    bar.ax.set_ylabel(
+        label,
         rotation=-90,
         ha="center",
         va="bottom",
@@ -720,9 +1015,9 @@ def plot_heatmap_asymmetric_groups(
         color=colors["black"],
         fontproperties=fonts["properties"]["three"],
     )
-    bar_value.ax.yaxis.set_label_coords(2, 0.5)
-    bar_value.ax.set_yticklabels(
-        [minimum_value, maximum_value],
+    bar.ax.yaxis.set_label_coords(2, 0.5)
+    bar.ax.set_yticklabels(
+        labels_ticks,
         #minor=False,
         ha="left", # horizontal alignment
         va="top", # vertical alignment
@@ -731,7 +1026,7 @@ def plot_heatmap_asymmetric_groups(
         color=colors["black"],
         fontproperties=fonts["properties"]["four"]
     )
-    bar_value.ax.tick_params(
+    bar.ax.tick_params(
         axis="both",
         which="both", # major, minor, or both
         direction="out",
@@ -750,8 +1045,106 @@ def plot_heatmap_asymmetric_groups(
         #labelsize=fonts["values"]["four"]["size"],
         #labelcolor=colors["black"],
     )
+    pass
+
+
+def plot_heatmap_asymmetric_master_main_top_bottom(
+    title=None,
+    title_subordinate=None,
+    label_master=None,
+    labels_categories_master=None,
+    label_main=None,
+    type_master=None,
+    type_main=None,
+    data=None,
+    fonts=None,
+    colors=None,
+):
+    """
+    Creates a figure of a chart of type heatmap.
+
+    Data must have observations across rows.
+    Data's observations must already be in sort order.
+    Data must have features across columns.
+    Data must also have a single column of name "master".
+    Values in column "master" must be integers.
+
+    The chart will organize features across rows and observations across
+    columns.
+    The chart will represent integer values of the group of each observation in
+    a separate chart across columns.
+
+
+    arguments:
+        title (str): title for top left of figure
+        title_subordinate (str): subordinate title for top right of figure
+        label_master (str): label for left of master heatmap row
+        labels_categories_master (list<str>): labels for scale ticks of
+            categorical master variable
+        label_main (str): label for main heatmap scale
+        type_master (str): type of master variable, category, binary, ordinal,
+            or continuous
+        type_main (str): type of main variables, category, binary, ordinal,
+            continuous, or continuous_divergent
+        data (object): Pandas data frame of quantitative values with mappings
+            to columns and rows that will be transposed in heatmap
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+
+    raises:
+
+    returns:
+        (object): figure object
+
+    """
+
+    # Organize data.
+    bin_data = organize_heatmap_asymmetric_master_main_data(
+        data=data,
+    )
+    # Initialize figure.
+    figure, axes = initialize_heatmap_asymmetric_master_main_figure_axes(
+        title=title,
+        fonts=fonts,
+        colors=colors,
+    )
+
+    # Master chart in top panel.
+    organize_heatmap_asymmetric_master_main_top(
+        title_subordinate=title_subordinate,
+        label=label_master,
+        type=type_master,
+        values=bin_data["values_master"],
+        values_unique=bin_data["values_master_unique"],
+        labels_categories=labels_categories_master,
+        minimum=bin_data["minimum_master"],
+        maximum=bin_data["maximum_master"],
+        fonts=fonts,
+        colors=colors,
+        axes=axes,
+        figure=figure,
+     )
+
+     # Main chart in bottom panel.
+    organize_heatmap_asymmetric_master_main_bottom(
+        label=label_main,
+        type=type_main,
+        matrix=bin_data["matrix_main"],
+        minimum=bin_data["minimum_main"],
+        maximum=bin_data["maximum_main"],
+        labels_rows=bin_data["labels_rows_main"],
+        labels_columns=bin_data["labels_columns_main"],
+        fonts=fonts,
+        colors=colors,
+        axes=axes,
+        figure=figure,
+     )
+
     # Return figure.
     return figure
+
+
+###
 
 
 def plot_distribution_histogram(
@@ -1716,8 +2109,10 @@ def plot_chart_persons_health_variables(
     # Define colors.
     colors = define_color_properties()
     # Create figure.
-    figure = plot_heatmap_asymmetric_groups(
+    figure = plot_heatmap_asymmetric_master_top_bottom(
         title=name,
+        title_subordinate="",
+        label="",
         property=property,
         type=type,
         properties=properties,
@@ -2047,7 +2442,8 @@ def organize_persons_properties_adjacency(
 
 
 def plot_chart_persons_properties_adjacency(
-    name=None,
+    title=None,
+    label=None,
     property=None,
     type=None,
     properties=None,
@@ -2058,7 +2454,8 @@ def plot_chart_persons_properties_adjacency(
     Plots charts from the analysis process.
 
     arguments:
-        name (str): name of file and chart
+        title (str): title for chart
+        label (str): label for property feature
         property (str): name of feature from persons' properties to use for
             groups
         type (str): type of property, category or continuity
@@ -2075,22 +2472,26 @@ def plot_chart_persons_properties_adjacency(
 
     # Define file name.
     path_figure = os.path.join(
-        path_directory, str(name + ".png")
+        path_directory, str(title + ".png")
     )
+
     # Define fonts.
     fonts = define_font_properties()
     # Define colors.
     colors = define_color_properties()
+
     # Create figure.
-    figure = plot_heatmap_asymmetric_groups(
-        title=name,
+    figure = plot_heatmap_asymmetric_master_top_bottom(
+        title=title,
+        title_subordinate="",
+        label=label,
         property=property,
         type=type,
         properties=properties,
         data=data,
         fonts=fonts,
         colors=colors,
-        title_signal="persons' properties",
+        title_signal="properties across persons",
     )
     # Write figure.
     write_figure_png(
@@ -2141,7 +2542,8 @@ def prepare_charts_persons_properties_adjacency_property(
     )
     # Create charts for the gene.
     plot_chart_persons_properties_adjacency(
-        name=properties[master]["name"],
+        title=properties[master]["title"],
+        label=properties[master]["label"],
         property=properties[master]["name"],
         type=properties[master]["type"],
         properties=bin["values_category"],
@@ -2213,6 +2615,12 @@ def prepare_charts_persons_properties_adjacency(
     #persons = source["persons_sets"]["non_ventilation"]
 
     # Iterate on categorical and ordinal groups of properties.
+    parameters = list()
+    parameters.append(dict(
+        title="sex", label="sex", set="sex_y_scale", property="sex_text",
+        type="category",
+    ))
+
     properties = dict()
     properties["sex_y"] = dict(name="sex_y", type="binary")
     properties["age"] = dict(name="age", type="continuity")
@@ -2220,6 +2628,7 @@ def prepare_charts_persons_properties_adjacency(
     properties["hardiness"] = dict(name="hardy", type="continuity")
     properties["climate"] = dict(name="climate", type="continuity")
     properties["respiration_binary"] = dict(name="respiration", type="binary")
+    properties["smoke"] = dict(name="smoke", type="ordinal")
     properties["inflammation_binary"] = dict(
         name="inflammation", type="binary"
     )
@@ -5067,8 +5476,10 @@ def plot_chart_genes_signals_tissues_persons(
     colors = define_color_properties()
 
     # Create figure.
-    figure = plot_heatmap_asymmetric_groups(
+    figure = plot_heatmap_asymmetric_master_top_bottom(
         title=name,
+        title_subordinate="",
+        label="",
         property=property,
         type=type,
         properties=properties,
@@ -5353,6 +5764,12 @@ def read_source_prediction_genes_signals_persons_properties(
     }
 
 
+
+
+
+
+
+
 def organize_prediction_signals_properties_sort_cluster(
     type=None,
     sequence=None,
@@ -5378,7 +5795,7 @@ def organize_prediction_signals_properties_sort_cluster(
 
     if (sequence == "sort"):
         data.sort_values(
-            by=["property"],
+            by=["master"],
             axis="index",
             ascending=True,
             inplace=True,
@@ -5392,13 +5809,13 @@ def organize_prediction_signals_properties_sort_cluster(
                 inplace=True
             )
             data_cluster_columns.set_index(
-                ["person", "property"],
+                ["person", "master"],
                 append=False,
                 drop=True,
                 inplace=True
             )
             data_cluster_rows = utility.cluster_data_rows_by_group(
-                group="property",
+                group="master",
                 index="person",
                 data=data_cluster_columns,
             )
@@ -5427,6 +5844,18 @@ def organize_prediction_signals_properties_sort_cluster(
     # Return information.
     return data_sequence
 
+
+# translate any gene IDs to names before sending data_main to the standardized organization function
+# -> do this within a separate "organize_..." function for each plot type?
+# -> also drop all non-master columns from data_persons_properties when data_master and data_main are both the same...
+
+# sequence <- whether to sort or cluster data's rows
+# data_master
+# master <- column from data_master for sort and master chart
+# type_master <- type of master variable...
+# data_main <- same as data_master (both persons properties) for the properties chart
+# data_main columns selection (either genes or properties)
+# scale_unit_main <- whether to scale all data_main columns 0 to 1
 
 def organize_prediction_genes_signals_persons_properties(
     property=None,
@@ -5469,14 +5898,8 @@ def organize_prediction_genes_signals_persons_properties(
     """
 
     # Copy data.
-    data_persons_properties = data_persons_properties.copy(deep=True)
     data_signals_genes_persons = data_signals_genes_persons.copy(deep=True)
-
     # Organize signals.
-    # Select data for query genes.
-    data_signals_genes = data_signals_genes_persons.loc[
-        :, data_signals_genes_persons.columns.isin(genes_query)
-    ]
     # Translate identifiers of genes.
     identifiers = data_signals_genes.columns.to_list()
     translations = dict()
@@ -5490,45 +5913,27 @@ def organize_prediction_genes_signals_persons_properties(
         columns=translations,
         inplace=True,
     )
-    # Organize properties.
-    if type == "category":
-        data_persons_properties["property"], properties = pandas.factorize(
-            data_persons_properties[property],
-            sort=True
-        )
-        properties = list(properties)
-    elif type == "continuity":
-        data_persons_properties["property"] = data_persons_properties[property]
-        properties = None
-    data_persons_properties = data_persons_properties.loc[
-        :, data_persons_properties.columns.isin(["property", property])
-    ]
-    data_hybrid = data_signals_genes.join(
-        data_persons_properties,
-        how="left",
-        on="person"
-    )
-    data_hybrid.drop(
-        labels=[property],
-        axis="columns",
-        inplace=True
-    )
-    # Sort and cluster data.
-    data_hybrid_sequence = organize_prediction_signals_properties_sort_cluster(
-        type=type,
+
+    # TODO: call the standard function ..._master_main...
+
+    bin = organize_data_master_main(
+        data_master=data_persons_properties,
+        master=None,
+        type_master=None,
+        data_main=data_signals_genes,
+        type_main="countinuous_divergent",
+        columns_main=genes_query,
+        scale_unit_main=False,
+        index="person",
         sequence=sequence,
-        data=data_hybrid,
     )
-    # Compile information.
-    bin = dict()
-    bin["properties"] = properties
-    bin["data"] = data_hybrid_sequence
     # Return information
     return bin
 
 
 def plot_chart_prediction_genes_signals_persons_properties(
-    name=None,
+    title=None,
+    label=None,
     property=None,
     type=None,
     properties=None,
@@ -5539,7 +5944,8 @@ def plot_chart_prediction_genes_signals_persons_properties(
     Plots charts from the analysis process.
 
     arguments:
-        name (str): name of file and chart
+        title (str): title for chart
+        label (str): label for property feature
         property (str): name of feature from persons' properties to use for
             groups
         type (str): type of property, category or continuity
@@ -5556,7 +5962,7 @@ def plot_chart_prediction_genes_signals_persons_properties(
 
     # Define file name.
     path_figure = os.path.join(
-        path_directory, str(name + ".png")
+        path_directory, str(title + ".png")
     )
 
     # Define fonts.
@@ -5565,16 +5971,19 @@ def plot_chart_prediction_genes_signals_persons_properties(
     colors = define_color_properties()
 
     # Create figure.
-    figure = plot_heatmap_asymmetric_groups(
-        title=name,
-        property=property,
-        type=type,
-        properties=properties,
+    figure = plot_heatmap_asymmetric_master_main_top_bottom(
+        title=title,
+        title_subordinate="",
+        label_master="",
+        labels_categories_master=properties,
+        label_main="genes' pan-tissue signals across persons",
+        type_master=type,
+        type_main="continuous_divergent",
         data=data,
         fonts=fonts,
         colors=colors,
-        title_signal="genes' pan-tissue signals across persons",
     )
+
     # Write figure.
     write_figure_png(
         path=path_figure,
@@ -5585,6 +5994,8 @@ def plot_chart_prediction_genes_signals_persons_properties(
 
 
 def prepare_charts_prediction_genes_signals_persons_properties_variable(
+    title=None,
+    label=None,
     property=None,
     type=None,
     genes_query=None,
@@ -5598,6 +6009,8 @@ def prepare_charts_prediction_genes_signals_persons_properties_variable(
     Plots charts from the analysis process.
 
     arguments:
+        title (str): title for chart
+        label (str): label for property feature
         property (str): name of feature from persons' properties to use for
             groups
         type (str): type of property, category or continuity
@@ -5630,7 +6043,8 @@ def prepare_charts_prediction_genes_signals_persons_properties_variable(
     )
     # Create charts for the gene.
     plot_chart_prediction_genes_signals_persons_properties(
-        name=property,
+        title=title,
+        label=label,
         property=property,
         type=type,
         properties=bin_sort["properties"],
@@ -5652,7 +6066,8 @@ def prepare_charts_prediction_genes_signals_persons_properties_variable(
     )
     # Create charts for the gene.
     plot_chart_prediction_genes_signals_persons_properties(
-        name=property,
+        title=title,
+        label=label,
         property=property,
         type=type,
         properties=bin_cluster["properties"],
@@ -5707,7 +6122,7 @@ def prepare_charts_prediction_genes_signals_persons_properties_group(
     # Specify combinations of parameters for charts.
     parameters = list()
     parameters.append(dict(
-        name="sex", set="sex_y_scale", property="sex_text",
+        title="sex", label="sex", set="sex_y_scale", property="sex_text",
         type="category",
     ))
     #parameters.append(dict(
@@ -5719,16 +6134,19 @@ def prepare_charts_prediction_genes_signals_persons_properties_group(
     #    property="climate", type="category",
     #))
     parameters.append(dict(
-        name="age", set="age_scale",
+        title="age", label="age", set="age_scale",
         property="age_grade", type="category",
     ))
     parameters.append(dict(
-        name="ventilation", set="ventilation_duration_scale",
+        title="ventilation", label="ventilation",
+        set="ventilation_duration_scale",
         property="ventilation_duration_grade", type="category",
     ))
     for parameter in parameters:
         # Prepare charts for genes.
         prepare_charts_prediction_genes_signals_persons_properties_variable(
+            title=parameter["title"],
+            label=parameter["label"],
             property=parameter["property"],
             type=parameter["type"],
             genes_query=source["sets_genes"]["multimodal"][parameter["set"]],
@@ -5740,7 +6158,6 @@ def prepare_charts_prediction_genes_signals_persons_properties_group(
         )
         pass
     pass
-
 
 
 def prepare_charts_prediction_genes_signals_persons_properties(
@@ -8043,10 +8460,10 @@ def execute_procedure(dock=None):
         # across persons after permutation.
         prepare_chart_gene_signals_persons_permutation(dock=dock)
 
-        ##########
-        ##########
-        ##########
-        # Prediction procedure
+    ##########
+    ##########
+    ##########
+    # Prediction procedure
 
         # Plot charts, scatter plots, for residuals from regressions on each gene's
         # pan-tissue signals across persons.

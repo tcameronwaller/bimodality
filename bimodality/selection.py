@@ -1616,6 +1616,7 @@ def define_variables():
     binary = [
         "respiration",
         "inflammation",
+        "leukocyte",
         "infection",
         "mononucleosis",
         "steroid",
@@ -1629,12 +1630,6 @@ def define_variables():
         "facilities",
         "batches_extraction",
         "batches_sequence",
-    ]
-    # Categorical variables for which each person has multiple values.
-    # Reduce dimensionality for these variables.
-    stratification = [
-        "age",
-        "ventilation_duration",
     ]
     # Variables of raw values that might require standardization to adjust
     # scale.
@@ -1749,7 +1744,6 @@ def define_variables():
     information = dict()
     information["binary"] = binary
     information["category"] = category
-    information["stratification"] = stratification
     information["scale"] = scale
     information["hypothesis"] = hypothesis
     information["genotype"] = genotype
@@ -2183,12 +2177,55 @@ def organize_samples_sex_variables(
     return data_samples
 
 
-def convert_samples_logical_variables_binary(
-    variables=None,
+def organize_samples_smoke_variables(
     data_samples_tissues_persons=None,
 ):
     """
     Organize variables that relate to biological sex.
+
+    arguments:
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues across selection samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues across samples
+
+    """
+
+    # Copy data.
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    # Smoke.
+    data_samples["smoke_current"] = data_samples["smoke"].apply(
+        lambda value:
+            True if (value == 2) else
+            False
+    )
+    data_samples["smoke_ever"] = data_samples["smoke"].apply(
+        lambda value:
+            True if ((value == 2) or (value == 1)) else
+            False
+    )
+    data_samples["smoke_never"] = data_samples["smoke"].apply(
+        lambda value:
+            True if (value == 0) else
+            False
+    )
+    # Return information.
+    return data_samples
+
+
+def impute_convert_samples_logical_variables_binary(
+    variables=None,
+    data_samples_tissues_persons=None,
+):
+    """
+    Organize binary logical variables.
+
+    Convert logical variables to binary representation for regressions.
+    Assume that missing values indicate a false logical value.
+
 
     arguments:
         variables (list<str>): names of logical variables
@@ -2209,7 +2246,7 @@ def convert_samples_logical_variables_binary(
         variable_binary = str(variable + ("_binary"))
         data[variable_binary] = data[variable].apply(
             lambda value:
-                0 if (value == False) else
+                0 if ((value == False) or math.isnan(value)) else
                 (1 if (value == True) else
                 float("nan"))
         )
@@ -2271,11 +2308,15 @@ def organize_samples_properties(
     data_sex = organize_samples_sex_variables(
         data_samples_tissues_persons=data_season,
     )
+    # Smoke.
+    data_smoke = organize_samples_smoke_variables(
+        data_samples_tissues_persons=data_sex,
+    )
     # Convert logical variables to binary representation for regressions.
     # Assume that missing values indicate a false logical value.
-    data_binary = convert_samples_logical_variables_binary(
+    data_binary = impute_convert_samples_logical_variables_binary(
         variables=variables["binary"],
-        data_samples_tissues_persons=data_sex,
+        data_samples_tissues_persons=data_smoke,
     )
     # Return information.
     return data_binary
@@ -3303,10 +3344,10 @@ def organize_contingency_table_chi(
             str(variables_contingency[0]) + " versus " +
             str(variables_contingency[1])
         )
-        utility.print_terminal_partition(level=2)
+        utility.print_terminal_partition(level=3)
         print(data_contingency)
         print(data_contingency.to_numpy())
-        utility.print_terminal_partition(level=3)
+        utility.print_terminal_partition(level=4)
         print("chi2: " + str(chi2))
         print("probability: " + str(probability))
 
@@ -3479,13 +3520,20 @@ def extract_organize_persons_properties(
     )
     organize_contingency_table_chi(
         persons_selection=source["persons_selection"],
-        variables_contingency=["inflammation", "ventilation"],
+        variables_contingency=["ventilation", "leukocyte"],
         data_persons_properties=data_persons_properties_raw,
         report=True,
     )
     organize_contingency_table_chi(
         persons_selection=source["persons_selection"],
-        variables_contingency=["inflammation", "mononucleosis"],
+        variables_contingency=["ventilation", "respiration"],
+        data_persons_properties=data_persons_properties_raw,
+        report=True,
+    )
+
+    organize_contingency_table_chi(
+        persons_selection=source["persons_selection"],
+        variables_contingency=["leukocyte", "mononucleosis"],
         data_persons_properties=data_persons_properties_raw,
         report=True,
     )
@@ -3498,11 +3546,16 @@ def extract_organize_persons_properties(
     )
     organize_contingency_table_chi(
         persons_selection=persons_sets["ventilation"],
-        variables_contingency=["sex_text", "inflammation"],
+        variables_contingency=["sex_text", "leukocyte"],
         data_persons_properties=data_persons_properties_raw,
         report=True,
     )
-
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["ventilation", "smoke"],
+        data_persons_properties=data_persons_properties_raw,
+        report=True,
+    )
 
     # Compile information.
     information = dict()
@@ -4428,57 +4481,6 @@ def execute_procedure(dock=None):
             stringency="tight",
             dock=dock,
         )
-
-    if False:
-
-        # Read source information from file.
-        source = read_source(dock=dock)
-
-        # Selection: tight.
-        # Select data for pantissue aggregate analysis.
-        # Criteria:
-        # 1. select genes on autosomes that encode proteins
-        # 2. select samples from whole tissues, not cell lines
-        # 3. select samples from tissues with coverage of >=100 samples
-        # 4. select samples from sex-neutral tissues
-        # 5. select genes with signal (>= 0.1 TPM) in >=50% of samples
-        # 6. select samples with signal (>= 0.1 TPM) in >=50% of genes
-        bin_selection = select_organize_samples_genes_signals(
-            data_gene_annotation_gtex=source["data_gene_annotation_gtex"],
-            data_gene_annotation_gencode=source["data_gene_annotation_gencode"],
-            data_samples_tissues_persons=source["data_samples_tissues_persons"],
-            data_gene_signal=data_gene_signal,
-            stringency="tight",
-        )
-
-        if False:
-            # Organize information from selection of samples, genes, and signals.
-            bin_organization = extract_organize_persons_properties(
-                persons_selection=bin["persons_selection"],
-                data_samples_tissues_persons=source["data_samples_tissues_persons"],
-                data_samples_tissues_persons_selection=(
-                    bin["data_samples_tissues_persons"]
-                ),
-                data_gene_signal=bin["data_gene_signal"],
-            )
-            # Prepare summary data about persons' properties.
-            summary = prepare_persons_properties_summary(
-                persons=bin["persons_selection"],
-                data_samples_tissues_persons=bin["data_samples_tissues_persons"],
-                data_persons_properties=organization["data_persons_properties"],
-            )
-            # Compile information.
-            information = dict()
-            information.update(bin_selection)
-            information.update(bin_organization)
-            information.update(summary)
-
-            # Write product information to file.
-            write_product(
-                dock=dock,
-                stringency="tight",
-                information=information,
-            )
 
     pass
 
