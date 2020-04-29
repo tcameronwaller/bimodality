@@ -429,22 +429,28 @@ def plot_heatmap(
 
 
 # Asymmetric heatmap with master and main panels
+# Sort by master variable and cluster by similarities
 
 
 def organize_data_master_main_sort_cluster(
-    type=None,
+    type_master=None,
     sequence=None,
     data=None,
+    index=None,
 ):
     """
     Organize sort and cluster of data.
 
     arguments:
-        type (str): type of property, category or continuity
-        sequence (str): method for sequence of persons, sort by property's
-            values or cluster by similarities across genes
-        data (object): Pandas data frame of pan-tissue signals across genes and
-            persons with property
+        type_master (str): type of master variable, category, binary, ordinal,
+            or continuous
+        data (object): Pandas data frame of main and master feature variables
+            across instances
+        index (str): name of index that is common between data_master and
+            data_main
+        sequence (str): method to determine sequence of instances, sort by
+            master variable's values or cluster by similarities across features
+
 
     raises:
 
@@ -464,20 +470,20 @@ def organize_data_master_main_sort_cluster(
         data_cluster_columns = utility.cluster_data_columns(
             data=data,
         )
-        if (type == "category"):
+        if (type_master in ["category", "binary", "ordinal"]):
             data_cluster_columns.reset_index(
                 level=None,
                 inplace=True
             )
             data_cluster_columns.set_index(
-                ["person", "master"],
+                [index, "master"],
                 append=False,
                 drop=True,
                 inplace=True
             )
             data_cluster_rows = utility.cluster_data_rows_by_group(
                 group="master",
-                index="person",
+                index=index,
                 data=data_cluster_columns,
             )
             # Organize data.
@@ -486,7 +492,7 @@ def organize_data_master_main_sort_cluster(
                 inplace=True
             )
             data_cluster_rows.set_index(
-                ["person"],
+                [index],
                 append=False,
                 drop=True,
                 inplace=True
@@ -510,22 +516,14 @@ def organize_data_master_main_sort_cluster(
 # -> do this within a separate "organize_..." function for each plot type?
 # -> also drop all non-master columns from data_persons_properties when data_master and data_main are both the same...
 
-# sequence <- whether to sort or cluster data's rows
-# data_master
-# master <- column from data_master for sort and master chart
-# type_master <- type of master variable...
-# data_main <- same as data_master (both persons properties) for the properties chart
-# data_main columns selection (either genes or properties)
-# scale_unit_main <- whether to scale all data_main columns 0 to 1
-
 def organize_data_master_main(
     data_master=None,
     master=None,
     type_master=None,
     data_main=None,
     type_main=None,
-    columns_main=None,
     scale_unit_main=None,
+    columns_main_scale_unit=None,
     index=None,
     sequence=None,
 ):
@@ -550,25 +548,13 @@ def organize_data_master_main(
             instances that match those of data_master
         type_main (str): type of main variables, category, binary, ordinal,
             continuous, or continuous_divergent
-        columns_main (list<str>): names of columns in data_main to select
-        scale_unit_main (bool): whether to scale variables in data_main to unit
-            distribution between 0 and 1
+        scale_unit_main (bool): whether to scale columns in data_main
+        columns_main_scale_unit (list<str>): names of columns in data_main to
+            scale to unit distribution between 0 and 1
         index (str): name of index that is common between data_master and
             data_main
         sequence (str): method to determine sequence of instances, sort by
             master variable's values or cluster by similarities across features
-
-
-
-        property (str): name of feature from persons' properties to use for
-            groups
-        type (str): type of property, category or continuity
-        genes_query (list<str>): identifiers of genes
-        data_gene_annotation (object): Pandas data frame of genes' annotations
-        data_persons_properties (object): Pandas data frame of persons and
-            their properties
-        data_signals_genes_persons (object): Pandas data frame of pan-tissue
-            signals across genes and persons
 
     raises:
 
@@ -581,25 +567,42 @@ def organize_data_master_main(
     data_master = data_master.copy(deep=True)
     data_main = data_main.copy(deep=True)
 
-    # Organize signals.
-    # Select data for query genes.
-    data_signals_genes = data_signals_genes_persons.loc[
-        :, data_signals_genes_persons.columns.isin(genes_query)
-    ]
-    # Organize properties.
-    if type == "category":
+    # Organize main variables.
+    # Scale main variable values.
+    if scale_unit_main:
+        data_main_scale = data_main.apply(
+            lambda column:
+                sklearn.preprocessing.minmax_scale(
+                    column.to_numpy(),
+                    feature_range=(0, 1),
+                    axis=0,
+                    copy=True,
+                ) if (column.name in columns_main_scale_unit) else column,
+            axis="index",
+        )
+    else:
+        data_main_scale = data_main
+    # Replace missing values with zero.
+    data_main_scale.fillna(
+        value=0.0,
+        #axis="columns",
+        inplace=True,
+    )
+    # Organize master variable.
+    if (type_master in ["category", "binary", "ordinal"]):
         data_master["master"], labels_categories_master = pandas.factorize(
             data_master[master],
             sort=True
         )
         labels_categories_master = list(labels_categories_master)
-    elif type == "continuity":
+    elif type_master == "continuous":
         data_master["master"] = data_master[master]
         labels_categories_master = list()
     data_master = data_master.loc[
         :, data_master.columns.isin(["master", master])
     ]
-    data_hybrid = data_main.join(
+    # Join master and main data.
+    data_hybrid = data_main_scale.join(
         data_master,
         how="left",
         on=index
@@ -611,9 +614,10 @@ def organize_data_master_main(
     )
     # Sort and cluster data.
     data_hybrid_sequence = organize_data_master_main_sort_cluster(
-        type=type,
+        type_master=type_master,
         sequence=sequence,
         data=data_hybrid,
+        index=index,
     )
     # Compile information.
     bin = dict()
@@ -621,9 +625,6 @@ def organize_data_master_main(
     bin["data"] = data_hybrid_sequence
     # Return information
     return bin
-
-
-
 
 
 def organize_heatmap_asymmetric_master_main_data(
@@ -2283,12 +2284,14 @@ def prepare_charts_persons_health_variables(
 
 
 def read_source_persons_properties_adjacency(
-    dock=None
+    group=None,
+    dock=None,
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -2300,27 +2303,21 @@ def read_source_persons_properties_adjacency(
     """
 
     # Specify directories and files.
-    path_persons_selection = os.path.join(
-        dock, "selection", "tight", "samples_genes_signals", "persons.pickle"
-    )
     path_persons_sets = os.path.join(
         dock, "selection", "tight", "persons_properties",
         "persons_sets.pickle"
     )
-    path_persons_properties = os.path.join(
-        dock, "selection", "tight", "persons_properties", "regression",
+    path_data_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", group,
         "data_persons_properties.pickle"
     )
 
     # Read information from file.
-    with open(path_persons_selection, "rb") as file_source:
-        persons_selection = pickle.load(file_source)
     with open(path_persons_sets, "rb") as file_source:
         persons_sets = pickle.load(file_source)
-    data_persons_properties = pandas.read_pickle(path_persons_properties)
+    data_persons_properties = pandas.read_pickle(path_data_persons_properties)
     # Compile and return information.
     return {
-        "persons_selection": persons_selection,
         "persons_sets": persons_sets,
         "data_persons_properties": data_persons_properties,
     }
@@ -2502,6 +2499,13 @@ def plot_chart_persons_properties_adjacency(
     pass
 
 
+# TODO:
+# 1. select relevant properties
+# 2. translate property names from parameters
+# 3. scale property values that are continuous...
+
+
+
 def prepare_charts_persons_properties_adjacency_property(
     master=None,
     properties=None,
@@ -2530,6 +2534,40 @@ def prepare_charts_persons_properties_adjacency_property(
 
     """
 
+    # Select and translate data for genes.
+    data_signals_genes_persons = (
+        integration.select_translate_gene_identifiers_data_columns(
+            genes_query=genes_query,
+            data_gene_annotation=data_gene_annotation,
+            data_signals_genes_persons=data_signals_genes_persons,
+    ))
+
+    # Organize data.
+    # Sort persons by their pantissue aggregate signals for the gene.
+    # The same order is important to compare the heatmap to the histogram.
+    bin = organize_data_master_main(
+        data_master=data_persons_properties,
+        master=master,
+        type_master=type_master,
+        data_main=data_signals_genes_persons,
+        type_main="countinuous_divergent",
+        scale_unit_main=False,
+        columns_main_scale_unit=list(),
+        index="person",
+        sequence="sort",
+    )
+    # Create charts for the gene.
+    plot_chart_persons_properties_adjacency(
+        title=title,
+        label=label,
+        master=master,
+        type_master=type_master,
+        labels_categories_master=bin["labels_categories_master"],
+        data=bin["data"],
+        path_directory=path_sort,
+    )
+
+
     # Organize data.
     # Sort persons by their pantissue aggregate signals for the gene.
     # The same order is important to compare the heatmap to the histogram.
@@ -2551,30 +2589,31 @@ def prepare_charts_persons_properties_adjacency_property(
         path_directory=path_sort,
     )
 
-    # Organize data.
-    # Sort persons by their pantissue aggregate signals for the gene.
-    # The same order is important to compare the heatmap to the histogram.
-    bin = organize_persons_properties_adjacency(
-        master=master,
-        properties=properties,
-        sequence="cluster",
-        persons=persons,
-        data_persons_properties=data_persons_properties,
-    )
-    # Create charts for the gene.
-    plot_chart_persons_properties_adjacency(
-        name=properties[master]["name"],
-        property=properties[master]["name"],
-        type=properties[master]["type"],
-        properties=bin["values_category"],
-        data=bin["data"],
-        path_directory=path_cluster,
-    )
+    if False:
+        # Organize data.
+        # Sort persons by their pantissue aggregate signals for the gene.
+        # The same order is important to compare the heatmap to the histogram.
+        bin = organize_persons_properties_adjacency(
+            master=master,
+            properties=properties,
+            sequence="cluster",
+            persons=persons,
+            data_persons_properties=data_persons_properties,
+        )
+        # Create charts for the gene.
+        plot_chart_persons_properties_adjacency(
+            name=properties[master]["name"],
+            property=properties[master]["name"],
+            type=properties[master]["type"],
+            properties=bin["values_category"],
+            data=bin["data"],
+            path_directory=path_cluster,
+        )
     pass
 
 
 def prepare_charts_persons_properties_adjacency(
-    dock=None
+    dock=None,
 ):
     """
     Plots charts from the analysis process.
@@ -2590,7 +2629,10 @@ def prepare_charts_persons_properties_adjacency(
     """
 
     # Read source information from file.
-    source = read_source_persons_properties_adjacency(dock=dock)
+    source = read_source_persons_properties_adjacency(
+        group="selection",
+        dock=dock,
+    )
 
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
@@ -2609,10 +2651,6 @@ def prepare_charts_persons_properties_adjacency(
     utility.remove_directory(path=path_persons_properties)
     utility.create_directories(path=path_sort)
     utility.create_directories(path=path_cluster)
-
-    # Define persons of interest.
-    persons = source["persons_sets"]["selection"]
-    #persons = source["persons_sets"]["non_ventilation"]
 
     # Iterate on categorical and ordinal groups of properties.
     parameters = list()
@@ -2650,11 +2688,23 @@ def prepare_charts_persons_properties_adjacency(
     #)
     # Iterate on categorical variables.
     for property in properties.keys():
-        # Prepare charts for genes.
+        # Prepare charts for properties.
         prepare_charts_persons_properties_adjacency_property(
             master=property,
             properties=properties,
             persons=persons,
+            data_persons_properties=source["data_persons_properties"],
+            path_sort=path_sort,
+            path_cluster=path_cluster,
+        )
+        # Prepare charts for genes.
+        prepare_charts_persons_properties_adjacency_property(
+            title=parameter["title"],
+            label=parameter["label"],
+            master=parameter["property"],
+            type_master=parameter["type"],
+            properties=properties,
+            persons=source["persons_sets"]["selection"],
             data_persons_properties=source["data_persons_properties"],
             path_sort=path_sort,
             path_cluster=path_cluster,
@@ -5765,86 +5815,6 @@ def read_source_prediction_genes_signals_persons_properties(
 
 
 
-
-
-
-
-
-def organize_prediction_signals_properties_sort_cluster(
-    type=None,
-    sequence=None,
-    data=None,
-):
-    """
-    Organize sort and cluster of data.
-
-    arguments:
-        type (str): type of property, category or continuity
-        sequence (str): method for sequence of persons, sort by property's
-            values or cluster by similarities across genes
-        data (object): Pandas data frame of pan-tissue signals across genes and
-            persons with property
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of pan-tissue signals across genes and
-            persons with property
-
-    """
-
-    if (sequence == "sort"):
-        data.sort_values(
-            by=["master"],
-            axis="index",
-            ascending=True,
-            inplace=True,
-        )
-        data_cluster_columns = utility.cluster_data_columns(
-            data=data,
-        )
-        if (type == "category"):
-            data_cluster_columns.reset_index(
-                level=None,
-                inplace=True
-            )
-            data_cluster_columns.set_index(
-                ["person", "master"],
-                append=False,
-                drop=True,
-                inplace=True
-            )
-            data_cluster_rows = utility.cluster_data_rows_by_group(
-                group="master",
-                index="person",
-                data=data_cluster_columns,
-            )
-            # Organize data.
-            data_cluster_rows.reset_index(
-                level=None,
-                inplace=True
-            )
-            data_cluster_rows.set_index(
-                ["person"],
-                append=False,
-                drop=True,
-                inplace=True
-            )
-            data_sequence = data_cluster_rows.copy(deep=True)
-        else:
-            data_sequence = data_cluster_columns.copy(deep=True)
-    elif (sequence == "cluster"):
-        data_cluster_columns = utility.cluster_data_columns(
-            data=data,
-        )
-        data_cluster_rows = utility.cluster_data_rows(
-            data=data_cluster_columns,
-        )
-        data_sequence = data_cluster_rows.copy(deep=True)
-    # Return information.
-    return data_sequence
-
-
 # translate any gene IDs to names before sending data_main to the standardized organization function
 # -> do this within a separate "organize_..." function for each plot type?
 # -> also drop all non-master columns from data_persons_properties when data_master and data_main are both the same...
@@ -5857,86 +5827,13 @@ def organize_prediction_signals_properties_sort_cluster(
 # data_main columns selection (either genes or properties)
 # scale_unit_main <- whether to scale all data_main columns 0 to 1
 
-def organize_prediction_genes_signals_persons_properties(
-    property=None,
-    type=None,
-    sequence=None,
-    genes_query=None,
-    data_gene_annotation=None,
-    data_persons_properties=None,
-    data_signals_genes_persons=None,
-):
-    """
-    Organize information for chart.
-
-    Notice that the data have features (genes) across columns and instances
-    (persons) across rows.
-
-    Sequence of genes across rows depends on hierarchical cluster by their
-    similarities across persons.
-    Sequence of persons across columns depends either on sort by values of
-    property or on hierarchical cluster by their similarities across genes.
-
-    arguments:
-        property (str): name of feature from persons' properties to use for
-            groups
-        type (str): type of property, category or continuity
-        sequence (str): method for sequence of persons, sort by property's
-            values or cluster by similarities across genes
-        genes_query (list<str>): identifiers of genes
-        data_gene_annotation (object): Pandas data frame of genes' annotations
-        data_persons_properties (object): Pandas data frame of persons and
-            their properties
-        data_signals_genes_persons (object): Pandas data frame of pan-tissue
-            signals across genes and persons
-
-    raises:
-
-    returns:
-        (dict): information for chart
-
-    """
-
-    # Copy data.
-    data_signals_genes_persons = data_signals_genes_persons.copy(deep=True)
-    # Organize signals.
-    # Translate identifiers of genes.
-    identifiers = data_signals_genes.columns.to_list()
-    translations = dict()
-    for identifier in identifiers:
-        translations[identifier] = assembly.access_gene_name(
-            identifier=identifier,
-            data_gene_annotation=data_gene_annotation,
-        )
-        pass
-    data_signals_genes.rename(
-        columns=translations,
-        inplace=True,
-    )
-
-    # TODO: call the standard function ..._master_main...
-
-    bin = organize_data_master_main(
-        data_master=data_persons_properties,
-        master=None,
-        type_master=None,
-        data_main=data_signals_genes,
-        type_main="countinuous_divergent",
-        columns_main=genes_query,
-        scale_unit_main=False,
-        index="person",
-        sequence=sequence,
-    )
-    # Return information
-    return bin
-
 
 def plot_chart_prediction_genes_signals_persons_properties(
     title=None,
     label=None,
-    property=None,
-    type=None,
-    properties=None,
+    master=None,
+    type_master=None,
+    labels_categories_master=None,
     data=None,
     path_directory=None
 ):
@@ -5946,10 +5843,11 @@ def plot_chart_prediction_genes_signals_persons_properties(
     arguments:
         title (str): title for chart
         label (str): label for property feature
-        property (str): name of feature from persons' properties to use for
-            groups
-        type (str): type of property, category or continuity
-        properties (list<str>): unique values of property
+        master (str): name of feature from persons' properties to use for
+            master variable
+        type_master (str): type of master variable
+        labels_categories_master (list<str>): labels for scale ticks of
+            categorical master variable
         data (object): Pandas data frame of a gene's aggregate, pantissue
             signals across tissues and persons
         path_directory (str): path for directory
@@ -5974,10 +5872,10 @@ def plot_chart_prediction_genes_signals_persons_properties(
     figure = plot_heatmap_asymmetric_master_main_top_bottom(
         title=title,
         title_subordinate="",
-        label_master="",
-        labels_categories_master=properties,
+        label_master=label,
+        labels_categories_master=labels_categories_master,
         label_main="genes' pan-tissue signals across persons",
-        type_master=type,
+        type_master=type_master,
         type_main="continuous_divergent",
         data=data,
         fonts=fonts,
@@ -5996,8 +5894,8 @@ def plot_chart_prediction_genes_signals_persons_properties(
 def prepare_charts_prediction_genes_signals_persons_properties_variable(
     title=None,
     label=None,
-    property=None,
-    type=None,
+    master=None,
+    type_master=None,
     genes_query=None,
     data_gene_annotation=None,
     data_persons_properties=None,
@@ -6011,9 +5909,9 @@ def prepare_charts_prediction_genes_signals_persons_properties_variable(
     arguments:
         title (str): title for chart
         label (str): label for property feature
-        property (str): name of feature from persons' properties to use for
-            groups
-        type (str): type of property, category or continuity
+        master (str): name of feature from persons' properties to use for
+            master variable
+        type_master (str): type of master variable
         genes_query (list<str>): identifiers of genes
         data_gene_annotation (object): Pandas data frame of genes' annotations
         data_persons_properties (object): Pandas data frame of persons and
@@ -6029,51 +5927,62 @@ def prepare_charts_prediction_genes_signals_persons_properties_variable(
 
     """
 
-    # Organize data.
-    # Sort persons by their pantissue aggregate signals for the gene.
-    # The same order is important to compare the heatmap to the histogram.
-    bin_sort = organize_prediction_genes_signals_persons_properties(
-        property=property,
-        type=type,
-        sequence="sort",
-        genes_query=genes_query,
-        data_gene_annotation=data_gene_annotation,
-        data_persons_properties=data_persons_properties,
-        data_signals_genes_persons=data_signals_genes_persons,
-    )
-    # Create charts for the gene.
-    plot_chart_prediction_genes_signals_persons_properties(
-        title=title,
-        label=label,
-        property=property,
-        type=type,
-        properties=bin_sort["properties"],
-        data=bin_sort["data"],
-        path_directory=path_sort,
-    )
+    # Select and translate data for genes.
+    data_signals_genes_persons = (
+        integration.select_translate_gene_identifiers_data_columns(
+            genes_query=genes_query,
+            data_gene_annotation=data_gene_annotation,
+            data_signals_genes_persons=data_signals_genes_persons,
+    ))
 
     # Organize data.
     # Sort persons by their pantissue aggregate signals for the gene.
     # The same order is important to compare the heatmap to the histogram.
-    bin_cluster = organize_prediction_genes_signals_persons_properties(
-        property=property,
-        type=type,
-        sequence="cluster",
-        genes_query=genes_query,
-        data_gene_annotation=data_gene_annotation,
-        data_persons_properties=data_persons_properties,
-        data_signals_genes_persons=data_signals_genes_persons,
+    bin = organize_data_master_main(
+        data_master=data_persons_properties,
+        master=master,
+        type_master=type_master,
+        data_main=data_signals_genes_persons,
+        type_main="countinuous_divergent",
+        scale_unit_main=False,
+        columns_main_scale_unit=list(),
+        index="person",
+        sequence="sort",
     )
     # Create charts for the gene.
     plot_chart_prediction_genes_signals_persons_properties(
         title=title,
         label=label,
-        property=property,
-        type=type,
-        properties=bin_cluster["properties"],
-        data=bin_cluster["data"],
-        path_directory=path_cluster,
+        master=master,
+        type_master=type_master,
+        labels_categories_master=bin["labels_categories_master"],
+        data=bin["data"],
+        path_directory=path_sort,
     )
+
+    if False:
+        # Organize data.
+        # Sort persons by their pantissue aggregate signals for the gene.
+        # The same order is important to compare the heatmap to the histogram.
+        bin_cluster = organize_prediction_genes_signals_persons_properties(
+            property=property,
+            type=type,
+            sequence="cluster",
+            genes_query=genes_query,
+            data_gene_annotation=data_gene_annotation,
+            data_persons_properties=data_persons_properties,
+            data_signals_genes_persons=data_signals_genes_persons,
+        )
+        # Create charts for the gene.
+        plot_chart_prediction_genes_signals_persons_properties(
+            title=title,
+            label=label,
+            property=property,
+            type=type,
+            properties=bin_cluster["properties"],
+            data=bin_cluster["data"],
+            path_directory=path_cluster,
+        )
     pass
 
 
@@ -6126,8 +6035,8 @@ def prepare_charts_prediction_genes_signals_persons_properties_group(
         type="category",
     ))
     #parameters.append(dict(
-    #    name="respiration", set="respiration_binary_scale",
-    #    property="respiration", type="category",
+    #    name="smoke", set="smoke_scale",
+    #    property="smoke", type="ordinal",
     #))
     #parameters.append(dict(
     #    name="climate", set="climate_scale",
@@ -6143,12 +6052,15 @@ def prepare_charts_prediction_genes_signals_persons_properties_group(
         property="ventilation_duration_grade", type="category",
     ))
     for parameter in parameters:
+        # Report.
+        #utility.print_terminal_partition(level=3)
+        #print(str(len(source["sets_genes"]["multimodal"][parameter["set"]])))
         # Prepare charts for genes.
         prepare_charts_prediction_genes_signals_persons_properties_variable(
             title=parameter["title"],
             label=parameter["label"],
-            property=parameter["property"],
-            type=parameter["type"],
+            master=parameter["property"],
+            type_master=parameter["type"],
             genes_query=source["sets_genes"]["multimodal"][parameter["set"]],
             data_gene_annotation=source["data_gene_annotation"],
             data_persons_properties=source["data_persons_properties"],
@@ -8362,7 +8274,7 @@ def execute_procedure(dock=None):
 
     # Plot charts, heatmaps, for adjacent summaries of properties across
     # persons.
-    #prepare_charts_persons_properties_adjacency(dock=dock)
+    prepare_charts_persons_properties_adjacency(dock=dock)
 
     # Plot chart, histogram, for distribution of values of ventilation
     # duration.

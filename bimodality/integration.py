@@ -579,6 +579,52 @@ def organize_gene_correlations_multimodal_query(
     return collection
 
 
+def select_translate_gene_identifiers_data_columns(
+    genes_query=None,
+    data_gene_annotation=None,
+    data_signals_genes_persons=None,
+):
+    """
+    Organize information for chart.
+
+    arguments:
+        genes_query (list<str>): identifiers of genes
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        data_signals_genes_persons (object): Pandas data frame of pan-tissue
+            signals across genes and persons
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of pan-tissue signals across genes and
+            persons
+
+    """
+
+    # Copy data.
+    data_signals_genes_persons = data_signals_genes_persons.copy(deep=True)
+    # Select data for genes of interest.
+    data_selection = data_signals_genes_persons.loc[
+        :, data_signals_genes_persons.columns.isin(genes_query)
+    ]
+    # Organize signals.
+    # Translate identifiers of genes.
+    #identifiers = data_signals_genes_persons.columns.to_list()
+    translations = dict()
+    for identifier in genes_query:
+        translations[identifier] = assembly.access_gene_name(
+            identifier=identifier,
+            data_gene_annotation=data_gene_annotation,
+        )
+        pass
+    data_selection.rename(
+        columns=translations,
+        inplace=True,
+    )
+    # Return information.
+    return data_selection
+
+
 # Groups of persons by components on genes
 
 
