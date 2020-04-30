@@ -1640,6 +1640,7 @@ def define_variables():
         "climate",
         "hardiness",
         "respiration_binary",
+        "smoke",
         "inflammation_binary",
         "infection_binary",
         "mononucleosis_binary",
@@ -1658,10 +1659,12 @@ def define_variables():
         "climate_scale",
         "hardiness_scale",
         "respiration_binary_scale",
+        "smoke_scale",
         "inflammation_binary_scale",
-        #"infection_binary_scale", # omit because most persons are True
+        "leukocyte_binary_scale",
+        "infection_binary_scale", # omit because most persons are True
         "mononucleosis_binary_scale",
-        #"steroid_binary_scale", # omit because very few persons are True
+        "steroid_binary_scale", # omit because very few persons are True
         "ventilation_duration_scale",
     ]
     # Variables that relate to genotype.
@@ -3369,10 +3372,215 @@ def organize_contingency_table_chi(
     pass
 
 
+def report_persons_properties_correlation(
+    persons_selection=None,
+    variables=None,
+    data_persons_properties=None,
+    method=None,
+    report=None,
+):
+    """
+    Calculates and reports correlation coefficient between properties across
+    persons.
+
+    arguments:
+        persons_selection (list<str>): identifiers of persons from selection
+        variables (list<str>): names of variables for correlation
+        data_persons_properties (object): Pandas data frame of persons'
+            properties
+        method (str): method for correlation, pearson, spearman, or kendall
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict): information for charts about persons' properties
+
+    """
+
+    # Copy data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+    # Organize data.
+    # Select data for persons.
+    data_persons = data_persons_properties.loc[
+        data_persons_properties.index.isin(persons_selection), :
+    ]
+    data_properties = data_persons.loc[
+        :, data_persons.columns.isin(variables)
+    ]
+    # Replace missing values with zero.
+    data_properties.fillna(
+        value=0.0,
+        #axis="columns",
+        inplace=True,
+    )
+    # Calculate correlation coefficient.
+    if method == "pearson":
+        correlation, probability = scipy.stats.pearsonr(
+            data_properties[variables[0]].to_numpy(),
+            data_properties[variables[1]].to_numpy(),
+        )
+    elif method == "spearman":
+        correlation, probability = scipy.stats.spearmanr(
+            data_properties[variables[0]].to_numpy(),
+            data_properties[variables[1]].to_numpy(),
+        )
+    elif method == "kendall":
+        correlation, probability = scipy.stats.kendalltau(
+            data_properties[variables[0]].to_numpy(),
+            data_properties[variables[1]].to_numpy(),
+        )
+
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print(
+            "Correlation."
+        )
+        print(str(variables[0]) + " versus " + str(variables[1]))
+        utility.print_terminal_partition(level=4)
+        print("correlation: " + str(correlation))
+        print("probability: " + str(probability))
+
+    pass
+
+
+
+
+
 # TODO: from this function, execute the stuff that doesn't change between groups of persons
 # ... like read in the source data
 # TODO: call a function "extract_organize_persons_properties_group" for persons_selection and persons_ventilation
 # ... associate genotype PCs from PLINK on correct subset to respective persons
+
+
+def summarize_persons_properties_associations(
+    persons_sets=None,
+    data_persons_properties=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        persons (dict<list<str>>): collections of persons' identifiers
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+
+    raises:
+
+    returns:
+
+    """
+
+    # Contingency tables and chi2.
+    # Test on persons_selection and on persons_ventilation.
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["ventilation", "sex_text"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["ventilation", "mononucleosis"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["ventilation", "leukocyte"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["leukocyte", "mononucleosis"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["ventilation"],
+        variables_contingency=["sex_text", "mononucleosis"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["ventilation"],
+        variables_contingency=["sex_text", "leukocyte"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["ventilation", "age_grade"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["ventilation", "respiration"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["ventilation", "inflammation"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["ventilation", "smoke"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["inflammation", "age_grade"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["ventilation", "infection"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
+
+    report_persons_properties_correlation(
+        persons_selection=persons_sets["selection"],
+        variables=["ventilation_duration", "age"],
+        data_persons_properties=data_persons_properties,
+        method="spearman",
+        report=True,
+    )
+    report_persons_properties_correlation(
+        persons_selection=persons_sets["selection"],
+        variables=["ventilation_duration", "smoke"],
+        data_persons_properties=data_persons_properties,
+        method="spearman",
+        report=True,
+    )
+    report_persons_properties_correlation(
+        persons_selection=persons_sets["selection"],
+        variables=["ventilation_duration", "climate"],
+        data_persons_properties=data_persons_properties,
+        method="spearman",
+        report=True,
+    )
+
+
+    # TODO: --> put all this Chi2 and Spearman stuff in its own analysis function
+    # Chi2:
+    # age ordinal versus ventilation ordinal
+    # smoke ordinal versus ventilation ordinal (3-way X 2???)
+    # Spearman correlation
+    # age versus ventilation_duration
+    # smoke versus ventilation_duration
+
+    pass
+
 
 def extract_organize_persons_properties(
     stringency=None,
@@ -3504,57 +3712,12 @@ def extract_organize_persons_properties(
         report=True,
     )
 
-    # Contingency tables and chi2.
-    # Test on persons_selection and on persons_ventilation.
-    organize_contingency_table_chi(
-        persons_selection=source["persons_selection"],
-        variables_contingency=["ventilation", "sex_text"],
-        data_persons_properties=data_persons_properties_raw,
-        report=True,
-    )
-    organize_contingency_table_chi(
-        persons_selection=source["persons_selection"],
-        variables_contingency=["ventilation", "mononucleosis"],
-        data_persons_properties=data_persons_properties_raw,
-        report=True,
-    )
-    organize_contingency_table_chi(
-        persons_selection=source["persons_selection"],
-        variables_contingency=["ventilation", "leukocyte"],
-        data_persons_properties=data_persons_properties_raw,
-        report=True,
-    )
-    organize_contingency_table_chi(
-        persons_selection=source["persons_selection"],
-        variables_contingency=["ventilation", "respiration"],
-        data_persons_properties=data_persons_properties_raw,
-        report=True,
-    )
-
-    organize_contingency_table_chi(
-        persons_selection=source["persons_selection"],
-        variables_contingency=["leukocyte", "mononucleosis"],
-        data_persons_properties=data_persons_properties_raw,
-        report=True,
-    )
-
-    organize_contingency_table_chi(
-        persons_selection=persons_sets["ventilation"],
-        variables_contingency=["sex_text", "mononucleosis"],
-        data_persons_properties=data_persons_properties_raw,
-        report=True,
-    )
-    organize_contingency_table_chi(
-        persons_selection=persons_sets["ventilation"],
-        variables_contingency=["sex_text", "leukocyte"],
-        data_persons_properties=data_persons_properties_raw,
-        report=True,
-    )
-    organize_contingency_table_chi(
-        persons_selection=persons_sets["selection"],
-        variables_contingency=["ventilation", "smoke"],
-        data_persons_properties=data_persons_properties_raw,
-        report=True,
+    # Summarize associations between persons' properties.
+    summarize_persons_properties_associations(
+        persons_sets=persons_sets,
+        data_persons_properties=(
+            bin_persons_selection["data_persons_properties"]
+        ),
     )
 
     # Compile information.

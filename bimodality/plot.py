@@ -2323,127 +2323,12 @@ def read_source_persons_properties_adjacency(
     }
 
 
-def organize_persons_properties_adjacency(
-    master=None,
-    properties=None,
-    sequence=None,
-    persons=None,
-    data_persons_properties=None,
-):
-    """
-    Organize information for chart.
-
-    Notice that the data have features (health variables) across columns and
-    instances (persons) across rows.
-
-    Sequence of genes across rows depends on hierarchical cluster by their
-    similarities across persons.
-    Sequence of persons across columns depends either on sort by values of
-    property or on hierarchical cluster by their similarities across genes.
-
-    arguments:
-        master (str): name of feature from persons' properties to use for
-            groups
-        properties (dict<str>): names and types of persons' properties,
-            category or continuity
-        sequence (str): method for sequence of persons, sort by property's
-            values or cluster by similarities across genes
-        persons (list<str>): identifiers of persons
-        data_persons_properties (object): Pandas data frame of persons and
-            their properties
-
-    raises:
-
-    returns:
-        (dict): information for chart
-
-    """
-
-    # Copy data.
-    data_persons_properties = data_persons_properties.copy(deep=True)
-    # Organize health variables.
-    # Select data for persons.
-    data_persons = data_persons_properties.loc[
-        data_persons_properties.index.isin(persons), :
-    ]
-    data_properties = data_persons.loc[
-        :, data_persons.columns.isin(properties.keys())
-    ]
-    # Scale feature values.
-    data_scale = data_properties.apply(
-        lambda column:
-            sklearn.preprocessing.minmax_scale(
-                column.to_numpy(),
-                feature_range=(0, 1),
-                axis=0,
-                copy=True,
-            ) if (properties[column.name]["type"] == "continuity") else column,
-        axis="index",
-    )
-    # Replace missing values with zero.
-    data_scale.fillna(
-        value=0.0,
-        #axis="columns",
-        inplace=True,
-    )
-    # Cluster data.
-    # Cluster features.
-    data_cluster = utility.cluster_data_columns(
-        data=data_scale,
-    )
-    # Cluster instances.
-    data_sequence = utility.cluster_data_rows(
-        data=data_cluster,
-    )
-    # Organize properties.
-    if properties[master]["type"] == "category":
-        data_sequence["property"], values_category = pandas.factorize(
-            data_sequence[master],
-            sort=True
-        )
-        values_category = list(values_category)
-    else:
-        data_sequence["property"] = data_sequence[master]
-        values_category = None
-    # Determine whether to sort by persons' values of property.
-    if sequence == "sort":
-        data_sequence.sort_values(
-            by=["property"],
-            axis="index",
-            ascending=True,
-            inplace=True,
-        )
-    # Remove the column for the named property.
-    data_sequence.drop(
-        labels=[master],
-        axis="columns",
-        inplace=True
-    )
-    # Prepare translations of properties' names.
-    translations = dict()
-    for property in properties.keys():
-        translations[property] = properties[property]["name"]
-        pass
-    # Rename genes in data.
-    data_sequence.rename(
-        columns=translations,
-        inplace=True,
-    )
-
-    # Compile information.
-    bin = dict()
-    bin["values_category"] = values_category
-    bin["data"] = data_sequence
-    # Return information
-    return bin
-
-
 def plot_chart_persons_properties_adjacency(
     title=None,
     label=None,
-    property=None,
-    type=None,
-    properties=None,
+    master=None,
+    type_master=None,
+    labels_categories_master=None,
     data=None,
     path_directory=None
 ):
@@ -2453,10 +2338,11 @@ def plot_chart_persons_properties_adjacency(
     arguments:
         title (str): title for chart
         label (str): label for property feature
-        property (str): name of feature from persons' properties to use for
-            groups
-        type (str): type of property, category or continuity
-        properties (list<str>): unique values of property
+        master (str): name of feature from persons' properties to use for
+            master variable
+        type_master (str): type of master variable
+        labels_categories_master (list<str>): labels for scale ticks of
+            categorical master variable
         data (object): Pandas data frame of a gene's aggregate, pantissue
             signals across tissues and persons
         path_directory (str): path for directory
@@ -2478,18 +2364,19 @@ def plot_chart_persons_properties_adjacency(
     colors = define_color_properties()
 
     # Create figure.
-    figure = plot_heatmap_asymmetric_master_top_bottom(
+    figure = plot_heatmap_asymmetric_master_main_top_bottom(
         title=title,
         title_subordinate="",
-        label=label,
-        property=property,
-        type=type,
-        properties=properties,
+        label_master=label,
+        labels_categories_master=labels_categories_master,
+        label_main="properties across persons",
+        type_master=type_master,
+        type_main="continuous",
         data=data,
         fonts=fonts,
         colors=colors,
-        title_signal="properties across persons",
     )
+
     # Write figure.
     write_figure_png(
         path=path_figure,
@@ -2499,16 +2386,64 @@ def plot_chart_persons_properties_adjacency(
     pass
 
 
-# TODO:
-# 1. select relevant properties
-# 2. translate property names from parameters
-# 3. scale property values that are continuous...
+def select_translate_persons_properties_data_main(
+    persons=None,
+    master=None,
+    mains=None,
+    parameters=None,
+    data_persons_properties=None,
+):
+    """
+    Organize information for chart.
 
+    arguments:
+        persons (list<str>): identifiers of persons
+        master (str): name of feature from persons' properties to use for
+            master variable
+        mains (list<str>): names of properties for main data
+        parameters (dict): collection of parameters
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and their properties
+    """
+
+    # Copy data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+    # Select data for persons and properties of interest.
+    data_persons = data_persons_properties.loc[
+        data_persons_properties.index.isin(persons), :
+    ]
+    columns_main = list(filter(lambda value: value != master, mains))
+    data_properties = data_persons.loc[
+        :, data_persons.columns.isin(columns_main)
+    ]
+    # Organize signals.
+    # Translate identifiers of genes.
+    #identifiers = data_signals_genes_persons.columns.to_list()
+    translations = dict()
+    for property in mains:
+        translations[property] = parameters[property]["label"]
+        pass
+    data_properties.rename(
+        columns=translations,
+        inplace=True,
+    )
+    # Return information.
+    return data_properties
 
 
 def prepare_charts_persons_properties_adjacency_property(
+    title=None,
+    label=None,
     master=None,
-    properties=None,
+    type_master=None,
+    parameters=None,
+    mains=None,
+    mains_labels=None,
     persons=None,
     data_persons_properties=None,
     path_sort=None,
@@ -2518,10 +2453,14 @@ def prepare_charts_persons_properties_adjacency_property(
     Plots charts from the analysis process.
 
     arguments:
+        title (str): title for chart
+        label (str): label for property feature
         master (str): name of feature from persons' properties to use for
-            groups
-        properties (dict<str>): names and types of persons' properties,
-            category or continuity
+            master variable
+        type_master (str): type of master variable
+        parameters (dict): collection of parameters
+        mains (list<str>): names of properties for main data
+        mains_labels (list<str>): labels of properties for main data
         persons (list<str>): identifiers of persons
         data_persons_properties (object): Pandas data frame of persons and
             their properties
@@ -2535,12 +2474,13 @@ def prepare_charts_persons_properties_adjacency_property(
     """
 
     # Select and translate data for genes.
-    data_signals_genes_persons = (
-        integration.select_translate_gene_identifiers_data_columns(
-            genes_query=genes_query,
-            data_gene_annotation=data_gene_annotation,
-            data_signals_genes_persons=data_signals_genes_persons,
-    ))
+    data_main = select_translate_persons_properties_data_main(
+        persons=persons,
+        master=master,
+        mains=mains,
+        parameters=parameters,
+        data_persons_properties=data_persons_properties,
+    )
 
     # Organize data.
     # Sort persons by their pantissue aggregate signals for the gene.
@@ -2549,10 +2489,10 @@ def prepare_charts_persons_properties_adjacency_property(
         data_master=data_persons_properties,
         master=master,
         type_master=type_master,
-        data_main=data_signals_genes_persons,
-        type_main="countinuous_divergent",
-        scale_unit_main=False,
-        columns_main_scale_unit=list(),
+        data_main=data_main,
+        type_main="countinuous",
+        scale_unit_main=True,
+        columns_main_scale_unit=mains_labels,
         index="person",
         sequence="sort",
     )
@@ -2566,50 +2506,143 @@ def prepare_charts_persons_properties_adjacency_property(
         data=bin["data"],
         path_directory=path_sort,
     )
-
-
-    # Organize data.
-    # Sort persons by their pantissue aggregate signals for the gene.
-    # The same order is important to compare the heatmap to the histogram.
-    bin = organize_persons_properties_adjacency(
-        master=master,
-        properties=properties,
-        sequence="sort",
-        persons=persons,
-        data_persons_properties=data_persons_properties,
-    )
-    # Create charts for the gene.
-    plot_chart_persons_properties_adjacency(
-        title=properties[master]["title"],
-        label=properties[master]["label"],
-        property=properties[master]["name"],
-        type=properties[master]["type"],
-        properties=bin["values_category"],
-        data=bin["data"],
-        path_directory=path_sort,
-    )
-
-    if False:
-        # Organize data.
-        # Sort persons by their pantissue aggregate signals for the gene.
-        # The same order is important to compare the heatmap to the histogram.
-        bin = organize_persons_properties_adjacency(
-            master=master,
-            properties=properties,
-            sequence="cluster",
-            persons=persons,
-            data_persons_properties=data_persons_properties,
-        )
-        # Create charts for the gene.
-        plot_chart_persons_properties_adjacency(
-            name=properties[master]["name"],
-            property=properties[master]["name"],
-            type=properties[master]["type"],
-            properties=bin["values_category"],
-            data=bin["data"],
-            path_directory=path_cluster,
-        )
     pass
+
+
+def define_parameters_persons_properties_adjacency():
+    """
+    Defines parameters for plots of persons' properties.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict): collection of parameters
+
+    """
+
+    parameters = dict()
+    parameters["sex_y"] = dict(
+        title="sex", label="sex_y", property="sex_y", type="binary",
+        master=False, main=True,
+    )
+    parameters["sex_text"] = dict(
+        title="sex", label="sex", property="sex_text", type="category",
+        master=True, main=False,
+    )
+    parameters["age"] = dict(
+        title="age", label="age", property="age", type="continuous",
+        master=False, main=True,
+    )
+    parameters["age_grade"] = dict(
+        title="age", label="age_grade", property="age", type="ordinal",
+        master=True, main=True,
+    )
+    parameters["body"] = dict(
+        title="BMI", label="BMI", property="body", type="continuous",
+        master=False, main=True,
+    )
+    parameters["climate"] = dict(
+        title="season", label="season", property="climate", type="ordinal",
+        master=False, main=True,
+    )
+    parameters["hardiness"] = dict(
+        title="hardiness", label="hardiness", property="hardiness",
+        type="ordinal",
+        master=False, main=True,
+    )
+    parameters["respiration_binary"] = dict(
+        title="respiration", label="respiration",
+        property="respiration_binary", type="binary",
+        master=False, main=True,
+    )
+    parameters["smoke"] = dict(
+        title="smoke", label="smoke", property="smoke", type="ordinal",
+        master=True, main=True,
+    )
+    parameters["inflammation_binary"] = dict(
+        title="inflammation", label="inflammation",
+        property="inflammation_binary", type="binary",
+        master=False, main=True,
+    )
+    parameters["leukocyte_binary"] = dict(
+        title="leukocyte", label="leukocyte",
+        property="leukocyte_binary", type="binary",
+        master=False, main=True,
+    )
+    parameters["infection_binary"] = dict(
+        title="infection", label="infection",
+        property="infection_binary", type="binary",
+        master=False, main=True,
+    )
+    parameters["mononucleosis_binary"] = dict(
+        title="CMV-EBV", label="CMV-EBV",
+        property="mononucleosis_binary", type="binary",
+        master=False, main=True,
+    )
+    parameters["steroid_binary"] = dict(
+        title="steroid", label="steroid",
+        property="steroid_binary", type="binary",
+        master=False, main=True,
+    )
+    parameters["ventilation_duration_grade"] = dict(
+        title="ventilation", label="ventilation",
+        property="ventilation_duration_grade", type="ordinal",
+        master=True, main=True,
+    )
+    parameters["ventilation_binary"] = dict(
+        title="ventilation_binary", label="ventilation",
+        property="ventilation_binary", type="binary",
+        master=True, main=False,
+    )
+    parameters["delay"] = dict(
+        title="delay", label="delay",
+        property="delay", type="continuous",
+        master=False, main=True,
+    )
+    parameters["refrigeration_binary"] = dict(
+        title="refrigeration", label="refrigeration",
+        property="refrigeration_binary", type="binary",
+        master=False, main=True,
+    )
+    # Return information.
+    return parameters
+
+
+def organize_parameters_persons_properties_adjacency():
+    """
+    Organizes parameters for plots of persons' properties.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict): collection of parameters
+
+    """
+
+    # Define parameters.
+    parameters = define_parameters_persons_properties_adjacency()
+    # Collect parameters.
+    masters = list()
+    mains = list()
+    mains_labels = list()
+    for property in parameters:
+        if parameters[property]["master"]:
+            masters.append(property)
+        if parameters[property]["main"]:
+            mains.append(property)
+            mains_labels.append(parameters[property]["label"])
+    # Compile information.
+    bin = dict()
+    bin["parameters"] = parameters
+    bin["masters"] = masters
+    bin["mains"] = mains
+    bin["mains_labels"] = mains_labels
+    # Return information.
+    return bin
 
 
 def prepare_charts_persons_properties_adjacency(
@@ -2653,57 +2686,18 @@ def prepare_charts_persons_properties_adjacency(
     utility.create_directories(path=path_cluster)
 
     # Iterate on categorical and ordinal groups of properties.
-    parameters = list()
-    parameters.append(dict(
-        title="sex", label="sex", set="sex_y_scale", property="sex_text",
-        type="category",
-    ))
-
-    properties = dict()
-    properties["sex_y"] = dict(name="sex_y", type="binary")
-    properties["age"] = dict(name="age", type="continuity")
-    properties["body"] = dict(name="bmi", type="continuity")
-    properties["hardiness"] = dict(name="hardy", type="continuity")
-    properties["climate"] = dict(name="climate", type="continuity")
-    properties["respiration_binary"] = dict(name="respiration", type="binary")
-    properties["smoke"] = dict(name="smoke", type="ordinal")
-    properties["inflammation_binary"] = dict(
-        name="inflammation", type="binary"
-    )
-    properties["infection_binary"] = dict(name="infection", type="binary")
-    properties["mononucleosis_binary"] = dict(
-        name="mononucleosis", type="binary"
-    )
-    properties["steroid_binary"] = dict(name="steroid", type="binary")
-    properties["ventilation_binary"] = dict(name="ventilation", type="binary")
-    #properties["ventilation_duration"] = dict(
-    #    name="vent_dur", type="continuity"
-    #)
-    properties["delay"] = dict(name="delay", type="continuity")
-    properties["refrigeration_binary"] = dict(
-        name="refrigeration", type="binary"
-    )
-    #properties["refrigeration_duration"] = dict(
-    #    name="refrig_dur", type="continuity"
-    #)
+    bin = organize_parameters_persons_properties_adjacency()
     # Iterate on categorical variables.
-    for property in properties.keys():
+    for master in bin["masters"]:
         # Prepare charts for properties.
         prepare_charts_persons_properties_adjacency_property(
-            master=property,
-            properties=properties,
-            persons=persons,
-            data_persons_properties=source["data_persons_properties"],
-            path_sort=path_sort,
-            path_cluster=path_cluster,
-        )
-        # Prepare charts for genes.
-        prepare_charts_persons_properties_adjacency_property(
-            title=parameter["title"],
-            label=parameter["label"],
-            master=parameter["property"],
-            type_master=parameter["type"],
-            properties=properties,
+            title=bin["parameters"][master]["title"],
+            label=bin["parameters"][master]["label"],
+            master=master,
+            type_master=bin["parameters"][master]["type"],
+            parameters=bin["parameters"],
+            mains=bin["mains"],
+            mains_labels=bin["mains_labels"],
             persons=source["persons_sets"]["selection"],
             data_persons_properties=source["data_persons_properties"],
             path_sort=path_sort,
@@ -5812,20 +5806,6 @@ def read_source_prediction_genes_signals_persons_properties(
         "sets_genes": sets_genes,
         "genes_query_population": genes_query_population,
     }
-
-
-
-# translate any gene IDs to names before sending data_main to the standardized organization function
-# -> do this within a separate "organize_..." function for each plot type?
-# -> also drop all non-master columns from data_persons_properties when data_master and data_main are both the same...
-
-# sequence <- whether to sort or cluster data's rows
-# data_master
-# master <- column from data_master for sort and master chart
-# type_master <- type of master variable...
-# data_main <- same as data_master (both persons properties) for the properties chart
-# data_main columns selection (either genes or properties)
-# scale_unit_main <- whether to scale all data_main columns 0 to 1
 
 
 def plot_chart_prediction_genes_signals_persons_properties(
