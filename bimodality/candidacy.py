@@ -997,6 +997,10 @@ def write_product(
     pass
 
 
+###############################################################################
+# Procedure
+
+
 def select_report_write_candidate_modality_genes_group(
     group=None,
     paths=None,
@@ -1044,8 +1048,8 @@ def select_report_write_candidate_modality_genes_group(
     # Select same count of unimodal genes and multimodal genes.
     utility.print_terminal_partition(level=2)
     selection = select_genes_by_modality_measures_ranks(
-        proportion_least=0.15,
-        proportion_greatest=0.025, # 0.01, 0.025
+        proportion_least=0.32, # unimodal threshold: 0.15 (148), 0.32 (888)
+        proportion_greatest=0.03, # multimodal threshold: 0.01 (142), 0.0227 (755), 0.025 (836), 0.03 (1011)
         measures=measures,
         data_distribution_report=source["data_distribution_report"],
     )
@@ -1161,10 +1165,6 @@ def select_report_write_candidate_modality_genes_group(
     )
 
     pass
-
-
-###############################################################################
-# Procedure
 
 
 def execute_procedure(

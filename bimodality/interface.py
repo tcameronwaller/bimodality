@@ -18,9 +18,6 @@ import textwrap
 
 import access
 import assembly
-#import measurement
-#import sample
-#import tissue
 import selection
 
 import split
@@ -31,13 +28,11 @@ import shuffle
 import permutation
 import probability
 
-#import category
-import prediction
 import heritability
-
+import prediction
+import function
 import integration
 
-#import structure
 
 import modality
 import plot
@@ -280,6 +275,26 @@ def define_main_subparser(subparsers=None):
             "Combination of multiple scores for distribution modality."
         )
     )
+
+    parser_main.add_argument(
+        "-heritability", "--heritability", dest="heritability",
+        action="store_true",
+        help=(
+            "Collection of results from heritability analysis in GCTA."
+        )
+    )
+    parser_main.add_argument(
+        "-prediction", "--prediction", dest="prediction", action="store_true",
+        help=(
+            "Evaluate persons' properties as covariates of gene distributions."
+        )
+    )
+    parser_main.add_argument(
+        "-function", "--function", dest="function", action="store_true",
+        help=(
+            "Process information from external gene set enrichment analysis."
+        )
+    )
     parser_main.add_argument(
         "-integration", "--integration", dest="integration",
         action="store_true",
@@ -295,19 +310,6 @@ def define_main_subparser(subparsers=None):
             "Analysis of groups of persons for individual genes."
         )
     )
-    parser_main.add_argument(
-        "-prediction", "--prediction", dest="prediction", action="store_true",
-        help=(
-            "Evaluate persons' properties as covariates of gene distributions."
-        )
-    )
-    parser_main.add_argument(
-        "-heritability", "--heritability", dest="heritability",
-        action="store_true",
-        help=(
-            "Collection of results from heritability analysis in GCTA."
-        )
-    )
 
     parser_main.add_argument(
         "-structure", "--structure", dest="structure", action="store_true",
@@ -318,10 +320,6 @@ def define_main_subparser(subparsers=None):
     parser_main.add_argument(
         "-analysis", "--analysis", dest="analysis", action="store_true",
         help="Analysis of real, shuffle, and simulation data sets."
-    )
-    parser_main.add_argument(
-        "-function", "--function", dest="function", action="store_true",
-        help="Functional analyses on ranks of genes."
     )
     parser_main.add_argument(
         "-modality", "--modality", dest="modality", action="store_true",

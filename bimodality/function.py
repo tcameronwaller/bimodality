@@ -12,6 +12,7 @@
 # Standard
 
 import os
+import copy
 
 # Relevant
 
@@ -21,6 +22,7 @@ import gseapy
 # Custom
 
 import utility
+import prediction
 
 #dir()
 #importlib.reload()
@@ -29,11 +31,47 @@ import utility
 # Functionality
 
 
-def read_source(dock=None):
+
+##########
+# Initialization
+
+
+def initialize_directories(dock=None):
+    """
+    Initialize directories for procedure's product files.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (dict<str>): collection of paths to directories for procedure's files
+
+    """
+
+    # Collect paths.
+    paths = dict()
+    # Define paths to directories.
+    paths["dock"] = dock
+    paths["function"] = os.path.join(paths["dock"], "function")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=paths["function"])
+    utility.create_directory(path=paths["function"])
+    # Return information.
+    return paths
+
+
+def read_source(
+    group=None,
+    dock=None
+):
     """
     Reads and organizes source information from file
 
     arguments:
+        group (str): group of persons, either selection or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -45,115 +83,196 @@ def read_source(dock=None):
     """
 
     # Specify directories and files.
-    path_analysis = os.path.join(dock, "analysis")
-    path_summary = os.path.join(
-        path_analysis, "data_summary_genes.pickle"
+    path_data_gene_annotation = os.path.join(
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
     )
-    path_rank_genes = os.path.join(
-        path_analysis, "data_rank_genes.txt"
+    path_data_enrichment_report = os.path.join(
+        dock, "template", "gene_ontology_sets",
+        "multimodal_genes_1011_biological_process", "webgestalt_2020-05-05",
+        "enrichment_results_wg_result1588718242.txt"
     )
-    path_genes = os.path.join(
-        path_analysis, "genes.txt"
+    path_data_child_parent = os.path.join(
+        dock, "template", "annotation_2020-05-05", "ontology",
+        "data_gene_ontology_child_parent.csv"
     )
-
     # Read information from file.
-    data_summary_genes = pandas.read_pickle(path_summary)
-    data_rank_genes = pandas.read_csv(
-        path_rank_genes,
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
+    data_enrichment_report = pandas.read_csv(
+        path_data_enrichment_report,
         sep="\t",
-        header=None,
-        #nrows=1000,
+        header=0,
+        low_memory=False,
     )
-    genes = utility.read_file_text_list(path_genes)
-    # Compile and return information.
+    data_child_parent = pandas.read_csv(
+        path_data_child_parent,
+        sep="\t",
+        header=0,
+        low_memory=False,
+    )
+    # Read genes sets.
+    genes_selection = prediction.read_source_genes_sets_selection(
+        group=group,
+        dock=dock,
+    )
+    # Return information.
     return {
-        "data_summary_genes": data_summary_genes,
-        "data_rank_genes": data_rank_genes,
-        "genes": genes,
+        "data_gene_annotation": data_gene_annotation,
+        "genes_selection": genes_selection,
+        "data_enrichment_report": data_enrichment_report,
+        "data_child_parent": data_child_parent,
     }
 
 
-# Write.
 
-
-def write_product(dock=None, information=None):
+def collect_parent_child_enrichment_gene_sets(
+    data_enrichment_report=None,
+    data_child_parent=None,
+    report=None,
+):
     """
-    Writes product information to file.
+    Extracts information about persons.
 
     arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files.
-        information (object): information to write to file.
+        data_enrichment_report (object): Pandas data frame of genes'
+            identifiers in each child set
+        data_child_parent (object): Pandas data frame of child sets that belong
+            to each parent set
+        report (bool): whether to print reports
 
     raises:
 
     returns:
+        (dict<list<str>>): identifiers of genes in each parent set
 
     """
 
-    # Specify directories and files.
-    path_analysis = os.path.join(dock, "analysis")
-    utility.create_directory(path_analysis)
-    path_probabilities = os.path.join(
-        path_analysis, "genes_probabilities.pickle"
+    # Organize data.
+    data_child_parent.reset_index(
+        level=None,
+        inplace=True
     )
-    path_summary = os.path.join(
-        path_analysis, "data_summary_genes.pickle"
+    data_child_parent.set_index(
+        ["identifier_parent"],
+        append=False,
+        drop=True,
+        inplace=True
     )
-    path_summary_text = os.path.join(
-        path_analysis, "data_summary_genes.tsv"
+    data_enrichment_report.reset_index(
+        level=None,
+        inplace=True
     )
-    path_summary_text_alternative = os.path.join(
-        path_analysis, "data_summary_genes_alternative.tsv"
+    data_enrichment_report.set_index(
+        ["geneSet"],
+        append=False,
+        drop=True,
+        inplace=True
     )
-    path_rank_genes = os.path.join(
-        path_analysis, "data_rank_genes.rnk"
+    # Split data by parent.
+    groups = data_child_parent.groupby(
+        level=["identifier_parent"],
     )
-    path_genes = os.path.join(
-        path_analysis, "genes.txt"
+    # Collect unique genes of all children from each parent.
+    parents_genes = dict()
+    for name, data_parent in groups:
+        # Extract identifiers of children from the parent.
+        identifiers_children = data_parent["identifier_child"].to_list()
+        # Collect genes from each child.
+        children_genes = list()
+        for child in identifiers_children:
+            if child in data_enrichment_report.index.to_list():
+                # Extract identifiers of genes.
+                genes_child_raw = data_enrichment_report.at[child, "userId"]
+                genes_child = genes_child_raw.split(";")
+                # Collect genes.
+                children_genes.extend(genes_child)
+        # Collect unique genes from parent.
+        children_genes_unique = utility.collect_unique_elements(
+            elements_original=children_genes,
+        )
+        parents_genes[name] = children_genes_unique
+    # Organize data.
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("unique genes from each parent set")
+        for name, data_parent in groups:
+            utility.print_terminal_partition(level=3)
+            print("parent: " + name)
+            print("count of children sets: " + str(data_parent.shape[0]))
+            print("count of children genes: " + str(len(parents_genes[name])))
+            print(data_parent)
+        utility.print_terminal_partition(level=2)
+    # Return information.
+    return parents_genes
+
+
+def collect_union_gene_set(
+    sets=None,
+):
+    """
+    Collects the union of elements from multiple sets.
+
+    arguments:
+        sets (dict<dict<list<str>>>): sets of genes
+
+    raises:
+
+    returns:
+        (dict<dict<list<str>>>): sets of genes
+
+    """
+
+    sets = copy.deepcopy(sets)
+    union = list()
+    for set in sets.keys():
+        union.extend(sets[set])
+    sets["union"] = utility.collect_unique_elements(
+        elements_original=union
     )
-    # Write information to file.
-    with open(path_probabilities, "wb") as file_product:
-        pickle.dump(information["genes_probabilities"], file_product)
-    information["data_summary_genes"].to_pickle(path_summary)
-    information["data_summary_genes"].to_csv(
-        path_or_buf=path_summary_text,
-        sep="\t",
-        header=True,
-        index=True,
+    # Return information.
+    return sets
+
+
+def collect_orphan_gene_set(
+    sets=None,
+    genes_query=None,
+):
+    """
+    Collects the union of elements from multiple sets.
+
+    arguments:
+        sets (dict<dict<list<str>>>): sets of genes
+        genes_query (list<str>): identifiers of genes in original enrichment
+            query
+
+    raises:
+
+    returns:
+        (dict<dict<list<str>>>): sets of genes
+
+    """
+
+    sets = copy.deepcopy(sets)
+    orphans_raw = list(filter(
+        lambda gene: not gene in sets["union"],
+        genes_query
+    ))
+    sets["orphan"] = utility.collect_unique_elements(
+        elements_original=orphans_raw
     )
-    information["data_summary_genes"].reset_index(
-        level="identifier", inplace=True
-    )
-    summary_genes = utility.convert_dataframe_to_records(
-        data=information["data_summary_genes"]
-    )
-    utility.write_file_text_table(
-        information=summary_genes,
-        path_file=path_summary_text_alternative,
-        names=summary_genes[0].keys(),
-        delimiter="\t",
-        header=True,
-    )
-    information["data_rank_genes"].to_csv(
-        path_or_buf=path_rank_genes,
-        sep="\t",
-        header=False,
-        index=False,
-    )
-    utility.write_file_text_list(
-        elements=information["genes"],
-        delimiter="\n",
-        path_file=path_genes
-    )
-    pass
+    # Return information.
+    return sets
+
 
 
 ###############################################################################
 # Procedure
 
 
-def execute_procedure(dock=None):
+def execute_procedure(
+    dock=None,
+):
     """
     Function to execute module's main behavior.
 
@@ -167,34 +286,35 @@ def execute_procedure(dock=None):
 
     """
 
+    # Initialize directories.
+    paths = initialize_directories(dock=dock)
     # Read source information from file.
-    source = read_source(dock=dock)
-    #source["data_summary_genes"]
-    #source["data_rank_genes"]
-    #source["genes"]
-
-    result = gseapy.prerank(
-        rnk=source["data_rank_genes"],
-        gene_sets="MSigDB_Oncogenic_Signatures",
-        processes=7,
-        permutation_num=100,
-        outdir=dock,
-        format="png"
+    source = read_source(
+        group="selection",
+        dock=paths["dock"],
     )
-    print(result)
-    print(result.res2d)
-    names = gseapy.get_library_name()
-    for name in names:
-        print(name)
 
+    print(source["data_enrichment_report"])
+    print(source["data_child_parent"])
+    # Collect genes' identifiers in each parent set.
+    sets_enrichment = collect_parent_child_enrichment_gene_sets(
+        data_enrichment_report=source["data_enrichment_report"],
+        data_child_parent=source["data_child_parent"],
+        report=True,
+    )
+    # Determine orphan genes from query set.
+    sets_union = collect_union_gene_set(
+        sets=sets_enrichment,
+    )
+    print("union genes: " + str(len(sets_union["union"])))
+    sets_orphan = collect_orphan_gene_set(
+        sets=sets_union,
+        genes_query=source["genes_selection"]["multimodal"],
+    )
+    print("orphan genes: " + str(len(sets_orphan["orphan"])))
 
+    # TODO: now create "sets_genes" by consulting genes_multimodal to determine orphan genes without any parents
 
-    if False:
-        # Compile information.
-        information = {
-        }
-        #Write product information to file.
-        write_product(dock=dock, information=information)
 
     pass
 

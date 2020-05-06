@@ -5782,7 +5782,7 @@ def read_source_prediction_genes_signals_persons_properties(
         "data_signals_genes_persons.pickle"
     )
     path_sets_genes = os.path.join(
-        dock, "prediction", group, "genes", "sets_genes.pickle"
+        dock, "prediction", group, "hypothesis", "genes", "sets_genes.pickle"
     )
 
     # Read information from file.
@@ -6010,26 +6010,43 @@ def prepare_charts_prediction_genes_signals_persons_properties_group(
 
     # Specify combinations of parameters for charts.
     parameters = list()
+
+    if False:
+        parameters.append(dict(
+            name="smoke", set="smoke_scale",
+            property="smoke", type="ordinal",
+        ))
+        parameters.append(dict(
+            name="climate", set="climate_scale",
+            property="climate", type="category",
+        ))
+        parameters.append(dict(
+            title="leukocyte", label="leukocyte",
+            set="leukocyte_binary_scale",
+            property="leukocyte_binary", type="binary",
+        ))
+        parameters.append(dict(
+            title="inflammation", label="inflammation",
+            set="inflammation_binary_scale",
+            property="inflammation_binary", type="binary",
+        ))
+        parameters.append(dict(
+            title="cmv_ebv", label="CMV-EBV",
+            set="mononucleosis_binary_scale",
+            property="mononucleosis_binary", type="binary",
+        ))
     parameters.append(dict(
         title="sex", label="sex", set="sex_y_scale", property="sex_text",
         type="category",
     ))
-    #parameters.append(dict(
-    #    name="smoke", set="smoke_scale",
-    #    property="smoke", type="ordinal",
-    #))
-    #parameters.append(dict(
-    #    name="climate", set="climate_scale",
-    #    property="climate", type="category",
-    #))
     parameters.append(dict(
         title="age", label="age", set="age_scale",
-        property="age_grade", type="category",
+        property="age_grade", type="ordinal",
     ))
     parameters.append(dict(
         title="ventilation", label="ventilation",
         set="ventilation_duration_scale",
-        property="ventilation_duration_grade", type="category",
+        property="ventilation_duration_grade", type="ordinal",
     ))
     for parameter in parameters:
         # Report.
@@ -6068,14 +6085,16 @@ def prepare_charts_prediction_genes_signals_persons_properties(
 
     """
 
-    prepare_charts_prediction_genes_signals_persons_properties_group(
-        group="selection",
-        dock=dock,
-    )
-    prepare_charts_prediction_genes_signals_persons_properties_group(
-        group="ventilation",
-        dock=dock,
-    )
+    if False:
+        prepare_charts_prediction_genes_signals_persons_properties_group(
+            group="selection",
+            dock=dock,
+        )
+    if True:
+        prepare_charts_prediction_genes_signals_persons_properties_group(
+            group="ventilation",
+            dock=dock,
+        )
     pass
 
 
