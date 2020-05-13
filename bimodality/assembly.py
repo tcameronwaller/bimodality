@@ -840,6 +840,15 @@ def define_person_binary_health_variables():
     steroid = [
         "MHHGH", "MHSTRDLT",
     ]
+    # Cardiovascular disease.
+    heart = [
+        "MHCVD", "MHHMPHLIA", "MHHMPHLIAB", "MHHTN", "MHHRTATT", "MHHRTDIS",
+        "MHHRTDISB",
+    ]
+    # Diabetes.
+    diabetes = [
+        "MHT1D", "MHT2D",
+    ]
     # Compile information.
     bin = dict()
     bin["respiration"] = respiration
@@ -848,6 +857,8 @@ def define_person_binary_health_variables():
     bin["infection"] = infection
     bin["mononucleosis"] = mononucleosis
     bin["steroid"] = steroid
+    bin["heart"] = heart
+    bin["diabetes"] = diabetes
     # Return information.
     return bin
 
@@ -1103,7 +1114,18 @@ def determine_sample_associations_attributes(
         variables=variables_health["steroid"],
         data_person_attribute_private=data_person_attribute_private,
     )
-
+    # Determine persons' history of cardiovascular disease.
+    heart = determine_person_boolean_binary_any(
+        person=person,
+        variables=variables_health["heart"],
+        data_person_attribute_private=data_person_attribute_private,
+    )
+    # Determine persons' history of cardiovascular disease.
+    diabetes = determine_person_boolean_binary_any(
+        person=person,
+        variables=variables_health["diabetes"],
+        data_person_attribute_private=data_person_attribute_private,
+    )
     # Compile and return information.
     information = {
         "sample": sample,
@@ -1137,6 +1159,8 @@ def determine_sample_associations_attributes(
         "infection": infection,
         "mononucleosis": mononucleosis,
         "steroid": steroid,
+        "heart": heart,
+        "diabetes": diabetes,
     }
     information.update(genotypes)
     return information

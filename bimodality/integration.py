@@ -33,6 +33,7 @@ import scipy.stats
 
 import assembly
 import distribution
+import prediction
 #import plot
 import utility
 
@@ -41,6 +42,51 @@ import utility
 
 ###############################################################################
 # Functionality
+
+
+##########
+# Initialization
+
+
+def initialize_directories(dock=None):
+    """
+    Initialize directories for procedure's product files.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (dict<str>): collection of paths to directories for procedure's files
+
+    """
+
+    # Collect paths.
+    paths = dict()
+    # Define paths to directories.
+    paths["dock"] = dock
+    paths["integration"] = os.path.join(paths["dock"], "integration")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=paths["integration"])
+    utility.create_directory(path=paths["integration"])
+    # Define paths.
+    paths["set"] = os.path.join(
+        paths["integration"], "set"
+    )
+    paths["correlation"] = os.path.join(
+        paths["integration"], "correlation"
+    )
+    # Initialize directories.
+    utility.create_directories(path=paths["set"])
+    utility.create_directories(path=paths["correlation"])
+    # Return information.
+    return paths
+
+
+##########
+# Read source
 
 
 def read_source_annotation_sets(dock=None):
@@ -422,6 +468,87 @@ def read_source(dock=None):
     }
 
 
+##########
+# Gene sets
+
+
+def read_source_gene_sets(
+    group=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        group (str): group of persons, either selection or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_data_gene_annotation = os.path.join(
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
+    )
+    # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
+    # Read genes sets.
+    genes_candidacy = prediction.read_source_genes_sets_candidacy(
+        group=group,
+        dock=dock,
+    )
+    genes_heritability = prediction.read_source_genes_sets_heritability(
+        group=group,
+        dock=dock,
+    )
+    # Return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+        "genes_candidacy": genes_candidacy,
+        "genes_heritability": genes_heritability,
+    }
+
+
+def read_organize_report_write_integration_gene_sets(paths=None):
+    """
+    Organizes sets of genes by integration of information from multiple
+    procedures.
+
+    1. genes with multimodal distributions of pan-tissue signals
+    2. genes with heritable pan-tissue signals
+    3. genes with enrichment allocation to functional ontological groups
+
+    arguments:
+        group (str): group of persons, either selection or ventilation
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_gene_sets(
+        group="selection", # "selection" or "ventilation"
+        dock=paths["dock"],
+    )
+
+
+    pass
+
+
+##########
+# Pairwise correlations
+
+
 def organize_gene_correlations_multimodal_prediction(
     sets=None,
     data_signals_genes_persons=None,
@@ -674,10 +801,10 @@ def organize_persons_genes_components(
 
 
 
-# Summary
+# Summary report on integration of genes
 
 
-def organize_genes_integration(
+def organize_genes_integration_report(
     genes=None,
     data_gene_annotation=None,
     data_gene_distribution_report=None,
@@ -1089,6 +1216,13 @@ def write_product(dock=None, information=None):
 ###############################################################################
 # Procedure
 
+# TODO: split this procedure up into subroutines
+# 1. organize sets of multimodal genes in functional groups from gene ontologies
+# 1.1. all multimodal genes in ontology functional groups without any query genes
+# 1.2. all multimodal genes in ontology functional groups with query genes mapped onto these groups
+# 2. organize pairwise correlation matrices for sets of genes
+# 3. maybe also organize code here for the sort and cluster asymmetric matrices of genes' pan-tissue signals across persons...
+
 
 def execute_procedure(dock=None):
     """
@@ -1104,109 +1238,110 @@ def execute_procedure(dock=None):
 
     """
 
-    # Remove previous files to avoid version or batch confusion.
-    path_integration = os.path.join(dock, "integration")
-    utility.remove_directory(path=path_integration)
+    # Initialize directories.
+    paths = initialize_directories(dock=dock)
 
-    # Read source information from file.
-    source = read_source(dock=dock)
+    # Organize sets of genes by integration of distribution modality,
+    # functional gene ontologies, regression associations, and queries.
+    bin_sets = read_organize_report_write_integration_gene_sets(paths=paths)
 
-    ##########
-    # Correlations between pairs of genes
+    if False:
+        ##########
+        # Correlations between pairs of genes
 
-    # Calculate correlations between pairs of genes.
-    # Use Spearman correlations for both unimodal and multimodal.
-    data_correlation_genes_unimodal = (
-        utility.organize_feature_signal_correlations(
-            method="spearman", # pearson (normal distribution), spearman
-            threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
-            threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
-            count=2, # accommodate the value 1.0 for self pairs (A, A)
-            discovery=0.05,
-            features=source["genes_unimodal"],
-            data_signal=source["data_signals_genes_persons"],
-    ))
-    utility.print_terminal_partition(level=2)
-    print("Unimodal genes...")
-    utility.print_terminal_partition(level=3)
-    print(data_correlation_genes_unimodal.shape)
-    data_correlation_genes_multimodal = (
-        utility.organize_feature_signal_correlations(
-            method="spearman", # pearson (normal distribution), spearman
-            threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
-            threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
-            count=2, # accommodate the value 1.0 for self pairs (A, A)
-            discovery=0.05,
-            features=source["genes_multimodal"],
-            data_signal=source["data_signals_genes_persons"],
-    ))
-    utility.print_terminal_partition(level=2)
-    print("Multimodal genes...")
-    utility.print_terminal_partition(level=3)
-    print(data_correlation_genes_multimodal.shape)
+        # Calculate correlations between pairs of genes.
+        # Use Spearman correlations for both unimodal and multimodal.
+        data_correlation_genes_unimodal = (
+            utility.organize_feature_signal_correlations(
+                method="spearman", # pearson (normal distribution), spearman
+                threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
+                threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
+                count=2, # accommodate the value 1.0 for self pairs (A, A)
+                discovery=0.05,
+                features=source["genes_unimodal"],
+                data_signal=source["data_signals_genes_persons"],
+        ))
+        utility.print_terminal_partition(level=2)
+        print("Unimodal genes...")
+        utility.print_terminal_partition(level=3)
+        print(data_correlation_genes_unimodal.shape)
+        data_correlation_genes_multimodal = (
+            utility.organize_feature_signal_correlations(
+                method="spearman", # pearson (normal distribution), spearman
+                threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
+                threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
+                count=2, # accommodate the value 1.0 for self pairs (A, A)
+                discovery=0.05,
+                features=source["genes_multimodal"],
+                data_signal=source["data_signals_genes_persons"],
+        ))
+        utility.print_terminal_partition(level=2)
+        print("Multimodal genes...")
+        utility.print_terminal_partition(level=3)
+        print(data_correlation_genes_multimodal.shape)
 
-    # Calculate and organize correlations for groups of genes from regression
-    # analysis.
-    bin_prediction = organize_gene_correlations_multimodal_prediction(
-        sets=source["sets_genes_prediction"],
-        data_signals_genes_persons=source["data_signals_genes_persons"],
-    )
+        # Calculate and organize correlations for groups of genes from regression
+        # analysis.
+        bin_prediction = organize_gene_correlations_multimodal_prediction(
+            sets=source["sets_genes_prediction"],
+            data_signals_genes_persons=source["data_signals_genes_persons"],
+        )
 
-    # Calculate and organize correlations for groups of genes from Gene
-    # Ontology enrichment analysis.
-    bin_query_correlation = organize_gene_correlations_multimodal_query(
-        data_signals_genes_persons=source["data_signals_genes_persons"],
-        genes_selection=source["genes_selection"],
-        sets_query=source["sets_query"],
-    )
+        # Calculate and organize correlations for groups of genes from Gene
+        # Ontology enrichment analysis.
+        bin_query_correlation = organize_gene_correlations_multimodal_query(
+            data_signals_genes_persons=source["data_signals_genes_persons"],
+            genes_selection=source["genes_selection"],
+            sets_query=source["sets_query"],
+        )
 
-    ##########
-    # Groups of persons by their expression of genes.
-    print(source["sets_query"]["population"])
-    genes_population = utility.filter_common_elements(
-        list_one=source["sets_query"]["population"],
-        list_two=source["genes_selection"],
-    )
-    bin_components = organize_persons_genes_components(
-        genes=genes_population,
-        data_signals_genes_persons=source["data_signals_genes_persons"],
-    )
+        ##########
+        # Groups of persons by their expression of genes.
+        print(source["sets_query"]["population"])
+        genes_population = utility.filter_common_elements(
+            list_one=source["sets_query"]["population"],
+            list_two=source["genes_selection"],
+        )
+        bin_components = organize_persons_genes_components(
+            genes=genes_population,
+            data_signals_genes_persons=source["data_signals_genes_persons"],
+        )
 
-    ##########
-    # Integration
+        ##########
+        # Integration
 
-    # Select genes that are both multimodal and significant from permutation.
-    collection = dict()
-    collection["multimodal"] = source["genes_multimodal"]
-    collection["probability"] = source["genes_probability"]
-    collection["prediction"] = source["genes_prediction"]
-    genes_multimodal_permutation_prediction = utility.select_elements_by_sets(
-        names=["multimodal", "probability", "prediction"],
-        sets=collection,
-        count=3,
-    )
-    utility.print_terminal_partition(level=2)
-    print(
-        "genes significant, multimodal, and predictable: " +
-        str(len(genes_multimodal_permutation_prediction))
-    )
+        # Select genes that are both multimodal and significant from permutation.
+        collection = dict()
+        collection["multimodal"] = source["genes_multimodal"]
+        collection["probability"] = source["genes_probability"]
+        collection["prediction"] = source["genes_prediction"]
+        genes_multimodal_permutation_prediction = utility.select_elements_by_sets(
+            names=["multimodal", "probability", "prediction"],
+            sets=collection,
+            count=3,
+        )
+        utility.print_terminal_partition(level=2)
+        print(
+            "genes significant, multimodal, and predictable: " +
+            str(len(genes_multimodal_permutation_prediction))
+        )
 
-    # Integrate and organize information about all genes.
-    data_genes_integration = organize_genes_integration(
-        genes=genes_multimodal_permutation_prediction,
-        data_gene_annotation=source["data_gene_annotation"],
-        data_gene_distribution_report=source["data_gene_distribution_report"],
-        data_genes_permutation_probabilities=(
-            source["data_genes_permutation_probabilities"]
-        ),
-        data_genes_heritabilities=(
-            source["data_genes_heritabilities_complex"]
-        ),
-        data_regression_genes=source["data_regression_genes"],
-    )
+        # Integrate and organize information about all genes.
+        data_genes_integration = organize_genes_integration_report(
+            genes=genes_multimodal_permutation_prediction,
+            data_gene_annotation=source["data_gene_annotation"],
+            data_gene_distribution_report=source["data_gene_distribution_report"],
+            data_genes_permutation_probabilities=(
+                source["data_genes_permutation_probabilities"]
+            ),
+            data_genes_heritabilities=(
+                source["data_genes_heritabilities_complex"]
+            ),
+            data_regression_genes=source["data_regression_genes"],
+        )
 
-    utility.print_terminal_partition(level=1)
-    print(data_genes_integration)
+        utility.print_terminal_partition(level=1)
+        print(data_genes_integration)
 
     if False:
 
@@ -1269,33 +1404,32 @@ def execute_procedure(dock=None):
             genes_scores_distributions=source["genes_scores_distributions"],
         )
 
+        # Compile information.
+        information = {
+            "data_genes_integration": data_genes_integration,
+            "data_correlation_genes_unimodal": data_correlation_genes_unimodal,
+            "data_correlation_genes_multimodal": data_correlation_genes_multimodal,
+            "data_correlation_multimodal_hardiness": bin_prediction["hardiness"],
+            "data_correlation_multimodal_sex_age_body": (
+                bin_prediction["sex_age_body"]
+            ),
+            "data_correlation_multimodal_union": bin_prediction["union"],
 
-    # Compile information.
-    information = {
-        "data_genes_integration": data_genes_integration,
-        "data_correlation_genes_unimodal": data_correlation_genes_unimodal,
-        "data_correlation_genes_multimodal": data_correlation_genes_multimodal,
-        "data_correlation_multimodal_hardiness": bin_prediction["hardiness"],
-        "data_correlation_multimodal_sex_age_body": (
-            bin_prediction["sex_age_body"]
-        ),
-        "data_correlation_multimodal_union": bin_prediction["union"],
+            "bin_query_correlation": bin_query_correlation,
 
-        "bin_query_correlation": bin_query_correlation,
+            "data_persons_genes_components": (
+                bin_components["data_observations_components"]
+            ),
+            "data_persons_genes_variances": (
+                bin_components["data_components_variances"]
+            ),
 
-        "data_persons_genes_components": (
-            bin_components["data_observations_components"]
-        ),
-        "data_persons_genes_variances": (
-            bin_components["data_components_variances"]
-        ),
-
-        #"data_genes_selection": data_genes_selection,
-        #"data_export_genes_selection": data_export_genes_selection,
-        #"data_export_genes_total": data_export_genes_total,
-    }
-    #Write product information to file.
-    write_product(dock=dock, information=information)
+            #"data_genes_selection": data_genes_selection,
+            #"data_export_genes_selection": data_export_genes_selection,
+            #"data_export_genes_total": data_export_genes_total,
+        }
+        #Write product information to file.
+        write_product(dock=dock, information=information)
 
     pass
 

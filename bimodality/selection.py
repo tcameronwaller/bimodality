@@ -1625,6 +1625,8 @@ def define_organization_variables():
         "infection",
         "mononucleosis",
         "steroid",
+        "heart",
+        "diabetes",
         "ventilation",
         "refrigeration",
     ]
@@ -1651,11 +1653,19 @@ def define_organization_variables():
         "infection_binary",
         "mononucleosis_binary",
         "steroid_binary",
+        "heart_binary",
+        "diabetes_binary",
         "ventilation_binary",
         "ventilation_duration",
+        "genotype_1",
+        "genotype_2",
+        "genotype_3",
         "refrigeration_binary",
         "refrigeration_duration",
         "delay",
+        "tissues_1",
+        "tissues_2",
+        "tissues_3",
     ]
     # Compile information.
     bin = dict()
@@ -1693,34 +1703,23 @@ def define_regression_variables():
         "steroid_binary_scale",
         "infection_binary_scale",
         "mononucleosis_binary_scale",
-        "ventilation_duration_scale",
-    ]
-    # Define multiple variables of hypothetical interest.
-    query = [
-        #"sex_y_scale",
-        "age_scale",
-        #"inflammation_binary_scale",
-        "leukocyte_binary_scale",
-        #"mononucleosis_binary_scale",
+        "heart_binary_scale",
+        "diabetes_binary_scale",
         "ventilation_duration_scale",
     ]
     # Variables that relate to genotype.
     genotype = [
-        "genotype_1",
-        "genotype_2",
-        "genotype_3",
-        "genotype_4",
-        "genotype_5",
+        "genotype_1_scale",
+        "genotype_2_scale",
+        "genotype_3_scale",
     ]
     # Variables that relate to technical methods.
     technique = [
         "refrigeration_binary_scale", # Use the binary since duration had so many missing values
         "delay_scale",
-        "tissues_1",
-        "tissues_2",
-        "tissues_3",
-        "tissues_4",
-        "tissues_5",
+        "tissues_1_scale",
+        "tissues_2_scale",
+        "tissues_3_scale",
     ]
     # Variables that relate to batch.
     batch = [
@@ -1758,13 +1757,50 @@ def define_regression_variables():
     # Compile information.
     bin = dict()
     bin["hypothesis"] = hypothesis
-    bin["query"] = query
     bin["genotype"] = genotype
     bin["batch"] = batch
     bin["model_hypothesis"] = model_hypothesis
     bin["model_technique"] = model_technique
     bin["model_heritability"] = model_heritability
     bin["model_trait"] = model_trait
+    # Return information.
+    return bin
+
+
+def define_regression_variable_queries():
+    """
+    Defines a list of variables' names for analyses.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<list<str>>): names of independent variables for regression
+
+    """
+
+    # Define multiple variables of hypothetical interest.
+    query_one = [
+        "sex_y_scale",
+        "age_scale",
+        #"inflammation_binary_scale",
+        #"leukocyte_binary_scale",
+        #"mononucleosis_binary_scale",
+        "ventilation_duration_scale",
+    ]
+    query_two = [
+        "age_scale",
+        "leukocyte_binary_scale",
+        "mononucleosis_binary_scale",
+        "ventilation_duration_scale",
+    ]
+    # Compile information.
+    bin = dict()
+    bin["query_one"] = query_one
+    bin["query_two"] = query_two
+    bin["query_three"] = query_three
+    bin["query_four"] = query_four
     # Return information.
     return bin
 
@@ -1786,13 +1822,17 @@ def define_variables():
     bin_organization = define_organization_variables()
     # Define variables for regression analyses.
     bin_regression = define_regression_variables()
+    bin_query = define_regression_variable_queries()
     # Compile information.
     bin = dict()
     bin["binary"] = bin_organization["binary"]
     bin["dimension"] = bin_organization["dimension"]
     bin["scale"] = bin_organization["scale"]
     bin["hypothesis"] = bin_regression["hypothesis"]
-    bin["query"] = bin_regression["query"]
+    bin["query_one"] = bin_query["query_one"]
+    bin["query_two"] = bin_query["query_two"]
+    bin["query_three"] = bin_query["query_three"]
+    bin["query_four"] = bin_query["query_four"]
     bin["batch"] = bin_regression["batch"]
     bin["model_hypothesis"] = bin_regression["model_hypothesis"]
     bin["model_technique"] = bin_regression["model_technique"]

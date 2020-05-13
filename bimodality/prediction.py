@@ -101,7 +101,7 @@ def initialize_directories(dock=None):
     return paths
 
 
-def read_source_genes_sets_selection(
+def read_source_genes_sets_candidacy(
     group=None,
     dock=None,
 ):
@@ -232,7 +232,7 @@ def read_source(
         path_data_signals_genes_persons
     )
     # Read genes sets.
-    genes_selection = read_source_genes_sets_selection(
+    genes_candidacy = read_source_genes_sets_candidacy(
         group=group,
         dock=dock,
     )
@@ -244,7 +244,7 @@ def read_source(
     return {
         "data_gene_annotation": data_gene_annotation,
         "data_persons_properties": data_persons_properties,
-        "genes_selection": genes_selection,
+        "genes_candidacy": genes_candidacy,
         "genes_heritability": genes_heritability,
         "data_signals_genes_persons": data_signals_genes_persons,
     }
@@ -793,55 +793,19 @@ def calculate_regression_discoveries(
 
     """
 
-    def calculate_discoveries(
-        values=None,
-        threshold=None,
-        ):
-        report = statsmodels.stats.multitest.multipletests(
-            values,
-            alpha=threshold,
-            method="fdr_bh",
-            is_sorted=False,
-        )
-        discoveries = report[1]
-        return discoveries
-
-    def calculate_significances(
-        values=None,
-        threshold=None,
-        ):
-        report = statsmodels.stats.multitest.multipletests(
-            values,
-            alpha=threshold,
-            method="fdr_bh",
-            is_sorted=False,
-        )
-        #significances = numpy.logical_not(report[0])
-        significances = report[0]
-        return significances
-
     # Iterate on relevant variables.
     for variable in variables:
         # Calculate false discovery rate from probability.
-        data_discovery = utility.calculate_false_discovery_rate(
+        data = utility.calculate_false_discovery_rate(
             threshold=threshold,
             probability=str(variable + ("_probability")),
             discovery=str(variable + ("_discovery")),
             significance=str(variable + ("_significance")),
             data_probabilities=data,
         )
-        if False:
-            data_discovery[discovery] = calculate_discoveries(
-                values=data_discovery[probability].to_numpy(),
-                threshold=threshold,
-            )
-            data_discovery[significance] = calculate_significances(
-                values=data_discovery[probability].to_numpy(),
-                threshold=threshold,
-            )
         pass
     # Return information.
-    return data_discovery
+    return data
 
 
 def summarize_regression(
@@ -911,19 +875,20 @@ def summarize_regression(
         print(data_descriptors_mean)
 
         # Iterate on independent variables.
-        utility.print_terminal_partition(level=2)
-        for variable in variables:
-            #utility.print_terminal_partition(level=3)
-            significance = str(variable + ("_significance"))
-            data_significant = data_set.copy(deep=True)
-            data_significant = data_significant.loc[
-                data_significant[significance], :
-            ]
-            count_significant = data_significant.shape[0]
-            percentage = round((count_significant / count_total) * 100, 1)
-            print(variable + ": " + str(percentage) + "%")
+        if False:
+            utility.print_terminal_partition(level=2)
+            for variable in variables:
+                #utility.print_terminal_partition(level=3)
+                significance = str(variable + ("_significance"))
+                data_significant = data_set.copy(deep=True)
+                data_significant = data_significant.loc[
+                    data_significant[significance], :
+                ]
+                count_significant = data_significant.shape[0]
+                percentage = round((count_significant / count_total) * 100, 1)
+                print(variable + ": " + str(percentage) + "%")
 
-            pass
+                pass
     pass
 
 
@@ -1323,6 +1288,7 @@ def select_genes_by_group_association(
 
 def collect_union_sets_genes(
     sets=None,
+    union_variables=None,
 ):
     """
     Selects and scales regression parameters.
@@ -1330,6 +1296,8 @@ def collect_union_sets_genes(
     arguments:
         sets (dict<dict<list<str>>>): sets of genes that associate
             significantly to variables in regression
+        union_variables (list<str>): names of variables for which to collect
+            union
 
     raises:
 
@@ -1341,8 +1309,8 @@ def collect_union_sets_genes(
 
     sets = copy.deepcopy(sets)
     for group in sets.keys():
-        for variable in sets[group].keys():
-            union = list()
+        union = list()
+        for variable in union_variables:
             union.extend(sets[group][variable])
         sets[group]["union"] = utility.collect_unique_elements(
             elements_original=union
@@ -1901,8 +1869,6 @@ def write_product_genes_set_variable(
     pass
 
 
-
-
 def write_product_genes(
     group=None,
     model=None,
@@ -1935,7 +1901,6 @@ def write_product_genes(
 
     # Write individual gene sets.
     for variable in information["sets_genes"]["multimodal"].keys():
-        print("write: " + variable)
         write_product_genes_set_variable(
             group=group,
             model=model,
@@ -1980,8 +1945,8 @@ def organize_data_regress_cases_report_write(
         dock=paths["dock"],
     )
     # Specify genes sets.
-    #genes_sets = source["genes_selection"]
-    genes_sets = source["genes_heritability"]
+    genes_sets = source["genes_candidacy"]
+    #genes_sets = source["genes_heritability"]
     # Define variables for regression.
     variables = selection.define_variables()
 
@@ -1989,7 +1954,7 @@ def organize_data_regress_cases_report_write(
     # Regression on technique variables.
     if False:
         #genes_regression = random.sample(source["genes_selection"], 100)
-        genes_regression = source["genes_selection"]["selection"]#[0:100]
+        genes_regression = source["genes_candidacy"]["selection"]#[0:100]
         bin_regression = organize_data_regress_cases_report(
             variables_regression=variables["model_technique"],
             genes_regression=genes_regression,
@@ -2012,7 +1977,7 @@ def organize_data_regress_cases_report_write(
     # Regression on hypothesis variables.
     if False:
         #genes_regression = random.sample(source["genes_selection"], 100)
-        genes_regression = source["genes_selection"]["selection"]#[0:100]
+        genes_regression = source["genes_candidacy"]["selection"]#[0:100]
         bin_regression = organize_data_regress_cases_report(
             variables_regression=variables["model_hypothesis"],
             genes_regression=genes_regression,
@@ -2056,17 +2021,25 @@ def organize_data_regress_cases_report_write(
             genes_selection=genes_sets["selection"],
             genes_unimodal=genes_sets["unimodal"],
             genes_multimodal=genes_sets["multimodal"],
-            threshold_r_square=0.1,
+            threshold_r_square=0.1, # 0.1 - 0.5
             threshold_discovery=0.05,
-            count_selection=3000,
+            count_selection=3000, # select count of genes with greatest absolute values of regression parameters (beta coefficients)
             data_regression_genes=source_regression["data_regression_genes"],
         )
         sets_genes = collect_union_sets_genes(
-            sets=sets_genes
+            sets=sets_genes,
+            union_variables=[
+                "sex_y_scale", "age_scale", "respiration_binary_scale",
+                "inflammation_binary_scale", "leukocyte_binary_scale",
+                "mononucleosis_binary_scale", "heart_binary_scale",
+                "diabetes_binary_scale",
+                "ventilation_duration_scale",
+            ], # sets_genes["multimodal"].keys()
         )
         # Include query set in variables of interest.
         variables_summary = copy.deepcopy(variables_interest)
         variables_summary.append("query")
+        variables_summary.append("union")
         report_association_variables_sets_genes(
             variables=variables_summary,
             sets=sets_genes,
@@ -2083,7 +2056,6 @@ def organize_data_regress_cases_report_write(
             information=bin_sets,
             paths=paths,
         )
-
 
     pass
 

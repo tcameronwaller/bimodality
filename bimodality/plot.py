@@ -1379,8 +1379,12 @@ def plot_bar_stack(
     axes.set_xticks(range(len(groups)), minor=False)
     axes.set_xticklabels(
         groups,
+        rotation=-30,
+        rotation_mode="anchor",
+        ha="left", # horizontal alignment
+        va="top", # vertical alignment
         minor=False,
-        rotation=rotation,
+        #rotation=rotation,
     )
     axes.tick_params(
         axis="both",
@@ -2584,6 +2588,16 @@ def define_parameters_persons_properties_adjacency():
     parameters["steroid_binary"] = dict(
         title="steroid", label="steroid",
         property="steroid_binary", type="binary",
+        master=False, main=True,
+    )
+    parameters["heart_binary"] = dict(
+        title="circulation", label="circulation",
+        property="heart_binary", type="binary",
+        master=False, main=True,
+    )
+    parameters["diabetes_binary"] = dict(
+        title="diabetes", label="diabetes",
+        property="diabetes_binary", type="binary",
         master=False, main=True,
     )
     parameters["ventilation_duration_grade"] = dict(
@@ -7659,6 +7673,105 @@ def prepare_charts_genes_regression_residuals(
     pass
 
 
+##########
+# Major gene ontology functional categories of multimodal genes
+# Highlight genes of interest from regression
+# Status: in progress
+
+
+def read_source_multimodal_genes_ontology_sets(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_sets_genes = os.path.join(
+        dock, "function", "sets_genes.pickle"
+    )
+    # Read information from file.
+    with open(path_sets_genes, "rb") as file_source:
+        sets_genes = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "sets_genes": sets_genes,
+    }
+
+
+def prepare_charts_multimodal_genes_ontology_sets(
+    dock=None
+):
+    """
+    Plots charts from the sample process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_multimodal_genes_ontology_sets(dock=dock)
+    print("union genes: " + str(len(source["sets_genes"]["union"])))
+    print("orphan genes: " + str(len(source["sets_genes"]["orphan"])))
+
+    # TODO: move this to "integration" procedure...
+
+    # Organize data.
+    #data_collection = pandas.DataFrame()
+    records = list()
+    for group in source["sets_genes"].keys():
+        record = dict()
+        record["groups"] = group
+        record["multimodal"] = len(source["sets_genes"][group])
+        records.append(record)
+    data = utility.convert_records_to_dataframe(records=records)
+    print(data)
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    path_function = os.path.join(path_plot, "function")
+    utility.create_directory(path_function)
+
+    # Create figures.
+    figure = plot_bar_stack(
+        data=data,
+        label_vertical="genes in each category",
+        label_horizontal="biological process parent sets",
+        fonts=fonts,
+        colors=colors,
+        color_count=1,
+        rotation="horizontal",
+        legend=True,
+    )
+    # Specify directories and files.
+    file = ("genes_sets.svg")
+    path_file = os.path.join(path_function, file)
+    # Write figure.
+    write_figure(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
 
 
 
@@ -7862,7 +7975,8 @@ def plot_chart_sample_tissues_samples(
 
     pass
 
-# Tissue
+# Tissue        print(group)
+
 
 
 def read_source_tissue(dock=None):
@@ -8269,6 +8383,8 @@ def execute_procedure(dock=None):
     # columns.
     # Sort order across rows depends on hierarchical clustering.
     # Sort order across columns depends on hierarchical clustering.
+    # This chart depicts groups of individual variables that relate, such as
+    # all variables for inflammation.
     #prepare_charts_persons_health_variables(dock=dock)
 
     # Plot charts, heatmaps, for adjacent summaries of properties across
@@ -8277,7 +8393,7 @@ def execute_procedure(dock=None):
 
     # Plot chart, histogram, for distribution of values of ventilation
     # duration.
-    prepare_chart_ventilation_duration_distribution(dock=dock)
+    #prepare_chart_ventilation_duration_distribution(dock=dock)
 
     ##########
     ##########
@@ -8388,7 +8504,18 @@ def execute_procedure(dock=None):
     # (sex, age, body mass index, hardiness).
     # In other charts, sort order across columns depends on hierarchical
     # clustering.
-    prepare_charts_prediction_genes_signals_persons_properties(dock=dock)
+    #prepare_charts_prediction_genes_signals_persons_properties(dock=dock)
+
+    ##########
+    ##########
+    ##########
+    # Function procedure
+
+    # Major gene ontology functional categories of multimodal genes
+    # Highlight genes of interest from regression
+    # Status: in progress
+    prepare_charts_multimodal_genes_ontology_sets(dock=dock)
+
 
 
         ##########
