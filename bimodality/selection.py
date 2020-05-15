@@ -1599,9 +1599,10 @@ def impute_persons_genotypes(
     return data_samples_selection
 
 
-# TODO: I'll need the models for heritability and trait...
-# TODO: move the regression model variables back here to selection procedure
-# TODO: maybe divide variable definitions between multiple sub-functions?
+# TODO: define separate regression models for...
+# TODO: 1. selection persons
+# TODO: 2. respiration persons
+# TODO: 3. ventilation persons
 
 
 def define_organization_variables():
@@ -1637,6 +1638,8 @@ def define_organization_variables():
         "facilities",
         "batches_extraction",
         "batches_sequence",
+        "batches_combination",
+        "facilities_batches",
     ]
     # Variables of raw values that might require standardization to adjust
     # scale.
@@ -1660,6 +1663,24 @@ def define_organization_variables():
         "genotype_1",
         "genotype_2",
         "genotype_3",
+        "genotype_4",
+        "genotype_5",
+        "facilities_1",
+        "facilities_2",
+        "batches_extraction_1",
+        "batches_extraction_2",
+        "batches_extraction_3",
+        "batches_extraction_4",
+        "batches_sequence_1",
+        "batches_sequence_2",
+        "batches_sequence_3",
+        "batches_sequence_4",
+        "batches_combination_1",
+        "batches_combination_2",
+        "batches_combination_3",
+        "facilities_batches_1",
+        "facilities_batches_2",
+        "facilities_batches_3",
         "refrigeration_binary",
         "refrigeration_duration",
         "delay",
@@ -1676,7 +1697,7 @@ def define_organization_variables():
     return bin
 
 
-def define_regression_variables():
+def define_variables_regression_selection():
     """
     Defines a list of variables' names for analyses.
 
@@ -1695,12 +1716,10 @@ def define_regression_variables():
         "age_scale",
         "body_scale",
         "climate_scale",
-        "hardiness_scale", # <- hardiness should not be in the model for ventilation persons...
         "respiration_binary_scale",
         "smoke_scale",
         "inflammation_binary_scale",
         "leukocyte_binary_scale",
-        "steroid_binary_scale",
         "infection_binary_scale",
         "mononucleosis_binary_scale",
         "heart_binary_scale",
@@ -1715,27 +1734,19 @@ def define_regression_variables():
     ]
     # Variables that relate to technical methods.
     technique = [
-        "refrigeration_binary_scale", # Use the binary since duration had so many missing values
+        "refrigeration_duration_scale",
         "delay_scale",
-        "tissues_1_scale",
-        "tissues_2_scale",
-        "tissues_3_scale",
+        "tissues_1_scale", # 0.244
+        "tissues_2_scale", # 0.0866
     ]
     # Variables that relate to batch.
     batch = [
-        "facilities_1",
-        "facilities_2",
-        "facilities_3",
-        "batches_extraction_1",
-        "batches_extraction_2",
-        "batches_extraction_3",
-        "batches_extraction_4",
-        "batches_extraction_5",
-        "batches_sequence_1",
-        "batches_sequence_2",
-        "batches_sequence_3",
-        "batches_sequence_4",
-        "batches_sequence_5",
+        "facilities_1_scale", # 0.693
+        "facilities_2_scale", # 0.289
+        "batches_extraction_1_scale", # 0.0215
+        "batches_extraction_2_scale",
+        "batches_sequence_1_scale", # 0.0722
+        "batches_sequence_2_scale", # 0.0699
     ]
     # Compile variables.
     # Regression on hypothesis model.
@@ -1743,24 +1754,180 @@ def define_regression_variables():
     model_hypothesis.extend(hypothesis)
     model_hypothesis.extend(genotype)
     model_hypothesis.extend(technique)
-    # Regression on technique model.
-    model_technique = list()
-    model_technique.extend(technique)
-    model_technique.extend(batch)
+    model_hypothesis.extend(batch)
     # Heritability regression model.
     model_heritability = list()
     model_heritability.extend(hypothesis)
     model_heritability.extend(technique)
+    model_heritability.extend(batch)
     # Heritability regression model.
     model_trait = list()
-
     # Compile information.
     bin = dict()
     bin["hypothesis"] = hypothesis
     bin["genotype"] = genotype
+    bin["technique"] = technique
     bin["batch"] = batch
     bin["model_hypothesis"] = model_hypothesis
-    bin["model_technique"] = model_technique
+    bin["model_heritability"] = model_heritability
+    bin["model_trait"] = model_trait
+    # Return information.
+    return bin
+
+
+def define_variables_regression_respiration():
+    """
+    Defines a list of variables' names for analyses.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<list<str>>): names of independent variables for regression
+
+    """
+
+    # Variables that relate to hypotheses of interest.
+    hypothesis = [
+        "sex_y_scale",
+        "age_scale",
+        "body_scale",
+        "climate_scale",
+        "hardiness_scale",
+        "respiration_binary_scale",
+        "smoke_scale",
+        "inflammation_binary_scale",
+        "leukocyte_binary_scale",
+        #"steroid_binary_scale", # low coverage of persons, omit
+        "infection_binary_scale",
+        "mononucleosis_binary_scale",
+        "heart_binary_scale",
+        "diabetes_binary_scale",
+        "ventilation_duration_scale",
+    ]
+    # Variables that relate to genotype.
+    genotype = [
+        "genotype_1_scale",
+        "genotype_2_scale",
+        "genotype_3_scale",
+    ]
+    # Variables that relate to technical methods.
+    technique = [
+        "refrigeration_duration_scale",
+        "delay_scale",
+        "tissues_1_scale", # 0.244
+        "tissues_2_scale", # 0.0866
+    ]
+    # Variables that relate to batch.
+    batch = [
+        "facilities_1_scale", # 0.693
+        "facilities_2_scale", # 0.289
+        "batches_extraction_1_scale", # 0.0215
+        "batches_extraction_2_scale",
+        "batches_sequence_1_scale", # 0.0722
+        "batches_sequence_2_scale", # 0.0699
+    ]
+    # Compile variables.
+    # Regression on hypothesis model.
+    model_hypothesis = list()
+    model_hypothesis.extend(hypothesis)
+    model_hypothesis.extend(genotype)
+    model_hypothesis.extend(technique)
+    model_hypothesis.extend(batch)
+    # Heritability regression model.
+    model_heritability = list()
+    model_heritability.extend(hypothesis)
+    model_heritability.extend(technique)
+    model_heritability.extend(batch)
+    # Heritability regression model.
+    model_trait = list()
+    # Compile information.
+    bin = dict()
+    bin["hypothesis"] = hypothesis
+    bin["genotype"] = genotype
+    bin["technique"] = technique
+    bin["batch"] = batch
+    bin["model_hypothesis"] = model_hypothesis
+    bin["model_heritability"] = model_heritability
+    bin["model_trait"] = model_trait
+    # Return information.
+    return bin
+
+
+def define_variables_regression_ventilation():
+    """
+    Defines a list of variables' names for analyses.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict<list<str>>): names of independent variables for regression
+
+    """
+
+    # Variables that relate to hypotheses of interest.
+    hypothesis = [
+        "sex_y_scale",
+        "age_scale",
+        "body_scale",
+        "climate_scale",
+        "respiration_binary_scale",
+        "smoke_scale",
+        "inflammation_binary_scale",
+        "leukocyte_binary_scale",
+        #"steroid_binary_scale", # low coverage of persons, omit
+        "infection_binary_scale",
+        "mononucleosis_binary_scale",
+        "heart_binary_scale",
+        "diabetes_binary_scale",
+        "ventilation_duration_scale",
+    ]
+    # Variables that relate to genotype.
+    genotype = [
+        "genotype_1_scale",
+        "genotype_2_scale",
+        "genotype_3_scale",
+    ]
+    # Variables that relate to technical methods.
+    technique = [
+        "refrigeration_duration_scale",
+        "delay_scale",
+        "tissues_1_scale", # 0.244
+        "tissues_2_scale", # 0.0866
+    ]
+    # Variables that relate to batch.
+    batch = [
+        "facilities_1_scale", # 0.693
+        "facilities_2_scale", # 0.289
+        "batches_extraction_1_scale", # 0.0215
+        "batches_extraction_2_scale",
+        "batches_sequence_1_scale", # 0.0722
+        "batches_sequence_2_scale", # 0.0699
+    ]
+    # Compile variables.
+    # Regression on hypothesis model.
+    model_hypothesis = list()
+    model_hypothesis.extend(hypothesis)
+    model_hypothesis.extend(genotype)
+    model_hypothesis.extend(technique)
+    model_hypothesis.extend(batch)
+    # Heritability regression model.
+    model_heritability = list()
+    model_heritability.extend(hypothesis)
+    model_heritability.extend(technique)
+    model_heritability.extend(batch)
+    # Heritability regression model.
+    model_trait = list()
+    # Compile information.
+    bin = dict()
+    bin["hypothesis"] = hypothesis
+    bin["genotype"] = genotype
+    bin["technique"] = technique
+    bin["batch"] = batch
+    bin["model_hypothesis"] = model_hypothesis
     bin["model_heritability"] = model_heritability
     bin["model_trait"] = model_trait
     # Return information.
@@ -1780,27 +1947,39 @@ def define_regression_variable_queries():
 
     """
 
+    # Compile information.
+    bin = dict()
     # Define multiple variables of hypothetical interest.
-    query_one = [
+    bin["one"] = [
         "sex_y_scale",
         "age_scale",
-        #"inflammation_binary_scale",
-        #"leukocyte_binary_scale",
-        #"mononucleosis_binary_scale",
         "ventilation_duration_scale",
     ]
-    query_two = [
-        "age_scale",
+    bin["two"] = [
         "leukocyte_binary_scale",
         "mononucleosis_binary_scale",
         "ventilation_duration_scale",
     ]
-    # Compile information.
-    bin = dict()
-    bin["query_one"] = query_one
-    bin["query_two"] = query_two
-    bin["query_three"] = query_three
-    bin["query_four"] = query_four
+    bin["three"] = [
+        "sex_y_scale",
+        "heart_binary_scale",
+        "ventilation_duration_scale",
+    ]
+    bin["four"] = [
+        "sex_y_scale",
+        "diabetes_binary_scale",
+        "ventilation_duration_scale",
+    ]
+    bin["five"] = [
+        "body_scale",
+        "diabetes_binary_scale",
+        "ventilation_duration_scale",
+    ]
+    bin["six"] = [
+        "smoke_scale",
+        "respiration_binary_scale",
+        "ventilation_duration_scale",
+    ]
     # Return information.
     return bin
 
@@ -1821,23 +2000,17 @@ def define_variables():
     # Define variables for organization.
     bin_organization = define_organization_variables()
     # Define variables for regression analyses.
-    bin_regression = define_regression_variables()
+    bin_selection = define_variables_regression_selection()
+    bin_respiration = define_variables_regression_respiration()
+    bin_ventilation = define_variables_regression_ventilation()
     bin_query = define_regression_variable_queries()
     # Compile information.
     bin = dict()
-    bin["binary"] = bin_organization["binary"]
-    bin["dimension"] = bin_organization["dimension"]
-    bin["scale"] = bin_organization["scale"]
-    bin["hypothesis"] = bin_regression["hypothesis"]
-    bin["query_one"] = bin_query["query_one"]
-    bin["query_two"] = bin_query["query_two"]
-    bin["query_three"] = bin_query["query_three"]
-    bin["query_four"] = bin_query["query_four"]
-    bin["batch"] = bin_regression["batch"]
-    bin["model_hypothesis"] = bin_regression["model_hypothesis"]
-    bin["model_technique"] = bin_regression["model_technique"]
-    bin["model_heritability"] = bin_regression["model_heritability"]
-    bin["model_trait"] = bin_regression["model_trait"]
+    bin["organization"] = bin_organization
+    bin["query"] = bin_query
+    bin["selection"] = bin_selection
+    bin["respiration"] = bin_respiration
+    bin["ventilation"] = bin_ventilation
     # Return information.
     return bin
 
@@ -2400,7 +2573,7 @@ def organize_samples_properties(
     # Convert logical variables to binary representation for regressions.
     # Assume that missing values indicate a false logical value.
     data_binary = impute_convert_samples_logical_variables_binary(
-        variables=variables["binary"],
+        variables=variables["organization"]["binary"],
         data_samples_tissues_persons=data_smoke,
     )
     # Return information.
@@ -2506,21 +2679,30 @@ def extract_persons_properties(
             values=data_original["tissue_major"].dropna().to_list(),
             delimiter=",",
         ))
-        data_novel["facilities"] = delimiter.join(
-            collect_persons_unique_values(
-                values=data_original["facilities"].dropna().to_list(),
-                delimiter=",",
-        ))
-        data_novel["batches_extraction"] = delimiter.join(
-            collect_persons_unique_values(
-                values=data_original["batch_extraction"].dropna().to_list(),
-                delimiter=",",
-        ))
-        data_novel["batches_sequence"] = delimiter.join(
-            collect_persons_unique_values(
-                values=data_original["batches_sequence"].dropna().to_list(),
-                delimiter=",",
-        ))
+        # Extract facilities and batches.
+        facilities = collect_persons_unique_values(
+            values=data_original["facilities"].dropna().to_list(),
+            delimiter=",",
+        )
+        batches_extraction = collect_persons_unique_values(
+            values=data_original["batch_extraction"].dropna().to_list(),
+            delimiter=",",
+        )
+        batches_sequence = collect_persons_unique_values(
+            values=data_original["batches_sequence"].dropna().to_list(),
+            delimiter=",",
+        )
+        batches_combination = copy.deepcopy(batches_extraction)
+        batches_combination.extend(batches_sequence)
+        facilities_batches = copy.deepcopy(facilities)
+        facilities_batches.extend(batches_extraction)
+        facilities_batches.extend(batches_sequence)
+        data_novel["facilities"] = delimiter.join(facilities)
+        data_novel["batches_extraction"] = delimiter.join(batches_extraction)
+        data_novel["batches_sequence"] = delimiter.join(batches_sequence)
+        data_novel["batches_combination"] = delimiter.join(batches_combination)
+        data_novel["facilities_batches"] = delimiter.join(facilities_batches)
+        # Collect novel entries.
         data_collection = data_collection.append(
             data_novel,
             ignore_index=True,
@@ -2717,33 +2899,42 @@ def stratify_persons_continuous_variable_ordinal(
 
     # Copy data.
     data = data_persons_properties.copy(deep=True)
-    # Report.
-    if report:
-        utility.print_terminal_partition(level=2)
-        print("variable: " + str(variable))
-        utility.print_terminal_partition(level=2)
-    # Determine thresholds for stratification bins.
-    thresholds = collect_stratification_bins_thresholds(
-        values=data[variable].to_list(),
-        bins=bins,
-        report=report,
-    )
-    # Determine bins.
+    # Define name for stratification variable.
     variable_grade = str(variable + ("_grade"))
-    data[variable_grade] = data[variable].apply(
-        lambda value:
-            determine_stratification_bin(
-                value=value,
-                thresholds=thresholds,
-            )
+    # Determine whether variable qualifies for stratification.
+    series, values_unique = pandas.factorize(
+        data[variable],
+        sort=True
     )
-    # Report.
-    if report:
-        utility.print_terminal_partition(level=2)
-        for threshold in thresholds:
-            print("low threshold: " + str(threshold[0]))
-            print("high threshold: " + str(threshold[1]))
-            utility.print_terminal_partition(level=3)
+    if len(values_unique) < 2:
+        data[variable_grade] = float("nan")
+    else:
+        # Report.
+        if report:
+            utility.print_terminal_partition(level=2)
+            print("variable: " + str(variable))
+            utility.print_terminal_partition(level=2)
+        # Determine thresholds for stratification bins.
+        thresholds = collect_stratification_bins_thresholds(
+            values=data[variable].to_list(),
+            bins=bins,
+            report=report,
+        )
+        # Determine bins.
+        data[variable_grade] = data[variable].apply(
+            lambda value:
+                determine_stratification_bin(
+                    value=value,
+                    thresholds=thresholds,
+                )
+        )
+        # Report.
+        if report:
+            utility.print_terminal_partition(level=2)
+            for threshold in thresholds:
+                print("low threshold: " + str(threshold[0]))
+                print("high threshold: " + str(threshold[1]))
+                utility.print_terminal_partition(level=3)
     # Return information.
     return data
 
@@ -3183,6 +3374,7 @@ def organize_quantitative_trait_loci_variables(
 
 def organize_persons_properties(
     persons=None,
+    cohort=None,
     variables=None,
     data_persons_properties_raw=None,
     report=None,
@@ -3192,6 +3384,7 @@ def organize_persons_properties(
 
     arguments:
         persons (list<str>): identifiers of persons
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         variables (dict<list<str>>): collections of independent variables for
             analyses
         data_persons_properties_raw (object): Pandas data frame of persons'
@@ -3218,34 +3411,33 @@ def organize_persons_properties(
         report=report,
     )
     # Organize dimensionality reduction on categorical variables.
-    bin_category = organize_persons_category_dimensionality(
-        variables=variables["dimension"],
+    bin_dimension = organize_persons_category_dimensionality(
+        variables=variables["organization"]["dimension"],
         data_persons_properties_raw=data_stratification,
         report=report,
     )
     # Standardize the scales of numerical variables for regression.
     # These variables are on ordinal or ratio (continuous) scales.
     data_persons_properties_scale = standardize_scale_variables(
-        variables=variables["scale"],
-        data_persons_properties=bin_category[
+        variables=variables["organization"]["scale"],
+        data_persons_properties=bin_dimension[
             "data_persons_properties_dimension"
         ],
     )
     # Organize information for heritability analysis.
     bin_heritability = organize_heritability_information(
-        variables=variables["model_heritability"],
+        variables=variables[cohort]["model_heritability"],
         data_persons_properties=data_persons_properties_scale,
     )
     # Organize information for quantitative trait loci (QTL) analysis.
     data_persons_variables_trait = organize_quantitative_trait_loci_variables(
-        variables=variables["model_trait"],
+        variables=variables[cohort]["model_trait"],
         data_persons_properties=data_persons_properties_scale,
     )
     # Compile information.
     information = dict()
     information["data_persons_properties"] = data_persons_properties_scale
-    information["components_data"] = bin_category["components_data"]
-    information["category_variances_data"] = bin_category["variances_data"]
+    information["bin_dimension"] = bin_dimension
     information["bin_heritability"] = bin_heritability
     # Return information.
     return information
@@ -3295,23 +3487,8 @@ def organize_persons_properties_sets(
     bin["ventilation"] = data_persons_properties.loc[
         data_persons_properties["ventilation"] == True, :
     ].index.to_list()
-    bin["non_ventilation"] = data_persons_properties.loc[
-        data_persons_properties["ventilation"] == False, :
-    ].index.to_list()
     bin["respiration"] = data_persons_properties.loc[
-        data_persons_properties["respiration"] == True, :
-    ].index.to_list()
-    bin["inflammation"] = data_persons_properties.loc[
-        data_persons_properties["inflammation"] == True, :
-    ].index.to_list()
-    bin["infection"] = data_persons_properties.loc[
-        data_persons_properties["infection"] == True, :
-    ].index.to_list()
-    bin["steroid"] = data_persons_properties.loc[
-        data_persons_properties["steroid"] == True, :
-    ].index.to_list()
-    bin["refrigeration"] = data_persons_properties.loc[
-        data_persons_properties["refrigeration"] == True, :
+        data_persons_properties["ventilation"] == False, :
     ].index.to_list()
 
     # Report.
@@ -3342,24 +3519,8 @@ def organize_persons_properties_sets(
             str(len(bin["ventilation"]))
         )
         print(
-            "Count of persons with respiratory difficulties: " +
+            "Count of persons not on ventilation: " +
             str(len(bin["respiration"]))
-        )
-        print(
-            "Count of persons on inflammation: " +
-            str(len(bin["inflammation"]))
-        )
-        print(
-            "Count of persons on infection: " +
-            str(len(bin["infection"]))
-        )
-        print(
-            "Count of persons on steroids: " +
-            str(len(bin["steroid"]))
-        )
-        print(
-            "Count of persons on refrigeration after death: " +
-            str(len(bin["refrigeration"]))
         )
         utility.print_terminal_partition(level=2)
     # Return information.
@@ -3622,6 +3783,20 @@ def summarize_persons_properties_associations(
 
     report_persons_properties_correlation(
         persons_selection=persons_sets["selection"],
+        variables=["ventilation_duration", "hardiness"],
+        data_persons_properties=data_persons_properties,
+        method="spearman",
+        report=True,
+    )
+    report_persons_properties_correlation(
+        persons_selection=persons_sets["selection"],
+        variables=["ventilation_duration", "delay"],
+        data_persons_properties=data_persons_properties,
+        method="spearman",
+        report=True,
+    )
+    report_persons_properties_correlation(
+        persons_selection=persons_sets["selection"],
         variables=["ventilation_duration", "age"],
         data_persons_properties=data_persons_properties,
         method="spearman",
@@ -3629,19 +3804,26 @@ def summarize_persons_properties_associations(
     )
     report_persons_properties_correlation(
         persons_selection=persons_sets["selection"],
-        variables=["ventilation_duration", "smoke"],
+        variables=["ventilation_duration", "leukocyte_binary"],
         data_persons_properties=data_persons_properties,
         method="spearman",
         report=True,
     )
     report_persons_properties_correlation(
         persons_selection=persons_sets["selection"],
-        variables=["ventilation_duration", "climate"],
+        variables=["ventilation_duration", "mononucleosis_binary"],
         data_persons_properties=data_persons_properties,
         method="spearman",
         report=True,
     )
 
+
+    organize_contingency_table_chi(
+        persons_selection=persons_sets["selection"],
+        variables_contingency=["ventilation", "infection"],
+        data_persons_properties=data_persons_properties,
+        report=True,
+    )
 
     # TODO: --> put all this Chi2 and Spearman stuff in its own analysis function
     # Chi2:
@@ -3777,12 +3959,21 @@ def extract_organize_persons_properties(
     # Expand categorical variables and reduce dimensionality.
     bin_persons_selection = organize_persons_properties(
         persons=persons_sets["selection"],
+        cohort="selection",
+        variables=variables,
+        data_persons_properties_raw=data_persons_properties_raw,
+        report=True,
+    )
+    bin_persons_respiration = organize_persons_properties(
+        persons=persons_sets["respiration"],
+        cohort="respiration",
         variables=variables,
         data_persons_properties_raw=data_persons_properties_raw,
         report=True,
     )
     bin_persons_ventilation = organize_persons_properties(
         persons=persons_sets["ventilation"],
+        cohort="ventilation",
         variables=variables,
         data_persons_properties_raw=data_persons_properties_raw,
         report=True,
@@ -3803,6 +3994,7 @@ def extract_organize_persons_properties(
     )
     information["persons_sets"] = persons_sets
     information["bin_persons_selection"] = bin_persons_selection
+    information["bin_persons_respiration"] = bin_persons_respiration
     information["bin_persons_ventilation"] = bin_persons_ventilation
     # Write product information to file.
     write_product_persons_properties(
@@ -4150,18 +4342,15 @@ def write_product_samples_genes_signals(
     pass
 
 
-def write_product_persons_properties_charts(
-    dock=None,
-    stringency=None,
+def write_product_persons_properties_dimension(
+    path_parent=None,
     information=None,
 ):
     """
     Writes product information to file.
 
     arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-        stringency (str): category, loose or tight, of selection criteria
+        path_parent (str): path to parent directory
         information (object): information to write to file.
 
     raises:
@@ -4171,15 +4360,22 @@ def write_product_persons_properties_charts(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", str(stringency))
-    path_persons_properties = os.path.join(
-        path_selection, "persons_properties"
+    path_directory = os.path.join(
+        path_parent, "dimension"
     )
-    path_charts = os.path.join(
-        path_persons_properties, "charts"
-    )
-    utility.create_directories(path_charts)
+    utility.create_directories(path_directory)
 
+    path_components_data = os.path.join(
+        path_directory, "components_data.pickle"
+    )
+    path_variances_data = os.path.join(
+        path_directory, "variances_data.pickle"
+    )
+    # Write information to file.
+    with open(path_components_data, "wb") as file_product:
+        pickle.dump(information["components_data"], file_product)
+    with open(path_variances_data, "wb") as file_product:
+        pickle.dump(information["variances_data"], file_product)
     pass
 
 
@@ -4238,9 +4434,9 @@ def write_product_persons_properties_heritability(
     pass
 
 
-def write_product_persons_properties_persons_group(
+def write_product_persons_properties_persons_cohort(
     path_parent=None,
-    group=None,
+    cohort=None,
     information=None,
 ):
     """
@@ -4248,7 +4444,7 @@ def write_product_persons_properties_persons_group(
 
     arguments:
         path_parent (str): path to parent directory
-        group (str): group of persons
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         information (object): information to write to file.
 
     raises:
@@ -4259,11 +4455,15 @@ def write_product_persons_properties_persons_group(
 
     # Specify directories and files.
     path_directory = os.path.join(
-        path_parent, group
+        path_parent, cohort
     )
     utility.create_directories(path_directory)
 
     # Information for subsequent analyses.
+    write_product_persons_properties_dimension(
+        path_parent=path_directory,
+        information=information["bin_dimension"]
+    )
     write_product_persons_properties_heritability(
         path_parent=path_directory,
         information=information["bin_heritability"]
@@ -4315,21 +4515,20 @@ def write_product_persons_properties(
     )
     utility.create_directories(path_persons_properties)
 
-    # Information for plotting charts.
-    write_product_persons_properties_charts(
-        stringency=stringency,
-        dock=dock,
-        information=information
-    )
     # Information for subsequent analyses.
-    write_product_persons_properties_persons_group(
+    write_product_persons_properties_persons_cohort(
         path_parent=path_persons_properties,
-        group="selection",
+        cohort="selection",
         information=information["bin_persons_selection"]
     )
-    write_product_persons_properties_persons_group(
+    write_product_persons_properties_persons_cohort(
         path_parent=path_persons_properties,
-        group="ventilation",
+        cohort="respiration",
+        information=information["bin_persons_respiration"]
+    )
+    write_product_persons_properties_persons_cohort(
+        path_parent=path_persons_properties,
+        cohort="ventilation",
         information=information["bin_persons_ventilation"]
     )
     # Specify directories and files.

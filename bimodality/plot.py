@@ -2620,6 +2620,11 @@ def define_parameters_persons_properties_adjacency():
         property="refrigeration_binary", type="binary",
         master=False, main=True,
     )
+    parameters["refrigeration_duration"] = dict(
+        title="refrig_dur", label="refrig_dur",
+        property="refrigeration_duration", type="continuous",
+        master=False, main=True,
+    )
     # Return information.
     return parameters
 
@@ -3549,13 +3554,17 @@ def prepare_charts_sets_selection_persons_properties(
 # Status: working
 
 
-def read_source_regression_principal_components(
+def read_source_selection_dimension_principal_components(
+    group=None,
+    stringency=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        group (str): group of persons
+        stringency (str): category, loose or tight, of selection criteria
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -3567,53 +3576,30 @@ def read_source_regression_principal_components(
     """
 
     # Specify directories and files.
-    path_assembly = os.path.join(dock, "assembly")
     path_data_genotype_variance_plink = os.path.join(
-        path_assembly, "data_genotype_variance_plink.pickle"
+        dock, "assembly", "sample", "data_genotype_variance_plink.pickle"
     )
-
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_data_tissues_variance = os.path.join(
-        path_selection, "data_tissues_variance.pickle"
-    )
-    path_data_facilities_variance = os.path.join(
-        path_selection, "data_facilities_variance.pickle"
-    )
-    path_data_batches_isolation_variance = os.path.join(
-        path_selection, "data_batches_isolation_variance.pickle"
-    )
-    path_data_batches_sequence_variance = os.path.join(
-        path_selection, "data_batches_sequence_variance.pickle"
+    path_variances_data = os.path.join(
+        dock, "selection", stringency, "persons_properties", group,
+        "dimension", "variances_data.pickle"
     )
 
     # Read information from file.
     data_genotype_variance_plink = pandas.read_pickle(
         path_data_genotype_variance_plink
     )
-    data_tissues_variance = pandas.read_pickle(
-        path_data_tissues_variance
-    )
-    data_facilities_variance = pandas.read_pickle(
-        path_data_facilities_variance
-    )
-    data_batches_isolation_variance = pandas.read_pickle(
-        path_data_batches_isolation_variance
-    )
-    data_batches_sequence_variance = pandas.read_pickle(
-        path_data_batches_sequence_variance
+    variances_data = pandas.read_pickle(
+        path_variances_data
     )
 
     # Compile and return information.
     return {
         "data_genotype_variance_plink": data_genotype_variance_plink,
-        "data_tissues_variance": data_tissues_variance,
-        "data_facilities_variance": data_facilities_variance,
-        "data_batches_isolation_variance": data_batches_isolation_variance,
-        "data_batches_sequence_variance": data_batches_sequence_variance,
+        "variances_data": variances_data,
     }
 
 
-def plot_chart_regression_principal_components(
+def plot_chart_selection_dimension_principal_components(
     data=None,
     path_file=None
 ):
@@ -3655,7 +3641,7 @@ def plot_chart_regression_principal_components(
     pass
 
 
-def prepare_charts_regression_principal_components(
+def prepare_charts_selection_dimension_principal_components(
     dock=None
 ):
     """
@@ -3672,81 +3658,47 @@ def prepare_charts_regression_principal_components(
     """
 
     # Read source information from file.
-    source = read_source_regression_principal_components(dock=dock)
+    source = read_source_selection_dimension_principal_components(
+        group="respiration",
+        stringency="tight",
+        dock=dock
+    )
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    path_selection = os.path.join(path_plot, "selection")
+    path_directory = os.path.join(path_selection, "dimension")
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
 
     # Organize data.
     types = dict()
     types["component"] = "int32"
     types["variance"] = "float32"
-
     data_genotype = source["data_genotype_variance_plink"].iloc[0:25,:]
     data_genotype = data_genotype.astype(
         types,
     )
-
-    data_tissues = source["data_tissues_variance"]
-    data_tissues["variance"] = data_tissues["variance"].apply(
-        lambda value: (value * 100)
-    )
-    data_tissues = data_tissues.astype(
-        types,
-    )
-
-    data_facilities = source["data_facilities_variance"]
-    data_facilities["variance"] = data_facilities["variance"].apply(
-        lambda value: (value * 100)
-    )
-    data_facilities = data_facilities.astype(
-        types,
-    )
-
-    data_isolation = source["data_batches_isolation_variance"]
-    data_isolation["variance"] = data_isolation["variance"].apply(
-        lambda value: (value * 100)
-    )
-    data_isolation = data_isolation.astype(
-        types,
-    )
-
-    data_sequence = source["data_batches_sequence_variance"]
-    data_sequence["variance"] = data_sequence["variance"].apply(
-        lambda value: (value * 100)
-    )
-    data_sequence = data_sequence.astype(
-        types,
-    )
-
-    # Specify directories and files.
-    path_plot = os.path.join(dock, "plot")
-    utility.create_directory(path_plot)
-    path_selection = os.path.join(path_plot, "selection")
-    path_component = os.path.join(path_selection, "component")
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_component)
-    utility.create_directories(path=path_component)
-
-    plot_chart_regression_principal_components(
+    plot_chart_selection_dimension_principal_components(
         data=data_genotype,
-        path_file=os.path.join(path_component, "genotype.svg"),
+        path_file=os.path.join(path_directory, "genotype.svg"),
     )
-    plot_chart_regression_principal_components(
-        data=data_tissues,
-        path_file=os.path.join(path_component, "tissues.svg"),
-    )
-    plot_chart_regression_principal_components(
-        data=data_facilities,
-        path_file=os.path.join(path_component, "facilities.svg"),
-    )
-    plot_chart_regression_principal_components(
-        data=data_isolation,
-        path_file=os.path.join(path_component, "batches_isolation.svg"),
-    )
-    plot_chart_regression_principal_components(
-        data=data_sequence,
-        path_file=os.path.join(path_component, "batches_sequence.svg"),
-    )
-
-
+    # Iterate on categorical variables.
+    for property in source["variances_data"].keys():
+        print(property)
+        # Organize data.
+        data = source["variances_data"][property]
+        data = data.astype(
+            types,
+        )
+        data["variance"] = data["variance"].apply(
+            lambda value: (value * 100)
+        )
+        plot_chart_selection_dimension_principal_components(
+            data=data,
+            path_file=os.path.join(path_directory, str(property + ".svg")),
+        )
     pass
 
 
@@ -8422,7 +8374,7 @@ def execute_procedure(dock=None):
 
         # Plot charts for selection of principal components on categorical
         # variables for regression.
-        prepare_charts_regression_principal_components(dock=dock)
+    prepare_charts_selection_dimension_principal_components(dock=dock)
 
         ##########
         ##########
