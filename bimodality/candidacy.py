@@ -68,42 +68,43 @@ def initialize_directories(dock=None):
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=paths["candidacy"])
     utility.create_directory(path=paths["candidacy"])
-    # Define paths for groups of persons.
-    groups = list()
-    groups.append("selection")
-    groups.append("ventilation")
-    for group in groups:
-        paths[group] = dict()
-        paths[group]["threshold"] = os.path.join(
-            paths["candidacy"], group, "threshold"
+    # Define paths for cohorts of persons.
+    cohorts = list()
+    cohorts.append("selection")
+    cohorts.append("respiration")
+    cohorts.append("ventilation")
+    for cohort in cohorts:
+        paths[cohort] = dict()
+        paths[cohort]["threshold"] = os.path.join(
+            paths["candidacy"], cohort, "threshold"
         )
-        paths[group]["multimodal"] = os.path.join(
-            paths["candidacy"], group, "multimodal"
+        paths[cohort]["multimodal"] = os.path.join(
+            paths["candidacy"], cohort, "multimodal"
         )
-        paths[group]["unimodal"] = os.path.join(
-            paths["candidacy"], group, "unimodal"
+        paths[cohort]["unimodal"] = os.path.join(
+            paths["candidacy"], cohort, "unimodal"
         )
-        paths[group]["other"] = os.path.join(
-            paths["candidacy"], group, "other"
+        paths[cohort]["other"] = os.path.join(
+            paths["candidacy"], cohort, "other"
         )
         # Initialize directories.
-        utility.create_directories(path=paths[group]["threshold"])
-        utility.create_directories(path=paths[group]["multimodal"])
-        utility.create_directories(path=paths[group]["unimodal"])
-        utility.create_directories(path=paths[group]["other"])
+        utility.create_directories(path=paths[cohort]["threshold"])
+        utility.create_directories(path=paths[cohort]["multimodal"])
+        utility.create_directories(path=paths[cohort]["unimodal"])
+        utility.create_directories(path=paths[cohort]["other"])
     # Return information.
     return paths
 
 
 def read_source(
-    group=None,
+    cohort=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        group (str): group of persons, either selection or ventilation
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -128,16 +129,16 @@ def read_source(
     # from the probability procedure) because here we want the raw values
     # before standardization.
     path_distribution_genes = os.path.join(
-        dock, "distribution", group, "genes"
+        dock, "distribution", cohort, "genes"
     )
     path_genes_scores = os.path.join(
-        dock, "distribution", group, "collection", "genes_scores.pickle"
+        dock, "distribution", cohort, "collection", "genes_scores.pickle"
     )
     path_scores = os.path.join(
-        dock, "distribution", group, "collection", "scores.pickle"
+        dock, "distribution", cohort, "collection", "scores.pickle"
     )
     path_data_distribution_report = os.path.join(
-        dock, "distribution", group, "collection", "data_gene_report.pickle"
+        dock, "distribution", cohort, "collection", "data_gene_report.pickle"
     )
 
     # Read information from file.
@@ -879,7 +880,7 @@ def old_execution_method():
 
 
 def write_product(
-    group=None,
+    cohort=None,
     information=None,
     paths=None,
 ):
@@ -887,7 +888,7 @@ def write_product(
     Writes product information to file.
 
     arguments:
-        group (str): group of persons, either selection or ventilation
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         information (object): information to write to file.
         paths (dict<str>): collection of paths to directories for procedure's
             files
@@ -900,43 +901,43 @@ def write_product(
 
     # Specify directories and files.
     path_measures_thresholds = os.path.join(
-        paths[group]["threshold"], "measures_thresholds.pickle"
+        paths[cohort]["threshold"], "measures_thresholds.pickle"
     )
     path_sets_unimodal = os.path.join(
-        paths[group]["unimodal"], "sets_unimodal.pickle"
+        paths[cohort]["unimodal"], "sets_unimodal.pickle"
     )
     path_sets_multimodal = os.path.join(
-        paths[group]["multimodal"], "sets_multimodal.pickle"
+        paths[cohort]["multimodal"], "sets_multimodal.pickle"
     )
     path_genes_unimodal = os.path.join(
-        paths[group]["unimodal"], "genes_unimodal.pickle"
+        paths[cohort]["unimodal"], "genes_unimodal.pickle"
     )
     path_genes_unimodal_text = os.path.join(
-        paths[group]["unimodal"], "genes_unimodal.txt"
+        paths[cohort]["unimodal"], "genes_unimodal.txt"
     )
     path_genes_multimodal = os.path.join(
-        paths[group]["multimodal"], "genes_multimodal.pickle"
+        paths[cohort]["multimodal"], "genes_multimodal.pickle"
     )
     path_genes_multimodal_text = os.path.join(
-        paths[group]["multimodal"], "genes_multimodal.txt"
+        paths[cohort]["multimodal"], "genes_multimodal.txt"
     )
     path_genes_other = os.path.join(
-        paths[group]["other"], "genes_other.pickle"
+        paths[cohort]["other"], "genes_other.pickle"
     )
     path_genes_other_text = os.path.join(
-        paths[group]["other"], "genes_other.txt"
+        paths[cohort]["other"], "genes_other.txt"
     )
     path_data_genes_unimodal = os.path.join(
-        paths[group]["unimodal"], "data_genes_unimodal.pickle"
+        paths[cohort]["unimodal"], "data_genes_unimodal.pickle"
     )
     path_data_genes_unimodal_text = os.path.join(
-        paths[group]["unimodal"], "data_genes_unimodal.tsv"
+        paths[cohort]["unimodal"], "data_genes_unimodal.tsv"
     )
     path_data_genes_multimodal = os.path.join(
-        paths[group]["multimodal"], "data_genes_multimodal.pickle"
+        paths[cohort]["multimodal"], "data_genes_multimodal.pickle"
     )
     path_data_genes_multimodal_text = os.path.join(
-        paths[group]["multimodal"], "data_genes_multimodal.tsv"
+        paths[cohort]["multimodal"], "data_genes_multimodal.tsv"
     )
 
     # Write information to file.
@@ -1001,15 +1002,18 @@ def write_product(
 # Procedure
 
 
-def select_report_write_candidate_modality_genes_group(
-    group=None,
+# TODO: I will probably need different thresholds for each cohort...
+
+
+def select_report_write_candidate_modality_genes_cohort(
+    cohort=None,
     paths=None,
 ):
     """
     Function to execute module's main behavior.
 
     arguments:
-        group (str): group of persons, either selection or ventilation
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         paths (dict<str>): collection of paths to directories for procedure's
             files
 
@@ -1021,15 +1025,26 @@ def select_report_write_candidate_modality_genes_group(
 
     # Report.
     utility.print_terminal_partition(level=1)
-    print("... Candidacy procedure for: " + str(group) + " persons...")
+    print("... Candidacy procedure for: " + str(cohort) + " persons...")
     utility.print_terminal_partition(level=2)
 
     # Read source information from file.
     source = read_source(
-        group=group,
+        cohort=cohort,
         dock=paths["dock"],
     )
     print(source["data_distribution_report"])
+
+    # Specify thresholds for each cohort.
+    if cohort == "selection":
+        proportion_least = 0.3 # unimodal threshold: 0.3 (760)
+        proportion_greatest = 0.0227 # multimodal threshold: 0.0227 (755)
+    elif cohort == "respiration":
+        proportion_least = 0.4 # unimodal threshold: 0.3 (760)
+        proportion_greatest = 0.0226 # multimodal threshold: 0.0227 (755)
+    elif cohort == "ventilation":
+        proportion_least = 0.3 # unimodal threshold: 0.3 (760)
+        proportion_greatest = 0.02275 # multimodal threshold: 0.0227 (755)
 
     # Set measures of modality.
     measures = list(source["scores"].keys())
@@ -1048,8 +1063,8 @@ def select_report_write_candidate_modality_genes_group(
     # Select same count of unimodal genes and multimodal genes.
     utility.print_terminal_partition(level=2)
     selection = select_genes_by_modality_measures_ranks(
-        proportion_least=0.3, # unimodal threshold: 0.15 (148), 0.3 (760)
-        proportion_greatest=0.0227, # multimodal threshold: 0.01 (142), 0.0227 (755), 0.025 (836), 0.03 (1011)
+        proportion_least=proportion_least,
+        proportion_greatest=proportion_greatest,
         measures=measures,
         data_distribution_report=source["data_distribution_report"],
     )
@@ -1159,7 +1174,7 @@ def select_report_write_candidate_modality_genes_group(
 
     # Write product information to file.
     write_product(
-        group=group,
+        cohort=cohort,
         information=information,
         paths=paths,
     )
@@ -1186,13 +1201,17 @@ def execute_procedure(
     # Initialize directories.
     paths = initialize_directories(dock=dock)
 
-    # Call procedures for each group.
-    select_report_write_candidate_modality_genes_group(
-        group="selection",
+    # Call procedures for each cohort.
+    select_report_write_candidate_modality_genes_cohort(
+        cohort="selection",
         paths=paths,
     )
-    select_report_write_candidate_modality_genes_group(
-        group="ventilation",
+    select_report_write_candidate_modality_genes_cohort(
+        cohort="respiration",
+        paths=paths,
+    )
+    select_report_write_candidate_modality_genes_cohort(
+        cohort="ventilation",
         paths=paths,
     )
 

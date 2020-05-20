@@ -1724,7 +1724,8 @@ def define_variables_regression_selection():
         "mononucleosis_binary_scale",
         "heart_binary_scale",
         "diabetes_binary_scale",
-        "ventilation_duration_scale",
+        #"ventilation_duration_scale",
+        "ventilation_binary_scale",
     ]
     # Variables that relate to genotype.
     genotype = [
@@ -1799,12 +1800,10 @@ def define_variables_regression_respiration():
         "smoke_scale",
         "inflammation_binary_scale",
         "leukocyte_binary_scale",
-        #"steroid_binary_scale", # low coverage of persons, omit
         "infection_binary_scale",
         "mononucleosis_binary_scale",
         "heart_binary_scale",
         "diabetes_binary_scale",
-        "ventilation_duration_scale",
     ]
     # Variables that relate to genotype.
     genotype = [
@@ -1878,7 +1877,6 @@ def define_variables_regression_ventilation():
         "smoke_scale",
         "inflammation_binary_scale",
         "leukocyte_binary_scale",
-        #"steroid_binary_scale", # low coverage of persons, omit
         "infection_binary_scale",
         "mononucleosis_binary_scale",
         "heart_binary_scale",
@@ -2474,6 +2472,42 @@ def organize_samples_smoke_variables(
     return data_samples
 
 
+def impute_logical_variables(
+    variables=None,
+    data_samples_tissues_persons=None,
+):
+    """
+    Impute any missing logical variables.
+
+    Assume that missing values mean that the value is false.
+
+    arguments:
+        variables (list<str>): names of logical variables
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues across selection samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues across samples
+
+    """
+
+    # Copy data.
+    data = data_samples_tissues_persons.copy(deep=True)
+    # Iterate on variables.
+    for variable in variables:
+        data[variable] = data[variable].apply(
+            lambda value:
+                True if (value == True) else
+                (False if ((value == False) or math.isnan(value)) else
+                False)
+        )
+        pass
+    # Return information.
+    return data
+
+
 def impute_convert_samples_logical_variables_binary(
     variables=None,
     data_samples_tissues_persons=None,
@@ -2570,11 +2604,16 @@ def organize_samples_properties(
     data_smoke = organize_samples_smoke_variables(
         data_samples_tissues_persons=data_sex,
     )
+    # Impute missing values of boolean variables.
+    data_boolean = impute_logical_variables(
+        variables=variables["organization"]["binary"],
+        data_samples_tissues_persons=data_smoke,
+    )
     # Convert logical variables to binary representation for regressions.
     # Assume that missing values indicate a false logical value.
     data_binary = impute_convert_samples_logical_variables_binary(
         variables=variables["organization"]["binary"],
-        data_samples_tissues_persons=data_smoke,
+        data_samples_tissues_persons=data_boolean,
     )
     # Return information.
     return data_binary

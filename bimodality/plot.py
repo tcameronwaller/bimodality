@@ -964,40 +964,42 @@ def organize_heatmap_asymmetric_master_main_bottom(
 
     # Create ticks and labels for each grid.
     # Let the horizontal axes labeling appear on top.
-    if matrix.shape[0] > 25:
-        size_count = "five"
-    elif matrix.shape[0] <= 25:
-        size_count = "four"
-    axes[1, 0].tick_params(
-        axis="both",
-        which="both",
-        direction="out",
-        length=5.0,
-        width=3.0,
-        pad=7,
-        top=False,
-        bottom=True,
-        left=True,
-        right=False,
-        labeltop=False,
-        labelbottom=True,
-        labelleft=True,
-        labelright=False,
-        color=colors["black"],
-        labelsize=fonts["values"][size_count]["size"],
-        labelcolor=colors["black"],
-    )
-    axes[1, 0].set_yticks(numpy.arange(matrix.shape[0]))
-    axes[1, 0].set_yticklabels(
-        labels_rows,
-        #minor=False,
-        ha="right", # horizontal alignment
-        va="center", # vertical alignment
-        alpha=1.0,
-        backgroundcolor=colors["white"],
-        color=colors["black"],
-        fontproperties=fonts["properties"][size_count]
-    )
+    if matrix.shape[0] < 70:
+        if matrix.shape[0] > 25:
+            size_count = "five"
+        elif matrix.shape[0] <= 25:
+            size_count = "four"
+        axes[1, 0].tick_params(
+            axis="both",
+            which="both",
+            direction="out",
+            length=5.0,
+            width=3.0,
+            pad=7,
+            top=False,
+            bottom=True,
+            left=True,
+            right=False,
+            labeltop=False,
+            labelbottom=True,
+            labelleft=True,
+            labelright=False,
+            color=colors["black"],
+            labelsize=fonts["values"][size_count]["size"],
+            labelcolor=colors["black"],
+        )
+        axes[1, 0].set_yticks(numpy.arange(matrix.shape[0]))
+        axes[1, 0].set_yticklabels(
+            labels_rows,
+            #minor=False,
+            ha="right", # horizontal alignment
+            va="center", # vertical alignment
+            alpha=1.0,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"][size_count]
+        )
+        pass
     # Create legend for color map.
     bar = figure.colorbar(
         image,
@@ -1317,13 +1319,14 @@ def plot_bar_stack(
     )
     series_names = list(data.columns)
 
-    if color_count > 1:
+    if color_count == 1:
+        colors_series = [colors["blue"]]
+    elif color_count == 2:
+        colors_series = [colors["blue"], colors["orange"]]
+    elif color_count > 2:
         colors_series = list(
             seaborn.color_palette("hls", n_colors=color_count)
         )
-    else:
-        colors_series = [colors["blue"]]
-
     # Create figure.
     figure = matplotlib.pyplot.figure(
         figsize=(15.748, 11.811),
@@ -1410,30 +1413,40 @@ def plot_bar_stack(
     return figure
 
 
-def plot_scatter_cluster(
+def plot_scatter_factor_groups(
     data=None,
     abscissa=None,
     ordinate=None,
     label_horizontal=None,
     label_vertical=None,
     factor=None,
+    label_factor=None,
+    labels_factors=None,
     fonts=None,
     colors=None,
+    point_size=None,
+    plot_factor_labels=None,
     legend=None,
 ):
     """
-    Creates a figure of a chart of type histogram to represent the frequency
-    distribution of a single series of values.
+    Creates a figure of a chart of type scatter to represent the association
+    of two variables.
 
     arguments:
         data (object): Pandas data frame of groups, series, and values
-        abscissa (str): name of data column with independent variable
-        ordinate (str): name of data column with dependent variable
+        abscissa (str): name of data column with variable for horizontal (x)
+            axis
+        ordinate (str): name of data column with variable for vertical (y) axis
         label_horizontal (str): label for horizontal axis
         label_vertical (str): label for vertical axis
-        factor (str): name of data column with groups or factors of samples
+        factor (str): name of data column with categorical variable to
+            distinguish groups of instances
+        label_factor (str): label to describe the factor
+        labels_factors (list<str>): labels to describe the factor's values
         fonts (dict<object>): references to definitions of font properties
         colors (dict<tuple>): references to definitions of color properties
+        point_size (float): size for scatter points
+        plot_factor_labels (bool): whether to plot factor labels on chart
         legend (bool): whether to include a legend for series on the chart
 
     raises:
@@ -1445,18 +1458,18 @@ def plot_scatter_cluster(
 
     ##########
     # Organize data.
-    # Separate points by groups.
-    # Define groups.
     data = data.copy(deep=True)
+    data.reset_index(
+        level=None,
+        inplace=True
+    )
     data.set_index(
         factor,
         append=False,
         drop=True,
         inplace=True
     )
-    print(data)
     groups = data.groupby(level=[factor])
-    print("Count of groups by factor: " + str(len(groups)))
     colors_series = list(seaborn.color_palette("hls", n_colors=len(groups)))
 
     ##########
@@ -1504,7 +1517,7 @@ def plot_scatter_cluster(
             values_y,
             linestyle="",
             marker="o",
-            markersize=2.5,
+            markersize=point_size,
             markeredgecolor=colors_series[index],
             markerfacecolor=colors_series[index]
         )
@@ -1514,35 +1527,39 @@ def plot_scatter_cluster(
     labels = []
     index = 0
     for name, group in groups:
-        values_x = group[abscissa].to_list()
-        mean_x = statistics.mean(values_x)
-        values_y = group[ordinate].to_list()
-        mean_y = statistics.mean(values_y)
-        axes.text(
-            mean_x,
-            mean_y,
-            str(index+1),
-            backgroundcolor=colors["white_faint"],
-            color=colors["black"],
-            fontproperties=fonts["properties"]["three"],
-            horizontalalignment="center",
-            verticalalignment="center"
-        )
-        label = str(index+1) + ": " + name
+        if plot_factor_labels:
+            values_x = group[abscissa].to_list()
+            mean_x = statistics.mean(values_x)
+            values_y = group[ordinate].to_list()
+            mean_y = statistics.mean(values_y)
+            axes.text(
+                mean_x,
+                mean_y,
+                str(index+1),
+                backgroundcolor=colors["white_faint"],
+                color=colors["black"],
+                fontproperties=fonts["properties"]["three"],
+                horizontalalignment="center",
+                verticalalignment="center"
+            )
+        label = str(str(index+1) + ": " + str(labels_factors[index]))
         labels.append(label)
         index += 1
         pass
     # Create legend.
     # Create custome elements for the legend.
-    elements = create_legend_elements(
-        colors=colors_series,
-        labels=labels
-    )
-    axes.legend(
-        handles=elements,
-        loc="upper right",
-        prop=fonts["properties"]["four"],
-    )
+    if legend:
+        elements = create_legend_elements(
+            colors=colors_series,
+            labels=labels
+        )
+        axes.legend(
+            handles=elements,
+            loc="upper right",
+            prop=fonts["properties"]["four"],
+            title=label_factor,
+            title_fontsize=fonts["values"]["three"]["size"]
+        )
     return figure
 
 
@@ -1561,8 +1578,9 @@ def plot_scatter(
 
     arguments:
         data (object): Pandas data frame of groups, series, and values
-        abscissa (str): name of data column with independent variable
-        ordinate (str): name of data column with dependent variable
+        abscissa (str): name of data column with variable for horizontal (x)
+            axis
+        ordinate (str): name of data column with variable for vertical (y) axis
         title_abscissa (str): title for abscissa on horizontal axis
         title_ordinate (str): title for ordinate on vertical axis
         factor (str): name of data column with groups or factors of samples
@@ -2613,11 +2631,6 @@ def define_parameters_persons_properties_adjacency():
     parameters["delay"] = dict(
         title="delay", label="delay",
         property="delay", type="continuous",
-        master=False, main=True,
-    )
-    parameters["refrigeration_binary"] = dict(
-        title="refrigeration", label="refrigeration",
-        property="refrigeration_binary", type="binary",
         master=False, main=True,
     )
     parameters["refrigeration_duration"] = dict(
@@ -5716,14 +5729,14 @@ def prepare_charts_genes_signals_tissues_persons(
 
 
 def read_source_prediction_genes_signals_persons_properties(
-    group=None,
+    cohort=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        group (str): group of persons, either selection or ventilation
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -5740,15 +5753,16 @@ def read_source_prediction_genes_signals_persons_properties(
         "data_gene_annotation_gencode.pickle"
     )
     path_data_persons_properties = os.path.join(
-        dock, "selection", "tight", "persons_properties", group,
+        dock, "selection", "tight", "persons_properties", cohort,
         "data_persons_properties.pickle"
     )
     path_data_signals_genes_persons = os.path.join(
-        dock, "distribution", group, "collection",
+        dock, "distribution", cohort, "collection",
         "data_signals_genes_persons.pickle"
     )
-    path_sets_genes = os.path.join(
-        dock, "prediction", group, "hypothesis", "genes", "sets_genes.pickle"
+    path_genes_prediction_ontology = os.path.join(
+        dock, "integration", cohort, "set", "prediction_ontology",
+        "genes.pickle"
     )
 
     # Read information from file.
@@ -5757,8 +5771,8 @@ def read_source_prediction_genes_signals_persons_properties(
     data_signals_genes_persons = pandas.read_pickle(
         path_data_signals_genes_persons
     )
-    with open(path_sets_genes, "rb") as file_source:
-        sets_genes = pickle.load(file_source)
+    with open(path_genes_prediction_ontology, "rb") as file_source:
+        genes_prediction_ontology = pickle.load(file_source)
     genes_query_population = (
         integration.read_source_annotation_query_genes_set(
             set="population",
@@ -5769,9 +5783,71 @@ def read_source_prediction_genes_signals_persons_properties(
         "data_gene_annotation": data_gene_annotation,
         "data_persons_properties": data_persons_properties,
         "data_signals_genes_persons": data_signals_genes_persons,
-        "sets_genes": sets_genes,
+        "genes_prediction_ontology": genes_prediction_ontology,
         "genes_query_population": genes_query_population,
     }
+
+
+def define_parameters_prediction_genes_signals_persons_properties():
+    """
+    Defines parameters for plots of persons' properties.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict): collection of parameters
+
+    """
+
+    # Use "source["sets_genes"]["multimodal"][parameter["set"]]" to iterate
+    # through multiple sets of genes.
+    parameters = list()
+    if False:
+        parameters.append(dict(
+            name="smoke", set="smoke_scale",
+            property="smoke", type="ordinal",
+        ))
+        parameters.append(dict(
+            name="climate", set="climate_scale",
+            property="climate", type="category",
+        ))
+        parameters.append(dict(
+            title="leukocyte", label="leukocyte",
+            set="leukocyte_binary_scale",
+            property="leukocyte_binary", type="binary",
+        ))
+        parameters.append(dict(
+            title="inflammation", label="inflammation",
+            set="inflammation_binary_scale",
+            property="inflammation_binary", type="binary",
+        ))
+        parameters.append(dict(
+            title="cmv_ebv", label="CMV-EBV",
+            set="mononucleosis_binary_scale",
+            property="mononucleosis_binary", type="binary",
+        ))
+        parameters.append(dict(
+            title="sex", label="sex", set="sex_y_scale", property="sex_text",
+            type="category",
+        ))
+        parameters.append(dict(
+            title="age", label="age", set="age_scale",
+            property="age_grade", type="ordinal",
+        ))
+    parameters.append(dict(
+        title="ventilation_grade", label="ventilation",
+        set="ventilation_binary_scale",
+        property="ventilation_duration_grade", type="ordinal",
+    ))
+    parameters.append(dict(
+        title="ventilation_binary", label="ventilation",
+        set="ventilation_binary_scale",
+        property="ventilation_binary", type="binary",
+    ))
+    # Return information.
+    return parameters
 
 
 def plot_chart_prediction_genes_signals_persons_properties(
@@ -5932,15 +6008,15 @@ def prepare_charts_prediction_genes_signals_persons_properties_variable(
     pass
 
 
-def prepare_charts_prediction_genes_signals_persons_properties_group(
-    group=None,
+def prepare_charts_prediction_genes_signals_persons_properties_cohort(
+    cohort=None,
     dock=None
 ):
     """
     Plots charts from the analysis process.
 
     arguments:
-        group (str): group of persons, either selection or ventilation
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -5950,10 +6026,9 @@ def prepare_charts_prediction_genes_signals_persons_properties_group(
 
     """
 
-    print("group: " + group)
     # Read source information from file.
     source = read_source_prediction_genes_signals_persons_properties(
-        group=group,
+        cohort=cohort,
         dock=dock,
     )
     # Specify directories and files.
@@ -5963,10 +6038,10 @@ def prepare_charts_prediction_genes_signals_persons_properties_group(
         path_prediction, "persons_properties"
     )
     path_sort = os.path.join(
-        path_persons_properties, group, "sort_persons"
+        path_persons_properties, cohort, "sort_persons"
     )
     path_cluster = os.path.join(
-        path_persons_properties, group, "cluster_persons"
+        path_persons_properties, cohort, "cluster_persons"
     )
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=path_sort)
@@ -5975,45 +6050,9 @@ def prepare_charts_prediction_genes_signals_persons_properties_group(
     utility.create_directories(path=path_cluster)
 
     # Specify combinations of parameters for charts.
-    parameters = list()
-
-    if False:
-        parameters.append(dict(
-            name="smoke", set="smoke_scale",
-            property="smoke", type="ordinal",
-        ))
-        parameters.append(dict(
-            name="climate", set="climate_scale",
-            property="climate", type="category",
-        ))
-        parameters.append(dict(
-            title="leukocyte", label="leukocyte",
-            set="leukocyte_binary_scale",
-            property="leukocyte_binary", type="binary",
-        ))
-        parameters.append(dict(
-            title="inflammation", label="inflammation",
-            set="inflammation_binary_scale",
-            property="inflammation_binary", type="binary",
-        ))
-        parameters.append(dict(
-            title="cmv_ebv", label="CMV-EBV",
-            set="mononucleosis_binary_scale",
-            property="mononucleosis_binary", type="binary",
-        ))
-    parameters.append(dict(
-        title="sex", label="sex", set="sex_y_scale", property="sex_text",
-        type="category",
-    ))
-    parameters.append(dict(
-        title="age", label="age", set="age_scale",
-        property="age_grade", type="ordinal",
-    ))
-    parameters.append(dict(
-        title="ventilation", label="ventilation",
-        set="ventilation_duration_scale",
-        property="ventilation_duration_grade", type="ordinal",
-    ))
+    parameters = (
+        define_parameters_prediction_genes_signals_persons_properties()
+    )
     for parameter in parameters:
         # Report.
         #utility.print_terminal_partition(level=3)
@@ -6024,7 +6063,7 @@ def prepare_charts_prediction_genes_signals_persons_properties_group(
             label=parameter["label"],
             master=parameter["property"],
             type_master=parameter["type"],
-            genes_query=source["sets_genes"]["multimodal"][parameter["set"]],
+            genes_query=source["genes_prediction_ontology"],
             data_gene_annotation=source["data_gene_annotation"],
             data_persons_properties=source["data_persons_properties"],
             data_signals_genes_persons=source["data_signals_genes_persons"],
@@ -6051,14 +6090,14 @@ def prepare_charts_prediction_genes_signals_persons_properties(
 
     """
 
-    if False:
-        prepare_charts_prediction_genes_signals_persons_properties_group(
-            group="selection",
+    if True:
+        prepare_charts_prediction_genes_signals_persons_properties_cohort(
+            cohort="selection",
             dock=dock,
         )
-    if True:
-        prepare_charts_prediction_genes_signals_persons_properties_group(
-            group="ventilation",
+    if False:
+        prepare_charts_prediction_genes_signals_persons_properties_cohort(
+            cohort="ventilation",
             dock=dock,
         )
     pass
@@ -6068,6 +6107,8 @@ def prepare_charts_prediction_genes_signals_persons_properties(
 # Genes' signals across groups of persons
 # Status: working
 
+
+# TODO: is this chart obsolete???
 
 def read_source_signals_genes_persons_groups(
     dock=None
@@ -6327,12 +6368,14 @@ def prepare_charts_signals_genes_persons_groups(
 
 
 def read_source_persons_genes_components(
+    cohort=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -6344,15 +6387,20 @@ def read_source_persons_genes_components(
     """
 
     # Specify directories and files.
-    path_integration = os.path.join(dock, "integration")
+    path_data_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", cohort,
+        "data_persons_properties.pickle"
+    )
     path_data_persons_genes_components = os.path.join(
-        path_integration, "data_persons_genes_components.pickle"
+        dock, "integration", cohort, "population",
+        "data_persons_genes_components.pickle"
     )
     path_data_persons_genes_variances = os.path.join(
-        path_integration, "data_persons_genes_variances.pickle"
+        dock, "integration", cohort, "population",
+        "data_persons_genes_variances.pickle"
     )
-
     # Read information from file.
+    data_persons_properties = pandas.read_pickle(path_data_persons_properties)
     data_persons_genes_components = pandas.read_pickle(
         path_data_persons_genes_components
     )
@@ -6361,25 +6409,113 @@ def read_source_persons_genes_components(
     )
     # Compile and return information.
     return {
+        "data_persons_properties": data_persons_properties,
         "data_persons_genes_components": data_persons_genes_components,
         "data_persons_genes_variances": data_persons_genes_variances,
     }
 
-# TODO: enable this function to determine variances automatically
 
-def plot_chart_persons_genes_components(
+def organize_data_persons_genes_components(
+    factor=None,
+    data_persons_properties=None,
     data_components=None,
     data_variances=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        factor (str): name of categorical property to distinguish groups
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+        data_components (object): Pandas data frame of principal components
+            across instances
+        data_variances (object): Pandas data frame of variances for principal
+            components
+
+    raises:
+
+    returns:
+        (dict): collection of information for charts
+
+    """
+
+    # Copy data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+    data_components = data_components.copy(deep=True)
+    data_variances = data_variances.copy(deep=True)
+    # Organize data.
+    data_variances.set_index(
+        ["component"],
+        append=False,
+        drop=True,
+        inplace=True,
+    )
+    data_components.rename_axis(
+        index="person",
+        axis="index",
+        copy=False,
+        inplace=True,
+    )
+    data_persons_properties["factor"], labels_categories = pandas.factorize(
+        data_persons_properties[factor],
+        sort=True,
+    )
+    labels_categories = list(labels_categories)
+    data_factor = data_persons_properties.loc[
+        :, data_persons_properties.columns.isin(["factor", factor])
+    ]
+    # Join master and main data.
+    data_hybrid = data_components.join(
+        data_factor,
+        how="left",
+        on="person"
+    )
+    data_hybrid.drop(
+        labels=[factor],
+        axis="columns",
+        inplace=True
+    )
+    # Organize labels for axes.
+    variance_1 = round((data_variances.at[1, "variance"] * 100), 1)
+    variance_2 = round((data_variances.at[2, "variance"] * 100), 1)
+    variance_3 = round((data_variances.at[3, "variance"] * 100), 1)
+    label_1 = ("Component 1 (" + str(variance_1) + "%)")
+    label_2 = ("Component 2 (" + str(variance_2) + "%)")
+    label_3 = ("Component 3 (" + str(variance_3) + "%)")
+    # Compile information.
+    bin = dict()
+    bin["data_factor_components"] = data_hybrid
+    bin["labels_factors"] = labels_categories
+    bin["label_1"] = label_1
+    bin["label_2"] = label_2
+    bin["label_3"] = label_3
+    # Return information.
+    return bin
+
+
+def plot_charts_persons_genes_components(
+    data_factor_components=None,
+    factor=None,
+    label_factor=None,
+    labels_factors=None,
+    label_1=None,
+    label_2=None,
+    label_3=None,
     path_directory=None
 ):
     """
     Plots charts from the analysis process.
 
     arguments:
-        data_components (object): Pandas data frame of principal components
-            across instances
-        data_variances (object): Pandas data frame of variances for principal
-            components
+        data_factor_components (object): Pandas data frame of factor and
+            components across observations
+        factor (str): name of categorical property to distinguish groups
+        label_factor (str): name of factor
+        labels_factors (list<str>): names of categorical factor
+        label_1 (str): label depicting variance of component 1
+        label_2 (str): label depicting variance of component 2
+        label_3 (str): label depicting variance of component 3
         path_directory (str): path for directory
 
     raises:
@@ -6392,96 +6528,78 @@ def plot_chart_persons_genes_components(
     fonts = define_font_properties()
     # Define colors.
     colors = define_color_properties()
-    # Organize data.
-    data_components = data_components.copy(deep=True)
-    data_components.reset_index(
-        level=None,
-        inplace=True
-    )
-    data_variances.set_index(
-        "component",
-        drop=True,
-        inplace=True,
-    )
-    #print(data_variances)
-    title_1 = (
-        "Component 1 (" +
-        str(round((data_variances.at[1, "variance"] * 100), 1)) +
-        "%)"
-    )
-    title_2 = (
-        "Component 2 (" +
-        str(round((data_variances.at[2, "variance"] * 100), 1)) +
-        "%)"
-    )
-    title_3 = (
-        "Component 3 (" +
-        str(round((data_variances.at[3, "variance"] * 100), 1)) +
-        "%)"
-    )
 
-    # Define file name.
-    title = str("components_1_2")
-    path_file = os.path.join(
-        path_directory, str(title + ".svg")
-    )
+    # Define path to file.
+    file = str("components_1_2.png")
+    path_file = os.path.join(path_directory, file)
     # Create figure.
-    figure = plot_scatter(
-        data=data_components,
-        abscissa="component_1",
-        ordinate="component_2",
-        title_abscissa=title_1,
-        title_ordinate=title_2,
+    figure = plot_scatter_factor_groups(
+        data=data_factor_components,
+        abscissa="component_1", # variable for horizontal (x) axis
+        ordinate="component_2", # variable for vertical (y) axis
+        label_horizontal=label_1,
+        label_vertical=label_2,
+        factor=factor,
+        label_factor=label_factor,
+        labels_factors=labels_factors,
         fonts=fonts,
         colors=colors,
-        size=5,
+        point_size=7.5,
+        plot_factor_labels=True,
+        legend=True,
     )
     # Write figure.
-    write_figure(
+    write_figure_png(
         path=path_file,
         figure=figure
     )
 
-    # Define file name.
-    title = str("components_1_3")
-    path_file = os.path.join(
-        path_directory, str(title + ".svg")
-    )
+    # Define path to file.
+    file = str("components_1_3.png")
+    path_file = os.path.join(path_directory, file)
     # Create figure.
-    figure = plot_scatter(
-        data=data_components,
-        abscissa="component_1",
-        ordinate="component_3",
-        title_abscissa=title_1,
-        title_ordinate=title_3,
+    figure = plot_scatter_factor_groups(
+        data=data_factor_components,
+        abscissa="component_1", # variable for horizontal (x) axis
+        ordinate="component_3", # variable for vertical (y) axis
+        label_horizontal=label_1,
+        label_vertical=label_3,
+        factor=factor,
+        label_factor=label_factor,
+        labels_factors=labels_factors,
         fonts=fonts,
         colors=colors,
-        size=5,
+        point_size=7.5,
+        plot_factor_labels=True,
+        legend=True,
     )
     # Write figure.
-    write_figure(
+    write_figure_png(
         path=path_file,
         figure=figure
     )
 
-    # Define file name.
-    title = str("components_2_3")
-    path_file = os.path.join(
-        path_directory, str(title + ".svg")
-    )
+    # Define path to file.
+    file = str("components_2_3.png")
+    path_file = os.path.join(path_directory, file)
     # Create figure.
-    figure = plot_scatter(
-        data=data_components,
-        abscissa="component_2",
-        ordinate="component_3",
-        title_abscissa=title_2,
-        title_ordinate=title_3,
+    figure = plot_scatter_factor_groups(
+        data=data_factor_components,
+        abscissa="component_2", # variable for horizontal (x) axis
+        ordinate="component_3", # variable for vertical (y) axis
+        label_horizontal=label_2,
+        label_vertical=label_3,
+        factor=factor,
+        label_factor=label_factor,
+        labels_factors=labels_factors,
         fonts=fonts,
         colors=colors,
-        size=5,
+        point_size=7.5,
+        plot_factor_labels=True,
+        legend=True,
     )
     # Write figure.
-    write_figure(
+    write_figure_png(
         path=path_file,
         figure=figure
     )
@@ -6492,7 +6610,7 @@ def plot_chart_persons_genes_components(
 def prepare_charts_persons_genes_components(
     dock=None
 ):
-    """
+    """prepare_charts_persons_genes_components
     Plots charts from the analysis process.
 
     arguments:
@@ -6506,26 +6624,39 @@ def prepare_charts_persons_genes_components(
     """
 
     # Read source information from file.
-    source = read_source_persons_genes_components(dock=dock)
-
+    source = read_source_persons_genes_components(
+        cohort="selection",
+        dock=dock,
+    )
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
     path_integration = os.path.join(path_plot, "integration")
     path_directory = os.path.join(
-        path_integration, "persons_components"
+        path_integration, "persons_components", "ventilation"
     )
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=path_directory)
     utility.create_directories(path=path_directory)
 
-    # Plot.
-    plot_chart_persons_genes_components(
+    # Organize information for charts.
+    bin = organize_data_persons_genes_components(
+        factor="ventilation", # "sex_text", "ventilation", "age_grade"
+        data_persons_properties=source["data_persons_properties"],
         data_components=source["data_persons_genes_components"],
         data_variances=source["data_persons_genes_variances"],
+    )
+    # Plot.
+    plot_charts_persons_genes_components(
+        data_factor_components=bin["data_factor_components"],
+        factor="factor",
+        label_factor="ventilation", # "sex", "ventilation"
+        labels_factors=bin["labels_factors"],
+        label_1=bin["label_1"],
+        label_2=bin["label_2"],
+        label_3=bin["label_3"],
         path_directory=path_directory,
     )
-
     pass
 
 
@@ -7631,6 +7762,12 @@ def prepare_charts_genes_regression_residuals(
 # Status: in progress
 
 
+# TODO: read in all functional sets from integration procedure...
+
+# ventilation_binary_scale
+# mononucleosis_binary_scale
+# leukocyte_binary_scale
+# inflammation_binary_scale
 def read_source_multimodal_genes_ontology_sets(dock=None):
     """
     Reads and organizes source information from file
@@ -7647,15 +7784,17 @@ def read_source_multimodal_genes_ontology_sets(dock=None):
     """
 
     # Specify directories and files.
-    path_sets_genes = os.path.join(
-        dock, "function", "sets_genes.pickle"
+    path_data = os.path.join(
+        dock, "integration", "selection", "set", "cardinality",
+        "inflammation_binary_scale.pickle"
     )
     # Read information from file.
-    with open(path_sets_genes, "rb") as file_source:
-        sets_genes = pickle.load(file_source)
+    data = pandas.read_pickle(
+        path_data
+    )
     # Compile and return information.
     return {
-        "sets_genes": sets_genes,
+        "data": data,
     }
 
 
@@ -7677,30 +7816,22 @@ def prepare_charts_multimodal_genes_ontology_sets(
 
     # Read source information from file.
     source = read_source_multimodal_genes_ontology_sets(dock=dock)
-    print("union genes: " + str(len(source["sets_genes"]["union"])))
-    print("orphan genes: " + str(len(source["sets_genes"]["orphan"])))
-
-    # TODO: move this to "integration" procedure...
 
     # Organize data.
-    #data_collection = pandas.DataFrame()
-    records = list()
-    for group in source["sets_genes"].keys():
-        record = dict()
-        record["groups"] = group
-        record["multimodal"] = len(source["sets_genes"][group])
-        records.append(record)
-    data = utility.convert_records_to_dataframe(records=records)
-    print(data)
-
+    data = source["data"].copy(deep=True)
+    data.drop(
+        labels=["total"],
+        axis="columns",
+        inplace=True
+    )
     # Define fonts.
     fonts = define_font_properties()
     # Define colors.
     colors = define_color_properties()
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
-    path_function = os.path.join(path_plot, "function")
-    utility.create_directory(path_function)
+    path_directory = os.path.join(path_plot, "function")
+    utility.create_directory(path_directory)
 
     # Create figures.
     figure = plot_bar_stack(
@@ -7709,15 +7840,15 @@ def prepare_charts_multimodal_genes_ontology_sets(
         label_horizontal="biological process parent sets",
         fonts=fonts,
         colors=colors,
-        color_count=1,
+        color_count=2,
         rotation="horizontal",
         legend=True,
     )
     # Specify directories and files.
-    file = ("genes_sets.svg")
-    path_file = os.path.join(path_function, file)
+    file = ("test.png")
+    path_file = os.path.join(path_directory, file)
     # Write figure.
-    write_figure(
+    write_figure_png(
         path=path_file,
         figure=figure
     )
@@ -8372,14 +8503,14 @@ def execute_procedure(dock=None):
         # Plot charts of overlap between sets in selection of genes and samples.
         prepare_charts_sets_selection_genes_samples(dock=dock)
 
-        # Plot charts for selection of principal components on categorical
-        # variables for regression.
+    # Plot charts for selection of principal components on categorical
+    # variables for regression.
     prepare_charts_selection_dimension_principal_components(dock=dock)
 
-        ##########
-        ##########
-        ##########
-        # Distribution procedure
+    ##########
+    ##########
+    ##########
+    # Distribution procedure
 
     # Plot charts of distributions of genes' pan-tissue aggregate signals
     # across persons.
@@ -8444,9 +8575,29 @@ def execute_procedure(dock=None):
     ##########
     # Prediction procedure
 
-        # Plot charts, scatter plots, for residuals from regressions on each gene's
-        # pan-tissue signals across persons.
-        prepare_charts_genes_regression_residuals(dock=dock)
+    # Plot charts, scatter plots, for residuals from regressions on each gene's
+    # pan-tissue signals across persons.
+    #prepare_charts_genes_regression_residuals(dock=dock)
+
+    ##########
+    ##########
+    ##########
+    # Function procedure
+
+    # Major gene ontology functional categories of multimodal genes
+    # Highlight genes of interest from regression
+    prepare_charts_multimodal_genes_ontology_sets(dock=dock)
+
+
+
+    ##########
+    ##########
+    ##########
+    # Integration procedure
+
+    # Plot charts, scatter plots, for components by genes' pan-tissue
+    # signals across groups of persons.
+    prepare_charts_persons_genes_components(dock=dock)
 
     # Plot charts, heatmaps, for multiple genes' pan-tissue signals across
     # persons along with those persons' properties.
@@ -8456,28 +8607,8 @@ def execute_procedure(dock=None):
     # (sex, age, body mass index, hardiness).
     # In other charts, sort order across columns depends on hierarchical
     # clustering.
-    #prepare_charts_prediction_genes_signals_persons_properties(dock=dock)
+    prepare_charts_prediction_genes_signals_persons_properties(dock=dock)
 
-    ##########
-    ##########
-    ##########
-    # Function procedure
-
-    # Major gene ontology functional categories of multimodal genes
-    # Highlight genes of interest from regression
-    # Status: in progress
-    prepare_charts_multimodal_genes_ontology_sets(dock=dock)
-
-
-
-        ##########
-        ##########
-        ##########
-        # Integration procedure
-
-    # Plot charts, scatter plots, for components by genes' pan-tissue
-    # signals across groups of persons.
-    #prepare_charts_persons_genes_components(dock=dock)
 
     # Plot charts for correlations between pairs of genes of interest from
     # Gene Ontology enrichment.

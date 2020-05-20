@@ -808,6 +808,31 @@ def filter_common_elements(list_one=None, list_two=None):
     return list(filter(match, list_two))
 
 
+def filter_unique_common_elements(list_one=None, list_two=None):
+    """
+    Filters elements by whether both of two lists include them
+
+    arguments:
+        list_one (list): list of elements
+        list_two (list): list of elements
+
+    returns:
+        (list): elements that both of two lists include
+
+    raises:
+
+    """
+
+    elements_common = filter_common_elements(
+        list_one=list_one,
+        list_two=list_two,
+    )
+    elements_unique = collect_unique_elements(
+        elements_original=elements_common
+    )
+    return elements_unique
+
+
 def filter_unique_union_elements(list_one=None, list_two=None):
     """
     Filters unique elements from union of two lists.

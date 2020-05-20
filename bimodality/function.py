@@ -23,7 +23,7 @@ import gseapy
 # Custom
 
 import utility
-import prediction
+import integration
 
 #dir()
 #importlib.reload()
@@ -91,14 +91,14 @@ def read_source(
         "data_gene_annotation_gencode.pickle"
     )
     # Read genes sets.
-    genes_selection = prediction.read_source_genes_sets_selection(
-        group="selection",
+    genes_candidacy = integration.read_source_genes_sets_candidacy(
+        cohort="selection",
         dock=dock,
     )
     # Read tables from clusters of gene ontology sets.
     bin = dict()
     clusters = list()
-    clusters.append(dict(name="invasion", file="data_cluster_one.csv"))
+    clusters.append(dict(name="defense", file="data_cluster_one.csv"))
     clusters.append(dict(name="migration", file="data_cluster_two.csv"))
     clusters.append(dict(name="proliferation", file="data_cluster_three.csv"))
     clusters.append(dict(name="inflammation", file="data_cluster_four.csv"))
@@ -127,7 +127,7 @@ def read_source(
         bin[cluster["name"]] = entry
     # Return information.
     return {
-        "genes_selection": genes_selection,
+        "genes_candidacy": genes_candidacy,
         "cluster_reports": bin,
     }
 
@@ -389,7 +389,7 @@ def execute_procedure(
     # Orphan genes do not have assignment to any set.
     collect_report_ontology_parentage_orphan_genes(
         cluster_reports=source["cluster_reports"],
-        genes_query=source["genes_selection"]["multimodal"],
+        genes_query=source["genes_candidacy"]["multimodal"],
         report=True,
     )
     # Collect genes' identifiers in each parent set.
@@ -404,7 +404,7 @@ def execute_procedure(
     print("union genes: " + str(len(sets_union["union"])))
     sets_orphan = collect_orphan_gene_set(
         sets=sets_union,
-        genes_query=source["genes_selection"]["multimodal"],
+        genes_query=source["genes_candidacy"]["multimodal"],
     )
     print("orphan genes: " + str(len(sets_orphan["orphan"])))
 

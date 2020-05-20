@@ -72,15 +72,36 @@ def initialize_directories(dock=None):
     utility.remove_directory(path=paths["integration"])
     utility.create_directory(path=paths["integration"])
     # Define paths.
-    paths["set"] = os.path.join(
-        paths["integration"], "set"
-    )
-    paths["correlation"] = os.path.join(
-        paths["integration"], "correlation"
-    )
-    # Initialize directories.
-    utility.create_directories(path=paths["set"])
-    utility.create_directories(path=paths["correlation"])
+    cohorts = list()
+    cohorts.append("selection")
+    cohorts.append("respiration")
+    cohorts.append("ventilation")
+    for cohort in cohorts:
+        paths[cohort] = dict()
+        paths[cohort]["set"] = dict()
+        paths[cohort]["set"]["cardinality"] = os.path.join(
+            paths["integration"], cohort, "set", "cardinality"
+        )
+        paths[cohort]["set"]["allocation"] = os.path.join(
+            paths["integration"], cohort, "set", "allocation"
+        )
+        paths[cohort]["set"]["prediction_ontology"] = os.path.join(
+            paths["integration"], cohort, "set", "prediction_ontology"
+        )
+        paths[cohort]["population"] = os.path.join(
+            paths["integration"], cohort, "population"
+        )
+        paths[cohort]["correlation"] = os.path.join(
+            paths["integration"], cohort, "correlation"
+        )
+        # Initialize directories.
+        utility.create_directories(path=paths[cohort]["set"]["cardinality"])
+        utility.create_directories(path=paths[cohort]["set"]["allocation"])
+        utility.create_directories(
+            path=paths[cohort]["set"]["prediction_ontology"]
+        )
+        utility.create_directories(path=paths[cohort]["population"])
+        utility.create_directories(path=paths[cohort]["correlation"])
     # Return information.
     return paths
 
@@ -472,15 +493,169 @@ def read_source(dock=None):
 # Gene sets
 
 
+def read_source_genes_sets_candidacy(
+    cohort=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_genes_selection = os.path.join(
+        dock, "selection", "tight", "samples_genes_signals",
+        "genes.pickle"
+    )
+    path_genes_unimodal = os.path.join(
+        dock, "candidacy", cohort, "unimodal", "genes_unimodal.pickle"
+    )
+    path_genes_multimodal = os.path.join(
+        dock, "candidacy", cohort, "multimodal", "genes_multimodal.pickle"
+    )
+    # Read information from file.
+    with open(path_genes_selection, "rb") as file_source:
+        genes_selection = pickle.load(file_source)
+    with open(path_genes_unimodal, "rb") as file_source:
+        genes_unimodal = pickle.load(file_source)
+    with open(path_genes_multimodal, "rb") as file_source:
+        genes_multimodal = pickle.load(file_source)
+    # Compile information.
+    bin = dict()
+    bin["selection"] = genes_selection
+    bin["unimodal"] = genes_unimodal
+    bin["multimodal"] = genes_multimodal
+    # Return information.
+    return bin
+
+
+def read_source_genes_sets_heritability(
+    cohort=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_genes_selection = os.path.join(
+        dock, "heritability", cohort, "collection", "genes_selection.pickle"
+    )
+    path_genes_unimodal = os.path.join(
+        dock, "heritability", cohort, "collection", "genes_unimodal.pickle"
+    )
+    path_genes_multimodal = os.path.join(
+        dock, "heritability", cohort, "collection", "genes_multimodal.pickle"
+    )
+    # Read information from file.
+    with open(path_genes_selection, "rb") as file_source:
+        genes_selection = pickle.load(file_source)
+    with open(path_genes_unimodal, "rb") as file_source:
+        genes_unimodal = pickle.load(file_source)
+    with open(path_genes_multimodal, "rb") as file_source:
+        genes_multimodal = pickle.load(file_source)
+    # Compile information.
+    bin = dict()
+    bin["selection"] = genes_selection
+    bin["unimodal"] = genes_unimodal
+    bin["multimodal"] = genes_multimodal
+    # Return information.
+    return bin
+
+
+def read_source_genes_sets_prediction(
+    cohort=None,
+    model=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        model (str): regression model, either technique or hypothesis
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_sets_genes = os.path.join(
+        dock, "prediction", cohort, model, "genes", "sets_genes.pickle"
+    )
+    # Read information from file.
+    with open(path_sets_genes, "rb") as file_source:
+        sets_genes = pickle.load(file_source)
+    # Return information.
+    return sets_genes
+
+
+def read_source_genes_sets_function(
+    cohort=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        model (str): regression model, either technique or hypothesis
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_sets_genes = os.path.join(
+        dock, "function", "sets_genes.pickle"
+    )
+    # Read information from file.
+    with open(path_sets_genes, "rb") as file_source:
+        sets_genes = pickle.load(file_source)
+    # Return information.
+    return sets_genes
+
+
 def read_source_gene_sets(
-    group=None,
+    cohort=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        group (str): group of persons, either selection or ventilation
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -499,12 +674,21 @@ def read_source_gene_sets(
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
     # Read genes sets.
-    genes_candidacy = prediction.read_source_genes_sets_candidacy(
-        group=group,
+    genes_candidacy = read_source_genes_sets_candidacy(
+        cohort=cohort,
         dock=dock,
     )
-    genes_heritability = prediction.read_source_genes_sets_heritability(
-        group=group,
+    genes_heritability = read_source_genes_sets_heritability(
+        cohort=cohort,
+        dock=dock,
+    )
+    genes_prediction = read_source_genes_sets_prediction(
+        cohort=cohort,
+        model="hypothesis",
+        dock=dock,
+    )
+    genes_function = read_source_genes_sets_function(
+        cohort=cohort,
         dock=dock,
     )
     # Return information.
@@ -512,7 +696,211 @@ def read_source_gene_sets(
         "data_gene_annotation": data_gene_annotation,
         "genes_candidacy": genes_candidacy,
         "genes_heritability": genes_heritability,
+        "genes_prediction": genes_prediction,
+        "genes_function": genes_function,
     }
+
+
+def allocate_query_items_sets(
+    variable=None,
+    query_items=None,
+    sets=None,
+    report=None,
+    set_report=None,
+):
+    """
+    Selects and scales regression parameters.
+
+    arguments:
+        variable (str): name of variable
+        query_items (list<str>): identifiers of interest
+        sets (dict<list<str>>): sets of identifiers
+        report (bool): whether to print reports
+        set_report (str): name of set for report
+
+    raises:
+
+    returns:
+        (dict): sets of identifiers that match and do not match query
+
+    """
+
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("query variable: " + str(variable))
+        print("count query items: " + str(len(query_items)))
+        #print(sets.keys())
+        print(
+            "count total items in example set: " + str(len(sets[set_report]))
+        )
+        pass
+    # Collect items by inclusion and exclusion in sets.
+    sets_genes = dict()
+    sets_genes["inclusion"] = dict()
+    sets_genes["exclusion"] = dict()
+    records = list()
+    for set in sets.keys():
+        sets_genes["inclusion"][set] = utility.filter_unique_common_elements(
+            list_one=query_items,
+            list_two=copy.deepcopy(sets[set]),
+        )
+        sets_genes["exclusion"][set] = utility.filter_unique_exclusion_elements(
+            elements_exclusion=query_items,
+            elements_total=copy.deepcopy(sets[set]),
+        )
+        record = dict()
+        record["groups"] = set
+        record["total"] = len(sets[set])
+        record["query"] = len(sets_genes["inclusion"][set])
+        record["other"] = len(sets_genes["exclusion"][set])
+        records.append(record)
+    data = utility.convert_records_to_dataframe(records=records)
+    # Compile information.
+    bin = dict()
+    bin["sets_genes"] = sets_genes
+    bin["data"] = data
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=4)
+        if False:
+            print(
+                "count inclusion: " +
+                str(len(bin["sets_genes"]["inclusion"][set_report]))
+            )
+            print(
+                "count exclusion: " +
+                str(len(bin["sets_genes"]["exclusion"][set_report]))
+            )
+        utility.print_terminal_partition(level=4)
+        print(data)
+        pass
+    # Return information.
+    return bin
+
+
+def write_product_integration_gene_sets(
+    cohort=None,
+    variable=None,
+    information=None,
+    paths=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        variable (str): name of independent regression variable
+        information (object): information to write to file
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_sets_genes = os.path.join(
+        paths[cohort]["set"]["allocation"], str(variable + ".pickle")
+    )
+    path_data = os.path.join(
+        paths[cohort]["set"]["cardinality"], str(variable + ".pickle")
+    )
+    # Write information to file.
+    with open(path_sets_genes, "wb") as file_product:
+        pickle.dump(information["sets_genes"], file_product)
+    pandas.to_pickle(
+        information["data"],
+        path_data
+    )
+    pass
+
+
+def collect_unique_genes_prediction_variables_ontology_sets(
+    allocation=None,
+    variables=None,
+    sets=None,
+    report=None,
+):
+    """
+    Selects and scales regression parameters.
+
+    arguments:
+        allocation (dict): collections of genes
+        variables (list<str>): names of variables from prediction procedure
+        sets (list<str>): names of sets from functional ontologies
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (list<str>): identifiers of genes
+
+    """
+
+    # Collect union of genes from variables and sets.
+    genes_collection = list()
+    for variable in variables:
+        for set in sets:
+            genes_new = allocation[variable]["inclusion"][set]
+            genes_collection.extend(genes_new)
+            pass
+        pass
+    # Collect unique union genes.
+    genes_unique = utility.collect_unique_elements(
+        elements_original=genes_collection
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print(
+            "count of union genes from variables and sets: " +
+            str(len(genes_unique))
+        )
+        pass
+    # Return information.
+    return genes_unique
+
+
+def write_product_integration_prediction_ontology_genes(
+    cohort=None,
+    information=None,
+    paths=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        variable (str): name of independent regression variable
+        information (object): information to write to file
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_genes = os.path.join(
+        paths[cohort]["set"]["prediction_ontology"], "genes.pickle"
+    )
+    path_genes_text = os.path.join(
+        paths[cohort]["set"]["prediction_ontology"], "genes.txt"
+    )
+    # Write information to file.
+    with open(path_genes, "wb") as file_product:
+        pickle.dump(information["genes"], file_product)
+    utility.write_file_text_list(
+        elements=information["genes"],
+        delimiter="\n",
+        path_file=path_genes_text
+    )
+    pass
 
 
 def read_organize_report_write_integration_gene_sets(paths=None):
@@ -525,7 +913,6 @@ def read_organize_report_write_integration_gene_sets(paths=None):
     3. genes with enrichment allocation to functional ontological groups
 
     arguments:
-        group (str): group of persons, either selection or ventilation
         paths (dict<str>): collection of paths to directories for procedure's
             files
 
@@ -537,11 +924,240 @@ def read_organize_report_write_integration_gene_sets(paths=None):
 
     # Read source information from file.
     source = read_source_gene_sets(
-        group="selection", # "selection" or "ventilation"
+        cohort="selection",
         dock=paths["dock"],
     )
+    # Allocations of genes in sets from functional ontologies.
+    allocation = dict()
+    for variable in source["genes_prediction"]["multimodal"].keys():
+        bin_allocation = allocate_query_items_sets(
+            variable=variable,
+            query_items=source["genes_prediction"]["multimodal"][variable],
+            sets=source["genes_function"],
+            report=False,
+            set_report="defense",
+        )
+        allocation[variable] = bin_allocation["sets_genes"]
+        write_product_integration_gene_sets(
+            cohort="selection",
+            variable=variable,
+            information=bin_allocation,
+            paths=paths,
+        )
+
+    # Collect genes from multiple functional ontology sets of interest.
+    # 1. specify prediction variable: ventilation_binary_scale
+    # 2. specify functional ontology sets: ["defense", "inflammation", "cytokine"]
+    # ventilation_binary_scale
+    # mononucleosis_binary_scale
+    # leukocyte_binary_scale
+    # inflammation_binary_scale
+
+    genes_union = collect_unique_genes_prediction_variables_ontology_sets(
+        allocation=allocation,
+        variables=[
+            "ventilation_binary_scale",
+            #"mononucleosis_binary_scale",
+            #"leukocyte_binary_scale",
+            #"inflammation_binary_scale",
+        ],
+        sets=[
+            "defense",
+            "migration",
+            "proliferation",
+            "inflammation",
+            "cytokine",
+        ],
+        report=True,
+    )
+    # Compile information.
+    information = dict()
+    information["genes"] = genes_union
+    # Write information to file.
+    write_product_integration_prediction_ontology_genes(
+        cohort="selection",
+        information=information,
+        paths=paths,
+    )
+
+    pass
 
 
+##########
+# Populations by gene expression
+# 1. selection cohort
+# 2. respiration cohort
+# 3. ventilation cohort
+
+
+def read_source_gene_person_populations(
+    cohort=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+    print(source["genes_function"].keys())
+
+    """
+
+    # Specify directories and files.
+    path_data_signals_genes_persons = os.path.join(
+        dock, "distribution", cohort, "collection",
+        "data_signals_genes_persons.pickle"
+    )
+    # Read information from file.
+    data_signals_genes_persons = pandas.read_pickle(
+        path_data_signals_genes_persons
+    )
+    # Read genes sets.
+    genes_candidacy = read_source_genes_sets_candidacy(
+        cohort=cohort,
+        dock=dock,
+    )
+    # Return information.
+    return {
+        "data_signals_genes_persons": data_signals_genes_persons,
+        "genes_candidacy": genes_candidacy,
+    }
+
+
+def organize_persons_genes_components(
+    genes=None,
+    data_signals_genes_persons=None,
+    report=None,
+):
+    """
+    Organizes a principal components analysis on genes' pan-tissue signals as
+    features across persons as instances.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        data_signals_genes_persons (object): Pandas data frame of genes'
+            pan-tissue signals across persons
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict<object>): collection of Pandas data frames of genes' pairwise
+            correlations
+
+    """
+
+    # Copy data.
+    data_signals = data_signals_genes_persons.copy(deep=True)
+    # Select genes of interest.
+    data_selection = data_signals.loc[
+        :, data_signals.columns.isin(genes)
+    ]
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("Selection of genes with pan-tissue signals across persons.")
+        utility.print_terminal_partition(level=3)
+        print(data_selection)
+    # Reduce dimensionality.
+    components = min(int(len(genes)), int(data_selection.shape[0]))
+    result = utility.calculate_principal_components(
+        data=data_selection,
+        components=components,
+        report=report,
+    )
+    # Return information.
+    return result
+
+
+def write_product_gene_person_populations(
+    cohort=None,
+    information=None,
+    paths=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        information (object): information to write to file
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_data_components = os.path.join(
+        paths[cohort]["population"], "data_persons_genes_components.pickle"
+    )
+    path_data_variances = os.path.join(
+        paths[cohort]["population"], "data_persons_genes_variances.pickle"
+    )
+    # Write information to file.
+    pandas.to_pickle(
+        information["data_persons_genes_components"],
+        path_data_components
+    )
+    pandas.to_pickle(
+        information["data_persons_genes_variances"],
+        path_data_variances
+    )
+    pass
+
+
+def read_organize_report_write_integration_gene_person_populations(
+    paths=None
+):
+    """
+    Organizes evaluation of subpopulation structure on the basis of pan-tissue
+    expression of genes of interest.
+
+    arguments:
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_gene_person_populations(
+        cohort="selection",
+        dock=paths["dock"],
+    )
+    # Calculate principal components on genes across persons.
+    bin = organize_persons_genes_components(
+        genes=source["genes_candidacy"]["multimodal"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+        report=False,
+    )
+    # Compile information.
+    information = dict()
+    information["data_persons_genes_components"] = bin[
+        "data_observations_components"
+    ]
+    information["data_persons_genes_variances"] = bin[
+        "data_components_variances"
+    ]
+    # Write information to file.
+    write_product_gene_person_populations(
+        cohort="selection",
+        information=information,
+        paths=paths,
+    )
     pass
 
 
@@ -750,55 +1366,6 @@ def select_translate_gene_identifiers_data_columns(
     )
     # Return information.
     return data_selection
-
-
-# Groups of persons by components on genes
-
-
-def organize_persons_genes_components(
-    genes=None,
-    data_signals_genes_persons=None,
-):
-    """
-    Organizes a principal components analysis on genes' pan-tissue signals as
-    features across persons as instances.
-
-    arguments:
-        genes (list<str>): identifiers of genes
-        data_signals_genes_persons (object): Pandas data frame of genes'
-            pan-tissue signals across persons
-
-    raises:
-
-    returns:
-        (dict<object>): collection of Pandas data frames of genes' pairwise
-            correlations
-
-    """
-
-    # Copy data.
-    data_copy = data_signals_genes_persons.copy(deep=True)
-    # Select genes of interest.
-    data_selection = data_copy.loc[
-        :, data_copy.columns.isin(genes)
-    ]
-    # Reduce dimensionality.
-    report = utility.calculate_principal_components(
-        data=data_selection,
-        components=len(genes),
-        report=True,
-    )
-
-    utility.print_terminal_partition(level=1)
-    print("PCA on genes across persons!")
-    utility.print_terminal_partition(level=2)
-    print(data_selection)
-    utility.print_terminal_partition(level=3)
-    print(report)
-
-    # Return information.
-    return report
-
 
 
 # Summary report on integration of genes
@@ -1243,7 +1810,10 @@ def execute_procedure(dock=None):
 
     # Organize sets of genes by integration of distribution modality,
     # functional gene ontologies, regression associations, and queries.
-    bin_sets = read_organize_report_write_integration_gene_sets(paths=paths)
+    read_organize_report_write_integration_gene_sets(paths=paths)
+    # Organize recognition of groups of persons from pan-tissue expression of
+    # genes of interest.
+    read_organize_report_write_integration_gene_person_populations(paths=paths)
 
     if False:
         ##########
@@ -1293,18 +1863,6 @@ def execute_procedure(dock=None):
             data_signals_genes_persons=source["data_signals_genes_persons"],
             genes_selection=source["genes_selection"],
             sets_query=source["sets_query"],
-        )
-
-        ##########
-        # Groups of persons by their expression of genes.
-        print(source["sets_query"]["population"])
-        genes_population = utility.filter_common_elements(
-            list_one=source["sets_query"]["population"],
-            list_two=source["genes_selection"],
-        )
-        bin_components = organize_persons_genes_components(
-            genes=genes_population,
-            data_signals_genes_persons=source["data_signals_genes_persons"],
         )
 
         ##########
@@ -1416,13 +1974,6 @@ def execute_procedure(dock=None):
             "data_correlation_multimodal_union": bin_prediction["union"],
 
             "bin_query_correlation": bin_query_correlation,
-
-            "data_persons_genes_components": (
-                bin_components["data_observations_components"]
-            ),
-            "data_persons_genes_variances": (
-                bin_components["data_components_variances"]
-            ),
 
             #"data_genes_selection": data_genes_selection,
             #"data_export_genes_selection": data_export_genes_selection,

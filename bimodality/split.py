@@ -465,6 +465,13 @@ def execute_procedure(dock=None):
         report=True,
     )
     split_report_write_genes_signals(
+        persons=source["persons_sets"]["respiration"],
+        data_samples_tissues_persons=source["data_samples_tissues_persons"],
+        data_gene_signal=source["data_gene_signal"],
+        path_directory=os.path.join(dock, "split", "respiration"),
+        report=True,
+    )
+    split_report_write_genes_signals(
         persons=source["persons_sets"]["ventilation"],
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_signal=source["data_gene_signal"],
