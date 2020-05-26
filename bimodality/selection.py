@@ -2472,6 +2472,41 @@ def organize_samples_smoke_variables(
     return data_samples
 
 
+def correct_impute_samples_hardiness(
+    data_samples_tissues_persons=None,
+):
+    """
+    Impute any missing values of hardiness.
+
+    arguments:
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues across selection samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues across samples
+
+    """
+
+    # Copy data.
+    data = data_samples_tissues_persons.copy(deep=True)
+    # Correct and impute values.
+    data["hardiness"] = data.apply(
+        lambda row:
+            5 if ((row["ventilation"] == True)
+            ) else
+            (1 if ((row["ventilation"] == False) and (row["hardiness"] == 5)
+            ) else
+            (1 if (math.isnan(row["hardiness"])
+            ) else
+            (row["hardiness"]))),
+        axis="columns",
+    )
+    # Return information.
+    return data
+
+
 def impute_logical_variables(
     variables=None,
     data_samples_tissues_persons=None,
@@ -2592,9 +2627,13 @@ def organize_samples_properties(
         replacement=True,
         report=False,
     )
+    # Hardiness.
+    data_hardiness = correct_impute_samples_hardiness(
+        data_samples_tissues_persons=data_refrigeration,
+    )
     # Season.
     data_season = organize_samples_season_variables(
-        data_samples_tissues_persons=data_refrigeration,
+        data_samples_tissues_persons=data_hardiness,
     )
     # Sex.
     data_sex = organize_samples_sex_variables(
@@ -3475,6 +3514,7 @@ def organize_persons_properties(
     )
     # Compile information.
     information = dict()
+    information["persons"] = persons
     information["data_persons_properties"] = data_persons_properties_scale
     information["bin_dimension"] = bin_dimension
     information["bin_heritability"] = bin_heritability
@@ -4507,7 +4547,14 @@ def write_product_persons_properties_persons_cohort(
         path_parent=path_directory,
         information=information["bin_heritability"]
     )
-
+    path_persons_text = os.path.join(
+        path_directory, "persons.txt"
+    )
+    utility.write_file_text_list(
+        elements=information["persons"],
+        delimiter="\n",
+        path_file=path_persons_text
+    )
     path_data_persons_properties = os.path.join(
         path_directory, "data_persons_properties.pickle"
     )

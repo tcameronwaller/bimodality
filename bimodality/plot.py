@@ -98,6 +98,22 @@ def define_font_properties():
         "weight": 300,
         "size": 10
     }
+    values_six = {
+        "family": "sans-serif",
+        "style": "normal",
+        "variant": "normal",
+        "stretch": 200,
+        "weight": 200,
+        "size": 7
+    }
+    values_seven = {
+        "family": "sans-serif",
+        "style": "normal",
+        "variant": "normal",
+        "stretch": 150,
+        "weight": 150,
+        "size": 5
+    }
     # Define font properties.
     properties_one = matplotlib.font_manager.FontProperties(
         family=values_one["family"],
@@ -139,6 +155,22 @@ def define_font_properties():
         weight=values_five["weight"],
         size=values_five["size"]
     )
+    properties_six = matplotlib.font_manager.FontProperties(
+        family=values_six["family"],
+        style=values_six["style"],
+        variant=values_six["variant"],
+        stretch=values_six["stretch"],
+        weight=values_six["weight"],
+        size=values_six["size"]
+    )
+    properties_seven = matplotlib.font_manager.FontProperties(
+        family=values_seven["family"],
+        style=values_seven["style"],
+        variant=values_seven["variant"],
+        stretch=values_seven["stretch"],
+        weight=values_seven["weight"],
+        size=values_seven["size"]
+    )
     # Compile and return references.
     return {
         "values": {
@@ -147,6 +179,8 @@ def define_font_properties():
             "three": values_three,
             "four": values_four,
             "five": values_five,
+            "six": values_six,
+            "seven": values_seven,
         },
         "properties": {
             "one": properties_one,
@@ -154,6 +188,8 @@ def define_font_properties():
             "three": properties_three,
             "four": properties_four,
             "five": properties_five,
+            "six": properties_six,
+            "seven": properties_seven,
         }
     }
 
@@ -288,9 +324,9 @@ def plot_heatmap_symmetric_diverge(
         which="both", # major, minor, or both
         direction="out",
         length=5.0,
-        width=3.0,
+        width=1.0,
         color=colors["black"],
-        pad=10,
+        pad=7,
         labelcolor=colors["black"],
         top=True,
         bottom=False, # False
@@ -303,7 +339,7 @@ def plot_heatmap_symmetric_diverge(
     )
 
     # Create ticks and labels.
-    if (label_columns and (data.shape[1] <= 50)):
+    if (label_columns and (data.shape[1] <= 60)):
         axes.set_xticks(numpy.arange(matrix.shape[1]))
         axes.set_xticklabels(
             labels_columns,
@@ -315,9 +351,9 @@ def plot_heatmap_symmetric_diverge(
             alpha=1.0,
             backgroundcolor=colors["white"],
             color=colors["black"],
-            fontproperties=fonts["properties"]["four"]
+            fontproperties=fonts["properties"]["seven"]
         )
-    if (label_rows and (data.shape[0] <= 50)):
+    if (label_rows and (data.shape[0] <= 70)):
         axes.set_yticks(numpy.arange(matrix.shape[0]))
         axes.set_yticklabels(
             labels_rows,
@@ -327,7 +363,7 @@ def plot_heatmap_symmetric_diverge(
             alpha=1.0,
             backgroundcolor=colors["white"],
             color=colors["black"],
-            fontproperties=fonts["properties"]["three"]
+            fontproperties=fonts["properties"]["five"]
         )
 
     # Return figure.
@@ -6607,6 +6643,71 @@ def plot_charts_persons_genes_components(
     pass
 
 
+def prepare_charts_persons_genes_components_cohort(
+    cohort=None,
+    dock=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_persons_genes_components(
+        cohort=cohort,
+        dock=dock,
+    )
+    # Specify group variables.
+    if cohort == "selection":
+        factor = "ventilation"
+    elif cohort == "respiration":
+        factor = "hardiness" # hardiness
+    elif cohort == "ventilation":
+        #factor = "ventilation_duration_grade" # "sex_text", "ventilation", "age_grade"
+        factor = "sex_text"
+        #factor = "age_grade"
+        pass
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_integration = os.path.join(path_plot, "integration")
+    path_directory = os.path.join(
+        path_integration, "persons_components", cohort, factor
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    # Organize information for charts.
+    bin = organize_data_persons_genes_components(
+        factor=factor,
+        data_persons_properties=source["data_persons_properties"],
+        data_components=source["data_persons_genes_components"],
+        data_variances=source["data_persons_genes_variances"],
+    )
+    # Plot.
+    plot_charts_persons_genes_components(
+        data_factor_components=bin["data_factor_components"],
+        factor="factor",
+        label_factor=factor,
+        labels_factors=bin["labels_factors"],
+        label_1=bin["label_1"],
+        label_2=bin["label_2"],
+        label_3=bin["label_3"],
+        path_directory=path_directory,
+    )
+    pass
+
+
 def prepare_charts_persons_genes_components(
     dock=None
 ):
@@ -6623,39 +6724,17 @@ def prepare_charts_persons_genes_components(
 
     """
 
-    # Read source information from file.
-    source = read_source_persons_genes_components(
+    prepare_charts_persons_genes_components_cohort(
         cohort="selection",
         dock=dock,
     )
-    # Specify directories and files.
-    path_plot = os.path.join(dock, "plot")
-    utility.create_directory(path_plot)
-    path_integration = os.path.join(path_plot, "integration")
-    path_directory = os.path.join(
-        path_integration, "persons_components", "ventilation"
+    prepare_charts_persons_genes_components_cohort(
+        cohort="respiration",
+        dock=dock,
     )
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_directory)
-    utility.create_directories(path=path_directory)
-
-    # Organize information for charts.
-    bin = organize_data_persons_genes_components(
-        factor="ventilation", # "sex_text", "ventilation", "age_grade"
-        data_persons_properties=source["data_persons_properties"],
-        data_components=source["data_persons_genes_components"],
-        data_variances=source["data_persons_genes_variances"],
-    )
-    # Plot.
-    plot_charts_persons_genes_components(
-        data_factor_components=bin["data_factor_components"],
-        factor="factor",
-        label_factor="ventilation", # "sex", "ventilation"
-        labels_factors=bin["labels_factors"],
-        label_1=bin["label_1"],
-        label_2=bin["label_2"],
-        label_3=bin["label_3"],
-        path_directory=path_directory,
+    prepare_charts_persons_genes_components_cohort(
+        cohort="ventilation",
+        dock=dock,
     )
     pass
 
@@ -6668,12 +6747,14 @@ def prepare_charts_persons_genes_components(
 
 
 def read_source_signals_genes_correlations(
+    cohort=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -6685,32 +6766,23 @@ def read_source_signals_genes_correlations(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
+    path_data_gene_annotation = os.path.join(
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
     )
-    path_integration = os.path.join(dock, "integration")
-    path_data_correlation_genes_unimodal = os.path.join(
-        path_integration, "data_correlation_genes_unimodal.pickle"
+    path_data_correlation_genes = os.path.join(
+        dock, "integration", cohort, "correlation",
+        "data_correlation_genes.pickle"
     )
-    path_data_correlation_genes_multimodal = os.path.join(
-        path_integration, "data_correlation_genes_multimodal.pickle"
-    )
-
     # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_correlation_genes_unimodal = pandas.read_pickle(
-        path_data_correlation_genes_unimodal
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
+    data_correlation_genes = pandas.read_pickle(
+        path_data_correlation_genes
     )
-    data_correlation_genes_multimodal = pandas.read_pickle(
-        path_data_correlation_genes_multimodal
-    )
-
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
-        "data_correlation_genes_unimodal": data_correlation_genes_unimodal,
-        "data_correlation_genes_multimodal": data_correlation_genes_multimodal,
+        "data_correlation_genes": data_correlation_genes,
     }
 
 
@@ -6792,7 +6864,7 @@ def plot_chart_signals_genes_correlations(
         colors=colors,
     )
     # Write figure.
-    write_figure(
+    write_figure_png(
         path=path_file,
         figure=figure
     )
@@ -6817,17 +6889,15 @@ def prepare_charts_signals_genes_correlations(
     """
 
     # Read source information from file.
-    source = read_source_signals_genes_correlations(dock=dock)
+    source = read_source_signals_genes_correlations(
+        cohort="selection",
+        dock=dock,
+    )
 
     # Organize data.
-    data_unimodal = organize_signals_genes_correlations(
+    data = organize_signals_genes_correlations(
         data_gene_annotation=source["data_gene_annotation"],
-        data_genes_correlations=source["data_correlation_genes_unimodal"],
-    )
-    utility.print_terminal_partition(level=2)
-    data_multimodal = organize_signals_genes_correlations(
-        data_gene_annotation=source["data_gene_annotation"],
-        data_genes_correlations=source["data_correlation_genes_multimodal"],
+        data_genes_correlations=source["data_correlation_genes"],
     )
 
     # Specify directories and files.
@@ -6837,273 +6907,19 @@ def prepare_charts_signals_genes_correlations(
     path_directory = os.path.join(
         path_integration, "correlations_genes"
     )
-    # Define file name.
-    path_unimodal = os.path.join(
-        path_directory, str("genes_unimodal.svg")
-    )
-    path_multimodal = os.path.join(
-        path_directory, str("genes_multimodal.svg")
-    )
-
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=path_directory)
     utility.create_directories(path=path_directory)
 
+    # Define file name.
+    path_file = os.path.join(
+        path_directory, str("genes_correlations.png")
+    )
     # Create chart.
     plot_chart_signals_genes_correlations(
-        data=data_unimodal,
-        path_file=path_unimodal
+        data=data,
+        path_file=path_file
     )
-    plot_chart_signals_genes_correlations(
-        data=data_multimodal,
-        path_file=path_multimodal
-    )
-
-    pass
-
-
-##########
-# Correlations in signals between pairs of genes
-# Heatmap
-# Status: working
-
-
-def read_source_signals_genes_correlations_prediction(
-    dock=None
-):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
-    )
-
-    path_integration = os.path.join(dock, "integration")
-    path_data_correlation_multimodal_hardiness = os.path.join(
-        path_integration, "data_correlation_multimodal_hardiness.pickle"
-    )
-    path_data_correlation_multimodal_sex_age_body = os.path.join(
-        path_integration, "data_correlation_multimodal_sex_age_body.pickle"
-    )
-    path_data_correlation_multimodal_union = os.path.join(
-        path_integration, "data_correlation_multimodal_union.pickle"
-    )
-
-    # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_correlation_multimodal_hardiness = pandas.read_pickle(
-        path_data_correlation_multimodal_hardiness
-    )
-    data_correlation_multimodal_sex_age_body = pandas.read_pickle(
-        path_data_correlation_multimodal_sex_age_body
-    )
-    data_correlation_multimodal_union = pandas.read_pickle(
-        path_data_correlation_multimodal_union
-    )
-
-    # Compile and return information.
-    return {
-        "data_gene_annotation": data_gene_annotation,
-        "data_correlation_multimodal_hardiness": (
-            data_correlation_multimodal_hardiness
-        ),
-        "data_correlation_multimodal_sex_age_body": (
-            data_correlation_multimodal_sex_age_body
-        ),
-        "data_correlation_multimodal_union": data_correlation_multimodal_union,
-    }
-
-
-def prepare_charts_signals_genes_correlations_prediction(
-    dock=None
-):
-    """
-    Plots charts from the analysis process.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-
-    """
-
-    # Read source information from file.
-    source = read_source_signals_genes_correlations_prediction(dock=dock)
-
-    # Organize data.
-    data_hardiness = organize_signals_genes_correlations(
-        data_gene_annotation=source["data_gene_annotation"],
-        data_genes_correlations=(
-            source["data_correlation_multimodal_hardiness"]
-        ),
-    )
-    data_sex_age_body = organize_signals_genes_correlations(
-        data_gene_annotation=source["data_gene_annotation"],
-        data_genes_correlations=(
-            source["data_correlation_multimodal_sex_age_body"]
-        ),
-    )
-    data_union = organize_signals_genes_correlations(
-        data_gene_annotation=source["data_gene_annotation"],
-        data_genes_correlations=source["data_correlation_multimodal_union"],
-    )
-
-    # Specify directories and files.
-    path_plot = os.path.join(dock, "plot")
-    utility.create_directory(path_plot)
-    path_prediction = os.path.join(path_plot, "prediction")
-    path_directory = os.path.join(
-        path_prediction, "correlations_genes"
-    )
-    # Define file name.
-    path_hardiness = os.path.join(
-        path_directory, str("genes_multimodal_hardiness.svg")
-    )
-    path_sex_age_body = os.path.join(
-        path_directory, str("genes_multimodal_sex_age_body.svg")
-    )
-    path_union = os.path.join(
-        path_directory, str("genes_multimodal_union.svg")
-    )
-
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_directory)
-    utility.create_directories(path=path_directory)
-
-    # Create chart.
-    plot_chart_signals_genes_correlations(
-        data=data_hardiness,
-        path_file=path_hardiness
-    )
-    plot_chart_signals_genes_correlations(
-        data=data_sex_age_body,
-        path_file=path_sex_age_body
-    )
-    plot_chart_signals_genes_correlations(
-        data=data_union,
-        path_file=path_union
-    )
-
-    pass
-
-
-##########
-# Correlations in signals between pairs of genes from Gene Ontology enrichment
-# Heatmap
-# Status: in progress
-
-
-def read_source_signals_genes_correlations_query(
-    dock=None
-):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
-    )
-
-    # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-
-    # Compile and return information.
-    return {
-        "data_gene_annotation": data_gene_annotation,
-    }
-
-
-def prepare_charts_signals_genes_correlations_query(
-    dock=None
-):
-    """
-    Plots charts from the analysis process.
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-
-    """
-
-    # Read source information from file.
-    source = read_source_signals_genes_correlations_query(dock=dock)
-
-    # Specify directory for source files.
-    path_integration = os.path.join(dock, "integration")
-    path_query_correlations = os.path.join(
-        path_integration, "query_correlations"
-    )
-    files_query_correlations = os.listdir(path=path_query_correlations)
-
-    # Specify directory for product files.
-    path_plot = os.path.join(dock, "plot")
-    utility.create_directory(path_plot)
-    path_plot_integration = os.path.join(path_plot, "integration")
-    path_directory = os.path.join(
-        path_plot_integration, "correlations_query_genes"
-    )
-
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_directory)
-    utility.create_directories(path=path_directory)
-
-    # Iterate on source files.
-    for file in files_query_correlations:
-        # Extract name of set.
-        file_first = file.replace("data_", "")
-        file_last = file_first.replace(".pickle", "")
-        name = file_last
-        # Read information.
-        path_data = os.path.join(
-            path_query_correlations, file
-        )
-        data = pandas.read_pickle(path_data)
-        # Organize data.
-        data_organization = organize_signals_genes_correlations(
-            data_gene_annotation=source["data_gene_annotation"],
-            data_genes_correlations=data,
-        )
-        # Define file name.
-        path_file = os.path.join(
-            path_directory, str(name + ".svg")
-        )
-        # Create chart.
-        plot_chart_signals_genes_correlations(
-            data=data_organization,
-            path_file=path_file
-        )
 
     pass
 
@@ -7786,7 +7602,7 @@ def read_source_multimodal_genes_ontology_sets(dock=None):
     # Specify directories and files.
     path_data = os.path.join(
         dock, "integration", "selection", "set", "cardinality",
-        "inflammation_binary_scale.pickle"
+        "ventilation_binary_scale.pickle"
     )
     # Read information from file.
     data = pandas.read_pickle(
@@ -8609,23 +8425,12 @@ def execute_procedure(dock=None):
     # clustering.
     prepare_charts_prediction_genes_signals_persons_properties(dock=dock)
 
-
-    # Plot charts for correlations between pairs of genes of interest from
-    # Gene Ontology enrichment.
+    # Plot charts for correlations between pairs of genes of interest.
     # Chart is adjacency matrix heatmap.
-    #prepare_charts_signals_genes_correlations_query(dock=dock)
+    prepare_charts_signals_genes_correlations(dock=dock)
+
 
     if False:
-
-        # Plot charts for correlations between pairs of all genes of interest.
-        # Chart is adjacency matrix heatmap.
-        prepare_charts_signals_genes_correlations(dock=dock)
-
-        # Plot charts for correlations between pairs of all genes of interest.
-        # Specific to multimodal genes that associate with hypothetical variables
-        # in prediction procedure.
-        # Chart is adjacency matrix heatmap.
-        prepare_charts_signals_genes_correlations_prediction(dock=dock)
 
         # TODO: I think this chart might be obsolete?
         prepare_charts_signals_genes_persons_groups(dock=dock)

@@ -1274,9 +1274,10 @@ def report_association_variables_sets_genes(
         count_multimodal = len(genes_multimodal)
         count_variable = len(sets["multimodal"][variable])
         percentage = (count_variable / count_multimodal) * 100
+        print("count multimodal genes: " + str(count_variable))
         print("multimodal genes: " + str(round(percentage, 3)) + "%")
-        #if len(sets["multimodal"][variable]) < 10:
-        #    print(sets["multimodal"][variable])
+        if len(sets["multimodal"][variable]) < 20:
+            print(sets["multimodal"][variable])
         pass
     pass
 

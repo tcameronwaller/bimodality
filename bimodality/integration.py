@@ -968,7 +968,7 @@ def read_organize_report_write_integration_gene_sets(paths=None):
             "inflammation",
             "cytokine",
         ],
-        report=True,
+        report=False,
     )
     # Compile information.
     information = dict()
@@ -979,7 +979,6 @@ def read_organize_report_write_integration_gene_sets(paths=None):
         information=information,
         paths=paths,
     )
-
     pass
 
 
@@ -1116,6 +1115,60 @@ def write_product_gene_person_populations(
     pass
 
 
+def read_organize_report_write_integration_gene_person_populations_cohort(
+    cohort=None,
+    paths=None,
+    report=None,
+):
+    """
+    Organizes evaluation of subpopulation structure on the basis of pan-tissue
+    expression of genes of interest.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+
+    """
+
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("cohort: " + cohort)
+
+    # Read source information from file.
+    source = read_source_gene_person_populations(
+        cohort=cohort,
+        dock=paths["dock"],
+    )
+    # Calculate principal components on genes across persons.
+    bin = organize_persons_genes_components(
+        genes=source["genes_candidacy"]["multimodal"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+        report=report,
+    )
+    # Compile information.
+    information = dict()
+    information["data_persons_genes_components"] = bin[
+        "data_observations_components"
+    ]
+    information["data_persons_genes_variances"] = bin[
+        "data_components_variances"
+    ]
+    # Write information to file.
+    write_product_gene_person_populations(
+        cohort=cohort,
+        information=information,
+        paths=paths,
+    )
+    pass
+
+
 def read_organize_report_write_integration_gene_person_populations(
     paths=None
 ):
@@ -1133,36 +1186,73 @@ def read_organize_report_write_integration_gene_person_populations(
 
     """
 
-    # Read source information from file.
-    source = read_source_gene_person_populations(
+    read_organize_report_write_integration_gene_person_populations_cohort(
         cohort="selection",
-        dock=paths["dock"],
-    )
-    # Calculate principal components on genes across persons.
-    bin = organize_persons_genes_components(
-        genes=source["genes_candidacy"]["multimodal"],
-        data_signals_genes_persons=source["data_signals_genes_persons"],
-        report=False,
-    )
-    # Compile information.
-    information = dict()
-    information["data_persons_genes_components"] = bin[
-        "data_observations_components"
-    ]
-    information["data_persons_genes_variances"] = bin[
-        "data_components_variances"
-    ]
-    # Write information to file.
-    write_product_gene_person_populations(
-        cohort="selection",
-        information=information,
         paths=paths,
+        report=True,
+    )
+    read_organize_report_write_integration_gene_person_populations_cohort(
+        cohort="respiration",
+        paths=paths,
+        report=True,
+    )
+    read_organize_report_write_integration_gene_person_populations_cohort(
+        cohort="ventilation",
+        paths=paths,
+        report=True,
     )
     pass
 
 
 ##########
 # Pairwise correlations
+
+
+def read_source_pairwise_gene_correlations(
+    cohort=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_data_gene_annotation = os.path.join(
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
+    )
+    path_data_signals_genes_persons = os.path.join(
+        dock, "distribution", cohort, "collection",
+        "data_signals_genes_persons.pickle"
+    )
+    path_genes_prediction_ontology = os.path.join(
+        dock, "integration", cohort, "set", "prediction_ontology",
+        "genes.pickle"
+    )
+    # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
+    data_signals_genes_persons = pandas.read_pickle(
+        path_data_signals_genes_persons
+    )
+    with open(path_genes_prediction_ontology, "rb") as file_source:
+        genes_prediction_ontology = pickle.load(file_source)
+    # Return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+        "data_signals_genes_persons": data_signals_genes_persons,
+        "genes_prediction_ontology": genes_prediction_ontology,
+    }
 
 
 def organize_gene_correlations_multimodal_prediction(
@@ -1366,6 +1456,93 @@ def select_translate_gene_identifiers_data_columns(
     )
     # Return information.
     return data_selection
+
+
+def write_product_pairwise_gene_correlations(
+    cohort=None,
+    information=None,
+    paths=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        information (object): information to write to file
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_data_correlation_genes = os.path.join(
+        paths[cohort]["correlation"], "data_correlation_genes.pickle"
+    )
+    # Write information to file.
+    pandas.to_pickle(
+        information["data_correlation_genes"],
+        path_data_correlation_genes
+    )
+    pass
+
+
+def read_organize_report_write_integration_pairwise_gene_correlations(
+    paths=None
+):
+    """
+    Organizes evaluation of subpopulation structure on the basis of pan-tissue
+    expression of genes of interest.
+
+    arguments:
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_pairwise_gene_correlations(
+        cohort="selection",
+        dock=paths["dock"],
+    )
+    # Calculate correlations between pairs of genes.
+    # Use Spearman correlations.
+    data_correlation_genes = (
+        utility.organize_feature_signal_correlations(
+            method="spearman", # pearson (normal distribution), spearman
+            threshold_high=0.77, # 1.0, 0.75, 0.5, 0.0
+            threshold_low=-0.77, # -1.0, -0.75, -0.5, -0.0
+            count=2, # accommodate the value 1.0 for self pairs (A, A)
+            discovery=0.05,
+            features=source["genes_prediction_ontology"],
+            data_signal=source["data_signals_genes_persons"],
+    ))
+    if False:
+        utility.print_terminal_partition(level=2)
+        print("Prediction ontology genes...")
+        utility.print_terminal_partition(level=3)
+        print(data_correlation_genes.shape)
+    # Compile information.
+    information = dict()
+    information["data_correlation_genes"] = data_correlation_genes
+    # Write information to file.
+    write_product_pairwise_gene_correlations(
+        cohort="selection",
+        information=information,
+        paths=paths,
+    )
+    pass
+
+
+
+
 
 
 # Summary report on integration of genes
@@ -1815,40 +1992,14 @@ def execute_procedure(dock=None):
     # genes of interest.
     read_organize_report_write_integration_gene_person_populations(paths=paths)
 
+    # Organize correlations in pan-tissue signals between pairs of genes.
+    read_organize_report_write_integration_pairwise_gene_correlations(
+        paths=paths
+    )
+
     if False:
         ##########
         # Correlations between pairs of genes
-
-        # Calculate correlations between pairs of genes.
-        # Use Spearman correlations for both unimodal and multimodal.
-        data_correlation_genes_unimodal = (
-            utility.organize_feature_signal_correlations(
-                method="spearman", # pearson (normal distribution), spearman
-                threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
-                threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
-                count=2, # accommodate the value 1.0 for self pairs (A, A)
-                discovery=0.05,
-                features=source["genes_unimodal"],
-                data_signal=source["data_signals_genes_persons"],
-        ))
-        utility.print_terminal_partition(level=2)
-        print("Unimodal genes...")
-        utility.print_terminal_partition(level=3)
-        print(data_correlation_genes_unimodal.shape)
-        data_correlation_genes_multimodal = (
-            utility.organize_feature_signal_correlations(
-                method="spearman", # pearson (normal distribution), spearman
-                threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
-                threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
-                count=2, # accommodate the value 1.0 for self pairs (A, A)
-                discovery=0.05,
-                features=source["genes_multimodal"],
-                data_signal=source["data_signals_genes_persons"],
-        ))
-        utility.print_terminal_partition(level=2)
-        print("Multimodal genes...")
-        utility.print_terminal_partition(level=3)
-        print(data_correlation_genes_multimodal.shape)
 
         # Calculate and organize correlations for groups of genes from regression
         # analysis.

@@ -12,32 +12,55 @@ path_plink_1="$path_user_cellar/plink"
 path_plink_2="$path_user_cellar/plink2"
 path_gcta="$path_user_cellar/gcta_1.93.0beta/gcta64"
 
+# Source files.
+
 path_gtex_8="$path_user_nrnb/gtex-8"
 path_genotype_vcf="$path_gtex_8/gtex-8_genotype.vcf.gz"
+
+path_persons_properties="$path_user_cellar/Data/dock/selection/tight/persons_properties"
+path_persons_selection="$path_persons_properties/selection/persons.txt"
+path_persons_respiration="$path_persons_properties/respiration/persons.txt"
+path_persons_ventilation="$path_persons_properties/ventilation/persons.txt"
+
+# Product files.
+
 path_gtex_bed_bim_fam="$path_gtex_8/bed_bim_fam"
 path_gtex_pgen_pvar_psam="$path_gtex_8/pgen_pvar_psam"
 path_genotype_bed_bim_fam="$path_gtex_bed_bim_fam/gtex-8_genotype"
 path_genotype_pgen_pvar_psam="$path_gtex_pgen_pvar_psam/gtex-8_genotype"
-
-path_access_private="$path_user_cellar/Data/dock/access_private"
-path_selection="$path_user_cellar/Data/dock/selection"
-#path_persons="$path_access_private/families_persons.tsv"
-path_persons="$path_selection/persons_selection.txt"
-path_relation_gcta="$path_access_private/relation/gcta"
-path_relation_gcta_bed_bim_fam="$path_relation_gcta/bed_bim_fam"
-path_relation_gcta_pgen_pvar_psam="$path_relation_gcta/pgen_pvar_psam"
-path_relation_plink="$path_access_private/relation/plink"
-
 rm -r $path_gtex_bed_bim_fam
 mkdir -p $path_gtex_bed_bim_fam
 rm -r $path_gtex_pgen_pvar_psam
 mkdir -p $path_gtex_pgen_pvar_psam
 
-rm -r $path_relation_gcta
-mkdir -p $path_relation_gcta_bed_bim_fam
-mkdir -p $path_relation_gcta_pgen_pvar_psam
-rm -r $path_relation_plink
-mkdir -p $path_relation_plink
+path_access_private="$path_user_cellar/Data/dock/access_private"
+
+path_relation_selection="$path_access_private/relation/selection"
+path_selection_gcta_bed_bim_fam="$path_relation_selection/gcta/bed_bim_fam"
+path_selection_gcta_pgen_pvar_psam="$path_relation_selection/gcta/pgen_pvar_psam"
+path_selection_plink="$path_relation_selection/plink"
+rm -r $path_relation_selection
+mkdir -p $path_selection_gcta_bed_bim_fam
+mkdir -p $path_selection_gcta_pgen_pvar_psam
+mkdir -p $path_selection_plink
+
+path_relation_respiration="$path_access_private/relation/respiration"
+path_respiration_gcta_bed_bim_fam="$path_relation_respiration/gcta/bed_bim_fam"
+path_respiration_gcta_pgen_pvar_psam="$path_relation_respiration/gcta/pgen_pvar_psam"
+path_respiration_plink="$path_relation_respiration/plink"
+rm -r $path_relation_respiration
+mkdir -p $path_respiration_gcta_bed_bim_fam
+mkdir -p $path_respiration_gcta_pgen_pvar_psam
+mkdir -p $path_respiration_plink
+
+path_relation_ventilation="$path_access_private/relation/ventilation"
+path_ventilation_gcta_bed_bim_fam="$path_relation_ventilation/gcta/bed_bim_fam"
+path_ventilation_gcta_pgen_pvar_psam="$path_relation_ventilation/gcta/pgen_pvar_psam"
+path_ventilation_plink="$path_relation_ventilation/plink"
+rm -r $path_relation_ventilation
+mkdir -p $path_ventilation_gcta_bed_bim_fam
+mkdir -p $path_ventilation_gcta_pgen_pvar_psam
+mkdir -p $path_ventilation_plink
 
 # Suppress echo each command to console.
 set +x
@@ -64,9 +87,21 @@ $path_plink_2 --vcf $path_genotype_vcf --make-pgen --out $path_genotype_pgen_pva
 
 ##########
 # Generate GRM for all autosomal chromosomes.
-$path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_persons --autosome --maf 0.01 --make-grm --out $path_relation_gcta_bed_bim_fam/autosome_common --threads 10
-$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_persons --autosome --maf 0.01 --make-grm --out $path_relation_gcta_pgen_pvar_psam/autosome_common --threads 10
-$path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons --autosome --maf 0.01 --make-rel --out $path_relation_plink/autosome_common --threads 10
+
+# Selection cohort.
+$path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_persons_selection --autosome --maf 0.01 --make-grm --out $path_selection_gcta_bed_bim_fam/autosome_common --threads 10
+$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_selection --autosome --maf 0.01 --make-grm --out $path_selection_gcta_pgen_pvar_psam/autosome_common --threads 10
+$path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_selection --autosome --maf 0.01 --make-rel --out $path_selection_plink/autosome_common --threads 10
+
+# Respiration cohort.
+$path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_persons_respiration --autosome --maf 0.01 --make-grm --out $path_respiration_gcta_bed_bim_fam/autosome_common --threads 10
+$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_respiration --autosome --maf 0.01 --make-grm --out $path_respiration_gcta_pgen_pvar_psam/autosome_common --threads 10
+$path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_respiration --autosome --maf 0.01 --make-rel --out $path_respiration_plink/autosome_common --threads 10
+
+# Ventilation cohort.
+$path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_persons_ventilation --autosome --maf 0.01 --make-grm --out $path_ventilation_gcta_bed_bim_fam/autosome_common --threads 10
+$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_ventilation --autosome --maf 0.01 --make-grm --out $path_ventilation_gcta_pgen_pvar_psam/autosome_common --threads 10
+$path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_ventilation --autosome --maf 0.01 --make-rel --out $path_ventilation_plink/autosome_common --threads 10
 
 ##########
 # Calculate principal components.
@@ -77,6 +112,8 @@ $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons --autos
 # (minor allele frequence < 0.01).
 # Principal components on rare variants produces Eigenvalues near zero and
 # missing values across Eigenvectors.
-$path_gcta --grm $path_relation_gcta_pgen_pvar_psam/autosome_common --pca 25 --out $path_relation_gcta_pgen_pvar_psam/components
-$path_gcta --grm $path_relation_gcta_bed_bim_fam/autosome_common --pca 25 --out $path_relation_gcta_bed_bim_fam/components
+
+# Selection cohort.
+$path_gcta --grm $path_selection_gcta_pgen_pvar_psam/autosome_common --pca 25 --out $path_relation_gcta_pgen_pvar_psam/components
+$path_gcta --grm $path_selection_gcta_bed_bim_fam/autosome_common --pca 25 --out $path_relation_gcta_bed_bim_fam/components
 $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons --autosome --maf 0.01 --pca 25 --out $path_relation_plink/components
