@@ -24,6 +24,7 @@ import numpy
 import pandas
 import gtfparse
 
+
 # Custom
 
 import utility
@@ -33,6 +34,264 @@ import utility
 
 ###############################################################################
 # Functionality
+
+
+
+##########
+# Organization of persons' genotypes.
+
+# TODO: do not introduce genotype PCs to sample data yet... wait until selection procedure...
+# TODO: organize information from genotype PCs...
+
+
+def read_source_persons_genotypes(
+    cohort=None,
+    method=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        method (str): method to use for genotypes, "plink" or "gcta"
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    if method == "plink":
+        # Specify directories and files.
+        path_genotype_component = os.path.join(
+            dock, "access_private", "relation", cohort, "plink",
+            "components.eigenvec"
+        )
+        path_genotype_variance = os.path.join(
+            dock, "access_private", "relation", cohort, "plink",
+            "components.eigenval"
+        )
+        # Read information from file.
+        data_genotype_components = pandas.read_csv(
+            path_genotype_component,
+            sep="\s+",
+            header=0,
+            names=[
+                "person",
+                "component_1", "component_2", "component_3", "component_4",
+                "component_5", "component_6", "component_7", "component_8",
+                "component_9", "component_10", "component_11", "component_12",
+                "component_13", "component_14", "component_15", "component_16",
+                "component_17", "component_18", "component_19", "component_20",
+                "component_21", "component_22", "component_23", "component_24",
+                "component_25",
+            ],
+            low_memory=False,
+        )
+        genotype_variances = utility.read_file_text_list(
+            delimiter="\n",
+            path_file=path_genotype_variance
+        )
+    elif method == "gcta":
+        # Specify directories and files.
+        path_genotype_component = os.path.join(
+            dock, "access_private", "relation", cohort, "gcta", "bed_bim_fam",
+            "components.eigenvec",
+        )
+        path_genotype_variance = os.path.join(
+            dock, "access_private", "relation", cohort, "gcta", "bed_bim_fam",
+            "components.eigenval"
+        )
+        # Read information from file.
+        data_genotype_components = pandas.read_csv(
+            path_genotype_component,
+            sep="\s+",
+            header=None,
+            names=[
+                "family", "person",
+                "component_1", "component_2", "component_3", "component_4",
+                "component_5", "component_6", "component_7", "component_8",
+                "component_9", "component_10", "component_11", "component_12",
+                "component_13", "component_14", "component_15", "component_16",
+                "component_17", "component_18", "component_19", "component_20",
+                "component_21", "component_22", "component_23", "component_24",
+                "component_25",
+            ],
+            low_memory=False,
+        )
+        genotype_variances = utility.read_file_text_list(
+            delimiter="\n",
+            path_file=path_genotype_variance
+        )
+        pass
+    # Compile and return information.
+    return {
+        "data_genotype_components": data_genotype_components,
+        "genotype_variances": genotype_variances,
+    }
+
+
+def organize_person_genotype_variance(
+    genotype_variances=None,
+):
+    """
+    Associates samples, tissues, and persons and collects their attributes.
+
+    arguments:
+        genotype_variances (list<float>): variances from principal components
+            on genotypes
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of variances of each principal component
+
+    """
+
+    count = 1
+    records = list()
+    for variance in genotype_variances:
+        if (len(variance) > 1) and (not math.isnan(float(variance))):
+            record = dict()
+            record["variance"] = float(variance)
+            record["component"] = count
+            count += 1
+            records.append(record)
+            pass
+        pass
+    data = utility.convert_records_to_dataframe(
+        records=records
+    )
+    return data
+
+
+def organize_person_genotype_source_data(
+    data_genotype_components=None,
+    genotype_variances=None,
+):
+    """
+    Organizes source data for sample attributes.
+
+    arguments:
+        data_genotype_components (object): Pandas data frame of principal
+            components from genotypes for persons, as calculated in GCTA or
+            PLINK2
+        genotype_variances (list<float>): variances from principal components
+            on genotypes
+
+    raises:
+
+    returns:
+        (dict): collection of data
+
+    """
+
+    # Organize data.
+    bin = dict()
+    bin["data_genotype_components"] = data_genotype_components.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=False
+    )
+    bin["data_genotype_variances"] = organize_person_genotype_variance(
+        genotype_variances=genotype_variances,
+    )
+    # Return information.
+    return bin
+
+
+def write_product_persons_genotypes(
+    cohort=None,
+    information=None,
+    dock=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files.
+        information (object): information to write to file.
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_directory = os.path.join(dock, "assembly", "genotype", cohort)
+    utility.create_directories(path_directory)
+    path_data_genotype_components = os.path.join(
+        path_directory, "data_genotype_component.pickle"
+    )
+    path_data_genotype_variances = os.path.join(
+        path_directory, "data_genotype_variance.pickle"
+    )
+
+    # Write information to file.
+    pandas.to_pickle(
+        information["data_genotype_components"],
+        path_data_genotype_components
+    )
+    pandas.to_pickle(
+        information["data_genotype_variances"],
+        path_data_genotype_variances
+    )
+
+    pass
+
+
+def organize_persons_genotypes(
+    dock=None,
+):
+    """
+    Organize information about samples.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues for all samples
+
+    """
+
+    # Remove previous files to avoid version or batch confusion.
+    path_genotype = os.path.join(dock, "assembly", "genotype")
+    utility.remove_directory(path=path_genotype)
+    # Iterate on cohorts.
+    cohorts = ["selection", "respiration", "ventilation"]
+    for cohort in cohorts:
+        # Read source information from file.
+        source = read_source_persons_genotypes(
+            cohort=cohort,
+            method="plink",
+            dock=dock,
+        )
+        # Organize source data.
+        bin_data = organize_person_genotype_source_data(
+            data_genotype_components=source["data_genotype_components"],
+            genotype_variances=source["genotype_variances"],
+        )
+        # Compile information.
+        information = dict()
+        information["data_genotype_components"] = bin_data["data_genotype_components"]
+        information["data_genotype_variances"] = bin_data["data_genotype_variances"]
+        #Write product information to file.
+        write_product_persons_genotypes(
+            cohort=cohort,
+            information=information,
+            dock=dock,
+        )
+    pass
 
 
 ##########
@@ -253,8 +512,6 @@ def organize_sample_attribute_source_data(
     data_person_attribute_private=None,
     data_person_smoke=None,
     data_person_ancestry=None,
-    data_genotype_component_gcta=None,
-    data_genotype_component_plink=None,
     data_tissues_major=None,
     data_tissues_minor=None,
 ):
@@ -274,10 +531,6 @@ def organize_sample_attribute_source_data(
             person's status of smoke usage
         data_person_ancestry (object): Pandas data frame of ancestry for
             persons
-        data_genotype_component_gcta (object): Pandas data frame of principal
-            components from genotypes for persons, as calculated in GCTA
-        data_genotype_component_plink (object): Pandas data frame of principal
-            components from genotypes for persons, as calculated in PLINK2
         data_tissues_major (object): Pandas data frame of translations for
             names of major tissues
         data_tissues_minor (object): Pandas data frame of translations for
@@ -331,20 +584,6 @@ def organize_sample_attribute_source_data(
         drop=True,
         inplace=False
     )
-    bin["data_genotype_component_gcta"] = (
-        data_genotype_component_gcta.set_index(
-            ["person"],
-            append=False,
-            drop=True,
-            inplace=False
-    ))
-    bin["data_genotype_component_plink"] = (
-        data_genotype_component_plink.set_index(
-            ["person"],
-            append=False,
-            drop=True,
-            inplace=False
-    ))
     bin["data_tissues_major"] = data_tissues_major.set_index(
         ["source"],
         append=False,
@@ -967,6 +1206,7 @@ def determine_person_boolean_binary_any(
         match = float("nan")
     return match
 
+# TODO: need to remove incorporation of genotypes from this function...
 
 def determine_sample_associations_attributes(
     sample=None,
@@ -977,8 +1217,6 @@ def determine_sample_associations_attributes(
     data_person_attribute_private=None,
     data_person_smoke=None,
     data_person_ancestry=None,
-    data_genotype_component_gcta=None,
-    data_genotype_component_plink=None,
     data_tissues_major=None,
     data_tissues_minor=None,
 ):
@@ -1000,10 +1238,6 @@ def determine_sample_associations_attributes(
             person's status of smoke usage
         data_person_ancestry (object): Pandas data frame of ancestry for
             persons
-        data_genotype_component_gcta (object): Pandas data frame of principal
-            components from genotypes for persons, as calculated in GCTA
-        data_genotype_component_plink (object): Pandas data frame of principal
-            components from genotypes for persons, as calculated in PLINK2
         data_tissues_major (object): Pandas data frame of translations for
             names of major tissues
         data_tissues_minor (object): Pandas data frame of translations for
@@ -1175,8 +1409,6 @@ def collect_samples_tissues_persons(
     data_person_attribute_private=None,
     data_person_smoke=None,
     data_person_ancestry=None,
-    data_genotype_component_gcta=None,
-    data_genotype_component_plink=None,
     data_tissues_major=None,
     data_tissues_minor=None,
 ):
@@ -1198,10 +1430,6 @@ def collect_samples_tissues_persons(
             person's status of smoke usage
         data_person_ancestry (object): Pandas data frame of ancestry for
             persons
-        data_genotype_component_gcta (object): Pandas data frame of principal
-            components from genotypes for persons, as calculated in GCTA
-        data_genotype_component_plink (object): Pandas data frame of principal
-            components from genotypes for persons, as calculated in PLINK2
         data_tissues_major (object): Pandas data frame of translations for
             names of major tissues
         data_tissues_minor (object): Pandas data frame of translations for
@@ -1226,46 +1454,12 @@ def collect_samples_tissues_persons(
             data_person_attribute_private=data_person_attribute_private,
             data_person_smoke=data_person_smoke,
             data_person_ancestry=data_person_ancestry,
-            data_genotype_component_gcta=data_genotype_component_gcta,
-            data_genotype_component_plink=data_genotype_component_plink,
             data_tissues_major=data_tissues_major,
             data_tissues_minor=data_tissues_minor,
         )
         samples_tissues_persons.append(record)
     # Return information.
     return samples_tissues_persons
-
-
-def organize_genotype_variance(
-    genotype_variances_plink=None,
-):
-    """
-    Associates samples, tissues, and persons and collects their attributes.
-
-    arguments:
-        genotype_variances_plink (object): variances of genotypes' principal
-            components, as calculated in PLINK2
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of variance of each principal component
-
-    """
-
-    count = 1
-    records = list()
-    for variance in genotype_variances_plink:
-        record = dict()
-        record["variance"] = variance
-        record["component"] = count
-        count += 1
-        records.append(record)
-        pass
-    data = utility.convert_records_to_dataframe(
-        records=records
-    )
-    return data
 
 
 def organize_samples_tissues_persons(
@@ -1329,8 +1523,6 @@ def organize_samples_tissues_persons(
         data_person_attribute_private=source["data_person_attribute_private"],
         data_person_smoke=source["data_person_smoke"],
         data_person_ancestry=source["data_person_ancestry"],
-        data_genotype_component_gcta=source["data_genotype_component_gcta"],
-        data_genotype_component_plink=source["data_genotype_component_plink"],
         data_sample_attribute=source["data_sample_attribute"],
         data_sample_attribute_private=source["data_sample_attribute_private"],
         data_tissues_major=source["data_tissues_major"],
@@ -1357,10 +1549,6 @@ def organize_samples_tissues_persons(
         ),
         data_person_smoke=(bin_data["data_person_smoke"]),
         data_person_ancestry=bin_data["data_person_ancestry"],
-        data_genotype_component_gcta=bin_data["data_genotype_component_gcta"],
-        data_genotype_component_plink=(
-            bin_data["data_genotype_component_plink"]
-        ),
         data_sample_attribute=bin_data["data_sample_attribute"],
         data_sample_attribute_private=(
             bin_data["data_sample_attribute_private"]
@@ -1393,15 +1581,9 @@ def organize_samples_tissues_persons(
     print(data_samples_tissues_persons.iloc[0:10, :])
     print(data_samples_tissues_persons.shape)
 
-    # Organize variance of principal components on genotype.
-    data_genotype_variance_plink = organize_genotype_variance(
-        genotype_variances_plink=source["genotype_variances_plink"],
-    )
-
     # Compile information.
     information = {
         "data_samples_tissues_persons": data_samples_tissues_persons,
-        "data_genotype_variance_plink": data_genotype_variance_plink,
         "collections_health_variables": bin_health,
     }
 
@@ -2507,8 +2689,12 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
+
+    # Organize persons' genotypes.
+    organize_persons_genotypes(dock=dock)
+
     # Organize associations of samples to persons and tissues.
-    organize_samples_tissues_persons(dock=dock)
+    #organize_samples_tissues_persons(dock=dock)
 
     # Collect garbage to clear memory.
     gc.collect()
