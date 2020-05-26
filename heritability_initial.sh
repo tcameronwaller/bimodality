@@ -19,8 +19,11 @@ path_genotype_vcf="$path_gtex_8/gtex-8_genotype.vcf.gz"
 
 path_persons_properties="$path_user_cellar/Data/dock/selection/tight/persons_properties"
 path_persons_selection="$path_persons_properties/selection/persons.txt"
+path_families_selection="$path_persons_properties/selection/heritability/families_persons.tsv"
 path_persons_respiration="$path_persons_properties/respiration/persons.txt"
+path_families_respiration="$path_persons_properties/respiration/heritability/families_persons.tsv"
 path_persons_ventilation="$path_persons_properties/ventilation/persons.txt"
+path_families_ventilation="$path_persons_properties/ventilation/heritability/families_persons.tsv"
 
 # Product files.
 
@@ -89,18 +92,18 @@ set -x
 # Generate GRM for all autosomal chromosomes.
 
 # Selection cohort.
-$path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_persons_selection --autosome --maf 0.01 --make-grm --out $path_selection_gcta_bed_bim_fam/autosome_common --threads 10
-$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_selection --autosome --maf 0.01 --make-grm --out $path_selection_gcta_pgen_pvar_psam/autosome_common --threads 10
+$path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_families_selection --autosome --maf 0.01 --make-grm --out $path_selection_gcta_bed_bim_fam/autosome_common --threads 10
+$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_families_selection --autosome --maf 0.01 --make-grm --out $path_selection_gcta_pgen_pvar_psam/autosome_common --threads 10
 $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_selection --autosome --maf 0.01 --make-rel --out $path_selection_plink/autosome_common --threads 10
 
 # Respiration cohort.
-$path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_persons_respiration --autosome --maf 0.01 --make-grm --out $path_respiration_gcta_bed_bim_fam/autosome_common --threads 10
-$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_respiration --autosome --maf 0.01 --make-grm --out $path_respiration_gcta_pgen_pvar_psam/autosome_common --threads 10
+$path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_families_respiration --autosome --maf 0.01 --make-grm --out $path_respiration_gcta_bed_bim_fam/autosome_common --threads 10
+$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_families_respiration --autosome --maf 0.01 --make-grm --out $path_respiration_gcta_pgen_pvar_psam/autosome_common --threads 10
 $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_respiration --autosome --maf 0.01 --make-rel --out $path_respiration_plink/autosome_common --threads 10
 
 # Ventilation cohort.
-$path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_persons_ventilation --autosome --maf 0.01 --make-grm --out $path_ventilation_gcta_bed_bim_fam/autosome_common --threads 10
-$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_ventilation --autosome --maf 0.01 --make-grm --out $path_ventilation_gcta_pgen_pvar_psam/autosome_common --threads 10
+$path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_families_ventilation --autosome --maf 0.01 --make-grm --out $path_ventilation_gcta_bed_bim_fam/autosome_common --threads 10
+$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_families_ventilation --autosome --maf 0.01 --make-grm --out $path_ventilation_gcta_pgen_pvar_psam/autosome_common --threads 10
 $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_ventilation --autosome --maf 0.01 --make-rel --out $path_ventilation_plink/autosome_common --threads 10
 
 ##########
