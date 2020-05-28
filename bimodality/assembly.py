@@ -332,16 +332,6 @@ def read_source_sample(dock=None):
     path_person_ancestry = os.path.join(
         path_access_private, "persons_ancestry.txt"
     )
-    path_genotype_component_gcta = os.path.join(
-        path_access_private,
-        "relation", "gcta", "bed_bim_fam", "components.eigenvec",
-    )
-    path_genotype_component_plink = os.path.join(
-        path_access_private, "relation", "plink", "components.eigenvec"
-    )
-    path_genotype_variance_plink = os.path.join(
-        path_access_private, "relation", "plink", "components.eigenval"
-    )
 
     # Customization
     path_customization = os.path.join(dock, "customization")
@@ -395,43 +385,6 @@ def read_source_sample(dock=None):
         header=0,
         low_memory=False,
     )
-    data_genotype_component_gcta = pandas.read_csv(
-        path_genotype_component_gcta,
-        sep="\s+",
-        header=None,
-        names=[
-            "family", "person",
-            "component_1", "component_2", "component_3", "component_4",
-            "component_5", "component_6", "component_7", "component_8",
-            "component_9", "component_10", "component_11", "component_12",
-            "component_13", "component_14", "component_15", "component_16",
-            "component_17", "component_18", "component_19", "component_20",
-            "component_21", "component_22", "component_23", "component_24",
-            "component_25",
-        ],
-        low_memory=False,
-    )
-    data_genotype_component_plink = pandas.read_csv(
-        path_genotype_component_plink,
-        sep="\s+",
-        header=0,
-        names=[
-            "person",
-            "component_1", "component_2", "component_3", "component_4",
-            "component_5", "component_6", "component_7", "component_8",
-            "component_9", "component_10", "component_11", "component_12",
-            "component_13", "component_14", "component_15", "component_16",
-            "component_17", "component_18", "component_19", "component_20",
-            "component_21", "component_22", "component_23", "component_24",
-            "component_25",
-        ],
-        low_memory=False,
-    )
-    genotype_variances_plink = utility.read_file_text_list(
-        delimiter="\n",
-        path_file=path_genotype_variance_plink
-    )
-
     data_tissues_major = pandas.read_csv(
         path_tissues_major,
         sep="\t",
@@ -454,9 +407,6 @@ def read_source_sample(dock=None):
         "data_person_attribute_private": data_person_attribute_private,
         "data_person_smoke": data_person_smoke,
         "data_person_ancestry": data_person_ancestry,
-        "data_genotype_component_gcta": data_genotype_component_gcta,
-        "data_genotype_component_plink": data_genotype_component_plink,
-        "genotype_variances_plink": genotype_variances_plink,
         "data_tissues_major": data_tissues_major,
         "data_tissues_minor": data_tissues_minor,
         "samples_gtex": samples_gtex,
@@ -895,144 +845,6 @@ def determine_person_ancestry(
     return ancestry
 
 
-def extract_person_genotypes(
-    person=None,
-    source=None,
-    data_genotype_gcta=None,
-    data_genotype_plink=None,
-):
-    """
-    Extracts principal components from a person's genotype.
-
-    arguments:
-        person (str): identifier of a person
-        source (str): source of genotype principal components, either gcta or
-            plink
-        data_genotype_gcta (object): Pandas data frame of principal components
-            from genotypes for persons, as calculated in GCTA
-        data_genotype_plink (object): Pandas data frame of principal components
-            from genotypes for persons, as calculated in PLINK2
-
-    raises:
-
-    returns:
-        (dict): principal components from a person's genotype
-
-    """
-
-    # Determine source of genotype principal components.
-    if source == "plink":
-        # Use principal components from genotype analysis in PLINK2.
-        if person in data_genotype_plink.index.values.tolist():
-            genotype_1 = data_genotype_plink.at[person, "component_1"]
-            genotype_2 = data_genotype_plink.at[person, "component_2"]
-            genotype_3 = data_genotype_plink.at[person, "component_3"]
-            genotype_4 = data_genotype_plink.at[person, "component_4"]
-            genotype_5 = data_genotype_plink.at[person, "component_5"]
-            genotype_6 = data_genotype_plink.at[person, "component_6"]
-            genotype_7 = data_genotype_plink.at[person, "component_7"]
-            genotype_8 = data_genotype_plink.at[person, "component_8"]
-            genotype_9 = data_genotype_plink.at[person, "component_9"]
-            genotype_10 = data_genotype_plink.at[person, "component_10"]
-            genotype_11 = data_genotype_plink.at[person, "component_11"]
-            genotype_12 = data_genotype_plink.at[person, "component_12"]
-            genotype_13 = data_genotype_plink.at[person, "component_13"]
-            genotype_14 = data_genotype_plink.at[person, "component_14"]
-            genotype_15 = data_genotype_plink.at[person, "component_15"]
-            genotype_16 = data_genotype_plink.at[person, "component_16"]
-            genotype_17 = data_genotype_plink.at[person, "component_17"]
-            genotype_18 = data_genotype_plink.at[person, "component_18"]
-            genotype_19 = data_genotype_plink.at[person, "component_19"]
-            genotype_20 = data_genotype_plink.at[person, "component_20"]
-            genotype_21 = data_genotype_plink.at[person, "component_21"]
-            genotype_22 = data_genotype_plink.at[person, "component_22"]
-            genotype_23 = data_genotype_plink.at[person, "component_23"]
-            genotype_24 = data_genotype_plink.at[person, "component_24"]
-            genotype_25 = data_genotype_plink.at[person, "component_25"]
-        else:
-            genotype_1 = float("nan")
-            genotype_2 = float("nan")
-            genotype_3 = float("nan")
-            genotype_4 = float("nan")
-            genotype_5 = float("nan")
-            genotype_6 = float("nan")
-            genotype_7 = float("nan")
-            genotype_8 = float("nan")
-            genotype_9 = float("nan")
-            genotype_10 = float("nan")
-            genotype_11 = float("nan")
-            genotype_12 = float("nan")
-            genotype_13 = float("nan")
-            genotype_14 = float("nan")
-            genotype_15 = float("nan")
-            genotype_16 = float("nan")
-            genotype_17 = float("nan")
-            genotype_18 = float("nan")
-            genotype_19 = float("nan")
-            genotype_20 = float("nan")
-            genotype_21 = float("nan")
-            genotype_22 = float("nan")
-            genotype_23 = float("nan")
-            genotype_24 = float("nan")
-            genotype_25 = float("nan")
-        pass
-    elif source == "gcta":
-        # Use principal components from genotype analysis in GCTA.
-        if person in data_genotype_gcta.index.values.tolist():
-            genotype_1 = data_genotype_gcta.at[person, "component_1"]
-            genotype_2 = data_genotype_gcta.at[person, "component_2"]
-            genotype_3 = data_genotype_gcta.at[person, "component_3"]
-            genotype_4 = data_genotype_gcta.at[person, "component_4"]
-            genotype_5 = data_genotype_gcta.at[person, "component_5"]
-            genotype_6 = data_genotype_gcta.at[person, "component_6"]
-            genotype_7 = data_genotype_gcta.at[person, "component_7"]
-            genotype_8 = data_genotype_gcta.at[person, "component_8"]
-            genotype_9 = data_genotype_gcta.at[person, "component_9"]
-            genotype_10 = data_genotype_gcta.at[person, "component_10"]
-        else:
-            genotype_1 = float("nan")
-            genotype_2 = float("nan")
-            genotype_3 = float("nan")
-            genotype_4 = float("nan")
-            genotype_5 = float("nan")
-            genotype_6 = float("nan")
-            genotype_7 = float("nan")
-            genotype_8 = float("nan")
-            genotype_9 = float("nan")
-            genotype_10 = float("nan")
-        pass
-
-    # Compile and return information.
-    information = {
-        "genotype_1": genotype_1,
-        "genotype_2": genotype_2,
-        "genotype_3": genotype_3,
-        "genotype_4": genotype_4,
-        "genotype_5": genotype_5,
-        "genotype_6": genotype_6,
-        "genotype_7": genotype_7,
-        "genotype_8": genotype_8,
-        "genotype_9": genotype_9,
-        "genotype_10": genotype_10,
-        "genotype_11": genotype_11,
-        "genotype_12": genotype_12,
-        "genotype_13": genotype_13,
-        "genotype_14": genotype_14,
-        "genotype_15": genotype_15,
-        "genotype_16": genotype_16,
-        "genotype_17": genotype_17,
-        "genotype_18": genotype_18,
-        "genotype_19": genotype_19,
-        "genotype_20": genotype_20,
-        "genotype_21": genotype_21,
-        "genotype_22": genotype_22,
-        "genotype_23": genotype_23,
-        "genotype_24": genotype_24,
-        "genotype_25": genotype_25,
-    }
-    return information
-
-
 def define_person_binary_health_variables():
     """
     Defines a list of variables' names.
@@ -1206,7 +1018,6 @@ def determine_person_boolean_binary_any(
         match = float("nan")
     return match
 
-# TODO: need to remove incorporation of genotypes from this function...
 
 def determine_sample_associations_attributes(
     sample=None,
@@ -1305,13 +1116,6 @@ def determine_sample_associations_attributes(
         data_person_attribute_private=data_person_attribute_private,
         data_person_ancestry=data_person_ancestry,
     )
-    # Include principal components from persons' genotypes.
-    genotypes = extract_person_genotypes(
-        person=person,
-        source="plink", # "plink" or "gcta"
-        data_genotype_gcta=data_genotype_component_gcta,
-        data_genotype_plink=data_genotype_component_plink,
-    )
     # Determine persons' history of respiratory conditions.
     respiration = determine_person_boolean_binary_any(
         person=person,
@@ -1396,7 +1200,6 @@ def determine_sample_associations_attributes(
         "heart": heart,
         "diabetes": diabetes,
     }
-    information.update(genotypes)
     return information
 
 
@@ -2494,9 +2297,6 @@ def write_product_sample(dock=None, information=None):
     path_samples_tissues_persons_text = os.path.join(
         path_assembly, "data_samples_tissues_persons.tsv"
     )
-    path_genotype_variance_plink = os.path.join(
-        path_assembly, "data_genotype_variance_plink.pickle"
-    )
     path_collections_health = os.path.join(
         path_assembly, "collections_health_variables.pickle"
     )
@@ -2511,10 +2311,6 @@ def write_product_sample(dock=None, information=None):
         sep="\t",
         header=True,
         index=True,
-    )
-    pandas.to_pickle(
-        information["data_genotype_variance_plink"],
-        path_genotype_variance_plink
     )
     with open(path_collections_health, "wb") as file_product:
         pickle.dump(information["collections_health_variables"], file_product)
@@ -2694,7 +2490,7 @@ def execute_procedure(dock=None):
     organize_persons_genotypes(dock=dock)
 
     # Organize associations of samples to persons and tissues.
-    #organize_samples_tissues_persons(dock=dock)
+    organize_samples_tissues_persons(dock=dock)
 
     # Collect garbage to clear memory.
     gc.collect()

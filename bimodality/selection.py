@@ -1336,25 +1336,43 @@ def read_source_persons_properties(
     """
 
     # Specify directories and files.
-    path_assembly_sample = os.path.join(dock, "assembly", "sample")
-    path_samples_tissues_persons = os.path.join(
-        path_assembly_sample, "data_samples_tissues_persons.pickle"
+    path_data_genotype_selection = os.path.join(
+        dock, "assembly", "genotype", "selection",
+        "data_genotype_component.pickle"
+    )
+    path_data_genotype_respiration = os.path.join(
+        dock, "assembly", "genotype", "respiration",
+        "data_genotype_component.pickle"
+    )
+    path_data_genotype_ventilation = os.path.join(
+        dock, "assembly", "genotype", "ventilation",
+        "data_genotype_component.pickle"
     )
 
-    path_selection = os.path.join(dock, "selection", str(stringency))
-    path_samples_genes_signals = os.path.join(
-        path_selection, "samples_genes_signals"
+    path_samples_tissues_persons = os.path.join(
+        dock, "assembly", "sample", "data_samples_tissues_persons.pickle"
     )
     path_samples_tissues_persons_selection = os.path.join(
-        path_samples_genes_signals, "data_samples_tissues_persons.pickle"
+        dock, "selection", str(stringency), "samples_genes_signals",
+        "data_samples_tissues_persons.pickle"
     )
-
     path_persons_selection = os.path.join(
         dock, "selection", str(stringency), "samples_genes_signals",
         "persons.pickle"
     )
 
     # Read information from file.
+    bin_genotypes = dict()
+    bin_genotypes["selection"] = pandas.read_pickle(
+        path_data_genotype_selection
+    )
+    bin_genotypes["respiration"] = pandas.read_pickle(
+        path_data_genotype_respiration
+    )
+    bin_genotypes["ventilation"] = pandas.read_pickle(
+        path_data_genotype_ventilation
+    )
+
     data_samples_tissues_persons = pandas.read_pickle(
         path_samples_tissues_persons
     )
@@ -1366,237 +1384,13 @@ def read_source_persons_properties(
 
     # Compile and return information.
     return {
+        "bin_genotypes": bin_genotypes,
         "data_samples_tissues_persons": data_samples_tissues_persons,
         "data_samples_tissues_persons_selection": (
             data_samples_tissues_persons_selection
         ),
         "persons_selection": persons_selection,
     }
-
-
-def extract_genotypes(
-    data_samples_tissues_persons=None,
-):
-    """
-    Extracts persons' genotypes.
-
-    arguments:
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues across samples
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of persons' genotypes
-
-    """
-
-    # Copy data.
-    data_samples = data_samples_tissues_persons.copy(deep=True)
-    # Organize data.
-    data_samples.reset_index(
-        level=None,
-        inplace=True
-    )
-    genotypes = [
-        "genotype_1",
-        "genotype_2",
-        "genotype_3",
-        "genotype_4",
-        "genotype_5",
-        "genotype_6",
-        "genotype_7",
-        "genotype_8",
-        "genotype_9",
-        "genotype_10",
-        "genotype_11",
-        "genotype_12",
-        "genotype_13",
-        "genotype_14",
-        "genotype_15",
-        "genotype_16",
-        "genotype_17",
-        "genotype_18",
-        "genotype_19",
-        "genotype_20",
-        "genotype_21",
-        "genotype_22",
-        "genotype_23",
-        "genotype_24",
-        "genotype_25",
-    ]
-    columns = copy.deepcopy(genotypes)
-    columns.append("person")
-    data_genotypes = data_samples.loc[
-        :, data_samples.columns.isin(columns)
-    ]
-    data_genotypes.drop_duplicates(
-        subset=None,
-        keep="first",
-        inplace=True,
-    )
-    data_genotypes.set_index(
-        ["person"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    # Return information.
-    return data_genotypes
-
-
-def extract_persons_genotype(
-    persons=None,
-    data_samples_tissues_persons=None,
-):
-    """
-    Extracts identifiers of persons with valid genotypes.
-
-    arguments:
-        persons (list<str>): identifiers of persons for which to consider
-            genotype
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples
-
-    raises:
-
-    returns:
-        (list<str>): identifiers of persons with valid genotypes
-
-    """
-
-    # Copy data.
-    data_samples = data_samples_tissues_persons.copy(deep=True)
-    # Organize data.
-    data_genotypes = extract_genotypes(
-        data_samples_tissues_persons=data_samples,
-    )
-    data_genotypes.dropna(
-        subset=None,
-        axis="index",
-        how="any",
-        thresh=1,
-        inplace=True,
-    )
-    # Extract identifiers of persons.
-    persons_genotype = utility.collect_unique_elements(
-        elements_original=data_genotypes.index.to_list()
-    )
-    # Return information.
-    return persons_genotype
-
-
-def extract_persons_selection_genotype(
-    persons_selection=None,
-    data_samples_tissues_persons=None,
-    report=None,
-):
-    """
-    Extracts identifiers of persons with valid genotypes.
-
-    arguments:
-        persons_selection (list<str>): identifiers of persons from selection
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples
-        report (bool): whether to print reports
-
-    raises:
-
-    returns:
-        (list<str>): identifiers of persons with valid genotypes
-
-    """
-
-    # Copy data.
-    data_samples = data_samples_tissues_persons.copy(deep=True)
-    # Organize data.
-    persons_gtex = utility.collect_unique_elements(
-        elements_original=data_samples["person"].to_list()
-    )
-    # Extract identifiers of persons.
-    persons_gtex_genotype = extract_persons_genotype(
-        persons=persons_gtex,
-        data_samples_tissues_persons=data_samples_tissues_persons,
-    )
-    persons_selection_genotype = extract_persons_genotype(
-        persons=persons_selection,
-        data_samples_tissues_persons=data_samples_tissues_persons,
-    )
-    # Report.
-    if report:
-        utility.print_terminal_partition(level=2)
-        print("Selection of persons with valid genotypes.")
-        utility.print_terminal_partition(level=2)
-        print("Count of persons in GTEx cohort: " + str(len(persons_gtex)))
-        print(
-            "Count of GTEx persons with valid genotypes: " +
-            str(len(persons_gtex_genotype))
-        )
-        utility.print_terminal_partition(level=3)
-        print("Count of selection persons: " + str(len(persons_selection)))
-        print(
-            "Count of selection persons with valid genotypes: " +
-            str(len(persons_selection_genotype))
-        )
-        utility.print_terminal_partition(level=2)
-    # Return information.
-    return persons_selection_genotype
-
-
-def impute_persons_genotypes(
-    data_samples_tissues_persons_selection=None,
-):
-    """
-    Imputes missing genotypes.
-
-    Calculate means of principal components on genotype across selection of
-    persons.
-
-    arguments:
-        data_samples_tissues_persons_selection (object): Pandas data frame of
-            persons and tissues across selection samples
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of persons and tissues across selection
-            samples
-
-    """
-
-    # Copy data.
-    data_samples_selection = data_samples_tissues_persons_selection.copy(
-        deep=True
-    )
-    # Organize data.
-    data_genotypes = extract_genotypes(
-        data_samples_tissues_persons=data_samples_selection,
-    )
-    # Calculate values for imputation.
-    # Calculate mean values of principal components on all available genotypes.
-    imputations = data_genotypes.aggregate(
-        lambda x: x.mean()
-    )
-    #imputations = series_imputation.to_dict()
-
-    # Insert imputations to selections of persons and tissues.
-    # This step should only fill missing values in genotype columns.
-    # "Values not in the dict/Series/DataFrame will not be filled."
-    if False:
-        data_copy.apply(
-            lambda x: x.fillna(
-                imputations[x.name],
-                inplace=True,
-            ),
-            axis="index",
-        )
-    data_samples_selection.fillna(
-        value=imputations,
-        #axis="columns",
-        inplace=True,
-    )
-    # Return information.
-    return data_samples_selection
 
 
 # TODO: define separate regression models for...
@@ -2804,6 +2598,187 @@ def extract_persons_properties(
     return data_collection
 
 
+def organize_persons_properties_sets(
+    persons_selection=None,
+    data_samples_tissues_persons=None,
+    data_persons_properties=None,
+    report=None,
+):
+    """
+    Extracts identifiers of persons with valid genotypes.
+
+    arguments:
+        persons_selection (list<str>): identifiers of persons from selection
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues across all samples
+        data_persons_properties (object): Pandas data frame of persons'
+            properties
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict): information for charts about persons' properties
+
+    """
+
+    # Copy data.
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    data_persons = data_persons_properties.copy(deep=True)
+    # Organize data.
+    bin = dict()
+    bin["gtex"] = utility.collect_unique_elements(
+        elements_original=data_samples["person"].to_list()
+    )
+    bin["selection"] = persons_selection
+    bin["respiration"] = data_persons_properties.loc[
+        data_persons_properties["ventilation"] == False, :
+    ].index.to_list()
+    bin["ventilation"] = data_persons_properties.loc[
+        data_persons_properties["ventilation"] == True, :
+    ].index.to_list()
+
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print(
+            "Organization of information for charts about persons' properties."
+        )
+        utility.print_terminal_partition(level=2)
+        print(
+            "Count of original persons in GTEx cohort: " +
+            str(len(bin["gtex"]))
+        )
+        print(
+            "Count of persons from selection by samples and tissues: " +
+            str(len(bin["selection"]))
+        )
+        print(
+            "Count of persons on ventilation: " +
+            str(len(bin["ventilation"]))
+        )
+        print(
+            "Count of persons not on ventilation: " +
+            str(len(bin["respiration"]))
+        )
+        utility.print_terminal_partition(level=2)
+    # Return information.
+    return bin
+
+
+def impute_persons_genotypes(
+    data_persons_properties=None,
+    data_persons_genotypes=None,
+):
+    """
+    Imputes missing genotypes.
+
+    Calculate means of principal components on genotype across selection of
+    persons.
+
+    arguments:
+        data_persons_properties (object): Pandas data frame of persons'
+            properties
+        data_persons_genotypes (object): Pandas data frame of persons'
+            genotypes
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues across selection
+            samples
+
+    """
+
+    # Calculate values for imputation.
+    # Calculate mean values of principal components on all available genotypes.
+    imputations = data_persons_genotypes.aggregate(
+        lambda x: x.mean()
+    )
+    # Insert imputations to selections of persons and tissues.
+    # This step should only fill missing values in genotype columns.
+    # "Values not in the dict/Series/DataFrame will not be filled."
+    if False:
+        data_copy.apply(
+            lambda x: x.fillna(
+                imputations[x.name],
+                inplace=True,
+            ),
+            axis="index",
+        )
+    data_persons_properties.fillna(
+        value=imputations,
+        #axis="columns",
+        inplace=True,
+    )
+    # Return information.
+    return data_persons_properties
+
+
+def organize_impute_persons_genotypes(
+    data_persons_properties=None,
+    data_persons_genotypes=None,
+    report=None,
+):
+    """
+    Organizes information about persons.
+
+    arguments:
+        data_persons_properties (object): Pandas data frame of persons'
+            properties
+        data_persons_genotypes (object): Pandas data frame of persons'
+            genotypes
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of information about persons
+
+    """
+
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("imputation of persons' genotypes")
+        utility.print_terminal_partition(level=3)
+        count_persons = data_persons_properties.shape[0]
+        count_genotypes = data_persons_genotypes.shape[0]
+        percentage = round(((count_genotypes / count_persons) * 100), 1)
+        utility.print_terminal_partition(level=2)
+        print("count of persons in cohort: " + str(count_persons))
+        print("count of genotypes: " + str(count_genotypes))
+        print(
+            "percentage of persons with valid genotypes: " +
+            str(percentage) + "%"
+        )
+        pass
+    # Copy data.
+    data_genotype = data_persons_genotypes.copy(deep=True)
+    data_property = data_persons_properties.copy(deep=True)
+    # Translate genotype columns.
+    translations = dict()
+    for column in data_genotype.columns.tolist():
+        translations[column] = column.replace("component", "genotype")
+        pass
+    data_genotype.rename(
+        columns=translations,
+        inplace=True,
+    )
+    # Join persons' genotypes with other properties.
+    data_hybrid = data_property.join(
+        data_genotype,
+        how="left",
+        on="person"
+    )
+    # Impute genotypes for selection persons for regression analysis.
+    data_imputation = impute_persons_genotypes(
+        data_persons_genotypes=data_genotype,
+        data_persons_properties=data_hybrid,
+    )
+    return data_imputation
+
+
 def determine_stratification_bin_thresholds(
     bin=None,
     values_sort=None,
@@ -3455,6 +3430,7 @@ def organize_persons_properties(
     cohort=None,
     variables=None,
     data_persons_properties_raw=None,
+    data_persons_genotypes=None,
     report=None,
 ):
     """
@@ -3467,6 +3443,8 @@ def organize_persons_properties(
             analyses
         data_persons_properties_raw (object): Pandas data frame of persons'
             properties
+        data_persons_genotypes (object): Pandas data frame of persons'
+            genotypes
         report (bool): whether to print reports
 
     raises:
@@ -3482,10 +3460,17 @@ def organize_persons_properties(
     data_raw_persons = data_raw.loc[
         data_raw.index.isin(persons), :
     ]
+
+    # Introduce and impute genotypes to cohort persons.
+    data_genotype = organize_impute_persons_genotypes(
+        data_persons_properties=data_raw_persons,
+        data_persons_genotypes=data_persons_genotypes,
+        report=report,
+    )
     # Stratify persons to ordinal bins by their values of continuous variables.
     # Variables age and ventilation duration.
     data_stratification = stratify_persons_continuous_variables_ordinal(
-        data_persons_properties=data_raw_persons,
+        data_persons_properties=data_genotype,
         report=report,
     )
     # Organize dimensionality reduction on categorical variables.
@@ -3520,90 +3505,6 @@ def organize_persons_properties(
     information["bin_heritability"] = bin_heritability
     # Return information.
     return information
-
-
-def organize_persons_properties_sets(
-    persons_selection=None,
-    data_samples_tissues_persons=None,
-    data_persons_properties=None,
-    report=None,
-):
-    """
-    Extracts identifiers of persons with valid genotypes.
-
-    arguments:
-        persons_selection (list<str>): identifiers of persons from selection
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues across all samples
-        data_persons_properties (object): Pandas data frame of persons'
-            properties
-        report (bool): whether to print reports
-
-    raises:
-
-    returns:
-        (dict): information for charts about persons' properties
-
-    """
-
-    # Copy data.
-    data_samples = data_samples_tissues_persons.copy(deep=True)
-    data_persons = data_persons_properties.copy(deep=True)
-    # Organize data.
-    bin = dict()
-    bin["gtex"] = utility.collect_unique_elements(
-        elements_original=data_samples["person"].to_list()
-    )
-    bin["gtex_genotype"] = extract_persons_genotype(
-        persons=bin["gtex"],
-        data_samples_tissues_persons=data_samples,
-    )
-    bin["selection"] = persons_selection
-    bin["selection_genotype"] = extract_persons_genotype(
-        persons=persons_selection,
-        data_samples_tissues_persons=data_samples,
-    )
-    bin["ventilation"] = data_persons_properties.loc[
-        data_persons_properties["ventilation"] == True, :
-    ].index.to_list()
-    bin["respiration"] = data_persons_properties.loc[
-        data_persons_properties["ventilation"] == False, :
-    ].index.to_list()
-
-    # Report.
-    if report:
-        utility.print_terminal_partition(level=2)
-        print(
-            "Organization of information for charts about persons' properties."
-        )
-        utility.print_terminal_partition(level=2)
-        print(
-            "Count of original persons in GTEx cohort: " +
-            str(len(bin["gtex"]))
-        )
-        print(
-            "Count of persons from selection by samples and tissues: " +
-            str(len(bin["selection"]))
-        )
-        print(
-            "Count of original persons with valid genotypes: " +
-            str(len(bin["gtex_genotype"]))
-        )
-        print(
-            "Count of selection persons with valid genotypes: " +
-            str(len(bin["selection_genotype"]))
-        )
-        print(
-            "Count of persons on ventilation: " +
-            str(len(bin["ventilation"]))
-        )
-        print(
-            "Count of persons not on ventilation: " +
-            str(len(bin["respiration"]))
-        )
-        utility.print_terminal_partition(level=2)
-    # Return information.
-    return bin
 
 
 def organize_contingency_table_chi(
@@ -3915,10 +3816,6 @@ def summarize_persons_properties_associations(
     pass
 
 
-# TODO: call a function "extract_organize_persons_properties_group" for persons_selection and persons_ventilation
-# ... associate genotype PCs from PLINK on correct subset to respective persons
-
-
 def extract_organize_persons_properties(
     stringency=None,
     dock=None,
@@ -3985,41 +3882,20 @@ def extract_organize_persons_properties(
     # Enhance person's properties within sample data before collapsing to
     # persons.
 
-    # Extract identifiers of persons with valid genotypes before imputation.
-    # These persons also meet the selection criteria from earlier.
-    # This function takes the original data for all samples in GTEx.
-    persons_selection_genotype = extract_persons_selection_genotype(
-        persons_selection=source["persons_selection"],
-        data_samples_tissues_persons=source["data_samples_tissues_persons"],
-        report=True,
-    )
-    # Impute genotypes for selection persons for regression analysis.
-    data_samples_imputation = impute_persons_genotypes(
-        data_samples_tissues_persons_selection=(
-            source["data_samples_tissues_persons_selection"]
-        ),
-    )
     # Define variables.
     variables = define_variables()
     # Organize persons' properties across samples.
     data_samples_organization = organize_samples_properties(
         variables=variables,
-        data_samples_tissues_persons_selection=data_samples_imputation,
+        data_samples_tissues_persons_selection=source[
+            "data_samples_tissues_persons_selection"
+        ],
     )
 
     ##########
     ##########
     ##########
     # Collapse sample data to persons' properties.
-
-    #####################
-    # TODO: I need to accommodate different persons for different analyses...
-    # 1. persons_selection for basic regression
-    # 2. persons_genotype for heritability and QTL...
-    # TODO: Plan
-    # organize "extract_persons_properties" and "organize_persons_properties"
-    # within a larger function that also accepts "persons_selection" or "persons_selection_genotype"
-    # to subset sample data before organizing properties...
 
     # Extract information about persons' properties.
     data_persons_properties_raw = extract_persons_properties(
@@ -4034,6 +3910,16 @@ def extract_organize_persons_properties(
         report=True,
     )
 
+    #####################
+    # TODO: I need to accommodate different persons for different analyses...
+    # 1. persons_selection for basic regression
+    # 2. persons_genotype for heritability and QTL...
+    # TODO: Plan
+    # organize "extract_persons_properties" and "organize_persons_properties"
+    # within a larger function that also accepts "persons_selection" or "persons_selection_genotype"
+    # to subset sample data before organizing properties...
+
+
     # Organize persons' properties.
     # Expand categorical variables and reduce dimensionality.
     bin_persons_selection = organize_persons_properties(
@@ -4041,6 +3927,7 @@ def extract_organize_persons_properties(
         cohort="selection",
         variables=variables,
         data_persons_properties_raw=data_persons_properties_raw,
+        data_persons_genotypes=source["bin_genotypes"]["selection"],
         report=True,
     )
     bin_persons_respiration = organize_persons_properties(
@@ -4048,6 +3935,7 @@ def extract_organize_persons_properties(
         cohort="respiration",
         variables=variables,
         data_persons_properties_raw=data_persons_properties_raw,
+        data_persons_genotypes=source["bin_genotypes"]["respiration"],
         report=True,
     )
     bin_persons_ventilation = organize_persons_properties(
@@ -4055,6 +3943,7 @@ def extract_organize_persons_properties(
         cohort="ventilation",
         variables=variables,
         data_persons_properties_raw=data_persons_properties_raw,
+        data_persons_genotypes=source["bin_genotypes"]["ventilation"],
         report=True,
     )
 
@@ -4068,9 +3957,6 @@ def extract_organize_persons_properties(
 
     # Compile information.
     information = dict()
-    information["data_samples_tissues_persons_imputation"] = (
-        data_samples_imputation
-    )
     information["persons_sets"] = persons_sets
     information["bin_persons_selection"] = bin_persons_selection
     information["bin_persons_respiration"] = bin_persons_respiration
@@ -4626,9 +4512,6 @@ def write_product_persons_properties(
         pickle.dump(information["persons_sets"], file_product)
 
     pass
-
-
-
 
 
 

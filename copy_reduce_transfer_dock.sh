@@ -47,3 +47,9 @@ scp "$path_home/dock_lite.tar.gz" tcwaller@grenache.ucsd.edu:/cellar/users/tcwal
 
 #tar -xzvf dock_lite.tar.gz
 #mv /cellar/users/tcwaller/Data/dock_lite/ /cellar/users/tcwaller/Data/dock/
+
+
+##########
+# Transfer from server to halyard
+#tar -czvf "$path_home/dock_lite.tar.gz" $path_dock_lite
+#scp tcwaller@grenache.ucsd.edu:/cellar/users/tcwaller/Data/dock_lite.tar.gz dock_lite.tar.gz

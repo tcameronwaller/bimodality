@@ -47,7 +47,7 @@ echo "Now set to call routine and procedures."
 #scp /home/tcameronwaller/dock/selection/tight/heritability/simple/families_persons.tsv tcwaller@grenache.ucsd.edu:/cellar/users/tcwaller/Data/dock/access_private/families_persons.tsv
 # --- execute on nrnb
 #bash access_private.sh # run on 20 February 2020
-#bash heritability_initial.sh # run on 20 February 2020
+#bash heritability_initial.sh # run on 26 May 2020
 #cd /cellar/users/tcwaller/Data/dock/
 #tar -czvf access_private.tar.gz access_private/
 # --- execute on halyard
@@ -65,7 +65,7 @@ echo "Now set to call routine and procedures."
 
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access # run on 21 February 2020
-python3 interface.py main --dock $path_dock --assembly # run on 11 May 2020
+#python3 interface.py main --dock $path_dock --assembly # run on 27 May 2020
 #python3 interface.py main --dock $path_dock --selection # run on 21 May 2020
 
 ##########
@@ -99,7 +99,7 @@ python3 interface.py main --dock $path_dock --assembly # run on 11 May 2020
 
 #python3 interface.py main --dock $path_dock --structure
 
-#python3 interface.py main --dock $path_dock --plot
+python3 interface.py main --dock $path_dock --plot
 
 
 ##########

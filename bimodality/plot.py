@@ -3604,7 +3604,7 @@ def prepare_charts_sets_selection_persons_properties(
 
 
 def read_source_selection_dimension_principal_components(
-    group=None,
+    cohort=None,
     stringency=None,
     dock=None
 ):
@@ -3612,7 +3612,7 @@ def read_source_selection_dimension_principal_components(
     Reads and organizes source information from file
 
     arguments:
-        group (str): group of persons
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         stringency (str): category, loose or tight, of selection criteria
         dock (str): path to root or dock directory for source and product
             directories and files
@@ -3625,25 +3625,24 @@ def read_source_selection_dimension_principal_components(
     """
 
     # Specify directories and files.
-    path_data_genotype_variance_plink = os.path.join(
-        dock, "assembly", "sample", "data_genotype_variance_plink.pickle"
+    path_data_genotype_variance = os.path.join(
+        dock, "assembly", "genotype", cohort,
+        "data_genotype_variance.pickle"
     )
     path_variances_data = os.path.join(
-        dock, "selection", stringency, "persons_properties", group,
+        dock, "selection", stringency, "persons_properties", cohort,
         "dimension", "variances_data.pickle"
     )
-
     # Read information from file.
-    data_genotype_variance_plink = pandas.read_pickle(
-        path_data_genotype_variance_plink
+    data_genotype_variance = pandas.read_pickle(
+        path_data_genotype_variance
     )
     variances_data = pandas.read_pickle(
         path_variances_data
     )
-
     # Compile and return information.
     return {
-        "data_genotype_variance_plink": data_genotype_variance_plink,
+        "data_genotype_variance": data_genotype_variance,
         "variances_data": variances_data,
     }
 
@@ -3690,8 +3689,69 @@ def plot_chart_selection_dimension_principal_components(
     pass
 
 
+def prepare_charts_selection_dimension_principal_components_cohort(
+    cohort=None,
+    dock=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_selection_dimension_principal_components(
+        cohort=cohort,
+        stringency="tight",
+        dock=dock
+    )
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    path_dimension = os.path.join(path_plot, "selection", "dimension")
+    path_directory = os.path.join(path_dimension, cohort)
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    # Organize data.
+    types = dict()
+    types["component"] = "int32"
+    types["variance"] = "float32"
+    data_genotype = source["data_genotype_variance"].iloc[0:10,:]
+    data_genotype = data_genotype.astype(
+        types,
+    )
+    plot_chart_selection_dimension_principal_components(
+        data=data_genotype,
+        path_file=os.path.join(path_directory, "genotype.svg"),
+    )
+    # Iterate on categorical variables.
+    for property in source["variances_data"].keys():
+        # Organize data.
+        data = source["variances_data"][property]
+        data = data.astype(
+            types,
+        )
+        data["variance"] = data["variance"].apply(
+            lambda value: (value * 100)
+        )
+        plot_chart_selection_dimension_principal_components(
+            data=data,
+            path_file=os.path.join(path_directory, str(property + ".svg")),
+        )
+    pass
+
+
 def prepare_charts_selection_dimension_principal_components(
-    dock=None
+    dock=None,
 ):
     """
     Plots charts from the analysis process.
@@ -3706,48 +3766,18 @@ def prepare_charts_selection_dimension_principal_components(
 
     """
 
-    # Read source information from file.
-    source = read_source_selection_dimension_principal_components(
-        group="respiration",
-        stringency="tight",
-        dock=dock
+    prepare_charts_selection_dimension_principal_components_cohort(
+        cohort="selection",
+        dock=dock,
     )
-
-    # Specify directories and files.
-    path_plot = os.path.join(dock, "plot")
-    path_selection = os.path.join(path_plot, "selection")
-    path_directory = os.path.join(path_selection, "dimension")
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_directory)
-    utility.create_directories(path=path_directory)
-
-    # Organize data.
-    types = dict()
-    types["component"] = "int32"
-    types["variance"] = "float32"
-    data_genotype = source["data_genotype_variance_plink"].iloc[0:25,:]
-    data_genotype = data_genotype.astype(
-        types,
+    prepare_charts_selection_dimension_principal_components_cohort(
+        cohort="respiration",
+        dock=dock,
     )
-    plot_chart_selection_dimension_principal_components(
-        data=data_genotype,
-        path_file=os.path.join(path_directory, "genotype.svg"),
+    prepare_charts_selection_dimension_principal_components_cohort(
+        cohort="ventilation",
+        dock=dock,
     )
-    # Iterate on categorical variables.
-    for property in source["variances_data"].keys():
-        print(property)
-        # Organize data.
-        data = source["variances_data"][property]
-        data = data.astype(
-            types,
-        )
-        data["variance"] = data["variance"].apply(
-            lambda value: (value * 100)
-        )
-        plot_chart_selection_dimension_principal_components(
-            data=data,
-            path_file=os.path.join(path_directory, str(property + ".svg")),
-        )
     pass
 
 
@@ -5763,6 +5793,9 @@ def prepare_charts_genes_signals_tissues_persons(
 # heatmaps
 # Status: working
 
+# *****
+# TODO: change to cohort specific after integrating DAVID sets for each cohort...
+# *****
 
 def read_source_prediction_genes_signals_persons_properties(
     cohort=None,
@@ -5796,8 +5829,11 @@ def read_source_prediction_genes_signals_persons_properties(
         dock, "distribution", cohort, "collection",
         "data_signals_genes_persons.pickle"
     )
+
+    # TODO: change to cohort...
+
     path_genes_prediction_ontology = os.path.join(
-        dock, "integration", cohort, "set", "prediction_ontology",
+        dock, "integration", "selection", "set", "prediction_ontology",
         "genes.pickle"
     )
 
@@ -5872,6 +5908,11 @@ def define_parameters_prediction_genes_signals_persons_properties():
             title="age", label="age", set="age_scale",
             property="age_grade", type="ordinal",
         ))
+    parameters.append(dict(
+        title="ventilation_duration", label="ventilation",
+        set="ventilation_binary_scale",
+        property="ventilation_duration_scale", type="continuous",
+    ))
     parameters.append(dict(
         title="ventilation_grade", label="ventilation",
         set="ventilation_binary_scale",
@@ -6131,7 +6172,7 @@ def prepare_charts_prediction_genes_signals_persons_properties(
             cohort="selection",
             dock=dock,
         )
-    if False:
+    if True:
         prepare_charts_prediction_genes_signals_persons_properties_cohort(
             cohort="ventilation",
             dock=dock,
@@ -8304,8 +8345,6 @@ def execute_procedure(dock=None):
 
     # Plot charts of overlap between sets of persons by clinical categories.
     #prepare_charts_sets_selection_persons_properties(dock=dock)
-
-
 
     if False:
 
