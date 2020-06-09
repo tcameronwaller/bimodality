@@ -548,10 +548,6 @@ def organize_data_master_main_sort_cluster(
     return data_sequence
 
 
-# translate any gene IDs to names before sending data_main to the standardized organization function
-# -> do this within a separate "organize_..." function for each plot type?
-# -> also drop all non-master columns from data_persons_properties when data_master and data_main are both the same...
-
 def organize_data_master_main(
     data_master=None,
     master=None,
@@ -649,12 +645,15 @@ def organize_data_master_main(
         inplace=True
     )
     # Sort and cluster data.
-    data_hybrid_sequence = organize_data_master_main_sort_cluster(
-        type_master=type_master,
-        sequence=sequence,
-        data=data_hybrid,
-        index=index,
-    )
+    if sequence != "none":
+        data_hybrid_sequence = organize_data_master_main_sort_cluster(
+            type_master=type_master,
+            sequence=sequence,
+            data=data_hybrid,
+            index=index,
+        )
+    else:
+        data_hybrid_sequence = data_hybrid
     # Compile information.
     bin = dict()
     bin["labels_categories_master"] = labels_categories_master
@@ -1866,7 +1865,6 @@ def create_legend_elements(
 
 def plot_overlap_sets(
     sets=None,
-    count=None,
     fonts=None,
     colors=None,
 ):
@@ -1875,7 +1873,6 @@ def plot_overlap_sets(
 
     arguments:
         sets (dict<list<str>>): values in sets
-        count (int): count of sets, either 2 or 3
         fonts (dict<object>): references to definitions of font properties
         colors (dict<tuple>): references to definitions of color properties
 
@@ -1888,13 +1885,12 @@ def plot_overlap_sets(
 
     # Organize information.
     names = list(sets.keys())
-
     # Create figure.
     figure = matplotlib.pyplot.figure(
         figsize=(15.748, 11.811),
         tight_layout=True
     )
-    if count == 2:
+    if len(names) == 2:
         venn = matplotlib_venn.venn2(
             subsets=[
                 set(sets[names[0]]),
@@ -1902,7 +1898,7 @@ def plot_overlap_sets(
             ],
             set_labels=names,
         )
-    elif count == 3:
+    elif len(names) == 3:
         venn = matplotlib_venn.venn3(
             subsets=[
                 set(sets[names[0]]),
@@ -1911,7 +1907,6 @@ def plot_overlap_sets(
             ],
             set_labels=names,
         )
-
     return figure
 
 
@@ -3397,7 +3392,6 @@ def plot_chart_sets_selection_genes_samples(
     # Create figure.
     figure = plot_overlap_sets(
         sets=sets,
-        count=2,
         fonts=fonts,
         colors=colors,
     )
@@ -3532,7 +3526,6 @@ def plot_chart_sets_selection_persons_properties(
     # Create figure.
     figure = plot_overlap_sets(
         sets=sets,
-        count=len(sets.keys()),
         fonts=fonts,
         colors=colors,
     )
@@ -3681,7 +3674,7 @@ def plot_chart_selection_dimension_principal_components(
         size=15,
     )
     # Write figure.
-    write_figure(
+    write_figure_png(
         path=path_file,
         figure=figure
     )
@@ -3731,7 +3724,7 @@ def prepare_charts_selection_dimension_principal_components_cohort(
     )
     plot_chart_selection_dimension_principal_components(
         data=data_genotype,
-        path_file=os.path.join(path_directory, "genotype.svg"),
+        path_file=os.path.join(path_directory, "genotype.png"),
     )
     # Iterate on categorical variables.
     for property in source["variances_data"].keys():
@@ -3745,7 +3738,7 @@ def prepare_charts_selection_dimension_principal_components_cohort(
         )
         plot_chart_selection_dimension_principal_components(
             data=data,
-            path_file=os.path.join(path_directory, str(property + ".svg")),
+            path_file=os.path.join(path_directory, str(property + ".png")),
         )
     pass
 
@@ -3786,14 +3779,15 @@ def prepare_charts_selection_dimension_principal_components(
 # Status: working
 
 
-def read_source_modality_gene_distribution(
+def read_source_modality_measure_genes_distribution(
+    cohort=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        gene (str): identifier of single gene for which to execute the process.
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -3805,19 +3799,15 @@ def read_source_modality_gene_distribution(
     """
 
     # Specify directories and files.
-    path_distribution = os.path.join(dock, "distribution")
     path_genes_scores = os.path.join(
-        path_distribution, "collection", "genes_scores.pickle"
+        dock, "distribution", cohort, "collection", "genes_scores.pickle"
     )
     path_scores = os.path.join(
-        path_distribution, "collection", "scores.pickle"
+        dock, "distribution", cohort, "collection", "scores.pickle"
     )
-
-    path_candidacy = os.path.join(dock, "candidacy")
     path_measures_thresholds = os.path.join(
-        path_candidacy, "measures_thresholds.pickle"
+        dock, "candidacy", cohort, "threshold", "measures_thresholds.pickle"
     )
-
     # Read information from file.
     with open(path_genes_scores, "rb") as file_source:
         genes_scores = pickle.load(file_source)
@@ -3825,7 +3815,6 @@ def read_source_modality_gene_distribution(
         scores = pickle.load(file_source)
     with open(path_measures_thresholds, "rb") as file_source:
         measures_thresholds = pickle.load(file_source)
-
     # Compile and return information.
     return {
         "genes_scores": genes_scores,
@@ -3834,7 +3823,7 @@ def read_source_modality_gene_distribution(
     }
 
 
-def plot_chart_modality_gene_distribution(
+def plot_chart_modality_measure_genes_distribution(
     values=None,
     threshold=None,
     path=None
@@ -3877,11 +3866,60 @@ def plot_chart_modality_gene_distribution(
         path=path,
         figure=figure
     )
-
     pass
 
 
-def prepare_charts_modality_gene_distribution(
+def prepare_charts_modality_measure_genes_distribution_cohort(
+    cohort=None,
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_modality_measure_genes_distribution(
+        cohort=cohort,
+        dock=dock,
+    )
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_candidacy = os.path.join(path_plot, "candidacy")
+    path_measure = os.path.join(path_candidacy, "measure")
+    path_directory = os.path.join(path_measure, cohort)
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+    # Set measures of modality.
+    measures = list(source["scores"].keys())
+    # Iterate on bimodality measures.
+    for measure in measures:
+        # Prepare charts.
+        # Specify directories and files.
+        path_figure = os.path.join(
+            path_directory, str(measure + ".svg")
+        )
+        plot_chart_modality_measure_genes_distribution(
+            values=source["scores"][measure]["values"],
+            threshold=source["measures_thresholds"][measure],
+            path=path_figure
+        )
+        pass
+    pass
+
+
+def prepare_charts_modality_measure_genes_distribution(
     dock=None
 ):
     """
@@ -3897,43 +3935,19 @@ def prepare_charts_modality_gene_distribution(
 
     """
 
-    print("going to plot distribution of bimodality metrics across genes")
-
-    # Read source information from file.
-    source = read_source_modality_gene_distribution(dock=dock)
-
-    # Specify directories and files.
-    path_plot = os.path.join(dock, "plot")
-    utility.create_directory(path_plot)
-    path_candidacy = os.path.join(path_plot, "candidacy")
-    path_measure = os.path.join(path_candidacy, "measure")
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_measure)
-    utility.create_directories(path=path_measure)
-
-    # Set measures of modality.
-    measures = list(source["scores"].keys())
-    # Iterate on bimodality measures.
-    for measure in measures:
-
-        # Calculate selection threshold.
-        threshold = source["measures_thresholds"][measure]
-
-        # Prepare charts.
-        # Specify directories and files.
-        path_measure_figure = os.path.join(
-            path_measure, str(measure + ".svg")
+    # Organize data and regress cases.
+    cohorts = [
+        "selection",
+        "respiration",
+        "ventilation",
+    ]
+    for cohort in cohorts:
+        prepare_charts_modality_measure_genes_distribution_cohort(
+            cohort=cohort,
+            dock=dock,
         )
-
-        plot_chart_modality_gene_distribution(
-            values=source["scores"][measure]["values"],
-            threshold=threshold,
-            path=path_measure_figure
-        )
-
-        pass
-
     pass
+
 
 
 ##########
@@ -4212,14 +4226,15 @@ def prepare_charts_gene_heritability(
 # Status: working
 
 
-def read_source_gene_sets_candidacy(
+def read_source_candidacy_gene_sets_overlap_measures(
+    cohort=None,
     dock=None
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        gene (str): identifier of single gene for which to execute the process.
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -4231,28 +4246,70 @@ def read_source_gene_sets_candidacy(
     """
 
     # Specify directories and files.
-    path_candidacy = os.path.join(dock, "candidacy")
-    path_sets_unimodal = os.path.join(
-        path_candidacy, "sets_unimodal.pickle"
+    path_sets_genes_multimodal = os.path.join(
+        dock, "candidacy", cohort, "multimodal", "sets_multimodal.pickle"
     )
-    path_sets_multimodal = os.path.join(
-        path_candidacy, "sets_multimodal.pickle"
+    path_sets_genes_unimodal = os.path.join(
+        dock, "candidacy", cohort, "unimodal", "sets_unimodal.pickle"
     )
-
     # Read information from file.
-    with open(path_sets_unimodal, "rb") as file_source:
-        sets_unimodal = pickle.load(file_source)
-    with open(path_sets_multimodal, "rb") as file_source:
-        sets_multimodal = pickle.load(file_source)
+    with open(path_sets_genes_unimodal, "rb") as file_source:
+        sets_genes_unimodal = pickle.load(file_source)
+    with open(path_sets_genes_multimodal, "rb") as file_source:
+        sets_genes_multimodal = pickle.load(file_source)
 
     # Compile and return information.
     return {
-        "sets_unimodal": sets_unimodal,
-        "sets_multimodal": sets_multimodal,
+        "sets_genes_unimodal": sets_genes_unimodal,
+        "sets_genes_multimodal": sets_genes_multimodal,
     }
 
 
-def plot_chart_gene_sets_candidacy(
+def read_source_candidacy_gene_sets_overlap_multimodal_cohorts(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_selection = os.path.join(
+        dock, "candidacy", "selection", "multimodal", "genes_multimodal.pickle"
+    )
+    path_respiration = os.path.join(
+        dock, "candidacy", "respiration", "multimodal",
+        "genes_multimodal.pickle"
+    )
+    path_ventilation = os.path.join(
+        dock, "candidacy", "ventilation", "multimodal",
+        "genes_multimodal.pickle"
+    )
+    # Read information from file.
+    with open(path_selection, "rb") as file_source:
+        genes_multimodal_selection = pickle.load(file_source)
+    with open(path_respiration, "rb") as file_source:
+        genes_multimodal_respiration = pickle.load(file_source)
+    with open(path_ventilation, "rb") as file_source:
+        genes_multimodal_ventilation = pickle.load(file_source)
+    # Compile and return information.
+    return {
+        "selection": genes_multimodal_selection,
+        "respiration": genes_multimodal_respiration,
+        "ventilation": genes_multimodal_ventilation,
+    }
+
+
+def plot_chart_candidacy_gene_sets_overlap(
     sets=None,
     path=None
 ):
@@ -4273,11 +4330,9 @@ def plot_chart_gene_sets_candidacy(
     fonts = define_font_properties()
     # Define colors.
     colors = define_color_properties()
-
     # Create figure.
     figure = plot_overlap_sets(
         sets=sets,
-        count=3,
         fonts=fonts,
         colors=colors,
     )
@@ -4286,11 +4341,52 @@ def plot_chart_gene_sets_candidacy(
         path=path,
         figure=figure
     )
-
     pass
 
 
-def prepare_charts_gene_sets_candidacy(
+def prepare_charts_candidacy_gene_sets_overlap_measures(
+    cohort=None,
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_candidacy_gene_sets_overlap_measures(
+        cohort=cohort,
+        dock=dock,
+    )
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_candidacy = os.path.join(path_plot, "candidacy")
+    path_sets = os.path.join(path_candidacy, "sets")
+    path_directory = os.path.join(path_sets, "measures")
+    # Remove previous files to avoid version or batch confusion.
+    #utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+    path_multimodal = os.path.join(
+        path_directory, str(cohort + "_multimodal_genes_measures.svg")
+    )
+    plot_chart_candidacy_gene_sets_overlap(
+        sets=source["sets_genes_multimodal"],
+        path=path_multimodal,
+    )
+    pass
+
+
+def prepare_chart_candidacy_gene_sets_overlap_cohorts(
     dock=None
 ):
     """
@@ -4307,29 +4403,66 @@ def prepare_charts_gene_sets_candidacy(
     """
 
     # Read source information from file.
-    source = read_source_gene_sets_candidacy(dock=dock)
-
+    source = read_source_candidacy_gene_sets_overlap_multimodal_cohorts(
+        dock=dock,
+    )
+    sets_multimodal_genes_cohorts = dict()
+    sets_multimodal_genes_cohorts["selection"] = source["selection"]
+    sets_multimodal_genes_cohorts["respiration"] = source["respiration"]
+    sets_multimodal_genes_cohorts["ventilation"] = source["ventilation"]
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
     path_candidacy = os.path.join(path_plot, "candidacy")
-    path_set = os.path.join(path_candidacy, "set")
+    path_sets = os.path.join(path_candidacy, "sets")
+    path_directory = os.path.join(path_sets, "cohorts")
     # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_set)
-    utility.create_directories(path=path_set)
-    path_figure_unimodal = os.path.join(path_set, "sets_unimodal.svg")
-    path_figure_multimodal = os.path.join(path_set, "sets_multimodal.svg")
-
-    plot_chart_gene_sets_candidacy(
-        sets=source["sets_unimodal"],
-        path=path_figure_unimodal,
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+    path_figure = os.path.join(
+        path_directory, "multimodal_genes_cohorts.svg"
     )
-    plot_chart_gene_sets_candidacy(
-        sets=source["sets_multimodal"],
-        path=path_figure_multimodal,
+    plot_chart_candidacy_gene_sets_overlap(
+        sets=sets_multimodal_genes_cohorts,
+        path=path_figure,
+    )
+    pass
+
+
+def prepare_charts_candidacy_gene_sets_overlap(
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Prepare charts for overlap of genes by multiple modality measures.
+    cohorts = [
+        "selection",
+        "respiration",
+        "ventilation",
+    ]
+    for cohort in cohorts:
+        prepare_charts_candidacy_gene_sets_overlap_measures(
+            cohort=cohort,
+            dock=dock,
+        )
+    # Prepare chart for overlap of multimodal genes for each cohort.
+    prepare_chart_candidacy_gene_sets_overlap_cohorts(
+        dock=dock,
     )
 
     pass
+
 
 
 ##########
@@ -4395,7 +4528,6 @@ def plot_chart_gene_sets_probability(
     # Create figure.
     figure = plot_overlap_sets(
         sets=sets,
-        count=3,
         fonts=fonts,
         colors=colors,
     )
@@ -4508,7 +4640,6 @@ def read_source_sets_gene_heritability(
 
 def plot_chart_sets_gene_heritability(
     sets=None,
-    count=None,
     path_file=None
 ):
     """
@@ -4516,7 +4647,6 @@ def plot_chart_sets_gene_heritability(
 
     arguments:
         sets (dict<list<str>>): values in sets
-        count (int): count of sets
         path_file (str): path to directory and file
 
     raises:
@@ -4533,7 +4663,6 @@ def plot_chart_sets_gene_heritability(
     # Create figure.
     figure = plot_overlap_sets(
         sets=sets,
-        count=count,
         fonts=fonts,
         colors=colors,
     )
@@ -4572,19 +4701,16 @@ def prepare_charts_sets_gene_heritability(
     sets_selection["total"] = source["genes_selection"]
     record = {
         "title": "genes_selection",
-        "count": 3,
         "sets": sets_selection,
     }
     charts.append(record)
     record = {
         "title": "genes_unimodal",
-        "count": 2,
         "sets": source["sets_genes_unimodal"],
     }
     charts.append(record)
     record = {
         "title": "genes_multimodal",
-        "count": 2,
         "sets": source["sets_genes_multimodal"],
     }
     charts.append(record)
@@ -4608,7 +4734,6 @@ def prepare_charts_sets_gene_heritability(
         )
         plot_chart_sets_gene_heritability(
             sets=chart["sets"],
-            count=chart["count"],
             path_file=path_file,
         )
 
@@ -4673,7 +4798,6 @@ def read_source_sets_gene_permutation(
 
 def plot_chart_sets_gene_permutation(
     sets=None,
-    count=None,
     path_file=None
 ):
     """
@@ -4681,7 +4805,6 @@ def plot_chart_sets_gene_permutation(
 
     arguments:
         sets (dict<list<str>>): values in sets
-        count (int): count of sets
         path_file (str): path to directory and file
 
     raises:
@@ -4698,7 +4821,6 @@ def plot_chart_sets_gene_permutation(
     # Create figure.
     figure = plot_overlap_sets(
         sets=sets,
-        count=count,
         fonts=fonts,
         colors=colors,
     )
@@ -4735,25 +4857,21 @@ def prepare_charts_sets_gene_permutation(
     charts = list()
     record = {
         "title": "sets_genes_measures",
-        "count": 3,
         "sets": source["sets_genes_measures"],
     }
     charts.append(record)
     record = {
         "title": "sets_genes_selection",
-        "count": 2,
         "sets": source["sets_genes_selection"],
     }
     charts.append(record)
     record = {
         "title": "sets_genes_unimodal",
-        "count": 2,
         "sets": source["sets_genes_unimodal"],
     }
     charts.append(record)
     record = {
         "title": "sets_genes_multimodal",
-        "count": 2,
         "sets": source["sets_genes_multimodal"],
     }
     charts.append(record)
@@ -4777,7 +4895,6 @@ def prepare_charts_sets_gene_permutation(
         )
         plot_chart_sets_gene_permutation(
             sets=chart["sets"],
-            count=chart["count"],
             path_file=path_file,
         )
 
@@ -4863,7 +4980,6 @@ def plot_chart_gene_sets_integration(
     # Create figure.
     figure = plot_overlap_sets(
         sets=sets,
-        count=3,
         fonts=fonts,
         colors=colors,
     )
@@ -4927,13 +5043,15 @@ def prepare_charts_gene_sets_integration(
 # Status: working
 
 
-def read_source_genes_persons_signals_initial(
-    dock=None
+def read_source_genes_persons_signals(
+    cohort=None,
+    dock=None,
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -4945,53 +5063,35 @@ def read_source_genes_persons_signals_initial(
     """
 
     # Specify directories and files.
-    path_gene_annotation = os.path.join(
+    path_data_gene_annotation = os.path.join(
         dock, "selection", "tight", "gene_annotation",
         "data_gene_annotation_gencode.pickle"
     )
-    path_genes_selection = os.path.join(
-        dock, "selection", "tight", "samples_genes_signals",
-        "genes.pickle"
+    path_data_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", cohort,
+        "data_persons_properties.pickle"
     )
-    path_persons_sets = os.path.join(
-        dock, "selection", "tight", "persons_properties",
-        "persons_sets.pickle"
+    path_data_signals_genes_persons = os.path.join(
+        dock, "distribution", cohort, "collection",
+        "data_signals_genes_persons.pickle"
     )
-
-    path_genes_unimodal = os.path.join(
-        dock, "candidacy", group, "unimodal", "genes_unimodal.pickle"
-    )
-    path_genes_multimodal = os.path.join(
-        dock, "candidacy", group, "multimodal", "genes_multimodal.pickle"
-    )
-
     # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    with open(path_genes_selection, "rb") as file_source:
-        genes_selection = pickle.load(file_source)
-    with open(path_persons_sets, "rb") as file_source:
-        persons_sets = pickle.load(file_source)
-    with open(path_genes_unimodal, "rb") as file_source:
-        genes_unimodal = pickle.load(file_source)
-    with open(path_genes_multimodal, "rb") as file_source:
-        genes_multimodal = pickle.load(file_source)
-
-    genes_query = integration.read_source_annotation_query_genes_all(
-        dock=dock,
+    query_gene_sets = integration.read_source_annotation_query_genes_sets(
+        dock=dock
     )
-
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
+    data_signals_genes_persons = pandas.read_pickle(
+        path_data_signals_genes_persons
+    )
     # Compile and return information.
     return {
+        "query_gene_sets": query_gene_sets,
         "data_gene_annotation": data_gene_annotation,
-        "genes_selection": genes_selection,
-        "persons_sets": persons_sets,
-        "genes_unimodal": genes_unimodal,
-        "genes_multimodal": genes_multimodal,
-        "genes_query": genes_query,
+        "data_signals_genes_persons": data_signals_genes_persons,
     }
 
 
-def read_source_genes_persons_signals(
+def read_source_genes_persons_signals_gene(
     gene=None,
     dock=None
 ):
@@ -5077,6 +5177,92 @@ def plot_chart_genes_persons_signals(
     pass
 
 
+def prepare_chart_gene_persons_signals(
+    gene=None,
+    data_gene_annotation=None,
+    data_signals_genes_persons=None,
+    path_directory=None,
+):
+    """
+    Prepares and plots data.
+
+    arguments:
+        gene (str): identifier of a gene
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        data_signals_genes_persons (object): Pandas data frame of pan-tissue
+            signals across genes and persons
+        path_directory (str): path to directory
+
+    raises:
+
+    returns:
+
+    """
+
+    if gene in data_signals_genes_persons.columns.tolist():
+        # Access gene's name.
+        name = assembly.access_gene_name(
+            identifier=gene,
+            data_gene_annotation=data_gene_annotation,
+        )
+        # Access information.
+        signals = data_signals_genes_persons[gene].tolist()
+        # Create charts for the gene.
+        path_figure = os.path.join(path_directory, str(name + ".svg"))
+        plot_chart_genes_persons_signals(
+            gene=gene,
+            name=name,
+            values=signals,
+            path=path_figure
+        )
+    pass
+
+
+def prepare_charts_genes_persons_signals_cohort(
+    cohort=None,
+    dock=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_genes_persons_signals(
+        cohort=cohort,
+        dock=dock,
+    )
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_distribution = os.path.join(path_plot, "distribution")
+    path_directory = os.path.join(path_distribution, "genes_persons", cohort)
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    # Plot charts for genes of interest.
+    genes_interest = source["query_gene_sets"]["distribution"]
+    for gene in genes_interest:
+        prepare_chart_gene_persons_signals(
+            gene=gene,
+            data_gene_annotation=source["data_gene_annotation"],
+            data_signals_genes_persons=source["data_signals_genes_persons"],
+            path_directory=path_directory,
+        )
+        pass
+    pass
+
+
 def prepare_charts_genes_persons_signals(
     dock=None
 ):
@@ -5093,112 +5279,17 @@ def prepare_charts_genes_persons_signals(
 
     """
 
-    # Read source information from file.
-    source_initial = read_source_genes_persons_signals_initial(dock=dock)
-
-    # Specify directories and files.
-    path_plot = os.path.join(dock, "plot")
-    utility.create_directory(path_plot)
-    path_candidacy = os.path.join(path_plot, "candidacy")
-    path_distribution = os.path.join(path_candidacy, "distribution")
-    path_unimodal = os.path.join(path_distribution, "unimodal")
-    path_multimodal = os.path.join(path_distribution, "multimodal")
-    path_query = os.path.join(path_distribution, "query")
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_distribution)
-    utility.create_directories(path=path_unimodal)
-    utility.create_directories(path=path_multimodal)
-    utility.create_directories(path=path_query)
-
-    persons_interest = source_initial["persons_sets"]["ventilation"]
-
-    # Plot charts for genes of interest.
-    #genes_interest = source_initial["genes_query"]
-    genes_interest = [
-        "ENSG00000115590", # IL1R2
+    cohorts = [
+        "selection",
+        "respiration",
+        "ventilation",
     ]
-    for gene in genes_interest:
-        if gene in source_initial["genes_selection"]:
-            # Access gene's name.
-            name = assembly.access_gene_name(
-                identifier=gene,
-                data_gene_annotation=source_initial["data_gene_annotation"],
-            )
-            # Read source information from file.
-            source_gene = read_source_genes_persons_signals(
-                gene=gene,
-                dock=dock
-            )
-            # Access information.
-            data_signals = source_gene["data_gene_persons_signals"]
-            # Select data for persons of interest.
-            data_signals_selection = data_signals.loc[
-                data_signals.index.isin(persons_interest), :
-            ]
-            # Distribution of gene's signals across persons.
-            values = data_signals_selection["value"].to_list()
-            print("values: " + str(len(values)))
-            # Create charts for the gene.
-            path_gene_figure = os.path.join(path_query, str(name + ".svg"))
-            plot_chart_genes_persons_signals(
-                gene=gene,
-                name=name,
-                values=values,
-                path=path_gene_figure
-            )
-            pass
-
-    if False:
-        # Iterate on genes.
-        for gene in source_initial["genes_unimodal"]:
-            # Access gene's name.
-            name = assembly.access_gene_name(
-                identifier=gene,
-                data_gene_annotation=source_initial["data_gene_annotation"],
-            )
-            # Read source information from file.
-            source_gene = read_source_genes_persons_signals(
-                gene=gene,
-                dock=dock
-            )
-            # Access information.
-            data_gene_persons_signals = source_gene["data_gene_persons_signals"]
-            # Distribution of gene's signals across persons.
-            values = data_gene_persons_signals["value"].to_list()
-            # Create charts for the gene.
-            path_gene_figure = os.path.join(path_unimodal, str(name + ".svg"))
-            plot_chart_genes_persons_signals(
-                gene=gene,
-                name=name,
-                values=values,
-                path=path_gene_figure
-            )
-            pass
-
-        for gene in source_initial["genes_multimodal"]:
-            # Access gene's name.
-            name = assembly.access_gene_name(
-                identifier=gene,
-                data_gene_annotation=source_initial["data_gene_annotation"],
-            )
-            # Read source information from file.
-            source_gene = read_source_genes_persons_signals(
-                gene=gene,
-                dock=dock
-            )
-            # Access information.
-            data_gene_persons_signals = source_gene["data_gene_persons_signals"]
-            # Distribution of gene's signals across persons.
-            values = data_gene_persons_signals["value"].to_list()
-            # Create charts for the gene.
-            path_gene_figure = os.path.join(path_multimodal, str(name + ".svg"))
-            plot_chart_genes_persons_signals(
-                gene=gene,
-                name=name,
-                values=values,
-                path=path_gene_figure
-            )
-            pass
+    for cohort in cohorts:
+        prepare_charts_genes_persons_signals_cohort(
+            cohort=cohort,
+            dock=dock,
+        )
+        pass
     pass
 
 
@@ -5340,13 +5431,18 @@ def prepare_chart_gene_signals_persons_permutation(
 # Status: working
 
 
+# BLARG
+
+
 def read_source_genes_signals_tissues_persons_initial(
-    dock=None
+    cohort=None,
+    dock=None,
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -5358,52 +5454,46 @@ def read_source_genes_signals_tissues_persons_initial(
     """
 
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
+    path_data_gene_annotation = os.path.join(
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
     )
-    path_persons_properties = os.path.join(
-        path_selection, "data_persons_properties.pickle"
+    path_data_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", cohort,
+        "data_persons_properties.pickle"
     )
-    path_genes_selection = os.path.join(
-        path_selection, "genes_selection.pickle"
+    path_genes_distribution = os.path.join(
+        dock, "distribution", cohort, "genes"
     )
-    path_candidacy = os.path.join(dock, "candidacy")
-    path_genes_multimodal = os.path.join(
-        path_candidacy, "genes_multimodal.pickle"
-    )
-
     # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_persons_properties = pandas.read_pickle(path_persons_properties)
-    with open(path_genes_selection, "rb") as file_source:
-        genes_selection = pickle.load(file_source)
-    with open(path_genes_multimodal, "rb") as file_source:
-        genes_multimodal = pickle.load(file_source)
-
-    genes_query = integration.read_source_annotation_query_genes_all(
-        dock=dock,
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
+    data_persons_properties = pandas.read_pickle(path_data_persons_properties)
+    genes_distribution = utility.extract_subdirectory_names(
+        path=path_genes_distribution
     )
-
+    query_gene_sets = integration.read_source_annotation_query_genes_sets(
+        dock=dock
+    )
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
         "data_persons_properties": data_persons_properties,
-        "genes_selection": genes_selection,
-        "genes_multimodal": genes_multimodal,
-        "genes_query": genes_query,
+        "genes_distribution": genes_distribution,
+        "query_gene_sets": query_gene_sets,
     }
 
 
 def read_source_genes_signals_tissues_persons(
     gene=None,
-    dock=None
+    cohort=None,
+    dock=None,
 ):
     """
     Reads and organizes source information from file
 
     arguments:
         gene (str): identifier of single gene for which to execute the process.
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -5415,15 +5505,14 @@ def read_source_genes_signals_tissues_persons(
     """
 
     # Specify directories and files.
-    path_distribution = os.path.join(dock, "distribution")
-    path_gene = os.path.join(path_distribution, "genes", gene)
     path_data_gene_persons_signals = os.path.join(
-        path_gene, "data_gene_persons_signals.pickle"
+        dock, "distribution", cohort, "genes", gene,
+        "data_gene_persons_signals.pickle"
     )
     path_data_gene_signals_tissues_persons = os.path.join(
-        path_gene, "data_gene_signals_tissues_persons_normal_standard.pickle"
+        dock, "distribution", cohort, "genes", gene,
+        "data_gene_signals_tissues_persons_normal_standard.pickle"
     )
-
     # Read information from file.
     data_gene_persons_signals = (
         pandas.read_pickle(path_data_gene_persons_signals)
@@ -5438,9 +5527,35 @@ def read_source_genes_signals_tissues_persons(
     }
 
 
+
+def define_parameters_genes_signals_tissues_persons():
+    """
+    Defines parameters for plots of persons' properties.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict): collection of parameters
+
+    """
+
+    # Use "source["sets_genes"]["multimodal"][parameter["set"]]" to iterate
+    # through multiple sets of genes.
+    parameters = list()
+    parameters.append(dict(
+        title="ventilation_binary", label="ventilation",
+        set="ventilation_binary_scale",
+        property="ventilation_binary", type="binary",
+    ))
+    # Return information.
+    return parameters
+
+
 def organize_genes_signals_tissues_persons(
-    property=None,
-    type=None,
+    master=None,
+    type_master=None,
     data_persons_properties=None,
     data_gene_persons_signals=None,
     data_gene_signals_tissues_persons=None,
@@ -5449,9 +5564,9 @@ def organize_genes_signals_tissues_persons(
     Organize information for chart.
 
     arguments:
-        property (str): name of feature from persons' properties to use for
-            groups
-        type (str): type of property, category or continuity
+        master (str): name of feature from persons' properties to use for
+            master variable
+        type_master (str): type of master variable
         data_persons_properties (object): Pandas data frame of persons'
             properties
         data_gene_persons_signals (object): Pandas data frame of a gene's
@@ -5474,33 +5589,13 @@ def organize_genes_signals_tissues_persons(
     )
     # Rename the aggregate, pantissue signals.
     data_gene_persons_signals.rename(
-        columns={
-            "value": "signal",
-        },
+        columns={"value": "signal",},
         inplace=True,
     )
     # Introduce aggregate, pantissue signals to tissue-person matrix.
     # These aggregate signals will be useful to sort the data.
-    data_sort = data_gene_signals_tissues_persons.join(
+    data_hybrid = data_gene_signals_tissues_persons.join(
         data_gene_persons_signals,
-        how="left",
-        on="person"
-    )
-    # Introduce groups to data.
-    if type == "category":
-        data_persons_properties["property"], properties = pandas.factorize(
-            data_persons_properties[property],
-            sort=True
-        )
-        properties = list(properties)
-    elif type == "continuity":
-        data_persons_properties["property"] = data_persons_properties[property]
-        properties = None
-    data_persons_properties = data_persons_properties.loc[
-        :, data_persons_properties.columns.isin(["property", property])
-    ]
-    data_hybrid = data_sort.join(
-        data_persons_properties,
         how="left",
         on="person"
     )
@@ -5513,24 +5608,34 @@ def organize_genes_signals_tissues_persons(
     )
     # Remove the column for aggregate, pantissue signals.
     data_hybrid.drop(
-        labels=["signal", property],
+        labels=["signal"],
         axis="columns",
         inplace=True
     )
-    # Compile information.
-    bin = dict()
-    bin["properties"] = properties
-    bin["data"] = data_hybrid
+    # Organize master and main data.
+    bin = organize_data_master_main(
+        data_master=data_persons_properties,
+        master=master,
+        type_master=type_master,
+        data_main=data_hybrid,
+        type_main="countinuous_divergent",
+        scale_unit_main=False,
+        columns_main_scale_unit=list(),
+        index="person",
+        sequence="none",
+    )
     # Return information
     return bin
 
 
 def plot_chart_genes_signals_tissues_persons(
     gene=None,
-    name=None,
-    property=None,
-    type=None,
-    properties=None,
+    gene_name=None,
+    title=None,
+    label=None,
+    master=None,
+    type_master=None,
+    labels_categories_master=None,
     data=None,
     path_directory=None
 ):
@@ -5538,12 +5643,15 @@ def plot_chart_genes_signals_tissues_persons(
     Plots charts from the analysis process.
 
     arguments:
-        gene (str): identifier of a single gene
-        name (str): name of gene
-        property (str): name of feature from persons' properties to use for
-            groups
-        type (str): type of property, category or continuity
-        properties (list<str>): unique values of property
+        gene (str): identifier of a gene
+        gene_name (str): name of gene
+        title (str): title for chart
+        label (str): label for property feature
+        master (str): name of feature from persons' properties to use for
+            master variable
+        type_master (str): type of master variable
+        labels_categories_master (list<str>): labels for scale ticks of
+            categorical master variable
         data (object): Pandas data frame of a gene's aggregate, pantissue
             signals across tissues and persons
         path_directory (str): path for directory
@@ -5556,7 +5664,7 @@ def plot_chart_genes_signals_tissues_persons(
 
     # Define file name.
     path_figure = os.path.join(
-        path_directory, str(name + ".png")
+        path_directory, str(gene_name + ".png")
     )
 
     # Define fonts.
@@ -5565,18 +5673,19 @@ def plot_chart_genes_signals_tissues_persons(
     colors = define_color_properties()
 
     # Create figure.
-    figure = plot_heatmap_asymmetric_master_top_bottom(
-        title=name,
+    figure = plot_heatmap_asymmetric_master_main_top_bottom(
+        title=gene_name,
         title_subordinate="",
-        label="",
-        property=property,
-        type=type,
-        properties=properties,
+        label_master=label,
+        labels_categories_master=labels_categories_master,
+        label_main="genes' signals across tissues and persons",
+        type_master=type_master,
+        type_main="continuous_divergent",
         data=data,
         fonts=fonts,
         colors=colors,
-        title_signal="genes' pan-tissue signals across persons",
     )
+
     # Write figure.
     write_figure_png(
         path=path_figure,
@@ -5587,11 +5696,14 @@ def plot_chart_genes_signals_tissues_persons(
 
 
 def prepare_charts_genes_signals_tissues_persons_gene(
-    property=None,
-    type=None,
+    title=None,
+    label=None,
+    master=None,
+    type_master=None,
     gene=None,
     data_gene_annotation=None,
     data_persons_properties=None,
+    cohort=None,
     path_directory=None,
     dock=None,
 ):
@@ -5599,15 +5711,16 @@ def prepare_charts_genes_signals_tissues_persons_gene(
     Plots charts from the analysis process.
 
     arguments:
-        property (str): name of feature from persons' properties to use for
-            groups
-        type (str): type of property, category or continuity
-        genes_multimodal (list<str>): identifiers of genes
-        genes_query (list<str>): identifiers of genes
-        genes_selection (list<str>): identifiers of genes
+        title (str): title for chart
+        label (str): label for property feature
+        master (str): name of feature from persons' properties to use for
+            master variable
+        type_master (str): type of master variable
+        gene (str): identifier of a gene
         data_gene_annotation (object): Pandas data frame of genes' annotations
         data_persons_properties (object): Pandas data frame of persons and
             their properties
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         path_directory (str): path to directory
         dock (str): path to root or dock directory for source and product
             directories and files
@@ -5624,64 +5737,67 @@ def prepare_charts_genes_signals_tissues_persons_gene(
         data_gene_annotation=data_gene_annotation,
     )
     # Read source information from file.
-    source_gene = read_source_genes_signals_tissues_persons(
+    source = read_source_genes_signals_tissues_persons(
         gene=gene,
+        cohort=cohort,
         dock=dock
     )
     # Organize data.
     # Sort persons by their pantissue aggregate signals for the gene.
     # The same order is important to compare the heatmap to the histogram.
-    bin = (
-        organize_genes_signals_tissues_persons(
-            property=property,
-            type=type,
-            data_persons_properties=data_persons_properties,
-            data_gene_persons_signals=(
-                source_gene["data_gene_persons_signals"]
-            ),
-            data_gene_signals_tissues_persons=(
-                source_gene["data_gene_signals_tissues_persons"]
-            ),
-        )
+    bin = organize_genes_signals_tissues_persons(
+        master=master,
+        type_master=type_master,
+        data_persons_properties=data_persons_properties,
+        data_gene_persons_signals=source["data_gene_persons_signals"],
+        data_gene_signals_tissues_persons=source[
+            "data_gene_signals_tissues_persons"
+        ],
     )
     # Create charts for the gene.
     plot_chart_genes_signals_tissues_persons(
         gene=gene,
-        name=name,
-        property=property,
-        type=type,
-        properties=bin["properties"],
+        gene_name=name,
+        title=title,
+        label=label,
+        master=master,
+        type_master=type_master,
+        labels_categories_master=bin["labels_categories_master"],
         data=bin["data"],
-        path_directory=path_directory
+        path_directory=path_directory,
     )
     pass
 
 
 def prepare_charts_genes_signals_tissues_persons_variable(
-    property=None,
-    type=None,
-    genes_multimodal=None,
+    title=None,
+    label=None,
+    master=None,
+    type_master=None,
     genes_query=None,
-    genes_selection=None,
+    genes_distribution=None,
     data_gene_annotation=None,
     data_persons_properties=None,
-    path_tissues_persons=None,
+    cohort=None,
+    path_parent=None,
     dock=None,
 ):
     """
     Plots charts from the analysis process.
 
     arguments:
-        property (str): name of feature from persons' properties to use for
-            groups
-        type (str): type of property, category or continuity
-        genes_multimodal (list<str>): identifiers of genes
-        genes_query (list<str>): identifiers of genes
-        genes_selection (list<str>): identifiers of genes
+        title (str): title for chart
+        label (str): label for property feature
+        master (str): name of feature from persons' properties to use for
+            master variable
+        type_master (str): type of master variable
+        genes_query (list<str>): identifiers of genes for which to plot signals
+        genes_distribution (list<str>): identifiers of genes with signals
         data_gene_annotation (object): Pandas data frame of genes' annotations
         data_persons_properties (object): Pandas data frame of persons and
             their properties
-        path_tissues_persons (str): path to parent directory
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        path_parent (str): path to directory
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -5691,41 +5807,81 @@ def prepare_charts_genes_signals_tissues_persons_variable(
 
     """
 
-    # Define paths.
-    path_variable = os.path.join(
-        path_tissues_persons, property,
+    # Filter query genes to ensure that they have signals.
+    genes_query_valid = utility.filter_common_elements(
+        list_one=genes_query,
+        list_two=genes_distribution,
     )
-    path_multimodal = os.path.join(path_variable, "multimodal")
-    path_query = os.path.join(path_variable, "query")
-    utility.create_directories(path=path_multimodal)
-    utility.create_directories(path=path_query)
-
-    # Iterate on multimodal genes.
-    for gene in genes_multimodal:
+    # Specify directories and files.
+    path_directory = os.path.join(path_parent, title)
+    utility.create_directories(path=path_directory)
+    # Iterate on genes.
+    for gene in genes_query_valid:
         prepare_charts_genes_signals_tissues_persons_gene(
-            property=property,
-            type=type,
+            title=title,
+            label=label,
+            master=master,
+            type_master=type_master,
             gene=gene,
             data_gene_annotation=data_gene_annotation,
             data_persons_properties=data_persons_properties,
-            path_directory=path_multimodal,
+            cohort=cohort,
+            path_directory=path_directory,
             dock=dock,
         )
         pass
+    pass
 
-    # Iterate on interest genes.
-    for gene in genes_query:
-        if gene in genes_selection:
-            prepare_charts_genes_signals_tissues_persons_gene(
-                property=property,
-                type=type,
-                gene=gene,
-                data_gene_annotation=data_gene_annotation,
-                data_persons_properties=data_persons_properties,
-                path_directory=path_query,
-                dock=dock,
-            )
-            pass
+
+def prepare_charts_genes_signals_tissues_persons_cohort(
+    cohort=None,
+    dock=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_genes_signals_tissues_persons_initial(
+        cohort=cohort,
+        dock=dock,
+    )
+    # Specify directories and files.
+    path_directory = os.path.join(
+        dock, "plot", "distribution", "tissues_persons", cohort,
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+
+    # Specify combinations of parameters for charts.
+    parameters = define_parameters_genes_signals_tissues_persons()
+    # Iterate on parameters.
+    for parameter in parameters:
+        # Prepare charts for genes.
+        prepare_charts_genes_signals_tissues_persons_variable(
+            title=parameter["title"],
+            label=parameter["label"],
+            master=parameter["property"],
+            type_master=parameter["type"],
+            genes_query=source["query_gene_sets"]["covid_19"],
+            genes_distribution=source["genes_distribution"],
+            data_gene_annotation=source["data_gene_annotation"],
+            data_persons_properties=source["data_persons_properties"],
+            cohort=cohort,
+            path_parent=path_directory,
+            dock=dock,
+        )
         pass
     pass
 
@@ -5746,40 +5902,14 @@ def prepare_charts_genes_signals_tissues_persons(
 
     """
 
-    # Read source information from file.
-    source_initial = (
-        read_source_genes_signals_tissues_persons_initial(dock=dock)
-    )
-
-    # Specify directories and files.
-    path_plot = os.path.join(dock, "plot")
-    utility.create_directory(path_plot)
-    path_candidacy = os.path.join(path_plot, "candidacy")
-    path_tissues_persons = os.path.join(
-        path_candidacy, "tissues_persons"
-    )
-    # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_tissues_persons)
-
-    # Iterate on categorical and ordinal groups of variables.
-    variables = list()
-    #variables.append(dict(name="sex", type="category"))
-    variables.append(dict(name="age", type="continuity"))
-    #variables.append(dict(name="body", type="continuity"))
-    #variables.append(dict(name="hardiness", type="continuity"))
-    #variables.append(dict(name="season_sequence", type="continuity"))
-    # Iterate on categorical variables.
-    for variable in variables:
-        # Prepare charts for genes.
-        prepare_charts_genes_signals_tissues_persons_variable(
-            property=variable["name"],
-            type=variable["type"],
-            genes_multimodal=source_initial["genes_multimodal"],
-            genes_query=source_initial["genes_query"],
-            genes_selection=source_initial["genes_selection"],
-            data_gene_annotation=source_initial["data_gene_annotation"],
-            data_persons_properties=source_initial["data_persons_properties"],
-            path_tissues_persons=path_tissues_persons,
+    cohorts = [
+        "selection",
+        #"respiration",
+        "ventilation",
+    ]
+    for cohort in cohorts:
+        prepare_charts_genes_signals_tissues_persons_cohort(
+            cohort=cohort,
             dock=dock,
         )
         pass
@@ -5796,6 +5926,7 @@ def prepare_charts_genes_signals_tissues_persons(
 # *****
 # TODO: change to cohort specific after integrating DAVID sets for each cohort...
 # *****
+
 
 def read_source_prediction_genes_signals_persons_properties(
     cohort=None,
@@ -5831,12 +5962,10 @@ def read_source_prediction_genes_signals_persons_properties(
     )
 
     # TODO: change to cohort...
-
     path_genes_prediction_ontology = os.path.join(
         dock, "integration", "selection", "set", "prediction_ontology",
         "genes.pickle"
     )
-
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
     data_persons_properties = pandas.read_pickle(path_data_persons_properties)
@@ -5845,18 +5974,16 @@ def read_source_prediction_genes_signals_persons_properties(
     )
     with open(path_genes_prediction_ontology, "rb") as file_source:
         genes_prediction_ontology = pickle.load(file_source)
-    genes_query_population = (
-        integration.read_source_annotation_query_genes_set(
-            set="population",
-            dock=dock,
-    ))
+    query_gene_sets = integration.read_source_annotation_query_genes_sets(
+        dock=dock
+    )
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
         "data_persons_properties": data_persons_properties,
         "data_signals_genes_persons": data_signals_genes_persons,
         "genes_prediction_ontology": genes_prediction_ontology,
-        "genes_query_population": genes_query_population,
+        "query_gene_sets": query_gene_sets,
     }
 
 
@@ -5990,7 +6117,7 @@ def plot_chart_prediction_genes_signals_persons_properties(
     pass
 
 
-def prepare_charts_prediction_genes_signals_persons_properties_variable(
+def prepare_charts_query_genes_signals_persons_properties_variable(
     title=None,
     label=None,
     master=None,
@@ -6085,7 +6212,73 @@ def prepare_charts_prediction_genes_signals_persons_properties_variable(
     pass
 
 
-def prepare_charts_prediction_genes_signals_persons_properties_cohort(
+def prepare_charts_query_genes_signals_persons_properties_genes(
+    set_name=None,
+    genes=None,
+    data_gene_annotation=None,
+    data_persons_properties=None,
+    data_signals_genes_persons=None,
+    path_parent=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        set_name (str): name of set of genes
+        genes (list<str>): identifiers of genes
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        data_persons_properties (object): Pandas data frame of persons and
+            their properties
+        data_signals_genes_persons (object): Pandas data frame of pan-tissue
+            signals across genes and persons
+        path_parent (str): path to directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Filter query genes to ensure that they have signals.
+    genes_valid = utility.filter_common_elements(
+        list_one=genes,
+        list_two=data_signals_genes_persons.columns.tolist(),
+    )
+    # Specify directories and files.
+    path_sort = os.path.join(
+        path_parent, set_name, "sort_persons"
+    )
+    path_cluster = os.path.join(
+        path_parent, set_name, "cluster_persons"
+    )
+    utility.create_directories(path=path_sort)
+    utility.create_directories(path=path_cluster)
+    # Specify combinations of parameters for charts.
+    parameters = (
+        define_parameters_prediction_genes_signals_persons_properties()
+    )
+    for parameter in parameters:
+        # Report.
+        #utility.print_terminal_partition(level=3)
+        #print(str(len(source["sets_genes"]["multimodal"][parameter["set"]])))
+        # Prepare charts for genes.
+        prepare_charts_query_genes_signals_persons_properties_variable(
+            title=parameter["title"],
+            label=parameter["label"],
+            master=parameter["property"],
+            type_master=parameter["type"],
+            genes_query=genes_valid,
+            data_gene_annotation=data_gene_annotation,
+            data_persons_properties=data_persons_properties,
+            data_signals_genes_persons=data_signals_genes_persons,
+            path_sort=path_sort,
+            path_cluster=path_cluster,
+        )
+        pass
+    pass
+
+
+def prepare_charts_query_genes_signals_persons_properties_cohort(
     cohort=None,
     dock=None
 ):
@@ -6114,44 +6307,33 @@ def prepare_charts_prediction_genes_signals_persons_properties_cohort(
     path_persons_properties = os.path.join(
         path_prediction, "persons_properties"
     )
-    path_sort = os.path.join(
-        path_persons_properties, cohort, "sort_persons"
-    )
-    path_cluster = os.path.join(
-        path_persons_properties, cohort, "cluster_persons"
+    path_cohort = os.path.join(
+        path_persons_properties, cohort
     )
     # Remove previous files to avoid version or batch confusion.
-    utility.remove_directory(path=path_sort)
-    utility.remove_directory(path=path_cluster)
-    utility.create_directories(path=path_sort)
-    utility.create_directories(path=path_cluster)
-
-    # Specify combinations of parameters for charts.
-    parameters = (
-        define_parameters_prediction_genes_signals_persons_properties()
+    utility.remove_directory(path=path_cohort)
+    utility.create_directories(path=path_cohort)
+    # Prepare and plot data for sets of genes.
+    prepare_charts_query_genes_signals_persons_properties_genes(
+        set_name="prediction",
+        genes=source["genes_prediction_ontology"],
+        data_gene_annotation=source["data_gene_annotation"],
+        data_persons_properties=source["data_persons_properties"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+        path_parent=path_cohort,
     )
-    for parameter in parameters:
-        # Report.
-        #utility.print_terminal_partition(level=3)
-        #print(str(len(source["sets_genes"]["multimodal"][parameter["set"]])))
-        # Prepare charts for genes.
-        prepare_charts_prediction_genes_signals_persons_properties_variable(
-            title=parameter["title"],
-            label=parameter["label"],
-            master=parameter["property"],
-            type_master=parameter["type"],
-            genes_query=source["genes_prediction_ontology"],
-            data_gene_annotation=source["data_gene_annotation"],
-            data_persons_properties=source["data_persons_properties"],
-            data_signals_genes_persons=source["data_signals_genes_persons"],
-            path_sort=path_sort,
-            path_cluster=path_cluster,
-        )
-        pass
+    prepare_charts_query_genes_signals_persons_properties_genes(
+        set_name="query",
+        genes=source["query_gene_sets"]["covid_19"],
+        data_gene_annotation=source["data_gene_annotation"],
+        data_persons_properties=source["data_persons_properties"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+        path_parent=path_cohort,
+    )
     pass
 
 
-def prepare_charts_prediction_genes_signals_persons_properties(
+def prepare_charts_query_genes_signals_persons_properties(
     dock=None
 ):
     """
@@ -6167,16 +6349,17 @@ def prepare_charts_prediction_genes_signals_persons_properties(
 
     """
 
-    if True:
-        prepare_charts_prediction_genes_signals_persons_properties_cohort(
-            cohort="selection",
+    cohorts = [
+        "selection",
+        #"respiration",
+        "ventilation",
+    ]
+    for cohort in cohorts:
+        prepare_charts_query_genes_signals_persons_properties_cohort(
+            cohort=cohort,
             dock=dock,
         )
-    if True:
-        prepare_charts_prediction_genes_signals_persons_properties_cohort(
-            cohort="ventilation",
-            dock=dock,
-        )
+        pass
     pass
 
 
@@ -6469,11 +6652,11 @@ def read_source_persons_genes_components(
         "data_persons_properties.pickle"
     )
     path_data_persons_genes_components = os.path.join(
-        dock, "integration", cohort, "population",
+        dock, "stratification", cohort, "component",
         "data_persons_genes_components.pickle"
     )
     path_data_persons_genes_variances = os.path.join(
-        dock, "integration", cohort, "population",
+        dock, "stratification", cohort, "component",
         "data_persons_genes_variances.pickle"
     )
     # Read information from file.
@@ -6811,19 +6994,27 @@ def read_source_signals_genes_correlations(
         dock, "selection", "tight", "gene_annotation",
         "data_gene_annotation_gencode.pickle"
     )
-    path_data_correlation_genes = os.path.join(
+    path_data_prediction = os.path.join(
         dock, "integration", cohort, "correlation",
-        "data_correlation_genes.pickle"
+        "data_correlation_genes_prediction.pickle"
+    )
+    path_data_query = os.path.join(
+        dock, "integration", cohort, "correlation",
+        "data_correlation_genes_query.pickle"
     )
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
-    data_correlation_genes = pandas.read_pickle(
-        path_data_correlation_genes
+    data_prediction = pandas.read_pickle(
+        path_data_prediction
+    )
+    data_query = pandas.read_pickle(
+        path_data_query
     )
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
-        "data_correlation_genes": data_correlation_genes,
+        "data_correlation_genes_prediction": data_prediction,
+        "data_correlation_genes_query": data_query,
     }
 
 
@@ -6934,13 +7125,15 @@ def prepare_charts_signals_genes_correlations(
         cohort="selection",
         dock=dock,
     )
-
     # Organize data.
-    data = organize_signals_genes_correlations(
+    data_prediction = organize_signals_genes_correlations(
         data_gene_annotation=source["data_gene_annotation"],
-        data_genes_correlations=source["data_correlation_genes"],
+        data_genes_correlations=source["data_correlation_genes_prediction"],
     )
-
+    data_query = organize_signals_genes_correlations(
+        data_gene_annotation=source["data_gene_annotation"],
+        data_genes_correlations=source["data_correlation_genes_query"],
+    )
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
@@ -6953,15 +7146,21 @@ def prepare_charts_signals_genes_correlations(
     utility.create_directories(path=path_directory)
 
     # Define file name.
-    path_file = os.path.join(
-        path_directory, str("genes_correlations.png")
+    path_file_prediction = os.path.join(
+        path_directory, str("genes_correlations_prediction.png")
+    )
+    path_file_query = os.path.join(
+        path_directory, str("genes_correlations_query.png")
     )
     # Create chart.
     plot_chart_signals_genes_correlations(
-        data=data,
-        path_file=path_file
+        data=data_prediction,
+        path_file=path_file_prediction
     )
-
+    plot_chart_signals_genes_correlations(
+        data=data_query,
+        path_file=path_file_query
+    )
     pass
 
 
@@ -8369,33 +8568,33 @@ def execute_procedure(dock=None):
 
     # Plot charts of distributions of genes' pan-tissue aggregate signals
     # across persons.
-    #prepare_charts_genes_persons_signals(dock=dock)
+    prepare_charts_genes_persons_signals(dock=dock)
+
+    # Plot charts, heatmaps, for each gene's signals across persons (columns)
+    # and tissues (rows).
+    # Include a chart to depict persons' properties.
+    # Sort order of persons is by pan-tissue signal.
+    prepare_charts_genes_signals_tissues_persons(dock=dock)
+
+    ##########
+    ##########
+    ##########
+    # Candidacy procedure
+
+    # Plot charts of overlap between sets in selection of genes by bimodality.
+    prepare_charts_candidacy_gene_sets_overlap(dock=dock)
+
+    # Plot charts of distributions of each modality measure's scores across
+    # genes.
+    prepare_charts_modality_measure_genes_distribution(dock=dock)
+
 
     if False:
-
-        # Plot charts of distributions of each modality measure's scores across
-        # genes.
-        prepare_charts_modality_gene_distribution(dock=dock)
-
-
-        ##########
-        ##########
-        ##########
-        # Candidacy procedure
-
-        # Plot charts of overlap between sets in selection of genes by bimodality.
-        prepare_charts_gene_sets_candidacy(dock=dock)
 
         # Plot charts for correlations in signals between pairs of genes.
         # Charts will be scatter plots.
         # Each point will represent a person with pantissue signals from each gene.
         prepare_charts_signals_persons_gene_pairs(dock=dock)
-
-        # Plot charts, heatmaps, for each gene's signals across persons (columns)
-        # and tissues (rows).
-        # Include a chart to depict persons' properties.
-        # Sort order of persons is by pan-tissue signal.
-        prepare_charts_genes_signals_tissues_persons(dock=dock)
 
     if False:
 
@@ -8443,8 +8642,6 @@ def execute_procedure(dock=None):
     # Highlight genes of interest from regression
     prepare_charts_multimodal_genes_ontology_sets(dock=dock)
 
-
-
     ##########
     ##########
     ##########
@@ -8462,7 +8659,7 @@ def execute_procedure(dock=None):
     # (sex, age, body mass index, hardiness).
     # In other charts, sort order across columns depends on hierarchical
     # clustering.
-    prepare_charts_prediction_genes_signals_persons_properties(dock=dock)
+    prepare_charts_query_genes_signals_persons_properties(dock=dock)
 
     # Plot charts for correlations between pairs of genes of interest.
     # Chart is adjacency matrix heatmap.

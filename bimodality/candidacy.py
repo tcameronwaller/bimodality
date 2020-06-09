@@ -195,20 +195,26 @@ def report_modality_measure_correlations(
         features=measures,
         data=data_distribution_report,
     )
-    # Organize data matrix.
-    data_correlations = utility.organize_correlations_matrix(
+    # Organize data matrix for correlation coefficients.
+    data_correlations = utility.organize_symmetric_adjacency_matrix(
         features=measures,
-        correlations=correlations,
-        key="correlation"
+        collection=correlations,
+        key="correlation",
+        threshold=False,
+        fill=0.0,
     )
     utility.print_terminal_partition(level=2)
     print("Spearman correlation coefficients between pairs of measures.")
     utility.print_terminal_partition(level=3)
     print(data_correlations)
-    data_probabilities = utility.organize_correlations_matrix(
+
+    # Organize data matrix for correlation probabilities.
+    data_probabilities = utility.organize_symmetric_adjacency_matrix(
         features=measures,
-        correlations=correlations,
-        key="probability"
+        collection=correlations,
+        key="probability",
+        threshold=False,
+        fill=0.0,
     )
     utility.print_terminal_partition(level=2)
     print("Probabilities of correlations between pairs of measures.")
@@ -1002,9 +1008,6 @@ def write_product(
 # Procedure
 
 
-# TODO: I will probably need different thresholds for each cohort...
-
-
 def select_report_write_candidate_modality_genes_cohort(
     cohort=None,
     paths=None,
@@ -1050,13 +1053,10 @@ def select_report_write_candidate_modality_genes_cohort(
     measures = list(source["scores"].keys())
 
     # Describe correlations between pairs of modality measures.
-
-    if False:
-        report_modality_measure_correlations(
-            measures=measures,
-            data_distribution_report=source["data_distribution_report"],
-        )
-
+    report_modality_measure_correlations(
+        measures=measures,
+        data_distribution_report=source["data_distribution_report"],
+    )
     # Select genes with least and greatest values of each measure of modality.
     # Use less stringency for unimodal genes in order to select those that are
     # not multimodal by any measures.

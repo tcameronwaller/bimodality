@@ -1861,7 +1861,7 @@ def organize_data_regress_cases_report_write(
     variables = selection.define_variables()
 
     # Regression on hypothesis variables.
-    if False:
+    if True:
         #genes_regression = random.sample(
         #    source["genes_candidacy"]["selection"], 100
         #)
@@ -1892,7 +1892,7 @@ def organize_data_regress_cases_report_write(
     # with modality sets.
     # Select genes with significant association with each hypothetical
     # variable of interest.
-    if True:
+    if False:
         model = "hypothesis"
         variables_interest = variables[cohort]["model_hypothesis"]
         variables_query = variables["query"]["six"] # one, two,
@@ -1911,9 +1911,9 @@ def organize_data_regress_cases_report_write(
             genes_selection=genes_sets["selection"],
             genes_unimodal=genes_sets["unimodal"],
             genes_multimodal=genes_sets["multimodal"],
-            threshold_r_square=0.32, # 0.1, 0.25
+            threshold_r_square=0.25, # 0.1, 0.25
             threshold_discovery=0.05,
-            count_selection=35, # select count of genes with greatest absolute values of regression parameters (beta coefficients)
+            count_selection=1000, # select count of genes with greatest absolute values of regression parameters (beta coefficients)
             data_regression_genes=source_regression["data_regression_genes"],
         )
         sets_genes = collect_union_sets_genes(
@@ -1968,12 +1968,12 @@ def execute_procedure(
             cohort="selection",
             paths=paths,
         )
-    if True:
+    if False:
         organize_data_regress_cases_report_write(
             cohort="respiration",
             paths=paths,
         )
-    if True:
+    if False:
         organize_data_regress_cases_report_write(
             cohort="ventilation",
             paths=paths,

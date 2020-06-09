@@ -66,16 +66,17 @@ echo "Now set to call routine and procedures."
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access # run on 21 February 2020
 #python3 interface.py main --dock $path_dock --assembly # run on 27 May 2020
-#python3 interface.py main --dock $path_dock --selection # run on 21 May 2020
+#python3 interface.py main --dock $path_dock --selection # run on 4 June 2020
 
 ##########
 # - Batch Routine
 
-#python3 interface.py main --dock $path_dock --split # ran on 20 May 2020
-#python3 interface.py main --dock $path_dock --distribution --local # run on 21 April 2020
+#python3 interface.py main --dock $path_dock --split # ran on 4 June 2020
+#python3 interface.py main --dock $path_dock --distribution --local # run on 3 June 2020 (with chrX genes and lenient signal threshold)
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --candidacy
+#python3 interface.py main --dock $path_dock --stratification
 
 #python3 interface.py main --dock $path_dock --shuffle --count 10
 # Current implementation requires approximately 3 Gigabytes of memory for
@@ -93,13 +94,13 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
-#python3 interface.py main --dock $path_dock --prediction
+python3 interface.py main --dock $path_dock --prediction
 #python3 interface.py main --dock $path_dock --function
 #python3 interface.py main --dock $path_dock --integration
 
 #python3 interface.py main --dock $path_dock --structure
 
-python3 interface.py main --dock $path_dock --plot
+#python3 interface.py main --dock $path_dock --plot
 
 
 ##########

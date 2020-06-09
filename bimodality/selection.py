@@ -93,6 +93,7 @@ def read_source_gene_annotation(dock=None):
 
 
 def select_gene_annotation(
+    keep_x=None,
     genes_gtex=None,
     data_gene_annotation=None,
 ):
@@ -101,6 +102,7 @@ def select_gene_annotation(
     proteins, and have signals in GTEx data.
 
     arguments:
+        keep_x (bool): whether to keep genes on X sex chromosome
         genes_gtex (list<str>): identifiers of genes with signals in GTEx data
         data_gene_annotation (object): Pandas data frame of genes' annotations
 
@@ -133,7 +135,7 @@ def select_gene_annotation(
     # proteins.
     data_gene_annotation = (
         data_gene_annotation.loc[
-            data_gene_annotation["seqname"] != "chrX", :
+            data_gene_annotation["seqname"] != "chrM", :
         ]
     )
     data_gene_annotation = (
@@ -141,11 +143,13 @@ def select_gene_annotation(
             data_gene_annotation["seqname"] != "chrY", :
         ]
     )
-    data_gene_annotation = (
-        data_gene_annotation.loc[
-            data_gene_annotation["seqname"] != "chrM", :
-        ]
-    )
+    if not keep_x:
+        data_gene_annotation = (
+            data_gene_annotation.loc[
+                data_gene_annotation["seqname"] != "chrX", :
+            ]
+        )
+        pass
     utility.print_terminal_partition(level=2)
     print(
         "count of reference genes on nuclear (not mitochondrial) autosomes: " +
@@ -188,14 +192,18 @@ def select_gene_annotation(
 
 
 def select_organize_genes_annotations(
+    keep_x=None,
     stringency=None,
     dock=None,
 ):
     """
     Selects and organizes information about genes.
 
+    Prioritize gene annotations from GENCODE.
+
     arguments:
         stringency (str): category, loose or tight, of selection criteria
+        keep_x (bool): whether to keep genes on X sex chromosome
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -228,6 +236,7 @@ def select_organize_genes_annotations(
     # GTEx reference: 18380 genes on autosomes that encode proteins.
     # GTEx reference: 18380 genes with signal.
     bin_gtex = select_gene_annotation(
+        keep_x=keep_x,
         genes_gtex=source["genes_gtex"],
         data_gene_annotation=source["data_gene_annotation_gtex"],
     )
@@ -238,6 +247,7 @@ def select_organize_genes_annotations(
     # GENCODE reference: 19027 genes on autosomes that encode proteins.
     # GENCODE reference: 18324 genes with signal.
     bin_gencode = select_gene_annotation(
+        keep_x=keep_x,
         genes_gtex=source["genes_gtex"],
         data_gene_annotation=source["data_gene_annotation_gencode"],
     )
@@ -1026,6 +1036,9 @@ def report_selection_samples_genes_by_signals(
     pass
 
 
+# Within this function, set the threshold for selection of genes by their
+# signals and coverage across samples.
+
 def select_samples_genes_by_signals(
     stringency=None,
     report=None,
@@ -1393,10 +1406,8 @@ def read_source_persons_properties(
     }
 
 
-# TODO: define separate regression models for...
-# TODO: 1. selection persons
-# TODO: 2. respiration persons
-# TODO: 3. ventilation persons
+
+# TODO: move the regression model variable definitions to a spreadsheet input
 
 
 def define_organization_variables():
@@ -1435,6 +1446,19 @@ def define_organization_variables():
         "batches_combination",
         "facilities_batches",
     ]
+    # Pairs of variables for interaction terms.
+    interaction = list()
+    pair = dict()
+    pair["name"] = "sex_risk*ventilation_binary"
+    pair["variable_one"] = "sex_risk"
+    pair["variable_two"] = "ventilation_binary"
+    interaction.append(pair)
+    pair = dict()
+    pair["name"] = "age*ventilation_binary"
+    pair["variable_one"] = "age"
+    pair["variable_two"] = "ventilation_binary"
+    interaction.append(pair)
+
     # Variables of raw values that might require standardization to adjust
     # scale.
     scale = [
@@ -1481,11 +1505,14 @@ def define_organization_variables():
         "tissues_1",
         "tissues_2",
         "tissues_3",
+        "sex_risk*ventilation_binary",
+        "age*ventilation_binary",
     ]
     # Compile information.
     bin = dict()
     bin["binary"] = binary
     bin["dimension"] = dimension
+    bin["interaction"] = interaction
     bin["scale"] = scale
     # Return information.
     return bin
@@ -1519,7 +1546,9 @@ def define_variables_regression_selection():
         "heart_binary_scale",
         "diabetes_binary_scale",
         #"ventilation_duration_scale",
-        "ventilation_binary_scale",
+        #"ventilation_binary_scale",
+        "sex_risk*ventilation_binary_scale",
+        #"age*ventilation_binary_scale",
     ]
     # Variables that relate to genotype.
     genotype = [
@@ -1539,7 +1568,6 @@ def define_variables_regression_selection():
         "facilities_1_scale", # 0.693
         "facilities_2_scale", # 0.289
         "batches_extraction_1_scale", # 0.0215
-        "batches_extraction_2_scale",
         "batches_sequence_1_scale", # 0.0722
         "batches_sequence_2_scale", # 0.0699
     ]
@@ -1617,7 +1645,6 @@ def define_variables_regression_respiration():
         "facilities_1_scale", # 0.693
         "facilities_2_scale", # 0.289
         "batches_extraction_1_scale", # 0.0215
-        "batches_extraction_2_scale",
         "batches_sequence_1_scale", # 0.0722
         "batches_sequence_2_scale", # 0.0699
     ]
@@ -1695,7 +1722,6 @@ def define_variables_regression_ventilation():
         "facilities_1_scale", # 0.693
         "facilities_2_scale", # 0.289
         "batches_extraction_1_scale", # 0.0215
-        "batches_extraction_2_scale",
         "batches_sequence_1_scale", # 0.0722
         "batches_sequence_2_scale", # 0.0699
     ]
@@ -2221,6 +2247,12 @@ def organize_samples_sex_variables(
         lambda value:
             0 if (value == "female") else
             (1 if (value == "male") else
+            float("nan"))
+    )
+    data_samples["sex_risk"] = data_samples["sex_text"].apply(
+        lambda value:
+            1 if (value == "female") else
+            (2 if (value == "male") else
             float("nan"))
     )
     # Return information.
@@ -3261,6 +3293,40 @@ def organize_persons_category_dimensionality(
     return bin
 
 
+def calculate_variable_pairs_interaction_terms(
+    pairs=None,
+    data_persons_properties=None,
+):
+    """
+    Standardizes variables' values to z-score scale.
+
+    arguments:
+        pairs (list<dict>): information about pairs of variables from which to
+            calculate interaction terms
+        data_persons_properties_raw (object): Pandas data frame of persons'
+            properties
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of information about persons
+
+    """
+
+    # Copy data.
+    data = data_persons_properties.copy(deep=True)
+    # Iterate on variables.
+    for pair in pairs:
+        data[pair["name"]] = data.apply(
+            lambda row:
+                (row[pair["variable_one"]] * row[pair["variable_two"]]),
+            axis="columns",
+        )
+        pass
+    # Return information.
+    return data
+
+
 def standardize_scale_variables(
     variables=None,
     data_persons_properties=None,
@@ -3479,13 +3545,18 @@ def organize_persons_properties(
         data_persons_properties_raw=data_stratification,
         report=report,
     )
+    # Calculate interaction terms.
+    data_interaction = calculate_variable_pairs_interaction_terms(
+        pairs=variables["organization"]["interaction"],
+        data_persons_properties=bin_dimension[
+            "data_persons_properties_dimension"
+        ],
+    )
     # Standardize the scales of numerical variables for regression.
     # These variables are on ordinal or ratio (continuous) scales.
     data_persons_properties_scale = standardize_scale_variables(
         variables=variables["organization"]["scale"],
-        data_persons_properties=bin_dimension[
-            "data_persons_properties_dimension"
-        ],
+        data_persons_properties=data_interaction,
     )
     # Organize information for heritability analysis.
     bin_heritability = organize_heritability_information(
@@ -4849,6 +4920,7 @@ def execute_procedure(dock=None):
     # Select genes' annotations.
     if False:
         select_organize_genes_annotations(
+            keep_x=False,
             stringency="tight",
             dock=dock
         )

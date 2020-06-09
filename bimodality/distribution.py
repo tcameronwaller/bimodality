@@ -2964,19 +2964,14 @@ def execute_procedure_local(dock=None):
     paths = initialize_directories(dock=dock)
 
     # Execute procedure for each group of persons.
-    if False:
+    cohorts = [
+        "selection",
+        "respiration",
+        "ventilation",
+    ]
+    for cohort in cohorts:
         execute_procedure_local_cohort(
-            cohort="selection",
-            paths=paths,
-        )
-    if True:
-        execute_procedure_local_cohort(
-            cohort="respiration",
-            paths=paths,
-        )
-    if False:
-        execute_procedure_local_cohort(
-            cohort="ventilation",
+            cohort=cohort,
             paths=paths,
         )
     # Report date and time.

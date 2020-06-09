@@ -23,6 +23,7 @@ import selection
 import split
 import distribution
 import candidacy
+import stratification
 
 import shuffle
 import permutation
@@ -215,6 +216,13 @@ def define_main_subparser(subparsers=None):
         "-candidacy", "--candidacy", dest="candidacy", action="store_true",
         help=(
             "Evaluate genes' candidacy by bimodal distribution."
+        )
+    )
+    parser_main.add_argument(
+        "-stratification", "--stratification", dest="stratification",
+        action="store_true",
+        help=(
+            "Evaluate cohort stratification by bimodal genes."
         )
     )
 
@@ -472,6 +480,11 @@ def evaluate_main_parameters(arguments):
         print("... executing candidacy procedure ...")
         # Execute procedure.
         candidacy.execute_procedure(dock=arguments.dock)
+    if arguments.stratification:
+        # Report status.
+        print("... executing stratification procedure ...")
+        # Execute procedure.
+        stratification.execute_procedure(dock=arguments.dock)
 
     if arguments.shuffle:
         # Report status.

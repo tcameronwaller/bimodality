@@ -1867,16 +1867,19 @@ def organize_symmetric_adjacency_matrix(
             # Access value.
             if feature_two in collection[feature_one]:
                 value = collection[feature_one][feature_two][key]
-                significance = (
-                    collection[feature_one][feature_two]["significance"]
-                )
+                if threshold:
+                    significance = (
+                        collection[feature_one][feature_two]["significance"]
+                    )
             elif feature_one in collection[feature_two]:
                 value = (collection[feature_two][feature_one][key])
-                significance = (
-                    collection[feature_two][feature_one]["significance"]
-                )
+                if threshold:
+                    significance = (
+                        collection[feature_two][feature_one]["significance"]
+                    )
             else:
-                significance = False
+                if threshold:
+                    significance = False
             pass
             # Collect information.
             if threshold:

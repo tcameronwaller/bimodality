@@ -207,135 +207,6 @@ def read_source_annotation_sets(dock=None):
     }
 
 
-def read_source_annotation_query_genes_sets(dock=None):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    genes_cytokine = read_source_annotation_query_genes_set(
-        set="cytokine",
-        dock=dock,
-    )
-    genes_antigen = read_source_annotation_query_genes_set(
-        set="antigen",
-        dock=dock,
-    )
-    genes_infection = read_source_annotation_query_genes_set(
-        set="infection",
-        dock=dock,
-    )
-    genes_inflammation = read_source_annotation_query_genes_set(
-        set="inflammation",
-        dock=dock,
-    )
-    genes_heme = read_source_annotation_query_genes_set(
-        set="heme",
-        dock=dock,
-    )
-    genes_oxidation = read_source_annotation_query_genes_set(
-        set="oxidation",
-        dock=dock,
-    )
-    genes_population = read_source_annotation_query_genes_set(
-        set="population",
-        dock=dock,
-    )
-
-
-    # Compile and return information.
-    return {
-        "cytokine": genes_cytokine,
-        "antigen": genes_antigen,
-        "infection": genes_infection,
-        "inflammation": genes_inflammation,
-        "heme": genes_heme,
-        "oxidation": genes_oxidation,
-        "population": genes_population,
-    }
-
-
-def read_source_annotation_query_genes_set(
-    set=None,
-    dock=None,
-):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        set (str): name of set in query table
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (list<str>): identifiers of genes
-
-    """
-
-    # Specify directories and files.
-    # Read information from file.
-
-    # Annotation.
-    path_annotation = os.path.join(dock, "annotation_2020-04-28")
-    path_data_genes_query = os.path.join(path_annotation, "genes_query.csv")
-    data_genes_query = pandas.read_csv(
-        path_data_genes_query,
-        sep="\t",
-        header=0,
-    )
-    data_genes_query_pass = data_genes_query.loc[
-        data_genes_query[set] == 1, :
-    ]
-    genes = data_genes_query_pass["identifier"].to_list()
-    # Return information.
-    return genes
-
-
-def read_source_annotation_query_genes_all(
-    dock=None,
-):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        set (str): name of set in query table
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (list<str>): identifiers of genes
-
-    """
-
-    # Specify directories and files.
-    # Read information from file.
-
-    # Annotation.
-    path_annotation = os.path.join(dock, "annotation_2020-04-28")
-    path_data_genes_query = os.path.join(path_annotation, "genes_query.csv")
-    data_genes_query = pandas.read_csv(
-        path_data_genes_query,
-        sep="\t",
-        header=0,
-    )
-    genes = data_genes_query["identifier"].to_list()
-    # Return information.
-    return genes
-
-
 def read_source(dock=None):
     """
     Reads and organizes source information from file
@@ -983,21 +854,87 @@ def read_organize_report_write_integration_gene_sets(paths=None):
 
 
 ##########
-# Populations by gene expression
-# 1. selection cohort
-# 2. respiration cohort
-# 3. ventilation cohort
+# Pairwise correlations
 
-
-def read_source_gene_person_populations(
-    cohort=None,
-    dock=None
+def read_source_annotation_query_genes_set(
+    set=None,
+    dock=None,
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        cohort (str): cohort of persons--selection, respiration, or ventilation
+        set (str): name of set in query table
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (list<str>): identifiers of genes
+
+    """
+
+    # Specify directories and files.
+    # Read information from file.
+
+    # Annotation.
+    path_data_genes_query = os.path.join(
+        dock, "annotation_2020-06-03", "query_gene_sets", "query_genes.csv"
+    )
+    data_genes_query = pandas.read_csv(
+        path_data_genes_query,
+        sep="\t",
+        header=0,
+    )
+    data_genes_query_pass = data_genes_query.loc[
+        data_genes_query[set] == 1, :
+    ]
+    genes = data_genes_query_pass["identifier"].to_list()
+    # Return information.
+    return genes
+
+
+def read_source_annotation_query_genes_all(
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        set (str): name of set in query table
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (list<str>): identifiers of genes
+
+    """
+
+    # Specify directories and files.
+    # Read information from file.
+
+    # Annotation.
+    path_data_genes_query = os.path.join(
+        dock, "annotation_2020-06-03", "query_gene_sets", "query_genes.csv"
+    )
+    data_genes_query = pandas.read_csv(
+        path_data_genes_query,
+        sep="\t",
+        header=0,
+    )
+    genes = data_genes_query["identifier"].to_list()
+    # Return information.
+    return genes
+
+
+def read_source_annotation_query_genes_sets(dock=None):
+    """
+    Reads and organizes source information from file
+
+    arguments:
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -1005,207 +942,27 @@ def read_source_gene_person_populations(
 
     returns:
         (object): source information
-    print(source["genes_function"].keys())
 
     """
 
-    # Specify directories and files.
-    path_data_signals_genes_persons = os.path.join(
-        dock, "distribution", cohort, "collection",
-        "data_signals_genes_persons.pickle"
-    )
-    # Read information from file.
-    data_signals_genes_persons = pandas.read_pickle(
-        path_data_signals_genes_persons
-    )
-    # Read genes sets.
-    genes_candidacy = read_source_genes_sets_candidacy(
-        cohort=cohort,
+    genes_distribution = read_source_annotation_query_genes_set(
+        set="distribution",
         dock=dock,
     )
-    # Return information.
+    genes_covid = read_source_annotation_query_genes_set(
+        set="covid_19",
+        dock=dock,
+    )
+    genes_angiotensin = read_source_annotation_query_genes_set(
+        set="angiotensin",
+        dock=dock,
+    )
+    # Compile and return information.
     return {
-        "data_signals_genes_persons": data_signals_genes_persons,
-        "genes_candidacy": genes_candidacy,
+        "distribution": genes_distribution,
+        "covid_19": genes_covid,
+        "angiotensin": genes_angiotensin,
     }
-
-
-def organize_persons_genes_components(
-    genes=None,
-    data_signals_genes_persons=None,
-    report=None,
-):
-    """
-    Organizes a principal components analysis on genes' pan-tissue signals as
-    features across persons as instances.
-
-    arguments:
-        genes (list<str>): identifiers of genes
-        data_signals_genes_persons (object): Pandas data frame of genes'
-            pan-tissue signals across persons
-        report (bool): whether to print reports
-
-    raises:
-
-    returns:
-        (dict<object>): collection of Pandas data frames of genes' pairwise
-            correlations
-
-    """
-
-    # Copy data.
-    data_signals = data_signals_genes_persons.copy(deep=True)
-    # Select genes of interest.
-    data_selection = data_signals.loc[
-        :, data_signals.columns.isin(genes)
-    ]
-    # Report.
-    if report:
-        utility.print_terminal_partition(level=2)
-        print("Selection of genes with pan-tissue signals across persons.")
-        utility.print_terminal_partition(level=3)
-        print(data_selection)
-    # Reduce dimensionality.
-    components = min(int(len(genes)), int(data_selection.shape[0]))
-    result = utility.calculate_principal_components(
-        data=data_selection,
-        components=components,
-        report=report,
-    )
-    # Return information.
-    return result
-
-
-def write_product_gene_person_populations(
-    cohort=None,
-    information=None,
-    paths=None,
-):
-    """
-    Writes product information to file.
-
-    arguments:
-        cohort (str): cohort of persons--selection, respiration, or ventilation
-        information (object): information to write to file
-        paths (dict<str>): collection of paths to directories for procedure's
-            files
-
-    raises:
-
-    returns:
-
-    """
-
-    # Specify directories and files.
-    path_data_components = os.path.join(
-        paths[cohort]["population"], "data_persons_genes_components.pickle"
-    )
-    path_data_variances = os.path.join(
-        paths[cohort]["population"], "data_persons_genes_variances.pickle"
-    )
-    # Write information to file.
-    pandas.to_pickle(
-        information["data_persons_genes_components"],
-        path_data_components
-    )
-    pandas.to_pickle(
-        information["data_persons_genes_variances"],
-        path_data_variances
-    )
-    pass
-
-
-def read_organize_report_write_integration_gene_person_populations_cohort(
-    cohort=None,
-    paths=None,
-    report=None,
-):
-    """
-    Organizes evaluation of subpopulation structure on the basis of pan-tissue
-    expression of genes of interest.
-
-    arguments:
-        cohort (str): cohort of persons--selection, respiration, or ventilation
-        paths (dict<str>): collection of paths to directories for procedure's
-            files
-        report (bool): whether to print reports
-
-    raises:
-
-    returns:
-
-    """
-
-    # Report.
-    if report:
-        utility.print_terminal_partition(level=2)
-        print("cohort: " + cohort)
-
-    # Read source information from file.
-    source = read_source_gene_person_populations(
-        cohort=cohort,
-        dock=paths["dock"],
-    )
-    # Calculate principal components on genes across persons.
-    bin = organize_persons_genes_components(
-        genes=source["genes_candidacy"]["multimodal"],
-        data_signals_genes_persons=source["data_signals_genes_persons"],
-        report=report,
-    )
-    # Compile information.
-    information = dict()
-    information["data_persons_genes_components"] = bin[
-        "data_observations_components"
-    ]
-    information["data_persons_genes_variances"] = bin[
-        "data_components_variances"
-    ]
-    # Write information to file.
-    write_product_gene_person_populations(
-        cohort=cohort,
-        information=information,
-        paths=paths,
-    )
-    pass
-
-
-def read_organize_report_write_integration_gene_person_populations(
-    paths=None
-):
-    """
-    Organizes evaluation of subpopulation structure on the basis of pan-tissue
-    expression of genes of interest.
-
-    arguments:
-        paths (dict<str>): collection of paths to directories for procedure's
-            files
-
-    raises:
-
-    returns:
-
-    """
-
-    read_organize_report_write_integration_gene_person_populations_cohort(
-        cohort="selection",
-        paths=paths,
-        report=True,
-    )
-    read_organize_report_write_integration_gene_person_populations_cohort(
-        cohort="respiration",
-        paths=paths,
-        report=True,
-    )
-    read_organize_report_write_integration_gene_person_populations_cohort(
-        cohort="ventilation",
-        paths=paths,
-        report=True,
-    )
-    pass
-
-
-##########
-# Pairwise correlations
 
 
 def read_source_pairwise_gene_correlations(
@@ -1241,6 +998,7 @@ def read_source_pairwise_gene_correlations(
         "genes.pickle"
     )
     # Read information from file.
+    query_gene_sets = read_source_annotation_query_genes_sets(dock=dock)
     data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
     data_signals_genes_persons = pandas.read_pickle(
         path_data_signals_genes_persons
@@ -1249,93 +1007,11 @@ def read_source_pairwise_gene_correlations(
         genes_prediction_ontology = pickle.load(file_source)
     # Return information.
     return {
+        "query_gene_sets": query_gene_sets,
         "data_gene_annotation": data_gene_annotation,
         "data_signals_genes_persons": data_signals_genes_persons,
         "genes_prediction_ontology": genes_prediction_ontology,
     }
-
-
-def organize_gene_correlations_multimodal_prediction(
-    sets=None,
-    data_signals_genes_persons=None,
-):
-    """
-    Calculates Pearson correlation coefficients between pairs of genes.
-
-    arguments:
-        sets (dict<dict<list<str>>>): sets of genes that associate
-            significantly to variables in regression
-        data_signals_genes_persons (object): Pandas data frame of genes'
-            pan-tissue signals across persons
-
-
-    raises:
-
-    returns:
-        (dict<object>): collection of Pandas data frames of genes' pairwise
-            correlations
-
-    """
-
-    # Calculate correlations between genes that associate with hypothetical
-    # variables in regression.
-    # Hardiness.
-    data_hardiness = utility.organize_feature_signal_correlations(
-        method="spearman", # pearson (normal distribution), spearman
-        threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
-        threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
-        count=2, # accommodate the value 1.0 for self pairs (A, A)
-        discovery=0.05,
-        features=sets["multimodal"]["hardiness_scale"],
-        data_signal=data_signals_genes_persons,
-    )
-    # Sex, age, body.
-    genes_sex_age_body = list()
-    genes_sex_age_body.extend(sets["multimodal"]["female_scale"])
-    genes_sex_age_body.extend(sets["multimodal"]["age_scale"])
-    genes_sex_age_body.extend(sets["multimodal"]["body_scale"])
-    genes_sex_age_body_unique = utility.collect_unique_elements(
-        elements_original=genes_sex_age_body
-    )
-    data_sex_age_body = utility.organize_feature_signal_correlations(
-        method="spearman", # pearson (normal distribution), spearman
-        threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
-        threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
-        count=2, # accommodate the value 1.0 for self pairs (A, A)
-        discovery=0.05,
-        features=genes_sex_age_body_unique,
-        data_signal=data_signals_genes_persons,
-    )
-    #utility.print_terminal_partition(level=1)
-    #print("data_sex_age_body")
-    #utility.print_terminal_partition(level=2)
-    #print(data_sex_age_body)
-    # Sex, age, body.
-    genes_union = list()
-    genes_union.extend(sets["multimodal"]["female_scale"])
-    genes_union.extend(sets["multimodal"]["age_scale"])
-    genes_union.extend(sets["multimodal"]["body_scale"])
-    genes_union.extend(sets["multimodal"]["hardiness_scale"])
-    genes_union_unique = utility.collect_unique_elements(
-        elements_original=genes_union
-    )
-    data_union = utility.organize_feature_signal_correlations(
-        method="spearman", # pearson (normal distribution), spearman
-        threshold_high=0.5, # 1.0, 0.75, 0.5, 0.0
-        threshold_low=-0.5, # -1.0, -0.75, -0.5, -0.0
-        count=2, # accommodate the value 1.0 for self pairs (A, A)
-        discovery=0.05,
-        features=genes_union_unique,
-        data_signal=data_signals_genes_persons,
-    )
-    # Compile information.
-    collection = dict()
-    collection["hardiness"] = data_hardiness
-    collection["sex_age_body"] = data_sex_age_body
-    collection["union"] = data_union
-
-    # Return information.
-    return collection
 
 
 def extract_ontology_gene_sets(
@@ -1365,19 +1041,27 @@ def extract_ontology_gene_sets(
     return collection
 
 
-def organize_gene_correlations_multimodal_query(
+def organize_genes_pairwise_signals_correlations(
+    method=None,
+    threshold_high=None,
+    threshold_low=None,
+    discovery=None,
+    genes=None,
     data_signals_genes_persons=None,
-    genes_selection=None,
-    sets_query=None,
 ):
     """
     Calculates Pearson correlation coefficients between pairs of genes.
 
     arguments:
+        method (str): method for correlation, pearson, spearman, or kendall
+        threshold_high (float): value must be greater than this threshold
+        threshold_low (float): value must be less than this threshold
+        discovery (float): value of false discovery rate for which to include
+            correlation coefficients
+        genes (list<str>): identifiers of genes for which to calculate pairwise
+            correlations
         data_signals_genes_persons (object): Pandas data frame of genes'
             pan-tissue signals across persons
-        genes_selection (list<str>): identifiers of genes
-        sets_query (dict<list<str>>): identifiers of genes in sets
 
     raises:
 
@@ -1387,29 +1071,23 @@ def organize_gene_correlations_multimodal_query(
 
     """
 
-    # Function sets.
-    collection = dict()
-    for name in sets_query:
-        # Filter genes.
-        set_genes = utility.filter_common_elements(
-            list_one=sets_query[name],
-            list_two=genes_selection,
-        )
-        # Calculate correlation matrix
-        data_correlation = utility.organize_feature_signal_correlations(
-            method="spearman", # pearson (normal distribution), spearman
-            threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
-            threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
-            count=2, # accommodate the value 1.0 for self pairs (A, A)
-            discovery=0.05,
-            features=set_genes,
-            data_signal=data_signals_genes_persons,
-        )
-        # Compile information.
-        collection[name] = data_correlation
-
+    # Filter query genes to ensure that they have signals.
+    genes_valid = utility.filter_common_elements(
+        list_one=genes,
+        list_two=data_signals_genes_persons.columns.tolist(),
+    )
+    # Calculate correlation matrix
+    data_correlation = utility.organize_feature_signal_correlations(
+        method=method, # pearson (normal distribution), spearman
+        threshold_high=threshold_high,
+        threshold_low=threshold_low,
+        count=2, # accommodate the value 1.0 for self pairs (A, A)
+        discovery=discovery,
+        features=genes_valid,
+        data_signal=data_signals_genes_persons,
+    )
     # Return information.
-    return collection
+    return data_correlation
 
 
 def select_translate_gene_identifiers_data_columns(
@@ -1479,13 +1157,22 @@ def write_product_pairwise_gene_correlations(
     """
 
     # Specify directories and files.
-    path_data_correlation_genes = os.path.join(
-        paths[cohort]["correlation"], "data_correlation_genes.pickle"
+    path_data_prediction = os.path.join(
+        paths[cohort]["correlation"],
+        "data_correlation_genes_prediction.pickle"
+    )
+    path_data_query = os.path.join(
+        paths[cohort]["correlation"],
+        "data_correlation_genes_query.pickle"
     )
     # Write information to file.
     pandas.to_pickle(
-        information["data_correlation_genes"],
-        path_data_correlation_genes
+        information["data_correlation_genes_prediction"],
+        path_data_prediction
+    )
+    pandas.to_pickle(
+        information["data_correlation_genes_query"],
+        path_data_query
     )
     pass
 
@@ -1514,16 +1201,24 @@ def read_organize_report_write_integration_pairwise_gene_correlations(
     )
     # Calculate correlations between pairs of genes.
     # Use Spearman correlations.
-    data_correlation_genes = (
-        utility.organize_feature_signal_correlations(
-            method="spearman", # pearson (normal distribution), spearman
-            threshold_high=0.77, # 1.0, 0.75, 0.5, 0.0
-            threshold_low=-0.77, # -1.0, -0.75, -0.5, -0.0
-            count=2, # accommodate the value 1.0 for self pairs (A, A)
-            discovery=0.05,
-            features=source["genes_prediction_ontology"],
-            data_signal=source["data_signals_genes_persons"],
-    ))
+
+    # TODO: new function to filter "features" to include only relevant genes
+    data_prediction = organize_genes_pairwise_signals_correlations(
+        method="spearman", # pearson (normal distribution), spearman
+        threshold_high=0.77, # 1.0, 0.75, 0.5, 0.0
+        threshold_low=-0.77, # -1.0, -0.75, -0.5, -0.0
+        discovery=0.05,
+        genes=source["genes_prediction_ontology"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+    )
+    data_query = organize_genes_pairwise_signals_correlations(
+        method="spearman", # pearson (normal distribution), spearman
+        threshold_high=0.0, # 1.0, 0.75, 0.5, 0.0
+        threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.0
+        discovery=0.05,
+        genes=source["query_gene_sets"]["covid_19"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+    )
     if False:
         utility.print_terminal_partition(level=2)
         print("Prediction ontology genes...")
@@ -1531,7 +1226,8 @@ def read_organize_report_write_integration_pairwise_gene_correlations(
         print(data_correlation_genes.shape)
     # Compile information.
     information = dict()
-    information["data_correlation_genes"] = data_correlation_genes
+    information["data_correlation_genes_prediction"] = data_prediction
+    information["data_correlation_genes_query"] = data_query
     # Write information to file.
     write_product_pairwise_gene_correlations(
         cohort="selection",
@@ -1539,10 +1235,6 @@ def read_organize_report_write_integration_pairwise_gene_correlations(
         paths=paths,
     )
     pass
-
-
-
-
 
 
 # Summary report on integration of genes
@@ -1988,9 +1680,6 @@ def execute_procedure(dock=None):
     # Organize sets of genes by integration of distribution modality,
     # functional gene ontologies, regression associations, and queries.
     read_organize_report_write_integration_gene_sets(paths=paths)
-    # Organize recognition of groups of persons from pan-tissue expression of
-    # genes of interest.
-    read_organize_report_write_integration_gene_person_populations(paths=paths)
 
     # Organize correlations in pan-tissue signals between pairs of genes.
     read_organize_report_write_integration_pairwise_gene_correlations(

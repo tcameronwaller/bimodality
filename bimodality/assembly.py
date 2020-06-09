@@ -1289,6 +1289,11 @@ def organize_samples_tissues_persons(
     # Read source information from file.
     source = read_source_sample(dock=dock)
 
+
+    utility.print_terminal_partition(level=1)
+    print("data_person_attribute_private")
+    print(source["data_person_attribute_private"])
+
     # Summarize the structures of the raw data.
     #summarize_raw_data_sample(
     #    data_person_attribute=source["data_person_attribute"],
@@ -2487,7 +2492,7 @@ def execute_procedure(dock=None):
 
 
     # Organize persons' genotypes.
-    organize_persons_genotypes(dock=dock)
+    #organize_persons_genotypes(dock=dock)
 
     # Organize associations of samples to persons and tissues.
     organize_samples_tissues_persons(dock=dock)
