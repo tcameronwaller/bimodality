@@ -78,20 +78,34 @@ def initialize_directories(dock=None):
         paths[cohort]["threshold"] = os.path.join(
             paths["candidacy"], cohort, "threshold"
         )
-        paths[cohort]["multimodal"] = os.path.join(
-            paths["candidacy"], cohort, "multimodal"
+        # Define paths for groups of genes by their distributions.
+        paths[cohort]["distribution"] = dict()
+        paths[cohort]["distribution"]["multimodal"] = os.path.join(
+            paths["candidacy"], cohort, "distribution", "multimodal"
         )
-        paths[cohort]["unimodal"] = os.path.join(
-            paths["candidacy"], cohort, "unimodal"
+        paths[cohort]["distribution"]["unimodal"] = os.path.join(
+            paths["candidacy"], cohort, "distribution", "unimodal"
         )
-        paths[cohort]["other"] = os.path.join(
-            paths["candidacy"], cohort, "other"
+        paths[cohort]["distribution"]["nonmultimodal"] = os.path.join(
+            paths["candidacy"], cohort, "distribution", "nonmultimodal"
+        )
+        paths[cohort]["distribution"]["any"] = os.path.join(
+            paths["candidacy"], cohort, "distribution", "any"
         )
         # Initialize directories.
         utility.create_directories(path=paths[cohort]["threshold"])
-        utility.create_directories(path=paths[cohort]["multimodal"])
-        utility.create_directories(path=paths[cohort]["unimodal"])
-        utility.create_directories(path=paths[cohort]["other"])
+        utility.create_directories(
+            path=paths[cohort]["distribution"]["any"]
+        )
+        utility.create_directories(
+            path=paths[cohort]["distribution"]["multimodal"]
+        )
+        utility.create_directories(
+            path=paths[cohort]["distribution"]["unimodal"]
+        )
+        utility.create_directories(
+            path=paths[cohort]["distribution"]["nonmultimodal"]
+        )
     # Return information.
     return paths
 
@@ -910,40 +924,50 @@ def write_product(
         paths[cohort]["threshold"], "measures_thresholds.pickle"
     )
     path_sets_unimodal = os.path.join(
-        paths[cohort]["unimodal"], "sets_unimodal.pickle"
+        paths[cohort]["distribution"]["unimodal"], "sets_unimodal.pickle"
     )
     path_sets_multimodal = os.path.join(
-        paths[cohort]["multimodal"], "sets_multimodal.pickle"
+        paths[cohort]["distribution"]["multimodal"], "sets_multimodal.pickle"
     )
-    path_genes_unimodal = os.path.join(
-        paths[cohort]["unimodal"], "genes_unimodal.pickle"
+
+    path_genes_any = os.path.join(
+        paths[cohort]["distribution"]["any"], "genes.pickle"
     )
-    path_genes_unimodal_text = os.path.join(
-        paths[cohort]["unimodal"], "genes_unimodal.txt"
+    path_genes_any_text = os.path.join(
+        paths[cohort]["distribution"]["any"], "genes.txt"
     )
     path_genes_multimodal = os.path.join(
-        paths[cohort]["multimodal"], "genes_multimodal.pickle"
+        paths[cohort]["distribution"]["multimodal"], "genes.pickle"
     )
     path_genes_multimodal_text = os.path.join(
-        paths[cohort]["multimodal"], "genes_multimodal.txt"
+        paths[cohort]["distribution"]["multimodal"], "genes.txt"
     )
-    path_genes_other = os.path.join(
-        paths[cohort]["other"], "genes_other.pickle"
+    path_genes_nonmultimodal = os.path.join(
+        paths[cohort]["distribution"]["nonmultimodal"], "genes.pickle"
     )
-    path_genes_other_text = os.path.join(
-        paths[cohort]["other"], "genes_other.txt"
+    path_genes_nonmultimodal_text = os.path.join(
+        paths[cohort]["distribution"]["nonmultimodal"], "genes.txt"
     )
+    path_genes_unimodal = os.path.join(
+        paths[cohort]["distribution"]["unimodal"], "genes.pickle"
+    )
+    path_genes_unimodal_text = os.path.join(
+        paths[cohort]["distribution"]["unimodal"], "genes.txt"
+    )
+
     path_data_genes_unimodal = os.path.join(
-        paths[cohort]["unimodal"], "data_genes_unimodal.pickle"
+        paths[cohort]["distribution"]["unimodal"], "data_genes_unimodal.pickle"
     )
     path_data_genes_unimodal_text = os.path.join(
-        paths[cohort]["unimodal"], "data_genes_unimodal.tsv"
+        paths[cohort]["distribution"]["unimodal"], "data_genes_unimodal.tsv"
     )
     path_data_genes_multimodal = os.path.join(
-        paths[cohort]["multimodal"], "data_genes_multimodal.pickle"
+        paths[cohort]["distribution"]["multimodal"],
+        "data_genes_multimodal.pickle"
     )
     path_data_genes_multimodal_text = os.path.join(
-        paths[cohort]["multimodal"], "data_genes_multimodal.tsv"
+        paths[cohort]["distribution"]["multimodal"],
+        "data_genes_multimodal.tsv"
     )
 
     # Write information to file.
@@ -954,14 +978,14 @@ def write_product(
     with open(path_sets_multimodal, "wb") as file_product:
         pickle.dump(information["sets_multimodal"], file_product)
 
-    with open(path_genes_unimodal, "wb") as file_product:
+    with open(path_genes_any, "wb") as file_product:
         pickle.dump(
-            information["genes_unimodal"], file_product
+            information["genes_any"], file_product
         )
     utility.write_file_text_list(
-        elements=information["genes_unimodal"],
+        elements=information["genes_any"],
         delimiter="\n",
-        path_file=path_genes_unimodal_text
+        path_file=path_genes_any_text
     )
     with open(path_genes_multimodal, "wb") as file_product:
         pickle.dump(
@@ -972,14 +996,23 @@ def write_product(
         delimiter="\n",
         path_file=path_genes_multimodal_text
     )
-    with open(path_genes_other, "wb") as file_product:
+    with open(path_genes_nonmultimodal, "wb") as file_product:
         pickle.dump(
-            information["genes_other"], file_product
+            information["genes_nonmultimodal"], file_product
         )
     utility.write_file_text_list(
-        elements=information["genes_other"],
+        elements=information["genes_nonmultimodal"],
         delimiter="\n",
-        path_file=path_genes_other_text
+        path_file=path_genes_nonmultimodal_text
+    )
+    with open(path_genes_unimodal, "wb") as file_product:
+        pickle.dump(
+            information["genes_unimodal"], file_product
+        )
+    utility.write_file_text_list(
+        elements=information["genes_unimodal"],
+        delimiter="\n",
+        path_file=path_genes_unimodal_text
     )
 
     information["data_genes_unimodal"].to_pickle(
@@ -1116,7 +1149,7 @@ def select_report_write_candidate_modality_genes_cohort(
     )
 
     # Determine all genes that are not in the multimodality set.
-    genes_other = utility.filter_unique_exclusion_elements(
+    genes_nonmultimodal = utility.filter_unique_exclusion_elements(
         elements_exclusion=bin_genes_multimodal["measures_1"],
         elements_total=source["genes_distribution"],
     )
@@ -1131,7 +1164,7 @@ def select_report_write_candidate_modality_genes_cohort(
     )
     print(
         "Count of all genes not multimodal (other): " +
-        str(len(genes_other))
+        str(len(genes_nonmultimodal))
     )
 
     # Rank genes by the counts of measures by which they pass thresholds.
@@ -1162,16 +1195,16 @@ def select_report_write_candidate_modality_genes_cohort(
 
     # Compile information.
     information = {
+        "genes_any": source["genes_distribution"],
         "genes_unimodal": bin_genes_unimodal["measures_3"],
         "genes_multimodal": bin_genes_multimodal["measures_1"],
-        "genes_other": genes_other,
+        "genes_nonmultimodal": genes_nonmultimodal,
         "data_genes_unimodal": data_genes_unimodal,
         "data_genes_multimodal": data_genes_multimodal,
         "measures_thresholds": measures_thresholds,
         "sets_unimodal": bin_genes_unimodal["sets_genes_measures"],
         "sets_multimodal": bin_genes_multimodal["sets_genes_measures"],
     }
-
     # Write product information to file.
     write_product(
         cohort=cohort,

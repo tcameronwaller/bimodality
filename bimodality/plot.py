@@ -4464,6 +4464,259 @@ def prepare_charts_candidacy_gene_sets_overlap(
     pass
 
 
+##########
+# Overlap between sets of genes by association to predictor variables in
+# regression.
+# Status: working
+
+
+# TODO: need to update distribution directory both in prediction procedure and here...
+
+
+def read_source_prediction_genes_set(
+    cohort=None,
+    distribution=None,
+    variable=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        distribution (str): group of genes by their distribution of pan-tissue
+            signals
+        variable (str): name of predictor variable from regression that
+            corresponds to set of genes
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_set_genes = os.path.join(
+        dock, "prediction", cohort, "multimodal", "sets_multimodal.pickle"
+    )
+    path_sets_genes_unimodal = os.path.join(
+        dock, "candidacy", cohort, "unimodal", "sets_unimodal.pickle"
+    )
+    # Read information from file.
+    with open(path_sets_genes_unimodal, "rb") as file_source:
+        sets_genes_unimodal = pickle.load(file_source)
+    with open(path_sets_genes_multimodal, "rb") as file_source:
+        sets_genes_multimodal = pickle.load(file_source)
+
+    # Compile and return information.
+    return {
+        "sets_genes_unimodal": sets_genes_unimodal,
+        "sets_genes_multimodal": sets_genes_multimodal,
+    }
+
+
+def define_parameters_prediction_genes_sets_overlap():
+    """
+    Defines parameters for plots of persons' properties.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict): collection of parameters
+
+    """
+
+    # Use "source["sets_genes"]["multimodal"][parameter["set"]]" to iterate
+    # through multiple sets of genes.
+    parameters = list()
+    if True:
+        parameters.append(dict(
+            title="sex_ventilation",
+            cohort_one="selection",
+            cohort_two="selection",
+            cohort_three="selection",
+            distribution_one="any",
+            distribution_two="any",
+            distribution_three="any",
+            variable_one="sex_y_scale",
+            variable_two="ventilation_duration_scale",
+            variable_three="sex_risk*ventilation_binary_scale",
+            label_one="sex",
+            label_two="ventilation",
+            label_three="sex*ventilation",
+        ))
+    if False:
+        parameters.append(dict(
+            title="age_ventilation",
+            cohort_one="selection",
+            cohort_two="selection",
+            cohort_three="selection",
+            distribution_one="any",
+            distribution_two="any",
+            distribution_three="any",
+            variable_one="age_scale",
+            variable_two="ventilation_duration_scale",
+            variable_three="age*ventilation_binary_scale",
+            label_one="age",
+            label_two="ventilation",
+            label_three="age*ventilation",
+        ))
+    # Return information.
+    return parameters
+
+
+def plot_chart_prediction_genes_sets_overlap(
+    sets=None,
+    path=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        sets (dict<list<str>>): values in sets
+        path (str): path to directory and file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+    # Create figure.
+    figure = plot_overlap_sets(
+        sets=sets,
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure(
+        path=path,
+        figure=figure
+    )
+    pass
+
+
+def prepare_chart_prediction_gene_sets_overlap(
+    title=None,
+    cohort_one=None,
+    cohort_two=None,
+    cohort_three=None,
+    variable_one=None,
+    variable_two=None,
+    variable_three=None,
+    label_one=None,
+    label_two=None,
+    label_three=None,
+    path_directory=None,
+    dock=None,
+):
+    """
+    Plots charts.
+
+    arguments:
+        title (str): name for chart's file
+        cohort_one (str): cohort of persons for set one
+        cohort_two (str): cohort of persons for set two
+        cohort_three (str): cohort of persons for set three
+        variable_one (str): name of predictor variable from regression that
+            corresponds to set one
+        variable_two (str): name of predictor variable from regression that
+            corresponds to set two
+        variable_three (str): name of predictor variable from regression that
+            corresponds to set three
+        label_one (str): label on chart for set one
+        label_two (str): label on chart for set two
+        label_three (str): label on chart for set three
+        path_directory (str): path to directory
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read lists of genes' identifiers from file.
+    genes_sets = dict()
+    genes_sets[label_one] = read_source_prediction_genes_set(
+        cohort=cohort_one,
+        variable=variable_one,
+        dock=dock,
+    )
+    genes_sets[label_two] = read_source_prediction_genes_set(
+        cohort=cohort_two,
+        variable=variable_two,
+        dock=dock,
+    )
+    genes_sets[label_three] = read_source_prediction_genes_set(
+        cohort=cohort_three,
+        variable=variable_three,
+        dock=dock,
+    )
+    # Define path to file.
+    path_file = os.path.join(
+        path_directory, str(title + ".svg")
+    )
+    # Plot figure.
+    plot_chart_prediction_genes_sets_overlap(
+        sets=genes_sets,
+        path=path_file,
+    )
+    pass
+
+
+def prepare_charts_prediction_gene_sets_overlap(
+    dock=None
+):
+    """
+    Plots charts.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_directory = os.path.join(
+        dock, "plot", "prediction", "gene_sets"
+    )
+    utility.create_directories(path=path_directory)
+    # Specify combinations of parameters for charts.
+    parameters = define_parameters_prediction_genes_sets_overlap()
+    for parameter in parameters:
+        # Prepare charts for genes.
+        prepare_chart_prediction_gene_sets_overlap(
+            title=parameter["title"],
+            cohort_one=parameter["cohort_one"],
+            cohort_two=parameter["cohort_two"],
+            cohort_three=parameter["cohort_three"],
+            variable_one=parameter["variable_one"],
+            variable_two=parameter["variable_two"],
+            variable_three=parameter["variable_three"],
+            label_one=parameter["label_one"],
+            label_two=parameter["label_two"],
+            label_three=parameter["label_three"],
+            path_directory=path_directory,
+            dock=dock,
+        )
+        pass
+    pass
+
 
 ##########
 # Overlap between sets in selection of genes by permutation probability of
@@ -8632,6 +8885,12 @@ def execute_procedure(dock=None):
     # Plot charts, scatter plots, for residuals from regressions on each gene's
     # pan-tissue signals across persons.
     #prepare_charts_genes_regression_residuals(dock=dock)
+
+    # Plot charts, set overlap charts, for genes in multiple sets from
+    # regression and association to predictor variables.
+    prepare_charts_prediction_gene_sets_overlap(dock=dock)
+
+
 
     ##########
     ##########

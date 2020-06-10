@@ -384,28 +384,34 @@ def read_source_genes_sets_candidacy(
     """
 
     # Specify directories and files.
-    path_genes_selection = os.path.join(
-        dock, "selection", "tight", "samples_genes_signals",
+    path_genes_any = os.path.join(
+        dock, "candidacy", cohort, "distribution", "any", "genes.pickle"
+    )
+    path_genes_multimodal = os.path.join(
+        dock, "candidacy", cohort, "distribution", "multimodal", "genes.pickle"
+    )
+    path_genes_nonmultimodal = os.path.join(
+        dock, "candidacy", cohort, "distribution", "nonmultimodal",
         "genes.pickle"
     )
     path_genes_unimodal = os.path.join(
-        dock, "candidacy", cohort, "unimodal", "genes_unimodal.pickle"
-    )
-    path_genes_multimodal = os.path.join(
-        dock, "candidacy", cohort, "multimodal", "genes_multimodal.pickle"
+        dock, "candidacy", cohort, "distribution", "unimodal", "genes.pickle"
     )
     # Read information from file.
-    with open(path_genes_selection, "rb") as file_source:
-        genes_selection = pickle.load(file_source)
-    with open(path_genes_unimodal, "rb") as file_source:
-        genes_unimodal = pickle.load(file_source)
+    with open(path_genes_any, "rb") as file_source:
+        genes_any = pickle.load(file_source)
     with open(path_genes_multimodal, "rb") as file_source:
         genes_multimodal = pickle.load(file_source)
+    with open(path_genes_nonmultimodal, "rb") as file_source:
+        genes_nonmultimodal = pickle.load(file_source)
+    with open(path_genes_unimodal, "rb") as file_source:
+        genes_unimodal = pickle.load(file_source)
     # Compile information.
     bin = dict()
-    bin["selection"] = genes_selection
-    bin["unimodal"] = genes_unimodal
+    bin["any"] = genes_any
     bin["multimodal"] = genes_multimodal
+    bin["nonmultimodal"] = genes_nonmultimodal
+    bin["unimodal"] = genes_unimodal
     # Return information.
     return bin
 
@@ -772,6 +778,8 @@ def write_product_integration_prediction_ontology_genes(
         path_file=path_genes_text
     )
     pass
+
+# TODO: need to manage new structure of gene sets from prediction procedure
 
 
 def read_organize_report_write_integration_gene_sets(paths=None):

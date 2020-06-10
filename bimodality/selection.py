@@ -1545,7 +1545,7 @@ def define_variables_regression_selection():
         "mononucleosis_binary_scale",
         "heart_binary_scale",
         "diabetes_binary_scale",
-        #"ventilation_duration_scale",
+        "ventilation_duration_scale",
         #"ventilation_binary_scale",
         "sex_risk*ventilation_binary_scale",
         #"age*ventilation_binary_scale",

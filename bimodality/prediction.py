@@ -76,7 +76,6 @@ def initialize_directories(dock=None):
     # Remove previous files to avoid version or batch confusion.
     #utility.remove_directory(path=paths["prediction"])
     #utility.create_directory(path=paths["prediction"])
-
     # Define paths for cohorts of persons.
     cohorts = list()
     cohorts.append("selection")
@@ -84,21 +83,29 @@ def initialize_directories(dock=None):
     cohorts.append("ventilation")
     for cohort in cohorts:
         paths[cohort] = dict()
-        # Define paths for regression models.
-        models = list()
-        models.append("technique")
-        models.append("hypothesis")
-        for model in models:
-            paths[cohort][model] = dict()
-            paths[cohort][model]["regression"] = os.path.join(
-                paths["prediction"], cohort, model, "regression"
-            )
-            paths[cohort][model]["genes"] = os.path.join(
-                paths["prediction"], cohort, model, "genes"
+        # Define path for comprehensive information from regression on model.
+        paths[cohort]["regression"] = os.path.join(
+            paths["prediction"], cohort, "regression"
+        )
+        # Define paths for groups of genes by their distributions.
+        paths[cohort]["genes"] = os.path.join(
+            paths["prediction"], cohort, "genes"
+        )
+        paths[cohort]["distribution"] = dict()
+        groups = list()
+        groups.append("any")
+        groups.append("multimodal")
+        groups.append("nonmultimodal")
+        groups.append("unimodal")
+        for group in groups:
+            paths[cohort]["distribution"][group] = os.path.join(
+                paths["prediction"], cohort, "genes", "distribution", group
             )
             # Initialize directories.
-            utility.create_directories(path=paths[cohort][model]["regression"])
-            utility.create_directories(path=paths[cohort][model]["genes"])
+            utility.create_directories(path=paths[cohort]["regression"])
+            utility.create_directories(
+                path=paths[cohort]["distribution"][group]
+            )
     # Return information.
     return paths
 
@@ -162,7 +169,6 @@ def read_source(
 
 def read_source_regression(
     cohort=None,
-    model=None,
     paths=None
 ):
     """
@@ -170,7 +176,6 @@ def read_source_regression(
 
     arguments:
         cohort (str): cohort of persons--selection, respiration, or ventilation
-        model (str): regression model, either technique or hypothesis
         paths (dict<str>): collection of paths to directories for procedure's
             files
 
@@ -183,7 +188,7 @@ def read_source_regression(
 
     # Specify directories and files.
     path_data_regression_genes = os.path.join(
-        paths[cohort][model]["regression"], "data_regression_genes.pickle"
+        paths[cohort]["regression"], "data_regression_genes.pickle"
     )
     # Read information from file.
     data_regression_genes = pandas.read_pickle(
@@ -275,6 +280,7 @@ def organize_dependent_independent_variables(
     variables=None,
     data_persons_properties=None,
     data_signals_genes_persons=None,
+    report=None,
 ):
     """
     Organizes and combines information about dependent and independent
@@ -286,6 +292,7 @@ def organize_dependent_independent_variables(
             their relevant properties
         data_signals_genes_persons (object): Pandas data frame of pan-tissue
             signals across genes and persons
+        report (bool): whether to print reports
 
     raises:
 
@@ -312,6 +319,13 @@ def organize_dependent_independent_variables(
         on="person"
     )
 
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=1)
+        print("data_variables")
+        utility.print_terminal_partition(level=2)
+        print(data_variables)
+        pass
     # Return information.
     return data_variables
 
@@ -718,95 +732,8 @@ def calculate_regression_discoveries(
     return data
 
 
-def summarize_regression(
-    variables=None,
-    genes_selection=None,
-    genes_unimodal=None,
-    genes_multimodal=None,
-    data_regression_genes=None,
-):
-    """
-    Summarizes a regression model's parameters across multiple independent
-    instances.
-
-    arguments:
-        variables (list<str>): names of independent regression variables for
-            which to select genes by significant association
-        genes_selection (list<str>): identifiers of all genes that pass filters
-            in selection procedure
-        genes_unimodal (list<str>): identifiers of genes with pan-tissue
-            signals that have unimodal distribution across persons
-        genes_multimodal (list<str>): identifiers of genes with pan-tissue
-            signals that have nonunimodal distribution across persons
-        data_regression_genes (object): Pandas data frame of parameters and
-            statistics from regressions across cases
-
-    raises:
-
-    returns:
-
-    """
-
-    utility.print_terminal_partition(level=2)
-    # Organize data.
-    data = data_regression_genes.copy(deep=True)
-    sets = dict()
-    sets["genes_selection"] = genes_selection
-    sets["genes_unimodal"] = genes_unimodal
-    sets["genes_multimodal"] = genes_multimodal
-
-    # Iterate on sets of genes.
-    for set in sets:
-        utility.print_terminal_partition(level=1)
-        print(set)
-        genes = sets[set]
-        count_total = len(genes)
-        print("count: " + str(count_total))
-        data_set = data.copy(deep=True)
-        data_set = data_set.loc[data_set.index.isin(genes), :]
-        # Report mean model descriptors.
-        utility.print_terminal_partition(level=2)
-        descriptors = [
-            "freedom",
-            "observations",
-            "r_square",
-            "r_square_adjust",
-            "log_likelihood",
-            "akaike",
-            "bayes",
-        ]
-        data_descriptors = data_set.copy(deep=True)
-        data_descriptors = data_descriptors.loc[
-            :, data_descriptors.columns.isin(descriptors)
-        ]
-        data_descriptors = data_descriptors[[*descriptors]]
-        data_descriptors_mean = data_descriptors.aggregate(statistics.mean)
-        print("Model descriptors...")
-        print(data_descriptors_mean)
-
-        # Iterate on independent variables.
-        if False:
-            utility.print_terminal_partition(level=2)
-            for variable in variables:
-                #utility.print_terminal_partition(level=3)
-                significance = str(variable + ("_significance"))
-                data_significant = data_set.copy(deep=True)
-                data_significant = data_significant.loc[
-                    data_significant[significance], :
-                ]
-                count_significant = data_significant.shape[0]
-                percentage = round((count_significant / count_total) * 100, 1)
-                print(variable + ": " + str(percentage) + "%")
-
-                pass
-    pass
-
-
 def organize_data_regress_cases_report(
-    genes_regression=None,
-    genes_selection=None,
-    genes_unimodal=None,
-    genes_multimodal=None,
+    genes=None,
     variables_regression=None,
     data_persons_properties=None,
     data_signals_genes_persons=None,
@@ -820,13 +747,7 @@ def organize_data_regress_cases_report(
     variables for regression.
 
     arguments:
-        genes_regression (list<str>): identifiers of genes
-        genes_selection (list<str>): identifiers of all genes that pass filters
-            in selection procedure
-        genes_unimodal (list<str>): identifiers of genes with pan-tissue
-            signals that have unimodal distribution across persons
-        genes_multimodal (list<str>): identifiers of genes with pan-tissue
-            signals that have nonunimodal distribution across persons
+        genes (list<str>): identifiers of genes for regression
         variables_regression (list<str>): names of independent variables for
             regression
         data_persons_properties (object): Pandas data frame of persons and
@@ -838,7 +759,6 @@ def organize_data_regress_cases_report(
         discovery (bool): whether to calculate false discovery rates across all
             genes
         report (bool): whether to print reports
-
 
     raises:
 
@@ -866,7 +786,7 @@ def organize_data_regress_cases_report(
 
     if report:
         utility.print_terminal_partition(level=3)
-        print("genes for regression: " + str(len(genes_regression)))
+        print("genes for regression: " + str(len(genes)))
         utility.print_terminal_partition(level=3)
 
     # Organize dependent and independent variables for regression analysis.
@@ -874,32 +794,26 @@ def organize_data_regress_cases_report(
         variables=variables_regression,
         data_persons_properties=data_persons_properties,
         data_signals_genes_persons=data_signals_genes_persons,
+        report=report,
     )
-
-    utility.print_terminal_partition(level=1)
-    print("data_variables")
-    utility.print_terminal_partition(level=2)
-    print(data_variables)
 
     # Regress each gene's signal across persons.
     # Iterate on genes.
     bin_regression = regress_cases(
-        cases=genes_regression,
+        cases=genes,
         variables=variables_regression,
         data_variables=data_variables,
         data_gene_annotation=data_gene_annotation,
         report=True,
     )
-    utility.print_terminal_partition(level=2)
-    print("data_regression_genes")
-    print(bin_regression["data_regression_genes"])
-
     # Summarize regression quality.
     # Report means of statistics across independent models.
-    report_regression_models_quality(
-        variables=variables_regression,
-        data_regression_models=bin_regression["data_regression_genes"],
-    )
+    if report:
+        report_regression_models_quality(
+            variables=variables_regression,
+            data_regression_models=bin_regression["data_regression_genes"],
+        )
+        pass
 
     # Review.
     # 4 February 2020
@@ -916,21 +830,8 @@ def organize_data_regress_cases_report(
             threshold=threshold_discovery,
             data=bin_regression["data_regression_genes"],
         )
-        utility.print_terminal_partition(level=2)
-        print("data_regression_genes_discovery")
-        print(data_regression_genes)
     else:
         data_regression_genes = bin_regression["data_regression_genes"]
-        pass
-    # Prepare and report summary of regression model across all genes.
-    if report:
-        summarize_regression(
-            genes_selection=genes_selection,
-            genes_unimodal=genes_unimodal,
-            genes_multimodal=genes_multimodal,
-            variables=variables_regression,
-            data_regression_genes=data_regression_genes,
-        )
         pass
     # Compile information.
     bin = dict()
@@ -1054,8 +955,8 @@ def select_genes_by_association_variables_together(
 
 
 def select_genes_by_association_regression_variables(
-    variables_interest=None,
-    variables_query=None,
+    variables_separate=None,
+    variables_together=None,
     threshold_r_square=None,
     threshold_discovery=None,
     count_selection=None,
@@ -1066,10 +967,10 @@ def select_genes_by_association_regression_variables(
     Selects and scales regression parameters.
 
     arguments:
-        variables_interest (list<str>): names of independent regression
+        variables_separate (list<str>): names of independent regression
             variables for which to select genes by significant association
-        variables_query (list<str>): names of multiple variables for which to
-            select genes that associate significantly with all
+        variables_together (list<str>): names of multiple variables for which
+            to select genes that associate significantly with all together
         threshold_r_square (float): threshold by r square
         threshold_discovery (float): threshold by false discovery rate
         count_selection (int): count of genes with greatest and least values
@@ -1097,7 +998,7 @@ def select_genes_by_association_regression_variables(
     # Adjust probabilities for multiple hypothesis tests.
     # Calculate false discovery rate by Benjamini-Hochberg's method.
     data_discovery = calculate_regression_discoveries(
-        variables=variables_interest,
+        variables=variables_separate,
         threshold=threshold_discovery,
         data=data_threshold_r,
     )
@@ -1105,7 +1006,7 @@ def select_genes_by_association_regression_variables(
     # separately.
     # Any, or logic.
     sets = select_genes_by_association_variables_separate(
-        variables=variables_interest,
+        variables=variables_separate,
         count_selection=count_selection,
         data_regression_genes=data_discovery,
     )
@@ -1113,7 +1014,7 @@ def select_genes_by_association_regression_variables(
     # together.
     # All, and logic.
     set_together = select_genes_by_association_variables_together(
-        variables=variables_query,
+        variables=variables_together,
         data_regression_genes=data_discovery,
     )
     # Compile information.
@@ -1122,35 +1023,29 @@ def select_genes_by_association_regression_variables(
     return sets
 
 
-def select_genes_by_cohort_association(
-    variables_interest=None,
-    variables_query=None,
+def select_genes_by_gene_distributions_variable_associations(
+    variables_separate=None,
+    variables_together=None,
     threshold_r_square=None,
     threshold_discovery=None,
     count_selection=None,
-    genes_selection=None,
-    genes_unimodal=None,
-    genes_multimodal=None,
+    genes_sets=None,
     data_regression_genes=None,
 ):
     """
     Selects and scales regression parameters.
 
     arguments:
-        variables_interest (list<str>): names of independent regression
+        variables_separate (list<str>): names of independent regression
             variables for which to select genes by significant association
-        variables_query (list<str>): names of multiple variables for which to
-            select genes that associate significantly with all
+        variables_together (list<str>): names of multiple variables for which
+            to select genes that associate significantly with all together
         threshold_r_square (float): threshold by r square
         threshold_discovery (float): threshold by false discovery rate
         count_selection (int): count of genes with greatest and least values
             of variable's regression parameter to keep
-        genes_selection (list<str>): identifiers of all genes that pass filters
-            in selection procedure
-        genes_unimodal (list<str>): identifiers of genes with pan-tissue
-            signals that have unimodal distribution across persons
-        genes_multimodal (list<str>): identifiers of genes with pan-tissue
-            signals that have nonunimodal distribution across persons
+        genes_sets (dict<list<str>>): identifiers of all genes in groups by
+            distributions of their pan-tissue signals
         data_regression_genes (object): Pandas data frame of parameters and
             statistics from regressions across cases
 
@@ -1165,33 +1060,16 @@ def select_genes_by_cohort_association(
     # Select genes from each cohort that associate significantly with each
     # variable.
     sets = dict()
-    sets["selection"] = select_genes_by_association_regression_variables(
-        variables_interest=variables_interest,
-        variables_query=variables_query,
-        threshold_r_square=threshold_r_square,
-        threshold_discovery=threshold_discovery,
-        count_selection=count_selection,
-        genes=genes_selection,
-        data_regression_genes=data_regression_genes,
-    )
-    sets["unimodal"] = select_genes_by_association_regression_variables(
-        variables_interest=variables_interest,
-        variables_query=variables_query,
-        threshold_r_square=threshold_r_square,
-        threshold_discovery=threshold_discovery,
-        count_selection=count_selection,
-        genes=genes_unimodal,
-        data_regression_genes=data_regression_genes,
-    )
-    sets["multimodal"] = select_genes_by_association_regression_variables(
-        variables_interest=variables_interest,
-        variables_query=variables_query,
-        threshold_r_square=threshold_r_square,
-        threshold_discovery=threshold_discovery,
-        count_selection=count_selection,
-        genes=genes_multimodal,
-        data_regression_genes=data_regression_genes,
-    )
+    for set in genes_sets.keys():
+        sets[set] = select_genes_by_association_regression_variables(
+            variables_separate=variables_separate,
+            variables_together=variables_together,
+            threshold_r_square=threshold_r_square,
+            threshold_discovery=threshold_discovery,
+            count_selection=count_selection,
+            genes=genes_sets[set],
+            data_regression_genes=data_regression_genes,
+        )
     # Return information.
     return sets
 
@@ -1218,11 +1096,11 @@ def collect_union_sets_genes(
     """
 
     sets = copy.deepcopy(sets)
-    for group in sets.keys():
+    for distribution in sets.keys():
         union = list()
         for variable in union_variables:
-            union.extend(sets[group][variable])
-        sets[group]["union"] = utility.collect_unique_elements(
+            union.extend(sets[distribution][variable])
+        sets[distribution]["union"] = utility.collect_unique_elements(
             elements_original=union
         )
     # Return information.
@@ -1232,9 +1110,8 @@ def collect_union_sets_genes(
 def report_association_variables_sets_genes(
     variables=None,
     sets=None,
-    genes_selection=None,
-    genes_unimodal=None,
-    genes_multimodal=None,
+    genes_sets=None,
+    distribution_master=None,
 ):
     """
     Selects and scales regression parameters.
@@ -1243,12 +1120,10 @@ def report_association_variables_sets_genes(
         variables (list<str>): names of independent regression variables
         sets (dict<dict<list<str>>>): sets of genes that associate
             significantly to variables in regression
-        genes_selection (list<str>): identifiers of all genes that pass filters
-            in selection procedure
-        genes_unimodal (list<str>): identifiers of genes with pan-tissue
-            signals that have unimodal distribution across persons
-        genes_multimodal (list<str>): identifiers of genes with pan-tissue
-            signals that have nonunimodal distribution across persons
+        genes_sets (dict<list<str>>): identifiers of all genes in groups by
+            distributions of their pan-tissue signals
+        distribution_master (str): distribution group of genes for which to
+            report allocation to variables
 
     raises:
 
@@ -1261,23 +1136,20 @@ def report_association_variables_sets_genes(
     sets = copy.deepcopy(sets)
     utility.print_terminal_partition(level=2)
     print("Counts of genes.")
-    print("selection genes: " + str(len(genes_selection)))
-    print("unimodal genes: " + str(len(genes_unimodal)))
-    print("multimodal genes: " + str(len(genes_multimodal)))
+    for distribution in genes_sets.keys():
+        print(distribution + " genes: " + str(len(genes_sets[distribution])))
     utility.print_terminal_partition(level=3)
     print("Counts of genes that associate significantly with each variable.")
+    print("master distribution genes: " + distribution_master)
     for variable in variables:
         utility.print_terminal_partition(level=4)
         print(variable)
-        #print("selection genes: " + str(len(sets["selection"][variable])))
-        #print("unimodal genes: " + str(len(sets["unimodal"][variable])))
-        count_multimodal = len(genes_multimodal)
-        count_variable = len(sets["multimodal"][variable])
-        percentage = (count_variable / count_multimodal) * 100
-        print("count multimodal genes: " + str(count_variable))
-        print("multimodal genes: " + str(round(percentage, 3)) + "%")
-        if len(sets["multimodal"][variable]) < 20:
-            print(sets["multimodal"][variable])
+        genes_master = genes_sets[distribution_master]
+        count_master = len(genes_master)
+        count_variable = len(sets[distribution_master][variable])
+        percentage = (count_variable / count_master) * 100
+        print("count variable genes: " + str(count_variable))
+        print("master genes: " + str(round(percentage, 3)) + "%")
         pass
     pass
 
@@ -1693,7 +1565,6 @@ def evaluate_variance_by_binary_groups(
 
 def write_product_regression(
     cohort=None,
-    model=None,
     information=None,
     paths=None,
 ):
@@ -1702,7 +1573,6 @@ def write_product_regression(
 
     arguments:
         cohort (str): cohort of persons--selection, respiration, or ventilation
-        model (str): regression model, either technique or hypothesis
         information (object): information to write to file
         paths (dict<str>): collection of paths to directories for procedure's
             files
@@ -1715,13 +1585,13 @@ def write_product_regression(
 
     # Specify directories and files.
     path_residuals_genes = os.path.join(
-        paths[cohort][model]["regression"], "residuals_genes.pickle"
+        paths[cohort]["regression"], "residuals_genes.pickle"
     )
     path_data_regression_genes = os.path.join(
-        paths[cohort][model]["regression"], "data_regression_genes.pickle"
+        paths[cohort]["regression"], "data_regression_genes.pickle"
     )
     path_data_regression_genes_text = os.path.join(
-        paths[cohort][model]["regression"], "data_regression_genes.tsv"
+        paths[cohort]["regression"], "data_regression_genes.tsv"
     )
 
     # Write information to file.
@@ -1743,7 +1613,7 @@ def write_product_regression(
 
 def write_product_genes_set_variable(
     cohort=None,
-    model=None,
+    distribution=None,
     variable=None,
     sets_genes=None,
     paths=None,
@@ -1753,7 +1623,8 @@ def write_product_genes_set_variable(
 
     arguments:
         cohort (str): cohort of persons--selection, respiration, or ventilation
-        model (str): regression model, either technique or hypothesis
+        distribution (str): group of genes by distribution of pan-tissue
+            signals
         variable (str): name of independent regression variable
         sets_genes (dict<list<str>>): sets of genes that associate
             significantly to variables in regression
@@ -1768,11 +1639,12 @@ def write_product_genes_set_variable(
 
     # Specify directories and files.
     path_variable = os.path.join(
-        paths[cohort][model]["genes"], str(variable + ".txt")
+        paths[cohort]["distribution"][distribution],
+        str(variable + ".txt")
     )
     # Write information to file.
     utility.write_file_text_list(
-        elements=sets_genes[variable],
+        elements=sets_genes[distribution][variable],
         delimiter="\n",
         path_file=path_variable
     )
@@ -1781,7 +1653,6 @@ def write_product_genes_set_variable(
 
 def write_product_genes(
     cohort=None,
-    model=None,
     information=None,
     paths=None,
 ):
@@ -1790,7 +1661,6 @@ def write_product_genes(
 
     arguments:
         cohort (str): cohort of persons--selection, respiration, or ventilation
-        model (str): regression model, either technique or hypothesis
         information (object): information to write to file.
         paths (dict<str>): collection of paths to directories for procedure's
             files
@@ -1803,21 +1673,27 @@ def write_product_genes(
 
     # Specify directories and files.
     path_sets_genes = os.path.join(
-        paths[cohort][model]["genes"], "sets_genes.pickle"
+        paths[cohort]["genes"], "sets_genes.pickle"
     )
     # Write information to file.
     with open(path_sets_genes, "wb") as file_product:
         pickle.dump(information["sets_genes"], file_product)
 
     # Write individual gene sets.
-    for variable in information["sets_genes"]["multimodal"].keys():
-        write_product_genes_set_variable(
-            cohort=cohort,
-            model=model,
-            variable=variable,
-            sets_genes=information["sets_genes"]["multimodal"],
-            paths=paths,
-        )
+    distributions = list()
+    distributions.append("any")
+    distributions.append("multimodal")
+    distributions.append("nonmultimodal")
+    distributions.append("unimodal")
+    for distribution in distributions:
+        for variable in information["sets_genes"][distribution].keys():
+            write_product_genes_set_variable(
+                cohort=cohort,
+                distribution=distribution,
+                variable=variable,
+                sets_genes=information["sets_genes"],
+                paths=paths,
+            )
     pass
 
 
@@ -1861,29 +1737,21 @@ def organize_data_regress_cases_report_write(
     variables = selection.define_variables()
 
     # Regression on hypothesis variables.
-    if True:
-        #genes_regression = random.sample(
-        #    source["genes_candidacy"]["selection"], 100
-        #)
-        genes_regression = source["genes_candidacy"]["selection"]#[0:100]
+    if False:
+        #genes_regression = random.sample(genes_sets["selection"], 100)
+        genes_regression = genes_sets["any"]#[0:100]
         bin_regression = organize_data_regress_cases_report(
-            variables_regression=(
-                variables[cohort]["model_hypothesis"]
-            ),
-            genes_regression=genes_regression,
-            genes_selection=genes_sets["selection"],
-            genes_unimodal=genes_sets["unimodal"],
-            genes_multimodal=genes_sets["multimodal"],
+            genes=genes_regression,
+            variables_regression=variables[cohort]["model_hypothesis"],
             data_persons_properties=source["data_persons_properties"],
             data_signals_genes_persons=source["data_signals_genes_persons"],
             data_gene_annotation=source["data_gene_annotation"],
             threshold_discovery=0.05,
-            discovery=False,
-            report=True,
+            discovery=True,
+            report=False,
         )
         write_product_regression(
             cohort=cohort,
-            model="hypothesis",
             information=bin_regression,
             paths=paths,
         )
@@ -1892,30 +1760,27 @@ def organize_data_regress_cases_report_write(
     # with modality sets.
     # Select genes with significant association with each hypothetical
     # variable of interest.
-    if False:
-        model = "hypothesis"
+    if True:
         variables_interest = variables[cohort]["model_hypothesis"]
         variables_query = variables["query"]["six"] # one, two,
         #model = "technique"
         #variables_collection = variables["batch"]
         source_regression = read_source_regression(
             cohort=cohort,
-            model=model, # hypothesis or technique
             paths=paths,
         )
         # Select genes by their association to variables of hypothetical
         # interest.
-        sets_genes = select_genes_by_cohort_association(
-            variables_interest=variables_interest,
-            variables_query=variables_query,
-            genes_selection=genes_sets["selection"],
-            genes_unimodal=genes_sets["unimodal"],
-            genes_multimodal=genes_sets["multimodal"],
+        sets_genes = select_genes_by_gene_distributions_variable_associations(
+            variables_separate=variables_interest,
+            variables_together=variables_query,
+            genes_sets=genes_sets,
             threshold_r_square=0.25, # 0.1, 0.25
             threshold_discovery=0.05,
             count_selection=1000, # select count of genes with greatest absolute values of regression parameters (beta coefficients)
             data_regression_genes=source_regression["data_regression_genes"],
         )
+        # Include union sets.
         sets_genes = collect_union_sets_genes(
             sets=sets_genes,
             union_variables=variables_interest,
@@ -1927,16 +1792,14 @@ def organize_data_regress_cases_report_write(
         report_association_variables_sets_genes(
             variables=variables_summary,
             sets=sets_genes,
-            genes_selection=genes_sets["selection"],
-            genes_unimodal=genes_sets["unimodal"],
-            genes_multimodal=genes_sets["multimodal"],
+            genes_sets=genes_sets,
+            distribution_master="any", # "any" or "multimodal"
         )
         # Compile information.
         bin_sets = dict()
         bin_sets["sets_genes"] = sets_genes
         write_product_genes(
             cohort=cohort,
-            model=model,
             information=bin_sets,
             paths=paths,
         )
