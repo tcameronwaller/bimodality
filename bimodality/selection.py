@@ -1518,6 +1518,11 @@ def define_organization_variables():
     return bin
 
 
+
+
+
+
+
 def define_variables_regression_selection():
     """
     Defines a list of variables' names for analyses.
@@ -1536,19 +1541,21 @@ def define_variables_regression_selection():
         "sex_y_scale",
         "age_scale",
         "body_scale",
-        "climate_scale",
-        "respiration_binary_scale",
-        "smoke_scale",
-        "inflammation_binary_scale",
-        "leukocyte_binary_scale",
-        "infection_binary_scale",
-        "mononucleosis_binary_scale",
         "heart_binary_scale",
         "diabetes_binary_scale",
+        "respiration_binary_scale",
+        "smoke_scale",
+        "infection_binary_scale",
+        "mononucleosis_binary_scale",
+        "inflammation_binary_scale",
+        "leukocyte_binary_scale",
+        "climate_scale",
+        #"hardiness_scale",
         "ventilation_duration_scale",
         #"ventilation_binary_scale",
-        "sex_risk*ventilation_binary_scale",
-        #"age*ventilation_binary_scale",
+
+        #"sex_risk*ventilation_binary_scale",
+        "age*ventilation_binary_scale",
     ]
     # Variables that relate to genotype.
     genotype = [
@@ -1596,6 +1603,10 @@ def define_variables_regression_selection():
     bin["model_trait"] = model_trait
     # Return information.
     return bin
+
+
+
+
 
 
 def define_variables_regression_respiration():

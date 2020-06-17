@@ -167,12 +167,17 @@ def calculate_dip_statistic_r(series=None):
     return dip
 
 
-def calculate_mixture_model_score(series=None):
+def calculate_mixture_model_score(
+    series=None,
+    score=None,
+):
     """
     Calculates the score from a Gaussian mixture model of a series.
 
     arguments:
         series (list<float>): series of values of type float
+        score (str): score to use for differences of fit, either "likelihood"
+            or "akaike"
 
     raises:
 
@@ -199,22 +204,38 @@ def calculate_mixture_model_score(series=None):
     )
     model_one.fit(array_shape)
     model_two.fit(array_shape)
-    # In general, the model with the greater log likelihood is a better
-    # representation of the data.
-    # Determine log likelihood scores for fits to models.
-    likelihood_log_one = model_one.score(array_shape)
-    likelihood_log_two = model_two.score(array_shape)
-    # Calculate log likelihood ratio of the bimodal model relative to the
-    # unimodal model.
-    # Null hypothesis is that the unimodal model (more restrictive) is better.
-    # Do not use the value of the likelihood ratio test.
-    # Rather use the value of the ratio itself, which is the statistic.
-    # Per standard, multiply log likelihood ratio by 2 to adjust distribution.
-    #likelihood_one = math.exp(likelihood_log_one)
-    #likelihood_two = math.exp(likelihood_log_two)
-    #ratio = -2*math.log(likelihood_one / likelihood_two)
-    ratio = 2*(likelihood_log_two - likelihood_log_one)
-    return ratio
+    # Determine score to compare the goodness of models' fits.
+    if score == "likelihood":
+        # The model with the greater log likelihood is a better
+        # representation of the data.
+        # Calculate log likelihood scores for fits to models.
+        likelihood_log_one = model_one.score(array_shape)
+        likelihood_log_two = model_two.score(array_shape)
+        # Calculate log likelihood ratio of the bimodal model relative to the
+        # unimodal model.
+        # Null hypothesis is that the unimodal model (more restrictive) is
+        # better fit.
+        # Do not use the value of the likelihood ratio test.
+        # Rather use the value of the ratio itself, which is the statistic.
+        # Per standard, multiply log likelihood ratio by 2 to adjust its
+        # distribution.
+        #likelihood_one = math.exp(likelihood_log_one)
+        #likelihood_two = math.exp(likelihood_log_two)
+        #ratio = -2*math.log(likelihood_one / likelihood_two)
+        # Greater values of the difference indicate better fit of the bimodal
+        # model.
+        difference = 2*(likelihood_log_two - likelihood_log_one)
+    elif score == "akaike":
+        # The model with the lesser Akaike Information Criterion (AIC) is a
+        # better representation of the data.
+        # Calculate AIC for fits to models.
+        akaike_one = model_one.aic(array_shape)
+        akaike_two = model_two.aic(array_shape)
+        # Null hypothesis is that the unimodal model is better.
+        # Greater values of the difference indicate better fit of the bimodal
+        # model.
+        difference = (akaike_one - akaike_two)
+    return difference
 
 
 # Calculate metric on basis of mixture model.

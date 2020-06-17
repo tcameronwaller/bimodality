@@ -634,8 +634,8 @@ def organize_data_master_main(
         :, data_master.columns.isin(["master", master])
     ]
     # Join master and main data.
-    data_hybrid = data_main_scale.join(
-        data_master,
+    data_hybrid = data_master.join(
+        data_main_scale,
         how="left",
         on=index
     )
@@ -4247,10 +4247,12 @@ def read_source_candidacy_gene_sets_overlap_measures(
 
     # Specify directories and files.
     path_sets_genes_multimodal = os.path.join(
-        dock, "candidacy", cohort, "multimodal", "sets_multimodal.pickle"
+        dock, "candidacy", cohort, "distribution", "multimodal",
+        "sets_multimodal.pickle"
     )
     path_sets_genes_unimodal = os.path.join(
-        dock, "candidacy", cohort, "unimodal", "sets_unimodal.pickle"
+        dock, "candidacy", cohort, "distribution", "unimodal",
+        "sets_unimodal.pickle"
     )
     # Read information from file.
     with open(path_sets_genes_unimodal, "rb") as file_source:
@@ -4284,15 +4286,16 @@ def read_source_candidacy_gene_sets_overlap_multimodal_cohorts(
 
     # Specify directories and files.
     path_selection = os.path.join(
-        dock, "candidacy", "selection", "multimodal", "genes_multimodal.pickle"
+        dock, "candidacy", "selection", "distribution", "multimodal",
+        "genes.pickle"
     )
     path_respiration = os.path.join(
-        dock, "candidacy", "respiration", "multimodal",
-        "genes_multimodal.pickle"
+        dock, "candidacy", "respiration", "distribution", "multimodal",
+        "genes.pickle"
     )
     path_ventilation = os.path.join(
-        dock, "candidacy", "ventilation", "multimodal",
-        "genes_multimodal.pickle"
+        dock, "candidacy", "ventilation", "distribution", "multimodal",
+        "genes.pickle"
     )
     # Read information from file.
     with open(path_selection, "rb") as file_source:
@@ -4470,9 +4473,7 @@ def prepare_charts_candidacy_gene_sets_overlap(
 # Status: working
 
 
-# TODO: need to update distribution directory both in prediction procedure and here...
-
-
+# TODO: obsolete for now...
 def read_source_prediction_genes_set(
     cohort=None,
     distribution=None,
@@ -4499,23 +4500,15 @@ def read_source_prediction_genes_set(
     """
 
     # Specify directories and files.
-    path_set_genes = os.path.join(
-        dock, "prediction", cohort, "multimodal", "sets_multimodal.pickle"
-    )
-    path_sets_genes_unimodal = os.path.join(
-        dock, "candidacy", cohort, "unimodal", "sets_unimodal.pickle"
+    path_sets_genes = os.path.join(
+        dock, "prediction", cohort, "genes",
+        "sets_genes.pickle"
     )
     # Read information from file.
-    with open(path_sets_genes_unimodal, "rb") as file_source:
-        sets_genes_unimodal = pickle.load(file_source)
-    with open(path_sets_genes_multimodal, "rb") as file_source:
-        sets_genes_multimodal = pickle.load(file_source)
-
+    with open(path_sets_genes, "rb") as file_source:
+        sets_genes = pickle.load(file_source)
     # Compile and return information.
-    return {
-        "sets_genes_unimodal": sets_genes_unimodal,
-        "sets_genes_multimodal": sets_genes_multimodal,
-    }
+    return sets_genes[distribution][variable]
 
 
 def define_parameters_prediction_genes_sets_overlap():
@@ -4542,15 +4535,15 @@ def define_parameters_prediction_genes_sets_overlap():
             cohort_three="selection",
             distribution_one="any",
             distribution_two="any",
-            distribution_three="any",
-            variable_one="sex_y_scale",
-            variable_two="ventilation_duration_scale",
-            variable_three="sex_risk*ventilation_binary_scale",
-            label_one="sex",
-            label_two="ventilation",
-            label_three="sex*ventilation",
+            distribution_three="sex_ventilation",
+            variable_one="sex_risk*ventilation_binary_scale",
+            variable_two="sex_y_scale",
+            variable_three="ventilation_binary_scale",
+            label_one="sex*ventilation",
+            label_two="sex",
+            label_three="ventilation",
         ))
-    if False:
+    if True:
         parameters.append(dict(
             title="age_ventilation",
             cohort_one="selection",
@@ -4558,13 +4551,13 @@ def define_parameters_prediction_genes_sets_overlap():
             cohort_three="selection",
             distribution_one="any",
             distribution_two="any",
-            distribution_three="any",
-            variable_one="age_scale",
-            variable_two="ventilation_duration_scale",
-            variable_three="age*ventilation_binary_scale",
-            label_one="age",
-            label_two="ventilation",
-            label_three="age*ventilation",
+            distribution_three="age_ventilation",
+            variable_one="age*ventilation_binary_scale",
+            variable_two="age_scale",
+            variable_three="ventilation_binary_scale",
+            label_one="age*ventilation",
+            label_two="age",
+            label_three="ventilation",
         ))
     # Return information.
     return parameters
@@ -4610,6 +4603,9 @@ def prepare_chart_prediction_gene_sets_overlap(
     cohort_one=None,
     cohort_two=None,
     cohort_three=None,
+    distribution_one=None,
+    distribution_two=None,
+    distribution_three=None,
     variable_one=None,
     variable_two=None,
     variable_three=None,
@@ -4627,6 +4623,9 @@ def prepare_chart_prediction_gene_sets_overlap(
         cohort_one (str): cohort of persons for set one
         cohort_two (str): cohort of persons for set two
         cohort_three (str): cohort of persons for set three
+        distribution_one (str): group of genes by distribution for set one
+        distribution_two (str): group of genes by distribution for set two
+        distribution_three (str): group of genes by distribution for set three
         variable_one (str): name of predictor variable from regression that
             corresponds to set one
         variable_two (str): name of predictor variable from regression that
@@ -4647,22 +4646,14 @@ def prepare_chart_prediction_gene_sets_overlap(
     """
 
     # Read lists of genes' identifiers from file.
+    source = integration.read_source_genes_sets_prediction_interaction(
+        cohort="selection",
+        dock=dock,
+    )
     genes_sets = dict()
-    genes_sets[label_one] = read_source_prediction_genes_set(
-        cohort=cohort_one,
-        variable=variable_one,
-        dock=dock,
-    )
-    genes_sets[label_two] = read_source_prediction_genes_set(
-        cohort=cohort_two,
-        variable=variable_two,
-        dock=dock,
-    )
-    genes_sets[label_three] = read_source_prediction_genes_set(
-        cohort=cohort_three,
-        variable=variable_three,
-        dock=dock,
-    )
+    genes_sets[label_one] = source[distribution_three]["any"][variable_one]
+    genes_sets[label_two] = source["sex_age_ventilation"]["any"][variable_two]
+    genes_sets[label_three] = source["sex_age_ventilation"]["any"][variable_three]
     # Define path to file.
     path_file = os.path.join(
         path_directory, str(title + ".svg")
@@ -4705,6 +4696,9 @@ def prepare_charts_prediction_gene_sets_overlap(
             cohort_one=parameter["cohort_one"],
             cohort_two=parameter["cohort_two"],
             cohort_three=parameter["cohort_three"],
+            distribution_one=parameter["distribution_one"],
+            distribution_two=parameter["distribution_two"],
+            distribution_three=parameter["distribution_three"],
             variable_one=parameter["variable_one"],
             variable_two=parameter["variable_two"],
             variable_three=parameter["variable_three"],
@@ -6215,9 +6209,17 @@ def read_source_prediction_genes_signals_persons_properties(
     )
 
     # TODO: change to cohort...
-    path_genes_prediction_ontology = os.path.join(
-        dock, "integration", "selection", "set", "prediction_ontology",
-        "genes.pickle"
+    #path_genes_prediction_ontology = os.path.join(
+    #    dock, "integration", "selection", "set", "prediction_ontology",
+    #    "genes.pickle"
+    #)
+    path_genes_sex_ventilation = os.path.join(
+        dock, "integration", "selection", "set", "prediction_interaction",
+        "multimodal","sex_ventilation.pickle"
+    )
+    path_genes_age_ventilation = os.path.join(
+        dock, "integration", "selection", "set", "prediction_interaction",
+        "multimodal","age_ventilation.pickle"
     )
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
@@ -6225,8 +6227,10 @@ def read_source_prediction_genes_signals_persons_properties(
     data_signals_genes_persons = pandas.read_pickle(
         path_data_signals_genes_persons
     )
-    with open(path_genes_prediction_ontology, "rb") as file_source:
-        genes_prediction_ontology = pickle.load(file_source)
+    with open(path_genes_sex_ventilation, "rb") as file_source:
+        genes_sex_ventilation = pickle.load(file_source)
+    with open(path_genes_age_ventilation, "rb") as file_source:
+        genes_age_ventilation = pickle.load(file_source)
     query_gene_sets = integration.read_source_annotation_query_genes_sets(
         dock=dock
     )
@@ -6235,7 +6239,8 @@ def read_source_prediction_genes_signals_persons_properties(
         "data_gene_annotation": data_gene_annotation,
         "data_persons_properties": data_persons_properties,
         "data_signals_genes_persons": data_signals_genes_persons,
-        "genes_prediction_ontology": genes_prediction_ontology,
+        "genes_sex_ventilation": genes_sex_ventilation,
+        "genes_age_ventilation": genes_age_ventilation,
         "query_gene_sets": query_gene_sets,
     }
 
@@ -6281,23 +6286,23 @@ def define_parameters_prediction_genes_signals_persons_properties():
             property="mononucleosis_binary", type="binary",
         ))
         parameters.append(dict(
-            title="sex", label="sex", set="sex_y_scale", property="sex_text",
-            type="category",
-        ))
-        parameters.append(dict(
             title="age", label="age", set="age_scale",
             property="age_grade", type="ordinal",
         ))
-    parameters.append(dict(
-        title="ventilation_duration", label="ventilation",
-        set="ventilation_binary_scale",
-        property="ventilation_duration_scale", type="continuous",
-    ))
-    parameters.append(dict(
-        title="ventilation_grade", label="ventilation",
-        set="ventilation_binary_scale",
-        property="ventilation_duration_grade", type="ordinal",
-    ))
+        parameters.append(dict(
+            title="ventilation_duration", label="ventilation",
+            set="ventilation_binary_scale",
+            property="ventilation_duration_scale", type="continuous",
+        ))
+        parameters.append(dict(
+            title="ventilation_grade", label="ventilation",
+            set="ventilation_binary_scale",
+            property="ventilation_duration_grade", type="ordinal",
+        ))
+        parameters.append(dict(
+            title="sex", label="sex", set="sex_y_scale", property="sex_text",
+            type="category",
+        ))
     parameters.append(dict(
         title="ventilation_binary", label="ventilation",
         set="ventilation_binary_scale",
@@ -6426,7 +6431,7 @@ def prepare_charts_query_genes_signals_persons_properties_variable(
         scale_unit_main=False,
         columns_main_scale_unit=list(),
         index="person",
-        sequence="sort",
+        sequence="sort", # "sort" or "cluster"
     )
     # Create charts for the gene.
     plot_chart_prediction_genes_signals_persons_properties(
@@ -6531,6 +6536,9 @@ def prepare_charts_query_genes_signals_persons_properties_genes(
     pass
 
 
+
+# TODO: remove the stratification by sex...
+
 def prepare_charts_query_genes_signals_persons_properties_cohort(
     cohort=None,
     dock=None
@@ -6566,23 +6574,37 @@ def prepare_charts_query_genes_signals_persons_properties_cohort(
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=path_cohort)
     utility.create_directories(path=path_cohort)
+    # Select relevant persons.
+    # "sex_text" == "female"
+    data_persons_properties = source["data_persons_properties"].loc[
+        source["data_persons_properties"]["sex_text"] == "female", :
+    ]
     # Prepare and plot data for sets of genes.
     prepare_charts_query_genes_signals_persons_properties_genes(
-        set_name="prediction",
-        genes=source["genes_prediction_ontology"],
+        set_name="sex_ventilation",
+        genes=source["genes_sex_ventilation"],
         data_gene_annotation=source["data_gene_annotation"],
-        data_persons_properties=source["data_persons_properties"],
+        data_persons_properties=data_persons_properties,
         data_signals_genes_persons=source["data_signals_genes_persons"],
         path_parent=path_cohort,
     )
     prepare_charts_query_genes_signals_persons_properties_genes(
-        set_name="query",
-        genes=source["query_gene_sets"]["covid_19"],
+        set_name="age_ventilation",
+        genes=source["genes_age_ventilation"],
         data_gene_annotation=source["data_gene_annotation"],
-        data_persons_properties=source["data_persons_properties"],
+        data_persons_properties=data_persons_properties,
         data_signals_genes_persons=source["data_signals_genes_persons"],
         path_parent=path_cohort,
     )
+    if False:
+        prepare_charts_query_genes_signals_persons_properties_genes(
+            set_name="query",
+            genes=source["query_gene_sets"]["covid_19"],
+            data_gene_annotation=source["data_gene_annotation"],
+            data_persons_properties=source["data_persons_properties"],
+            data_signals_genes_persons=source["data_signals_genes_persons"],
+            path_parent=path_cohort,
+        )
     pass
 
 
@@ -6605,7 +6627,7 @@ def prepare_charts_query_genes_signals_persons_properties(
     cohorts = [
         "selection",
         #"respiration",
-        "ventilation",
+        #"ventilation",
     ]
     for cohort in cohorts:
         prepare_charts_query_genes_signals_persons_properties_cohort(
@@ -8899,7 +8921,7 @@ def execute_procedure(dock=None):
 
     # Major gene ontology functional categories of multimodal genes
     # Highlight genes of interest from regression
-    prepare_charts_multimodal_genes_ontology_sets(dock=dock)
+    #prepare_charts_multimodal_genes_ontology_sets(dock=dock)
 
     ##########
     ##########

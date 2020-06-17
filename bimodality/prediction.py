@@ -766,21 +766,17 @@ def organize_data_regress_cases_report(
 
     """
 
-    if False:
+    if report:
         # Calculate correlation coefficients between pairs of independent
         # variables.
         pairs = list()
-        pairs.append(("hardiness_scale", "age_scale"))
-        pairs.append(("hardiness_scale", "body_scale"))
-        pairs.append(("hardiness_scale", "season_scale"))
-        pairs.append(("hardiness_scale", "delay_scale"))
         pairs.append(("tissues_1", "facilities_1"))
         pairs.append(("tissues_1", "facilities_2"))
         pairs.append(("delay_scale", "facilities_1"))
         pairs.append(("delay_scale", "facilities_2"))
         calculate_report_independent_variable_correlations(
             pairs=pairs,
-            data_persons_properties=source["data_persons_properties"],
+            data_persons_properties=data_persons_properties,
             method="spearman",
         )
 
@@ -847,6 +843,7 @@ def organize_data_regress_cases_report(
 
 def select_genes_by_association_variables_separate(
     variables=None,
+    coefficient_sign=None,
     count_selection=None,
     data_regression_genes=None,
 ):
@@ -856,6 +853,8 @@ def select_genes_by_association_variables_separate(
     arguments:
         variables (list<str>): names of independent regression
             variables for which to select genes by significant association
+        coefficient_sign (str): option to select only genes with negative,
+            positive, or any sign of their coefficients for the variable
         count_selection (int): count of genes with greatest and least values
             of variable's regression parameter to keep
         data_regression_genes (object): Pandas data frame of parameters and
@@ -880,30 +879,50 @@ def select_genes_by_association_variables_separate(
         ]
         # Select regression data by significance of the variable.
         data_significance = data_copy.loc[data_copy[significance], :]
+        # Select regression data by sign of the variable's regression
+        # coefficient or parameter.
+        if coefficient_sign == "negative":
+            data_sign = data_significance.loc[
+                (data_significance[parameter] < 0), :
+            ]
+        elif coefficient_sign == "positive":
+            data_sign = data_significance.loc[
+                (data_significance[parameter] > 0), :
+            ]
+        elif coefficient_sign == "any":
+            data_sign = data_significance.copy(deep=True)
+            pass
         # Select regression data by rankings on the variable's parameter.
-        data_descent = data_significance.sort_values(
+        data_descent = data_sign.sort_values(
             by=[parameter],
             axis="index",
             ascending=False,
             inplace=False,
         )
-        genes_positive = data_descent.iloc[
+        genes_greatest = data_descent.iloc[
             0:count_selection, :
         ].index.to_list()
-        data_ascent = data_significance.sort_values(
+        data_ascent = data_sign.sort_values(
             by=[parameter],
             axis="index",
             ascending=True,
             inplace=False,
         )
-        genes_negative = data_ascent.iloc[
+        genes_least = data_ascent.iloc[
             0:count_selection, :
         ].index.to_list()
-        genes_positive.extend(genes_negative)
+        # Compile unique identifiers of genes.
+        if coefficient_sign == "any":
+            genes = copy.deepcopy(genes_greatest)
+            genes.extend(genes_least)
+        elif coefficient_sign == "negative":
+            genes = copy.deepcopy(genes_least)
+        elif coefficient_sign == "positive":
+            genes = copy.deepcopy(genes_greatest)
+            pass
         sets[variable] = utility.collect_unique_elements(
-            elements_original=genes_positive
+            elements_original=genes
         )
-        pass
     # Return information.
     return sets
 
@@ -959,6 +978,7 @@ def select_genes_by_association_regression_variables(
     variables_together=None,
     threshold_r_square=None,
     threshold_discovery=None,
+    coefficient_sign=None,
     count_selection=None,
     genes=None,
     data_regression_genes=None,
@@ -973,6 +993,8 @@ def select_genes_by_association_regression_variables(
             to select genes that associate significantly with all together
         threshold_r_square (float): threshold by r square
         threshold_discovery (float): threshold by false discovery rate
+        coefficient_sign (str): option to select only genes with negative,
+            positive, or any sign of their coefficients for the variable
         count_selection (int): count of genes with greatest and least values
             of variable's regression parameter to keep
         genes (list<str>): identifiers of genes
@@ -1007,6 +1029,7 @@ def select_genes_by_association_regression_variables(
     # Any, or logic.
     sets = select_genes_by_association_variables_separate(
         variables=variables_separate,
+        coefficient_sign=coefficient_sign,
         count_selection=count_selection,
         data_regression_genes=data_discovery,
     )
@@ -1028,6 +1051,7 @@ def select_genes_by_gene_distributions_variable_associations(
     variables_together=None,
     threshold_r_square=None,
     threshold_discovery=None,
+    coefficient_sign=None,
     count_selection=None,
     genes_sets=None,
     data_regression_genes=None,
@@ -1042,6 +1066,8 @@ def select_genes_by_gene_distributions_variable_associations(
             to select genes that associate significantly with all together
         threshold_r_square (float): threshold by r square
         threshold_discovery (float): threshold by false discovery rate
+        coefficient_sign (str): option to select only genes with negative,
+            positive, or any sign of their coefficients for the variable
         count_selection (int): count of genes with greatest and least values
             of variable's regression parameter to keep
         genes_sets (dict<list<str>>): identifiers of all genes in groups by
@@ -1066,6 +1092,7 @@ def select_genes_by_gene_distributions_variable_associations(
             variables_together=variables_together,
             threshold_r_square=threshold_r_square,
             threshold_discovery=threshold_discovery,
+            coefficient_sign=coefficient_sign,
             count_selection=count_selection,
             genes=genes_sets[set],
             data_regression_genes=data_regression_genes,
@@ -1738,7 +1765,7 @@ def organize_data_regress_cases_report_write(
 
     # Regression on hypothesis variables.
     if False:
-        #genes_regression = random.sample(genes_sets["selection"], 100)
+        #genes_regression = random.sample(genes_sets["any"], 100)
         genes_regression = genes_sets["any"]#[0:100]
         bin_regression = organize_data_regress_cases_report(
             genes=genes_regression,
@@ -1777,6 +1804,7 @@ def organize_data_regress_cases_report_write(
             genes_sets=genes_sets,
             threshold_r_square=0.25, # 0.1, 0.25
             threshold_discovery=0.05,
+            coefficient_sign="any", # "negative", "positive", or "any"
             count_selection=1000, # select count of genes with greatest absolute values of regression parameters (beta coefficients)
             data_regression_genes=source_regression["data_regression_genes"],
         )
@@ -1793,7 +1821,7 @@ def organize_data_regress_cases_report_write(
             variables=variables_summary,
             sets=sets_genes,
             genes_sets=genes_sets,
-            distribution_master="any", # "any" or "multimodal"
+            distribution_master="multimodal", # "any" or "multimodal"
         )
         # Compile information.
         bin_sets = dict()
