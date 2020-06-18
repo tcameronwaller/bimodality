@@ -14,8 +14,8 @@ path_gcta="$path_user_cellar/gcta_1.93.2beta/gcta64"
 
 # Source files.
 
-path_gtex_8="$path_user_nrnb/gtex-8"
-path_genotype_vcf="$path_gtex_8/gtex-8_genotype.vcf.gz"
+path_gtex="/nrnb/data/controlled/2020_dbGaP_GTEx/75875/PhenoGenotypeFiles/RootStudyConsentSet_phs000424.GTEx.v8.p2.c1.GRU"
+path_genotype_vcf="$path_gtex/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz"
 
 path_persons_properties="$path_user_cellar/Data/dock/selection/tight/persons_properties"
 path_persons_selection="$path_persons_properties/selection/persons.txt"
@@ -27,14 +27,14 @@ path_families_ventilation="$path_persons_properties/ventilation/heritability/fam
 
 # Product files.
 
-path_gtex_bed_bim_fam="$path_gtex_8/bed_bim_fam"
-path_gtex_pgen_pvar_psam="$path_gtex_8/pgen_pvar_psam"
-path_genotype_bed_bim_fam="$path_gtex_bed_bim_fam/gtex-8_genotype"
-path_genotype_pgen_pvar_psam="$path_gtex_pgen_pvar_psam/gtex-8_genotype"
-#rm -r $path_gtex_bed_bim_fam
-#mkdir -p $path_gtex_bed_bim_fam
-#rm -r $path_gtex_pgen_pvar_psam
-#mkdir -p $path_gtex_pgen_pvar_psam
+path_gtex_bed_bim_fam="$path_user_nrnb/gtex_8/bed_bim_fam"
+path_gtex_pgen_pvar_psam="$path_user_nrnb/gtex_8/pgen_pvar_psam"
+path_genotype_bed_bim_fam="$path_gtex_bed_bim_fam/gtex_8_genotype"
+path_genotype_pgen_pvar_psam="$path_gtex_pgen_pvar_psam/gtex_8_genotype"
+rm -r $path_gtex_bed_bim_fam
+mkdir -p $path_gtex_bed_bim_fam
+rm -r $path_gtex_pgen_pvar_psam
+mkdir -p $path_gtex_pgen_pvar_psam
 
 path_access_private="$path_user_cellar/Data/dock/access_private"
 
@@ -84,9 +84,9 @@ set -x
 #$path_plink --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/gtex-8_genotype
 # However, only use PLINK to convert and filter in GCTA.
 # PLINK 1 binary files: .bed, .bim, .fam
-# --> $path_plink_2 --vcf $path_genotype_vcf --make-bed --out $path_genotype_bed_bim_fam --threads 10
+$path_plink_2 --vcf $path_genotype_vcf --make-bed --out $path_genotype_bed_bim_fam --threads 10
 # PLINK 2 binary files: .pgen, .pvar, .psam
-# --> $path_plink_2 --vcf $path_genotype_vcf --make-pgen --out $path_genotype_pgen_pvar_psam --threads 10
+$path_plink_2 --vcf $path_genotype_vcf --make-pgen --out $path_genotype_pgen_pvar_psam --threads 10
 
 ##########
 # Generate GRM for all autosomal chromosomes.

@@ -43,3 +43,6 @@ rm -rf "$path_gtex/GenotypeFiles/phg000830.v1.GTEx_WGS_additional.genotype-calls
 rm -rf "$path_gtex/GenotypeFiles/phg000830.v1.GTEx_WGS_additional.genotype-calls-vcf.c1.GRU.tar"
 rm -rf "$path_gtex/GenotypeFiles/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1"
 rm -rf "$path_gtex/GenotypeFiles/phg000830.v1.GTEx_WGS.genotype-calls-vcf.c1.GRU.tar"
+rm -rf "$path_gtex/GenotypeFiles/phg001219.v1.GTEx_v8_WES.genotype-calls-vcf.c1"
+rm -rf "$path_gtex/GenotypeFiles/phg001219.v1.GTEx_v8_WES.genotype-calls-vcf.c1.GRU.tar"
+rm -rf "$path_gtex/GenotypeFiles/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1.GRU.tar"

@@ -64,7 +64,7 @@ echo "Now set to call routine and procedures."
 #mv /home/tcameronwaller/dock_template_2020-02-20/ /home/tcameronwaller/dock/
 
 # -- essential procedures
-#python3 interface.py main --dock $path_dock --access # run on 21 February 2020
+python3 interface.py main --dock $path_dock --access # run on 18 June 2020
 #python3 interface.py main --dock $path_dock --assembly # run on 27 May 2020
 #python3 interface.py main --dock $path_dock --selection # run on 4 June 2020
 
@@ -100,7 +100,7 @@ echo "Now set to call routine and procedures."
 
 #python3 interface.py main --dock $path_dock --structure
 
-python3 interface.py main --dock $path_dock --plot
+#python3 interface.py main --dock $path_dock --plot
 
 
 ##########

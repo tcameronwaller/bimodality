@@ -108,6 +108,7 @@ def define_source():
             "suffix": "gct.gz",
             "compression": True,
         },
+        # Gencode release 26 (GRCh38)
         "annotation_gene_gtex": {
             "path": (
                 "https://storage.googleapis.com/gtex_analysis_v8/reference/"
@@ -123,10 +124,10 @@ def define_source():
         "annotation_gene_gencode": {
             "path": (
                 "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/" +
-                "release_33/"
+                "release_34/"
             ),
             "name": (
-                "gencode.v33.annotation.gtf.gz"
+                "gencode.v34.annotation.gtf.gz"
             ),
             "suffix": "gtf.gz",
             "compression": True,
