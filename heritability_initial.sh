@@ -15,7 +15,7 @@ path_gcta="$path_user_cellar/gcta_1.93.2beta/gcta64"
 # Source files.
 
 path_gtex="/nrnb/data/controlled/2020_dbGaP_GTEx/75875/PhenoGenotypeFiles/RootStudyConsentSet_phs000424.GTEx.v8.p2.c1.GRU"
-path_genotype_vcf="$path_gtex/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz"
+path_genotype_vcf="$path_gtex/GenotypeFiles/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_866Indiv.vcf.gz"
 
 path_persons_properties="$path_user_cellar/Data/dock/selection/tight/persons_properties"
 path_persons_selection="$path_persons_properties/selection/persons.txt"
