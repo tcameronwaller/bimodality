@@ -89,6 +89,7 @@ set -x
 # Possible to use PLINK to filter by person and minimal allelic frequency.
 #$path_plink --vcf $path_genotype --keep $path_persons --maf 0.01 --make-pgen --out $path_dock/gtex-8_genotype
 # However, only use PLINK to convert and filter in GCTA.
+
 # PLINK 1 binary files: .bed, .bim, .fam
 $path_plink_2 --vcf $path_genotype_vcf --make-bed --out $path_genotype_bed_bim_fam --threads 10
 # PLINK 2 binary files: .pgen, .pvar, .psam
@@ -97,19 +98,21 @@ $path_plink_2 --vcf $path_genotype_vcf --make-pgen --out $path_genotype_pgen_pva
 ##########
 # Generate GRM for all autosomal chromosomes.
 
+# GCTA does not seem to work well with .pgen, .pvar, .psam format files.
+
 # Selection cohort.
 $path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_families_selection --autosome --maf 0.01 --make-grm --out $path_selection_gcta_bed_bim_fam/autosome_common --threads 10
-$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_families_selection --autosome --maf 0.01 --make-grm --out $path_selection_gcta_pgen_pvar_psam/autosome_common --threads 10
+#$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_families_selection --autosome --maf 0.01 --make-grm --out $path_selection_gcta_pgen_pvar_psam/autosome_common --threads 10
 $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_selection --autosome --maf 0.01 --make-rel --out $path_selection_plink/autosome_common --threads 10
 
 # Respiration cohort.
 $path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_families_respiration --autosome --maf 0.01 --make-grm --out $path_respiration_gcta_bed_bim_fam/autosome_common --threads 10
-$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_families_respiration --autosome --maf 0.01 --make-grm --out $path_respiration_gcta_pgen_pvar_psam/autosome_common --threads 10
+#$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_families_respiration --autosome --maf 0.01 --make-grm --out $path_respiration_gcta_pgen_pvar_psam/autosome_common --threads 10
 $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_respiration --autosome --maf 0.01 --make-rel --out $path_respiration_plink/autosome_common --threads 10
 
 # Ventilation cohort.
 $path_gcta --bfile $path_genotype_bed_bim_fam --keep $path_families_ventilation --autosome --maf 0.01 --make-grm --out $path_ventilation_gcta_bed_bim_fam/autosome_common --threads 10
-$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_families_ventilation --autosome --maf 0.01 --make-grm --out $path_ventilation_gcta_pgen_pvar_psam/autosome_common --threads 10
+#$path_gcta --pfile $path_genotype_pgen_pvar_psam --keep $path_families_ventilation --autosome --maf 0.01 --make-grm --out $path_ventilation_gcta_pgen_pvar_psam/autosome_common --threads 10
 $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_ventilation --autosome --maf 0.01 --make-rel --out $path_ventilation_plink/autosome_common --threads 10
 
 ##########
@@ -118,21 +121,21 @@ $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_ventila
 # Plink1 gives memory error when trying to calculate principal components.
 #$path_plink_1 --bfile $path_genotype_bed --autosome --maf 0.01 --pca 10 "header" "tabs" --out $path_relation_plink_1/autosome_common
 # Use the Genetic Relationship Matrix (GRM) that does not include rare variants
-# (minor allele frequence < 0.01).
+# (minor allele frequency < 0.01).
 # Principal components on rare variants produces Eigenvalues near zero and
 # missing values across Eigenvectors.
 
 # Selection cohort.
-$path_gcta --grm $path_selection_gcta_pgen_pvar_psam/autosome_common --pca 25 --out $path_selection_gcta_pgen_pvar_psam/components
+#$path_gcta --grm $path_selection_gcta_pgen_pvar_psam/autosome_common --pca 25 --out $path_selection_gcta_pgen_pvar_psam/components
 $path_gcta --grm $path_selection_gcta_bed_bim_fam/autosome_common --pca 25 --out $path_selection_gcta_bed_bim_fam/components
 $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_selection --autosome --maf 0.01 --pca 25 --out $path_selection_plink/components
 
 # Respiration cohort.
-$path_gcta --grm $path_respiration_gcta_pgen_pvar_psam/autosome_common --pca 25 --out $path_respiration_gcta_pgen_pvar_psam/components
+#$path_gcta --grm $path_respiration_gcta_pgen_pvar_psam/autosome_common --pca 25 --out $path_respiration_gcta_pgen_pvar_psam/components
 $path_gcta --grm $path_respiration_gcta_bed_bim_fam/autosome_common --pca 25 --out $path_respiration_gcta_bed_bim_fam/components
 $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_respiration --autosome --maf 0.01 --pca 25 --out $path_respiration_plink/components
 
 # Ventilation cohort.
-$path_gcta --grm $path_ventilation_gcta_pgen_pvar_psam/autosome_common --pca 25 --out $path_ventilation_gcta_pgen_pvar_psam/components
+#$path_gcta --grm $path_ventilation_gcta_pgen_pvar_psam/autosome_common --pca 25 --out $path_ventilation_gcta_pgen_pvar_psam/components
 $path_gcta --grm $path_ventilation_gcta_bed_bim_fam/autosome_common --pca 25 --out $path_ventilation_gcta_bed_bim_fam/components
 $path_plink_2 --pfile $path_genotype_pgen_pvar_psam --keep $path_persons_ventilation --autosome --maf 0.01 --pca 25 --out $path_ventilation_plink/components
