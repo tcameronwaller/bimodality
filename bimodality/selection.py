@@ -1518,11 +1518,6 @@ def define_organization_variables():
     return bin
 
 
-
-
-
-
-
 def define_variables_regression_selection():
     """
     Defines a list of variables' names for analyses.
@@ -1603,10 +1598,6 @@ def define_variables_regression_selection():
     bin["model_trait"] = model_trait
     # Return information.
     return bin
-
-
-
-
 
 
 def define_variables_regression_respiration():

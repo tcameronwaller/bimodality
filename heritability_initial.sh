@@ -46,6 +46,8 @@ rm -r $path_relation_selection
 mkdir -p $path_selection_gcta_bed_bim_fam
 mkdir -p $path_selection_gcta_pgen_pvar_psam
 mkdir -p $path_selection_plink
+cp $path_persons_selection "$path_relation_selection/persons.txt"
+cp $path_families_selection "$path_relation_selection/families_persons.tsv"
 
 path_relation_respiration="$path_access_private/relation/respiration"
 path_respiration_gcta_bed_bim_fam="$path_relation_respiration/gcta/bed_bim_fam"
@@ -55,6 +57,8 @@ rm -r $path_relation_respiration
 mkdir -p $path_respiration_gcta_bed_bim_fam
 mkdir -p $path_respiration_gcta_pgen_pvar_psam
 mkdir -p $path_respiration_plink
+cp $path_persons_respiration "$path_relation_respiration/persons.txt"
+cp $path_families_respiration "$path_relation_respiration/families_persons.tsv"
 
 path_relation_ventilation="$path_access_private/relation/ventilation"
 path_ventilation_gcta_bed_bim_fam="$path_relation_ventilation/gcta/bed_bim_fam"
@@ -64,6 +68,8 @@ rm -r $path_relation_ventilation
 mkdir -p $path_ventilation_gcta_bed_bim_fam
 mkdir -p $path_ventilation_gcta_pgen_pvar_psam
 mkdir -p $path_ventilation_plink
+cp $path_persons_ventilation "$path_relation_ventilation/persons.txt"
+cp $path_families_ventilation "$path_relation_ventilation/families_persons.tsv"
 
 # Suppress echo each command to console.
 set +x

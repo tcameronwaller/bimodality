@@ -343,7 +343,7 @@ def read_source_sample(dock=None):
     )
 
     path_data_person_smoke = os.path.join(
-        dock, "annotation_2020-04-28", "smoke",
+        dock, "annotation_2020-06-18", "smoke",
         "data_person_smoke_threshold-1-year.csv",
     )
 
@@ -2490,25 +2490,24 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
+    if False:
 
-    # Organize persons' genotypes.
-    #organize_persons_genotypes(dock=dock)
+        # Organize persons' genotypes.
+        organize_persons_genotypes(dock=dock)
 
-    # Organize associations of samples to persons and tissues.
-    organize_samples_tissues_persons(dock=dock)
+        # Organize associations of samples to persons and tissues.
+        organize_samples_tissues_persons(dock=dock)
 
-    # Collect garbage to clear memory.
-    gc.collect()
+        # Collect garbage to clear memory.
+        gc.collect()
 
-    ##################################################
-    ##################################################
-    ##################################################
+        # Organize genes' annotations.
+        organize_genes_annotations(dock=dock)
 
-    # Organize genes' annotations.
-    #organize_genes_annotations(dock=dock)
+        # Collect garbage to clear memory.
+        gc.collect()
 
-    # Collect garbage to clear memory.
-    gc.collect()
+        pass
 
     ##################################################
     ##################################################
@@ -2524,11 +2523,15 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
-    # Organize genes' signals.
-    #organize_genes_signals(dock=dock)
+    if True:
 
-    # Collect garbage to clear memory.
-    gc.collect()
+        # Organize genes' signals.
+        organize_genes_signals(dock=dock)
+
+        # Collect garbage to clear memory.
+        gc.collect()
+
+        pass
 
     ##################################################
     ##################################################

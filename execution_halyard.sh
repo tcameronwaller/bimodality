@@ -44,29 +44,37 @@ echo "Now set to call routine and procedures."
 # --- Preliminary run of selection procedure determines persons of interest.
 # --- Calculate genotype principal components across only these persons.
 # --- Execute on halyard
-#scp /home/tcameronwaller/dock/selection/tight/heritability/simple/families_persons.tsv tcwaller@grenache.ucsd.edu:/cellar/users/tcwaller/Data/dock/access_private/families_persons.tsv
+# ---- Execute access, assembly, and selection procedures
+# ---- heritability_initial and heritability_genes procedures need information
+# ---- from selection procedure
+#tar -czvf dock_lite.tar.gz dock_lite/
+#scp /home/tcameronwaller/dock_lite.tar.gz tcwaller@grenache.ucsd.edu:/cellar/users/tcwaller/Data/dock_lite.tar.gz
+
 # --- execute on nrnb
-#bash access_private.sh # run on 20 February 2020
+#tar -xzvf /cellar/users/tcwaller/Data/dock_lite.tar.gz
+#mv /cellar/users/tcwaller/Data/dock_lite/ /cellar/users/tcwaller/Data/dock/
+
+#bash access_private.sh # run on 18 June 2020
 #bash heritability_initial.sh # run on 26 May 2020
 #cd /cellar/users/tcwaller/Data/dock/
 #tar -czvf access_private.tar.gz access_private/
 # --- execute on halyard
 #cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/
-#cp -r /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-02-06 dock_template_2020-02-20
-#cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-02-20/
+#cp -r /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-02-20 dock_template_2020-06-18
+#cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-06-18/
 #rm access_private.tar.gz
 #rm -r access_private
 #scp tcwaller@grenache.ucsd.edu:/cellar/users/tcwaller/Data/dock/access_private.tar.gz access_private.tar.gz
 #tar -xzvf access_private.tar.gz
 #cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/
-#cp -r dock_template_2020-02-20 /home/tcameronwaller/dock_template_2020-02-20
+#cp -r dock_template_2020-06-18 /home/tcameronwaller/dock_template_2020-06-18
 #cd /home/tcameronwaller/
-#mv /home/tcameronwaller/dock_template_2020-02-20/ /home/tcameronwaller/dock/
+#mv /home/tcameronwaller/dock_template_2020-06-18/ /home/tcameronwaller/dock/
 
 # -- essential procedures
-python3 interface.py main --dock $path_dock --access # run on 18 June 2020
-#python3 interface.py main --dock $path_dock --assembly # run on 27 May 2020
-#python3 interface.py main --dock $path_dock --selection # run on 4 June 2020
+#python3 interface.py main --dock $path_dock --access # run on 18 June 2020
+#python3 interface.py main --dock $path_dock --assembly # run on 18 June 2020
+#python3 interface.py main --dock $path_dock --selection # run on 18 June 2020
 
 ##########
 # - Batch Routine
