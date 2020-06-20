@@ -193,14 +193,14 @@ def calculate_mixture_model_score(
     model_one = sklearn.mixture.GaussianMixture(
         n_components=1,
         covariance_type="full",
-        n_init=3,
-        max_iter=100,
+        n_init=5,
+        max_iter=500,
     )
     model_two = sklearn.mixture.GaussianMixture(
         n_components=2,
         covariance_type="full",
-        n_init=3,
-        max_iter=100,
+        n_init=5,
+        max_iter=500,
     )
     model_one.fit(array_shape)
     model_two.fit(array_shape)
@@ -224,7 +224,7 @@ def calculate_mixture_model_score(
         #ratio = -2*math.log(likelihood_one / likelihood_two)
         # Greater values of the difference indicate better fit of the bimodal
         # model.
-        difference = 2*(likelihood_log_two - likelihood_log_one)
+        value = 2*(likelihood_log_two - likelihood_log_one)
     elif score == "akaike":
         # The model with the lesser Akaike Information Criterion (AIC) is a
         # better representation of the data.
@@ -235,7 +235,8 @@ def calculate_mixture_model_score(
         # Greater values of the difference indicate better fit of the bimodal
         # model.
         difference = (akaike_one - akaike_two)
-    return difference
+        value = math.exp(difference / (-2))
+    return value
 
 
 # Calculate metric on basis of mixture model.

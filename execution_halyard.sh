@@ -41,7 +41,8 @@ echo "Now set to call routine and procedures."
 
 # -- Preparation of dock_template
 
-# --- Preliminary run of selection procedure determines persons of interest.
+# --- Preliminary run of selection procedure determines persons of interest in
+# --- each sub cohort (selection, respiration, ventilation).
 # --- Calculate genotype principal components across only these persons.
 # --- Execute on halyard
 # ---- Execute access, assembly, and selection procedures
@@ -53,34 +54,43 @@ echo "Now set to call routine and procedures."
 # --- execute on nrnb
 #tar -xzvf /cellar/users/tcwaller/Data/dock_lite.tar.gz
 #mv /cellar/users/tcwaller/Data/dock_lite/ /cellar/users/tcwaller/Data/dock/
-
-#bash access_private.sh # run on 18 June 2020
-#bash heritability_initial.sh # run on 26 May 2020
+#bash access_private.sh # run on 19 June 2020
+#bash heritability_initial.sh # run on 19 June 2020
 #cd /cellar/users/tcwaller/Data/dock/
+#du -h selection/
+#rm -r selection/
 #tar -czvf access_private.tar.gz access_private/
+
 # --- execute on halyard
 #cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/
-#cp -r /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-02-20 dock_template_2020-06-18
-#cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-06-18/
+#cp -r /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-06-18 dock_template_2020-06-19
+#cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/dock_template_2020-06-19/
 #rm access_private.tar.gz
 #rm -r access_private
 #scp tcwaller@grenache.ucsd.edu:/cellar/users/tcwaller/Data/dock/access_private.tar.gz access_private.tar.gz
 #tar -xzvf access_private.tar.gz
 #cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/
-#cp -r dock_template_2020-06-18 /home/tcameronwaller/dock_template_2020-06-18
+#rm -r /home/tcameronwaller/dock/
+#cp -r dock_template_2020-06-19 /home/tcameronwaller/dock_template_2020-06-19
 #cd /home/tcameronwaller/
-#mv /home/tcameronwaller/dock_template_2020-06-18/ /home/tcameronwaller/dock/
+#mv /home/tcameronwaller/dock_template_2020-06-19/ /home/tcameronwaller/dock/
+
+##########
+# Organization routine
+
+# --- execute on halyard
+#cd /media/tcameronwaller/primary/data/local/work/project/2020_bimodality/repository/
 
 # -- essential procedures
-#python3 interface.py main --dock $path_dock --access # run on 18 June 2020
-#python3 interface.py main --dock $path_dock --assembly # run on 18 June 2020
-#python3 interface.py main --dock $path_dock --selection # run on 18 June 2020
+#python3 interface.py main --dock $path_dock --access # run on 19 June 2020
+#python3 interface.py main --dock $path_dock --assembly # run on 19 June 2020
+#python3 interface.py main --dock $path_dock --selection # run on 19 June 2020
 
 ##########
 # - Batch Routine
 
-#python3 interface.py main --dock $path_dock --split # ran on 4 June 2020
-#python3 interface.py main --dock $path_dock --distribution --local # run on 3 June 2020 (with chrX genes and lenient signal threshold)
+#python3 interface.py main --dock $path_dock --split # ran on 19 June 2020
+python3 interface.py main --dock $path_dock --distribution --local # run on 3 June 2020 (with chrX genes and lenient signal threshold)
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 #python3 interface.py main --dock $path_dock --candidacy

@@ -343,7 +343,7 @@ def read_source_sample(dock=None):
     )
 
     path_data_person_smoke = os.path.join(
-        dock, "annotation_2020-06-18", "smoke",
+        dock, "annotation_2020-06-19", "smoke",
         "data_person_smoke_threshold-1-year.csv",
     )
 

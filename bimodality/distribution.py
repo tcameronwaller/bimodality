@@ -1606,7 +1606,10 @@ def measure_bimodality(
     # Calculate measures of bimodality.
     coefficient = modality.calculate_bimodality_coefficient(series=values)
     dip = modality.calculate_dip_statistic(series=values)
-    mixture = modality.calculate_mixture_model_score(series=values)
+    mixture = modality.calculate_mixture_model_score(
+        series=values,
+        score="akaike", # "akaike" or "likelihood"
+    )
     # Compile information.
     information = {
         "coefficient": coefficient,
