@@ -18,6 +18,7 @@ import pickle
 import random
 import copy
 import textwrap
+import sys
 
 # Relevant
 
@@ -174,6 +175,9 @@ def calculate_mixture_model_score(
     """
     Calculates the score from a Gaussian mixture model of a series.
 
+    As the relative probabilities by the Akaike Information Criterion can be
+    quite extreme, this function only returns a maximal value of 1,000,000.
+
     arguments:
         series (list<float>): series of values of type float
         score (str): score to use for differences of fit, either "likelihood"
@@ -193,14 +197,14 @@ def calculate_mixture_model_score(
     model_one = sklearn.mixture.GaussianMixture(
         n_components=1,
         covariance_type="full",
-        n_init=5,
-        max_iter=500,
+        n_init=10,
+        max_iter=1000,
     )
     model_two = sklearn.mixture.GaussianMixture(
         n_components=2,
         covariance_type="full",
-        n_init=5,
-        max_iter=500,
+        n_init=10,
+        max_iter=1000,
     )
     model_one.fit(array_shape)
     model_two.fit(array_shape)
@@ -234,8 +238,7 @@ def calculate_mixture_model_score(
         # Null hypothesis is that the unimodal model is better.
         # Greater values of the difference indicate better fit of the bimodal
         # model.
-        difference = (akaike_one - akaike_two)
-        value = math.exp(difference / (-2))
+        value = (akaike_one - akaike_two) / max(akaike_one, akaike_two)
     return value
 
 

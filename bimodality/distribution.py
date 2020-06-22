@@ -22,6 +22,7 @@ import gc
 import time
 import random
 import copy
+import sys
 
 # Relevant
 
@@ -2969,8 +2970,8 @@ def execute_procedure_local(dock=None):
     # Execute procedure for each group of persons.
     cohorts = [
         "selection",
-        "respiration",
-        "ventilation",
+        #"respiration",
+        #"ventilation",
     ]
     for cohort in cohorts:
         execute_procedure_local_cohort(
@@ -3017,7 +3018,7 @@ def execute_procedure_local_cohort(
     print("count of genes: " + str(len(source["genes_selection"])))
     # Specify genes on which to iterate.
     #genes_iteration = random.sample(source["genes_selection"], 250)
-    genes_iteration = source["genes_selection"]#[0:100]
+    genes_iteration = source["genes_selection"]#[0:1000]
 
     # Set up partial function for iterative execution.
     # Each iteration uses a different sequential value of the "gene" variable
@@ -3039,6 +3040,7 @@ def execute_procedure_local_cohort(
     )
     # Pause procedure.
     time.sleep(10.0)
+
     # Read, collect, and write information from iterations.
     read_collect_write_iterations(
         cohort=cohort,

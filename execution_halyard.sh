@@ -89,7 +89,7 @@ echo "Now set to call routine and procedures."
 ##########
 # - Batch Routine
 
-#python3 interface.py main --dock $path_dock --split # ran on 19 June 2020
+#python3 interface.py main --dock $path_dock --split # run on 19 June 2020
 python3 interface.py main --dock $path_dock --distribution --local # run on 3 June 2020 (with chrX genes and lenient signal threshold)
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
