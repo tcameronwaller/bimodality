@@ -96,7 +96,7 @@ echo "Now set to call routine and procedures."
 
 # TODO: before candidacy procedure... determine which genes have significant distributions by permutations...
 
-python3 interface.py main --dock $path_dock --candidacy
+#python3 interface.py main --dock $path_dock --candidacy
 #python3 interface.py main --dock $path_dock --stratification
 
 #python3 interface.py main --dock $path_dock --shuffle --count 10
@@ -115,7 +115,7 @@ python3 interface.py main --dock $path_dock --candidacy
 #python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
-#python3 interface.py main --dock $path_dock --prediction
+python3 interface.py main --dock $path_dock --prediction
 #python3 interface.py main --dock $path_dock --function
 #python3 interface.py main --dock $path_dock --integration
 

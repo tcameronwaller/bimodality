@@ -492,12 +492,13 @@ def regress_signal_ordinary_residuals(
             probabilities[probability] = report.pvalues[counter]
             # Variance Inflation Factor (VIF).
             inflation = str(variable + ("_inflation"))
-            inflations[inflation] = (
+            inflation_value = (
                 statsmodels.stats.outliers_influence.variance_inflation_factor(
                     values_independence_intercept,
                     counter
                 )
             )
+            inflations[inflation] = round(inflation_value, 2)
             # Increment index.
             counter += 1
             pass
@@ -772,7 +773,7 @@ def organize_data_regress_cases_report(
 
     """
 
-    if report:
+    if False:
         # Calculate correlation coefficients between pairs of independent
         # variables.
         pairs = list()
@@ -786,7 +787,7 @@ def organize_data_regress_cases_report(
             method="spearman",
         )
 
-    if report:
+    if False:
         utility.print_terminal_partition(level=3)
         print("genes for regression: " + str(len(genes)))
         utility.print_terminal_partition(level=3)
@@ -796,7 +797,7 @@ def organize_data_regress_cases_report(
         variables=variables_regression,
         data_persons_properties=data_persons_properties,
         data_signals_genes_persons=data_signals_genes_persons,
-        report=report,
+        report=False,
     )
 
     # Regress each gene's signal across persons.
@@ -1761,7 +1762,7 @@ def organize_data_regress_cases_report_write(
     )
     # Regression on hypothesis variables.
     #genes_regression = random.sample(genes_sets["any"], 100)
-    genes_regression = genes_sets["any"][0:10]
+    genes_regression = genes_sets["any"]#[0:10]
     bin_regression = organize_data_regress_cases_report(
         genes=genes_regression,
         variables_regression=variables["model"],
@@ -1916,13 +1917,15 @@ def execute_procedure(
         "selection_main",
         "selection_sex_ventilation",
         "selection_age_ventilation",
+        #"selection_test_1",
+        #"selection_test_2",
     ]
     cohorts_models["respiration"] = [
         "respiration_main"
     ]
     cohorts_models["ventilation"] = [
         "ventilation_main",
-        "ventilation_sex_age",
+        #"ventilation_sex_age",
     ]
     # Initialize directories.
     paths = initialize_directories(
