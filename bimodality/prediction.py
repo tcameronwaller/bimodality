@@ -53,11 +53,15 @@ import assembly
 # Initialization
 
 
-def initialize_directories(dock=None):
+def initialize_directories(
+    cohorts_models=None,
+    dock=None,
+):
     """
     Initialize directories for procedure's product files.
 
     arguments:
+        cohorts_models (dict<list<str>>): models in each cohort
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -77,35 +81,41 @@ def initialize_directories(dock=None):
     #utility.remove_directory(path=paths["prediction"])
     #utility.create_directory(path=paths["prediction"])
     # Define paths for cohorts of persons.
-    cohorts = list()
-    cohorts.append("selection")
-    cohorts.append("respiration")
-    cohorts.append("ventilation")
-    for cohort in cohorts:
+    for cohort in cohorts_models.keys():
         paths[cohort] = dict()
-        # Define path for comprehensive information from regression on model.
-        paths[cohort]["regression"] = os.path.join(
-            paths["prediction"], cohort, "regression"
-        )
-        # Define paths for groups of genes by their distributions.
-        paths[cohort]["genes"] = os.path.join(
-            paths["prediction"], cohort, "genes"
-        )
-        paths[cohort]["distribution"] = dict()
-        groups = list()
-        groups.append("any")
-        groups.append("multimodal")
-        groups.append("nonmultimodal")
-        groups.append("unimodal")
-        for group in groups:
-            paths[cohort]["distribution"][group] = os.path.join(
-                paths["prediction"], cohort, "genes", "distribution", group
+        # Define paths for regression models.
+        for model in cohorts_models[cohort]:
+            paths[cohort][model] = dict()
+            # Define path for comprehensive information from regression on
+            # model.
+            paths[cohort][model]["regression"] = os.path.join(
+                paths["prediction"], cohort, model, "regression"
             )
-            # Initialize directories.
-            utility.create_directories(path=paths[cohort]["regression"])
-            utility.create_directories(
-                path=paths[cohort]["distribution"][group]
+            # Define paths for groups of genes by their distributions.
+            paths[cohort][model]["genes"] = os.path.join(
+                paths["prediction"], cohort, model, "genes"
             )
+            paths[cohort][model]["distribution"] = dict()
+            groups = list()
+            groups.append("any")
+            groups.append("multimodal")
+            groups.append("nonmultimodal")
+            groups.append("unimodal")
+            for group in groups:
+                paths[cohort][model]["distribution"][group] = os.path.join(
+                    paths["prediction"], cohort, model, "genes",
+                    "distribution", group
+                )
+                # Initialize directories.
+                utility.create_directories(
+                    path=paths[cohort][model]["regression"]
+                )
+                utility.create_directories(
+                    path=paths[cohort][model]["genes"]
+                )
+                utility.create_directories(
+                    path=paths[cohort][model]["distribution"][group]
+                )
     # Return information.
     return paths
 
@@ -153,16 +163,17 @@ def read_source(
         cohort=cohort,
         dock=dock,
     )
-    genes_heritability = integration.read_source_genes_sets_heritability(
-        cohort="selection",
-        dock=dock,
-    )
+    if False:
+        genes_heritability = integration.read_source_genes_sets_heritability(
+            cohort="selection",
+            dock=dock,
+        )
     # Return information.
     return {
         "data_gene_annotation": data_gene_annotation,
         "data_persons_properties": data_persons_properties,
         "genes_candidacy": genes_candidacy,
-        "genes_heritability": genes_heritability,
+        #"genes_heritability": genes_heritability,
         "data_signals_genes_persons": data_signals_genes_persons,
     }
 
@@ -738,8 +749,6 @@ def organize_data_regress_cases_report(
     data_persons_properties=None,
     data_signals_genes_persons=None,
     data_gene_annotation=None,
-    threshold_discovery=None,
-    discovery=None,
     report=None,
 ):
     """
@@ -755,9 +764,6 @@ def organize_data_regress_cases_report(
         data_signals_genes_persons (object): Pandas data frame of pan-tissue
             signals across genes and persons
         data_gene_annotation (object): Pandas data frame of genes' annotations
-        threshold_discovery (float): threshold by false discovery rate
-        discovery (bool): whether to calculate false discovery rates across all
-            genes
         report (bool): whether to print reports
 
     raises:
@@ -818,21 +824,10 @@ def organize_data_regress_cases_report(
     # Independent variables' parameters and probabilities match in the
     # individual regression's summary and in the compilation across cases.
 
-    if discovery:
-        # Adjust probabilities for multiple hypothesis tests.
-        # Calculate false discovery rate by Benjamini-Hochberg's method.
-        data_regression_genes = calculate_regression_discoveries(
-            variables=variables_regression,
-            threshold=threshold_discovery,
-            data=bin_regression["data_regression_genes"],
-        )
-    else:
-        data_regression_genes = bin_regression["data_regression_genes"]
-        pass
     # Compile information.
     bin = dict()
     bin["residuals_genes"] = bin_regression["residuals_genes"]
-    bin["data_regression_genes"] = data_regression_genes
+    bin["data_regression_genes"] = bin_regression["data_regression_genes"]
     # Return information.
     return bin
 
@@ -1592,6 +1587,7 @@ def evaluate_variance_by_binary_groups(
 
 def write_product_regression(
     cohort=None,
+    model=None,
     information=None,
     paths=None,
 ):
@@ -1600,6 +1596,7 @@ def write_product_regression(
 
     arguments:
         cohort (str): cohort of persons--selection, respiration, or ventilation
+        model (str): name of regression model
         information (object): information to write to file
         paths (dict<str>): collection of paths to directories for procedure's
             files
@@ -1612,13 +1609,13 @@ def write_product_regression(
 
     # Specify directories and files.
     path_residuals_genes = os.path.join(
-        paths[cohort]["regression"], "residuals_genes.pickle"
+        paths[cohort][model]["regression"], "residuals_genes.pickle"
     )
     path_data_regression_genes = os.path.join(
-        paths[cohort]["regression"], "data_regression_genes.pickle"
+        paths[cohort][model]["regression"], "data_regression_genes.pickle"
     )
     path_data_regression_genes_text = os.path.join(
-        paths[cohort]["regression"], "data_regression_genes.tsv"
+        paths[cohort][model]["regression"], "data_regression_genes.tsv"
     )
 
     # Write information to file.
@@ -1730,6 +1727,7 @@ def write_product_genes(
 
 def organize_data_regress_cases_report_write(
     cohort=None,
+    model=None,
     paths=None,
 ):
     """
@@ -1738,6 +1736,128 @@ def organize_data_regress_cases_report_write(
 
     arguments:
         cohort (str): cohort of persons--selection, respiration, or ventilation
+        model (str): name of regression model
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source(
+        cohort=cohort,
+        dock=paths["dock"],
+    )
+    # Specify genes sets.
+    genes_sets = source["genes_candidacy"]
+    #genes_sets = source["genes_heritability"]
+    # Define variables for regression.
+    variables = selection.read_source_organize_regression_model_variables(
+        model=model,
+        dock=paths["dock"],
+    )
+    # Regression on hypothesis variables.
+    #genes_regression = random.sample(genes_sets["any"], 100)
+    genes_regression = genes_sets["any"][0:10]
+    bin_regression = organize_data_regress_cases_report(
+        genes=genes_regression,
+        variables_regression=variables["model"],
+        data_persons_properties=source["data_persons_properties"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    )
+    write_product_regression(
+        cohort=cohort,
+        model=model,
+        information=bin_regression,
+        paths=paths,
+    )
+    pass
+
+
+def organize_regression_gene_associations_report_write(
+    cohort=None,
+    model=None,
+    paths=None,
+):
+    """
+    Organizes and combines information about dependent and independent
+    variables for regression.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        model (str): name of regression model
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    variables_interest = variables[cohort]["model_hypothesis"]
+    variables_query = variables["query"]["six"] # one, two,
+    #model = "technique"
+    #variables_collection = variables["batch"]
+    source_regression = read_source_regression(
+        cohort=cohort,
+        paths=paths,
+    )
+    # Select genes by their association to variables of hypothetical
+    # interest.
+    sets_genes = select_genes_by_gene_distributions_variable_associations(
+        variables_separate=variables_interest,
+        variables_together=variables_query,
+        genes_sets=genes_sets,
+        threshold_r_square=0.25, # 0.1, 0.25
+        threshold_discovery=0.05,
+        coefficient_sign="any", # "negative", "positive", or "any"
+        count_selection=1000, # select count of genes with greatest absolute values of regression parameters (beta coefficients)
+        data_regression_genes=source_regression["data_regression_genes"],
+    )
+    # Include union sets.
+    sets_genes = collect_union_sets_genes(
+        sets=sets_genes,
+        union_variables=variables_interest,
+    )
+    # Include query set in variables of interest.
+    variables_summary = copy.deepcopy(variables_interest)
+    variables_summary.append("query")
+    variables_summary.append("union")
+    report_association_variables_sets_genes(
+        variables=variables_summary,
+        sets=sets_genes,
+        genes_sets=genes_sets,
+        distribution_master="multimodal", # "any" or "multimodal"
+    )
+    # Compile information.
+    bin_sets = dict()
+    bin_sets["sets_genes"] = sets_genes
+    write_product_genes(
+        cohort=cohort,
+        information=bin_sets,
+        paths=paths,
+    )
+    pass
+
+
+def organize_regression_cohort_model(
+    cohort=None,
+    model=None,
+    paths=None,
+):
+    """
+    Organizes and combines information about dependent and independent
+    variables for regression.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        model (str): name of regression model
         paths (dict<str>): collection of paths to directories for procedure's
             files
 
@@ -1749,86 +1869,25 @@ def organize_data_regress_cases_report_write(
 
     # Report.
     utility.print_terminal_partition(level=1)
-    print("... Prediction procedure for: " + str(cohort) + " persons...")
+    print("... Prediction procedure for: ")
+    print("cohort: " + str(cohort))
+    print("model: " + str(model))
     utility.print_terminal_partition(level=2)
 
-    # Read source information from file.
-    source = read_source(
+    # Organize data, regress across genes, and write information to file.
+    organize_data_regress_cases_report_write(
         cohort=cohort,
-        dock=paths["dock"],
+        model=model,
+        paths=paths,
     )
-    # Specify genes sets.
-    genes_sets = source["genes_candidacy"]
-    #genes_sets = source["genes_heritability"]
-    # Define variables for regression.
-    variables = selection.define_variables()
-
-    # Regression on hypothesis variables.
-    if False:
-        #genes_regression = random.sample(genes_sets["any"], 100)
-        genes_regression = genes_sets["any"]#[0:100]
-        bin_regression = organize_data_regress_cases_report(
-            genes=genes_regression,
-            variables_regression=variables[cohort]["model_hypothesis"],
-            data_persons_properties=source["data_persons_properties"],
-            data_signals_genes_persons=source["data_signals_genes_persons"],
-            data_gene_annotation=source["data_gene_annotation"],
-            threshold_discovery=0.05,
-            discovery=True,
-            report=False,
-        )
-        write_product_regression(
-            cohort=cohort,
-            information=bin_regression,
-            paths=paths,
-        )
-
     # Select and organize sets of genes by their associations and overlap
     # with modality sets.
     # Select genes with significant association with each hypothetical
     # variable of interest.
-    if True:
-        variables_interest = variables[cohort]["model_hypothesis"]
-        variables_query = variables["query"]["six"] # one, two,
-        #model = "technique"
-        #variables_collection = variables["batch"]
-        source_regression = read_source_regression(
+    if False:
+        organize_regression_gene_associations_report_write(
             cohort=cohort,
-            paths=paths,
-        )
-        # Select genes by their association to variables of hypothetical
-        # interest.
-        sets_genes = select_genes_by_gene_distributions_variable_associations(
-            variables_separate=variables_interest,
-            variables_together=variables_query,
-            genes_sets=genes_sets,
-            threshold_r_square=0.25, # 0.1, 0.25
-            threshold_discovery=0.05,
-            coefficient_sign="any", # "negative", "positive", or "any"
-            count_selection=1000, # select count of genes with greatest absolute values of regression parameters (beta coefficients)
-            data_regression_genes=source_regression["data_regression_genes"],
-        )
-        # Include union sets.
-        sets_genes = collect_union_sets_genes(
-            sets=sets_genes,
-            union_variables=variables_interest,
-        )
-        # Include query set in variables of interest.
-        variables_summary = copy.deepcopy(variables_interest)
-        variables_summary.append("query")
-        variables_summary.append("union")
-        report_association_variables_sets_genes(
-            variables=variables_summary,
-            sets=sets_genes,
-            genes_sets=genes_sets,
-            distribution_master="multimodal", # "any" or "multimodal"
-        )
-        # Compile information.
-        bin_sets = dict()
-        bin_sets["sets_genes"] = sets_genes
-        write_product_genes(
-            cohort=cohort,
-            information=bin_sets,
+            model=model,
             paths=paths,
         )
 
@@ -1851,24 +1910,40 @@ def execute_procedure(
 
     """
 
+    # Define regression models for each cohort.
+    cohorts_models = dict()
+    cohorts_models["selection"] = [
+        "selection_main",
+        "selection_sex_ventilation",
+        "selection_age_ventilation",
+    ]
+    cohorts_models["respiration"] = [
+        "respiration_main"
+    ]
+    cohorts_models["ventilation"] = [
+        "ventilation_main",
+        "ventilation_sex_age",
+    ]
     # Initialize directories.
-    paths = initialize_directories(dock=dock)
-    # Organize data and regress cases.
-    if True:
-        organize_data_regress_cases_report_write(
-            cohort="selection",
-            paths=paths,
-        )
-    if False:
-        organize_data_regress_cases_report_write(
-            cohort="respiration",
-            paths=paths,
-        )
-    if False:
-        organize_data_regress_cases_report_write(
-            cohort="ventilation",
-            paths=paths,
-        )
+    paths = initialize_directories(
+        cohorts_models=cohorts_models,
+        dock=dock,
+    )
+    # Execute procedure for each cohort of persons.
+    cohorts = [
+        "selection",
+        "respiration",
+        "ventilation",
+    ]
+    for cohort in cohorts:
+        # Execute procedure for each regression model.
+        for model in cohorts_models[cohort]:
+            # Organize data and regress cases.
+            organize_regression_cohort_model(
+                cohort=cohort,
+                model=model,
+                paths=paths,
+            )
     pass
 
 

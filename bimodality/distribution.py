@@ -2249,6 +2249,9 @@ def write_product_collection(
     path_data_signals_genes_persons = os.path.join(
         paths[cohort]["collection"], "data_signals_genes_persons.pickle"
     )
+    path_data_signals_genes_persons_text = os.path.join(
+        paths[cohort]["collection"], "data_signals_genes_persons.tsv"
+    )
     path_genes_scores = os.path.join(
         paths[cohort]["collection"], "genes_scores.pickle"
     )
@@ -2268,6 +2271,13 @@ def write_product_collection(
     # Write information to file.
     information["data_signals_genes_persons"].to_pickle(
         path=path_data_signals_genes_persons,
+    )
+    information["data_signals_genes_persons"].to_csv(
+        path_or_buf=path_data_signals_genes_persons_text,
+        sep="\t",
+        na_rep="NA",
+        header=True,
+        index=True,
     )
     information["data_report"].to_pickle(
         path=path_data_report
@@ -2967,11 +2977,11 @@ def execute_procedure_local(dock=None):
     # Initialize directories.
     paths = initialize_directories(dock=dock)
 
-    # Execute procedure for each group of persons.
+    # Execute procedure for each cohort of persons.
     cohorts = [
         "selection",
-        #"respiration",
-        #"ventilation",
+        "respiration",
+        "ventilation",
     ]
     for cohort in cohorts:
         execute_procedure_local_cohort(

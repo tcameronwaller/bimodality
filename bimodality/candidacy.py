@@ -154,6 +154,11 @@ def read_source(
     path_data_distribution_report = os.path.join(
         dock, "distribution", cohort, "collection", "data_gene_report.pickle"
     )
+    path_data_signals_genes_persons = os.path.join(
+        dock, "distribution", cohort, "collection",
+        "data_signals_genes_persons.pickle"
+    )
+
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
@@ -169,6 +174,9 @@ def read_source(
     data_distribution_report = pandas.read_pickle(
         path_data_distribution_report
     )
+    data_signals_genes_persons = pandas.read_pickle(
+        path_data_signals_genes_persons
+    )
 
     # Compile and return information.
     return {
@@ -178,6 +186,7 @@ def read_source(
         "genes_scores": genes_scores,
         "scores": scores,
         "data_distribution_report": data_distribution_report,
+        "data_signals_genes_persons": data_signals_genes_persons,
     }
 
 
@@ -1072,15 +1081,16 @@ def select_report_write_candidate_modality_genes_cohort(
     print(source["data_distribution_report"])
 
     # Specify thresholds for each cohort.
+    # Aim for 756 genes in each group.
     if cohort == "selection":
-        proportion_least = 0.3 # unimodal threshold: 0.3 (760)
-        proportion_greatest = 0.0227 # multimodal threshold: 0.0227 (755)
+        proportion_least = 0.2977 # 756
+        proportion_greatest = 0.0212 # 756
     elif cohort == "respiration":
-        proportion_least = 0.4 # unimodal threshold: 0.3 (760)
-        proportion_greatest = 0.0226 # multimodal threshold: 0.0227 (755)
+        proportion_least = 0.3126 # 756
+        proportion_greatest = 0.0210411571 # 754
     elif cohort == "ventilation":
-        proportion_least = 0.3 # unimodal threshold: 0.3 (760)
-        proportion_greatest = 0.02275 # multimodal threshold: 0.0227 (755)
+        proportion_least = 0.3015 # 756
+        proportion_greatest = 0.0216357 # 755
 
     # Set measures of modality.
     measures = list(source["scores"].keys())
@@ -1186,12 +1196,13 @@ def select_report_write_candidate_modality_genes_cohort(
         selection=selection,
         data_gene_annotation=source["data_gene_annotation"],
     )
-    utility.print_terminal_partition(level=2)
-    print("Summary of unimodal genes.")
-    print(data_genes_unimodal)
-    utility.print_terminal_partition(level=2)
-    print("Summary of multimodal genes.")
-    print(data_genes_multimodal)
+    if False:
+        utility.print_terminal_partition(level=2)
+        print("Summary of unimodal genes.")
+        print(data_genes_unimodal)
+        utility.print_terminal_partition(level=2)
+        print("Summary of multimodal genes.")
+        print(data_genes_multimodal)
 
     # Compile information.
     information = {
@@ -1234,20 +1245,17 @@ def execute_procedure(
     # Initialize directories.
     paths = initialize_directories(dock=dock)
 
-    # Call procedures for each cohort.
-    select_report_write_candidate_modality_genes_cohort(
-        cohort="selection",
-        paths=paths,
-    )
-    select_report_write_candidate_modality_genes_cohort(
-        cohort="respiration",
-        paths=paths,
-    )
-    select_report_write_candidate_modality_genes_cohort(
-        cohort="ventilation",
-        paths=paths,
-    )
-
+    # Execute procedure for each cohort of persons.
+    cohorts = [
+        "selection",
+        "respiration",
+        "ventilation",
+    ]
+    for cohort in cohorts:
+        select_report_write_candidate_modality_genes_cohort(
+            cohort=cohort,
+            paths=paths,
+        )
     pass
 
 

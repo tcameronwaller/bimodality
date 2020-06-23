@@ -1345,7 +1345,7 @@ def organize_samples_tissues_persons(
         data_person_attribute_private=(
             bin_data["data_person_attribute_private"]
         ),
-        report=False,
+        report=True,
     )
     # Collect information about samples.
     samples_tissues_persons = collect_samples_tissues_persons(
@@ -2490,7 +2490,7 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
-    if False:
+    if True:
 
         # Organize persons' genotypes.
         organize_persons_genotypes(dock=dock)
@@ -2523,7 +2523,7 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
-    if True:
+    if False:
 
         # Organize genes' signals.
         organize_genes_signals(dock=dock)

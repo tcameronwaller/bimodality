@@ -1361,6 +1361,9 @@ def read_source_persons_properties(
         dock, "assembly", "genotype", "ventilation",
         "data_genotype_component.pickle"
     )
+    path_collections_health_variables = os.path.join(
+        dock, "assembly", "sample", "collections_health_variables.pickle"
+    )
 
     path_samples_tissues_persons = os.path.join(
         dock, "assembly", "sample", "data_samples_tissues_persons.pickle"
@@ -1385,6 +1388,8 @@ def read_source_persons_properties(
     bin_genotypes["ventilation"] = pandas.read_pickle(
         path_data_genotype_ventilation
     )
+    with open(path_collections_health_variables, "rb") as file_source:
+        collections_health_variables = pickle.load(file_source)
 
     data_samples_tissues_persons = pandas.read_pickle(
         path_samples_tissues_persons
@@ -1398,6 +1403,7 @@ def read_source_persons_properties(
     # Compile and return information.
     return {
         "bin_genotypes": bin_genotypes,
+        "collections_health_variables": collections_health_variables,
         "data_samples_tissues_persons": data_samples_tissues_persons,
         "data_samples_tissues_persons_selection": (
             data_samples_tissues_persons_selection
@@ -1406,8 +1412,54 @@ def read_source_persons_properties(
     }
 
 
+def read_source_organize_regression_model_variables(
+    model=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
 
-# TODO: move the regression model variable definitions to a spreadsheet input
+    arguments:
+        model (str): name of regression model
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (dict<list<str>>): names of variables in categories and model
+    """
+
+    # Read information from file.
+    path_data_regression_models = os.path.join(
+        dock, "annotation_2020-06-19", "regression",
+        "table_regression_models.csv"
+    )
+    data_regression_models = pandas.read_csv(
+        path_data_regression_models,
+        sep="\t",
+        header=0,
+    )
+    # Select relevant information.
+    data_regression_model = data_regression_models.loc[
+        data_regression_models[model] == 1, :
+    ]
+    bin = dict()
+    bin["model"] = data_regression_model["variable"].tolist()
+    categories = list()
+    categories.append("hypothesis")
+    categories.append("genotype")
+    categories.append("technique")
+    for category in ["hypothesis", "genotype", "technique"]:
+        data_model_category = data_regression_model.loc[
+            data_regression_model["type"] == category, :
+        ]
+        if data_model_category.shape[0] > 0:
+            bin[category] = data_model_category["variable"].tolist()
+        else:
+            bin[category] = list()
+    # Return information.
+    return bin
 
 
 def define_organization_variables():
@@ -1458,6 +1510,11 @@ def define_organization_variables():
     pair["variable_one"] = "age"
     pair["variable_two"] = "ventilation_binary"
     interaction.append(pair)
+    pair = dict()
+    pair["name"] = "sex_risk*age"
+    pair["variable_one"] = "sex_risk"
+    pair["variable_two"] = "age"
+    interaction.append(pair)
 
     # Variables of raw values that might require standardization to adjust
     # scale.
@@ -1507,6 +1564,7 @@ def define_organization_variables():
         "tissues_3",
         "sex_risk*ventilation_binary",
         "age*ventilation_binary",
+        "sex_risk*age",
     ]
     # Compile information.
     bin = dict()
@@ -1514,242 +1572,6 @@ def define_organization_variables():
     bin["dimension"] = dimension
     bin["interaction"] = interaction
     bin["scale"] = scale
-    # Return information.
-    return bin
-
-
-def define_variables_regression_selection():
-    """
-    Defines a list of variables' names for analyses.
-
-    arguments:
-
-    raises:
-
-    returns:
-        (dict<list<str>>): names of independent variables for regression
-
-    """
-
-    # Variables that relate to hypotheses of interest.
-    hypothesis = [
-        "sex_y_scale",
-        "age_scale",
-        "body_scale",
-        "heart_binary_scale",
-        "diabetes_binary_scale",
-        "respiration_binary_scale",
-        "smoke_scale",
-        "infection_binary_scale",
-        "mononucleosis_binary_scale",
-        "inflammation_binary_scale",
-        "leukocyte_binary_scale",
-        "climate_scale",
-        #"hardiness_scale",
-        "ventilation_duration_scale",
-        #"ventilation_binary_scale",
-
-        #"sex_risk*ventilation_binary_scale",
-        "age*ventilation_binary_scale",
-    ]
-    # Variables that relate to genotype.
-    genotype = [
-        "genotype_1_scale",
-        "genotype_2_scale",
-        "genotype_3_scale",
-    ]
-    # Variables that relate to technical methods.
-    technique = [
-        "refrigeration_duration_scale",
-        "delay_scale",
-        "tissues_1_scale", # 0.244
-        "tissues_2_scale", # 0.0866
-    ]
-    # Variables that relate to batch.
-    batch = [
-        "facilities_1_scale", # 0.693
-        "facilities_2_scale", # 0.289
-        "batches_extraction_1_scale", # 0.0215
-        "batches_sequence_1_scale", # 0.0722
-        "batches_sequence_2_scale", # 0.0699
-    ]
-    # Compile variables.
-    # Regression on hypothesis model.
-    model_hypothesis = list()
-    model_hypothesis.extend(hypothesis)
-    model_hypothesis.extend(genotype)
-    model_hypothesis.extend(technique)
-    model_hypothesis.extend(batch)
-    # Heritability regression model.
-    model_heritability = list()
-    model_heritability.extend(hypothesis)
-    model_heritability.extend(technique)
-    model_heritability.extend(batch)
-    # Heritability regression model.
-    model_trait = list()
-    # Compile information.
-    bin = dict()
-    bin["hypothesis"] = hypothesis
-    bin["genotype"] = genotype
-    bin["technique"] = technique
-    bin["batch"] = batch
-    bin["model_hypothesis"] = model_hypothesis
-    bin["model_heritability"] = model_heritability
-    bin["model_trait"] = model_trait
-    # Return information.
-    return bin
-
-
-def define_variables_regression_respiration():
-    """
-    Defines a list of variables' names for analyses.
-
-    arguments:
-
-    raises:
-
-    returns:
-        (dict<list<str>>): names of independent variables for regression
-
-    """
-
-    # Variables that relate to hypotheses of interest.
-    hypothesis = [
-        "sex_y_scale",
-        "age_scale",
-        "body_scale",
-        "climate_scale",
-        "hardiness_scale",
-        "respiration_binary_scale",
-        "smoke_scale",
-        "inflammation_binary_scale",
-        "leukocyte_binary_scale",
-        "infection_binary_scale",
-        "mononucleosis_binary_scale",
-        "heart_binary_scale",
-        "diabetes_binary_scale",
-    ]
-    # Variables that relate to genotype.
-    genotype = [
-        "genotype_1_scale",
-        "genotype_2_scale",
-        "genotype_3_scale",
-    ]
-    # Variables that relate to technical methods.
-    technique = [
-        "refrigeration_duration_scale",
-        "delay_scale",
-        "tissues_1_scale", # 0.244
-        "tissues_2_scale", # 0.0866
-    ]
-    # Variables that relate to batch.
-    batch = [
-        "facilities_1_scale", # 0.693
-        "facilities_2_scale", # 0.289
-        "batches_extraction_1_scale", # 0.0215
-        "batches_sequence_1_scale", # 0.0722
-        "batches_sequence_2_scale", # 0.0699
-    ]
-    # Compile variables.
-    # Regression on hypothesis model.
-    model_hypothesis = list()
-    model_hypothesis.extend(hypothesis)
-    model_hypothesis.extend(genotype)
-    model_hypothesis.extend(technique)
-    model_hypothesis.extend(batch)
-    # Heritability regression model.
-    model_heritability = list()
-    model_heritability.extend(hypothesis)
-    model_heritability.extend(technique)
-    model_heritability.extend(batch)
-    # Heritability regression model.
-    model_trait = list()
-    # Compile information.
-    bin = dict()
-    bin["hypothesis"] = hypothesis
-    bin["genotype"] = genotype
-    bin["technique"] = technique
-    bin["batch"] = batch
-    bin["model_hypothesis"] = model_hypothesis
-    bin["model_heritability"] = model_heritability
-    bin["model_trait"] = model_trait
-    # Return information.
-    return bin
-
-
-def define_variables_regression_ventilation():
-    """
-    Defines a list of variables' names for analyses.
-
-    arguments:
-
-    raises:
-
-    returns:
-        (dict<list<str>>): names of independent variables for regression
-
-    """
-
-    # Variables that relate to hypotheses of interest.
-    hypothesis = [
-        "sex_y_scale",
-        "age_scale",
-        "body_scale",
-        "climate_scale",
-        "respiration_binary_scale",
-        "smoke_scale",
-        "inflammation_binary_scale",
-        "leukocyte_binary_scale",
-        "infection_binary_scale",
-        "mononucleosis_binary_scale",
-        "heart_binary_scale",
-        "diabetes_binary_scale",
-        "ventilation_duration_scale",
-    ]
-    # Variables that relate to genotype.
-    genotype = [
-        "genotype_1_scale",
-        "genotype_2_scale",
-        "genotype_3_scale",
-    ]
-    # Variables that relate to technical methods.
-    technique = [
-        "refrigeration_duration_scale",
-        "delay_scale",
-        "tissues_1_scale", # 0.244
-        "tissues_2_scale", # 0.0866
-    ]
-    # Variables that relate to batch.
-    batch = [
-        "facilities_1_scale", # 0.693
-        "facilities_2_scale", # 0.289
-        "batches_extraction_1_scale", # 0.0215
-        "batches_sequence_1_scale", # 0.0722
-        "batches_sequence_2_scale", # 0.0699
-    ]
-    # Compile variables.
-    # Regression on hypothesis model.
-    model_hypothesis = list()
-    model_hypothesis.extend(hypothesis)
-    model_hypothesis.extend(genotype)
-    model_hypothesis.extend(technique)
-    model_hypothesis.extend(batch)
-    # Heritability regression model.
-    model_heritability = list()
-    model_heritability.extend(hypothesis)
-    model_heritability.extend(technique)
-    model_heritability.extend(batch)
-    # Heritability regression model.
-    model_trait = list()
-    # Compile information.
-    bin = dict()
-    bin["hypothesis"] = hypothesis
-    bin["genotype"] = genotype
-    bin["technique"] = technique
-    bin["batch"] = batch
-    bin["model_hypothesis"] = model_hypothesis
-    bin["model_heritability"] = model_heritability
-    bin["model_trait"] = model_trait
     # Return information.
     return bin
 
@@ -1800,37 +1622,6 @@ def define_regression_variable_queries():
         "respiration_binary_scale",
         "ventilation_duration_scale",
     ]
-    # Return information.
-    return bin
-
-
-def define_variables():
-    """
-    Defines a list of variables' names for analyses.
-
-    arguments:
-
-    raises:
-
-    returns:
-        (dict<list<str>>): names of independent variables for regression
-
-    """
-
-    # Define variables for organization.
-    bin_organization = define_organization_variables()
-    # Define variables for regression analyses.
-    bin_selection = define_variables_regression_selection()
-    bin_respiration = define_variables_regression_respiration()
-    bin_ventilation = define_variables_regression_ventilation()
-    bin_query = define_regression_variable_queries()
-    # Compile information.
-    bin = dict()
-    bin["organization"] = bin_organization
-    bin["query"] = bin_query
-    bin["selection"] = bin_selection
-    bin["respiration"] = bin_respiration
-    bin["ventilation"] = bin_ventilation
     # Return information.
     return bin
 
@@ -2418,8 +2209,7 @@ def organize_samples_properties(
     Organize persons' properties across samples.
 
     arguments:
-        variables (dict<list<str>>): names of independent variables for
-            regression
+        variables (dict<list<str>>): names of variables for organization
         data_samples_tissues_persons_selection (object): Pandas data frame of
             persons and tissues across selection samples
 
@@ -2473,13 +2263,13 @@ def organize_samples_properties(
     )
     # Impute missing values of boolean variables.
     data_boolean = impute_logical_variables(
-        variables=variables["organization"]["binary"],
+        variables=variables["binary"],
         data_samples_tissues_persons=data_smoke,
     )
     # Convert logical variables to binary representation for regressions.
     # Assume that missing values indicate a false logical value.
     data_binary = impute_convert_samples_logical_variables_binary(
-        variables=variables["organization"]["binary"],
+        variables=variables["binary"],
         data_samples_tissues_persons=data_boolean,
     )
     # Return information.
@@ -3500,6 +3290,7 @@ def organize_persons_properties(
     data_persons_properties_raw=None,
     data_persons_genotypes=None,
     report=None,
+    dock=None,
 ):
     """
     Organizes information about persons.
@@ -3507,13 +3298,14 @@ def organize_persons_properties(
     arguments:
         persons (list<str>): identifiers of persons
         cohort (str): cohort of persons--selection, respiration, or ventilation
-        variables (dict<list<str>>): collections of independent variables for
-            analyses
+        variables (dict<list<str>>): collections of variables for organization
         data_persons_properties_raw (object): Pandas data frame of persons'
             properties
         data_persons_genotypes (object): Pandas data frame of persons'
             genotypes
         report (bool): whether to print reports
+        dock (str): path to root or dock directory for source and product
+            directories and files
 
     raises:
 
@@ -3543,13 +3335,13 @@ def organize_persons_properties(
     )
     # Organize dimensionality reduction on categorical variables.
     bin_dimension = organize_persons_category_dimensionality(
-        variables=variables["organization"]["dimension"],
+        variables=variables["dimension"],
         data_persons_properties_raw=data_stratification,
         report=report,
     )
     # Calculate interaction terms.
     data_interaction = calculate_variable_pairs_interaction_terms(
-        pairs=variables["organization"]["interaction"],
+        pairs=variables["interaction"],
         data_persons_properties=bin_dimension[
             "data_persons_properties_dimension"
         ],
@@ -3557,17 +3349,23 @@ def organize_persons_properties(
     # Standardize the scales of numerical variables for regression.
     # These variables are on ordinal or ratio (continuous) scales.
     data_persons_properties_scale = standardize_scale_variables(
-        variables=variables["organization"]["scale"],
+        variables=variables["scale"],
         data_persons_properties=data_interaction,
+    )
+
+    # Determine variables for heritability analyses.
+    bin_model = read_source_organize_regression_model_variables(
+        model=str(cohort + "_heritability"),
+        dock=dock,
     )
     # Organize information for heritability analysis.
     bin_heritability = organize_heritability_information(
-        variables=variables[cohort]["model_heritability"],
+        variables=bin_model["model"],
         data_persons_properties=data_persons_properties_scale,
     )
     # Organize information for quantitative trait loci (QTL) analysis.
     data_persons_variables_trait = organize_quantitative_trait_loci_variables(
-        variables=variables[cohort]["model_trait"],
+        variables=bin_model["model"],
         data_persons_properties=data_persons_properties_scale,
     )
     # Compile information.
@@ -3889,6 +3687,93 @@ def summarize_persons_properties_associations(
     pass
 
 
+def summarize_persons_health_variables_collections_cohort(
+    persons=None,
+    health_collection=None,
+    data_health_collection=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        persons (list<str>): identifiers of persons
+        health_collection (str): name of collection of health variables
+        data_health_collection (object): Pandas data frame of health variables
+            across persons
+
+    raises:
+
+    returns:
+
+    """
+
+    # Copy data.
+    data_health_collection = data_health_collection.copy(deep=True)
+    # Select data for persons.
+    data_health_persons = data_health_collection.loc[
+        data_health_collection.index.isin(persons), :
+    ]
+    values_total = data_health_persons.shape[0]
+    # Report.
+    utility.print_terminal_partition(level=2)
+    print("health variables collection: " + health_collection)
+    print("total persons: " + str(values_total))
+    utility.print_terminal_partition(level=3)
+    # Iterate on each variable.
+    for variable in data_health_persons.columns.tolist():
+        # Collect values that are not missing.
+        values_valid = list(filter(
+            lambda value: not math.isnan(value),
+            data_health_persons[variable].tolist()
+        ))
+        valid_percentage = (len(values_valid) / values_total) * 100
+        # Report.
+        print("variable: " + variable)
+        print("valid persons: " + str(round(valid_percentage, 2)) + "%")
+    pass
+
+
+def summarize_persons_health_variables_collections(
+    persons_sets=None,
+    collections_health_variables=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        persons_sets (dict<list<str>>): collections of persons' identifiers
+        collections_health_variables (dict): collections of health variables
+            that relate
+
+    raises:
+
+    returns:
+
+    """
+
+    # Iterate on cohorts.
+    cohorts = [
+        "selection",
+        "respiration",
+        "ventilation",
+    ]
+    for cohort in cohorts:
+        # Report.
+        utility.print_terminal_partition(level=1)
+        print("cohort: " + cohort)
+        utility.print_terminal_partition(level=2)
+        # Iterate on collections of health variables.
+        for health_collection in collections_health_variables.keys():
+            summarize_persons_health_variables_collections_cohort(
+                persons=persons_sets[cohort],
+                health_collection=health_collection,
+                data_health_collection=(
+                    collections_health_variables[health_collection]
+                ),
+            )
+    pass
+
+
 def extract_organize_persons_properties(
     stringency=None,
     dock=None,
@@ -3956,7 +3841,7 @@ def extract_organize_persons_properties(
     # persons.
 
     # Define variables.
-    variables = define_variables()
+    variables = define_organization_variables()
     # Organize persons' properties across samples.
     data_samples_organization = organize_samples_properties(
         variables=variables,
@@ -4002,6 +3887,7 @@ def extract_organize_persons_properties(
         data_persons_properties_raw=data_persons_properties_raw,
         data_persons_genotypes=source["bin_genotypes"]["selection"],
         report=True,
+        dock=dock,
     )
     bin_persons_respiration = organize_persons_properties(
         persons=persons_sets["respiration"],
@@ -4010,6 +3896,7 @@ def extract_organize_persons_properties(
         data_persons_properties_raw=data_persons_properties_raw,
         data_persons_genotypes=source["bin_genotypes"]["respiration"],
         report=True,
+        dock=dock,
     )
     bin_persons_ventilation = organize_persons_properties(
         persons=persons_sets["ventilation"],
@@ -4018,6 +3905,7 @@ def extract_organize_persons_properties(
         data_persons_properties_raw=data_persons_properties_raw,
         data_persons_genotypes=source["bin_genotypes"]["ventilation"],
         report=True,
+        dock=dock,
     )
 
     # Summarize associations between persons' properties.
@@ -4026,6 +3914,11 @@ def extract_organize_persons_properties(
         data_persons_properties=(
             bin_persons_selection["data_persons_properties"]
         ),
+    )
+    # Summarize proportion of missing values of GTEx clinical annotations.
+    summarize_persons_health_variables_collections(
+        persons_sets=persons_sets,
+        collections_health_variables=source["collections_health_variables"],
     )
 
     # Compile information.

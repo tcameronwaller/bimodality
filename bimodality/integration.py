@@ -148,7 +148,7 @@ def read_source_annotation_sets(dock=None):
     # Read information from file.
 
     # Ontology.
-    path_annotation = os.path.join(dock, "annotation_2020-04-28")
+    path_annotation = os.path.join(dock, "annotation_2020-06-19")
     path_function = os.path.join(path_annotation, "function")
     path_structure = os.path.join(path_annotation, "structure")
     path_hypothesis = os.path.join(path_annotation, "hypothesis")
@@ -1135,7 +1135,7 @@ def read_source_annotation_query_genes_set(
 
     # Annotation.
     path_data_genes_query = os.path.join(
-        dock, "annotation_2020-06-03", "query_gene_sets", "query_genes.csv"
+        dock, "annotation_2020-06-19", "query_gene_sets", "query_genes.csv"
     )
     data_genes_query = pandas.read_csv(
         path_data_genes_query,
@@ -1173,7 +1173,7 @@ def read_source_annotation_query_genes_all(
 
     # Annotation.
     path_data_genes_query = os.path.join(
-        dock, "annotation_2020-06-03", "query_gene_sets", "query_genes.csv"
+        dock, "annotation_2020-06-19", "query_gene_sets", "query_genes.csv"
     )
     data_genes_query = pandas.read_csv(
         path_data_genes_query,
