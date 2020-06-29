@@ -2490,7 +2490,7 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
-    if True:
+    if False:
 
         # Organize persons' genotypes.
         organize_persons_genotypes(dock=dock)
@@ -2523,7 +2523,7 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
-    if False:
+    if True:
 
         # Organize genes' signals.
         organize_genes_signals(dock=dock)

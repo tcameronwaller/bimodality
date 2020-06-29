@@ -83,14 +83,14 @@ echo "Now set to call routine and procedures."
 
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access # run on 19 June 2020
-#python3 interface.py main --dock $path_dock --assembly # run on 19 June 2020
-#python3 interface.py main --dock $path_dock --selection # run on 19 June 2020
+#python3 interface.py main --dock $path_dock --assembly # run on 28 June 2020
+python3 interface.py main --dock $path_dock --selection # run on 19 June 2020
 
 ##########
 # - Batch Routine
 
 #python3 interface.py main --dock $path_dock --split # run on 19 June 2020
-#python3 interface.py main --dock $path_dock --distribution --local # run time 5 hours
+#python3 interface.py main --dock $path_dock --distribution --local # run on 29 June 2020 for 17700 genes, duration 6 hours
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 
@@ -115,7 +115,7 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
-python3 interface.py main --dock $path_dock --prediction
+#python3 interface.py main --dock $path_dock --prediction
 #python3 interface.py main --dock $path_dock --function
 #python3 interface.py main --dock $path_dock --integration
 

@@ -1468,6 +1468,44 @@ def calculate_pseudo_logarithm_signals(
     return data_log
 
 
+def calculate_pseudo_logarithm_signals_negative(
+    pseudo_count=None,
+    base=None,
+    axis=None,
+    data=None
+):
+    """
+    Shifts signals across axis by minimal value and adds a pseudo count to
+    avoid negative values before logarithmic transformation.
+
+    arguments:
+        pseudo_count (float): Pseudo count to add to gene signal before
+            transformation to avoid values of zero
+        base (float): logarithmic base
+        axis (str): axis across which to shift values, index or column
+        data (object): Pandas data frame of signals
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of base-2 logarithmic signals for all genes
+            across specific persons and tissues.
+
+    """
+
+    data_log = data.apply(
+        lambda series: list(map(
+            lambda value: math.log(
+                (value + abs(min(series.tolist())) + pseudo_count),
+                base
+            ),
+            series.tolist()
+        )),
+        axis=axis,
+    )
+    return data_log
+
+
 def count_data_factors_groups_elements(
     factors=None,
     element=None,

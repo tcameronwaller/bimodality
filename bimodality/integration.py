@@ -879,6 +879,39 @@ def read_organize_report_write_integration_gene_sets(paths=None):
 # Interaction gene sets
 
 
+def read_source_genes_sets_prediction_interaction_cohort_model(
+    cohort=None,
+    model=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        model (str): name of regression model
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (dict<list<str>>): sets of genes' identifiers
+
+    """
+
+    # Specify directories and files.
+    path_sets_genes = os.path.join(
+        dock, "prediction", cohort, model, "genes",
+        "sets_genes.pickle"
+    )
+    # Read information from file.
+    with open(path_sets_genes, "rb") as file_source:
+        sets_genes = pickle.load(file_source)
+    # Return information.
+    return sets_genes
+
+
 def read_source_genes_sets_prediction_interaction(
     cohort=None,
     dock=None,
@@ -894,35 +927,33 @@ def read_source_genes_sets_prediction_interaction(
     raises:
 
     returns:
-        (object): source information
+        (dict<list<str>>): sets of genes' identifiers
 
     """
 
-    # Specify directories and files.
-    path_sex_age_ventilation = os.path.join(
-        dock, "prediction", cohort, "persistence", "model_sex_age_ventilation",
-        "sets_genes.pickle"
+    # Read source information from file.
+    sets_main = read_source_genes_sets_prediction_interaction_cohort_model(
+        cohort="selection",
+        model="selection_main",
+        dock=dock,
     )
-    path_sex_ventilation = os.path.join(
-        dock, "prediction", cohort, "persistence",
-        "model_sex_ventilation_interaction", "sets_genes.pickle"
-    )
-    path_age_ventilation = os.path.join(
-        dock, "prediction", cohort, "persistence",
-        "model_age_ventilation_interaction", "sets_genes.pickle"
-    )
-    # Read information from file.
-    with open(path_sex_age_ventilation, "rb") as file_source:
-        sex_age_ventilation = pickle.load(file_source)
-    with open(path_sex_ventilation, "rb") as file_source:
-        sex_ventilation = pickle.load(file_source)
-    with open(path_age_ventilation, "rb") as file_source:
-        age_ventilation = pickle.load(file_source)
+    sets_sex_ventilation = (
+        read_source_genes_sets_prediction_interaction_cohort_model(
+            cohort="selection",
+            model="selection_sex_ventilation",
+            dock=dock,
+    ))
+    sets_age_ventilation = (
+        read_source_genes_sets_prediction_interaction_cohort_model(
+            cohort="selection",
+            model="selection_age_ventilation",
+            dock=dock,
+    ))
     # Compile information.
     bin = dict()
-    bin["sex_age_ventilation"] = sex_age_ventilation
-    bin["sex_ventilation"] = sex_ventilation
-    bin["age_ventilation"] = age_ventilation
+    bin["main"] = sets_main
+    bin["sex_ventilation"] = sets_sex_ventilation
+    bin["age_ventilation"] = sets_age_ventilation
     # Return information.
     return bin
 
@@ -984,14 +1015,14 @@ def organize_prediction_interaction_gene_sets_distribution(
     # Collect unique genes that associate with sex-ventilation interaction.
     sex_ventilation_unique = collect_inclusion_exclusion_unique_elements(
         inclusion=sex_ventilation["sex_risk*ventilation_binary_scale"],
-        exclusion_one=sex_age_ventilation["sex_y_scale"],
-        exclusion_two=sex_age_ventilation["ventilation_binary_scale"],
+        exclusion_one=sex_age_ventilation["ventilation_binary_scale"],
+        exclusion_two=list(),
     )
     # Collect unique genes that associate with age-ventilation interaction.
     age_ventilation_unique = collect_inclusion_exclusion_unique_elements(
         inclusion=age_ventilation["age*ventilation_binary_scale"],
-        exclusion_one=sex_age_ventilation["age_scale"],
-        exclusion_two=sex_age_ventilation["ventilation_binary_scale"],
+        exclusion_one=sex_age_ventilation["ventilation_binary_scale"],
+        exclusion_two=list(),
     )
     # Compile information.
     bin = dict()
@@ -1081,14 +1112,14 @@ def read_organize_report_write_prediction_interaction_gene_sets(paths=None):
     )
     # Organize sets for genes with any distribution of pan-tissue signals.
     sets_any = organize_prediction_interaction_gene_sets_distribution(
-        sex_age_ventilation=source["sex_age_ventilation"]["any"],
+        sex_age_ventilation=source["main"]["any"],
         sex_ventilation=source["sex_ventilation"]["any"],
         age_ventilation=source["age_ventilation"]["any"],
     )
     # Organize sets for genes with multimodal distribution of pan-tissue
     # signals.
     sets_multimodal = organize_prediction_interaction_gene_sets_distribution(
-        sex_age_ventilation=source["sex_age_ventilation"]["multimodal"],
+        sex_age_ventilation=source["main"]["multimodal"],
         sex_ventilation=source["sex_ventilation"]["multimodal"],
         age_ventilation=source["age_ventilation"]["multimodal"],
     )
@@ -1204,6 +1235,10 @@ def read_source_annotation_query_genes_sets(dock=None):
         set="distribution",
         dock=dock,
     )
+    genes_multimodal = read_source_annotation_query_genes_set(
+        set="multimodal",
+        dock=dock,
+    )
     genes_covid = read_source_annotation_query_genes_set(
         set="covid_19",
         dock=dock,
@@ -1215,6 +1250,7 @@ def read_source_annotation_query_genes_sets(dock=None):
     # Compile and return information.
     return {
         "distribution": genes_distribution,
+        "multimodal": genes_multimodal,
         "covid_19": genes_covid,
         "angiotensin": genes_angiotensin,
     }

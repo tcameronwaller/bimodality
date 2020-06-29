@@ -1512,7 +1512,7 @@ def evaluate_gene_population(
         deep=True
     )
     # Determine whether values exceed threshold.
-    data_threshold = (data != threshold)
+    data_threshold = (data >= threshold)
     data_pass = data.loc[data_threshold["value"], :]
     count_persons = data_pass.shape[0]
     return (count_persons >= count)
@@ -1538,7 +1538,10 @@ def evaluate_gene_signal(
     """
 
     # Calculate standard deviation of values.
-    deviation = numpy.std(data_gene_persons_signals["value"].values, axis=0)
+    deviation = numpy.std(
+        data_gene_persons_signals["value"].to_numpy(),
+        axis=0
+    )
     return deviation > threshold
 
 
@@ -1679,7 +1682,7 @@ def evaluate_gene_candidacy(
     # Determine whether gene has representation across adequate persons.
     population = evaluate_gene_population(
         threshold=0.0,
-        count=100,
+        count=50,
         data_gene_persons_signals=data_gene_persons_signals,
     )
 
@@ -1694,6 +1697,8 @@ def evaluate_gene_candidacy(
 
 
 # TODO: improve the candidacy checks on distributions...
+# TODO: maybe just remove the candidacy checks altogether... selection
+# TODO: procedure evaluates candidacy.
 def describe_distribution_modality(
     modality=None,
     values=None,

@@ -4582,15 +4582,17 @@ def prepare_chart_prediction_gene_sets_overlap(
 
     """
 
+    # TODO: "distribution_three" is a temporary stand-in for "model"
+
     # Read lists of genes' identifiers from file.
     source = integration.read_source_genes_sets_prediction_interaction(
         cohort="selection",
         dock=dock,
     )
     genes_sets = dict()
-    genes_sets[label_one] = source[distribution_three]["any"][variable_one]
-    genes_sets[label_two] = source["sex_age_ventilation"]["any"][variable_two]
-    genes_sets[label_three] = source["sex_age_ventilation"]["any"][variable_three]
+    genes_sets[label_one] = source[distribution_three]["multimodal"][variable_one]
+    genes_sets[label_two] = source["main"]["multimodal"][variable_two]
+    genes_sets[label_three] = source["main"]["multimodal"][variable_three]
     # Define path to file.
     path_file = os.path.join(
         path_directory, str(title + ".svg")
@@ -5435,7 +5437,7 @@ def prepare_charts_genes_persons_signals_cohort(
     utility.create_directories(path=path_directory)
 
     # Plot charts for genes of interest.
-    genes_interest = source["query_gene_sets"]["distribution"]
+    genes_interest = source["query_gene_sets"]["multimodal"]
     for gene in genes_interest:
         prepare_chart_gene_persons_signals(
             gene=gene,
@@ -5711,7 +5713,6 @@ def read_source_genes_signals_tissues_persons(
     }
 
 
-
 def define_parameters_genes_signals_tissues_persons():
     """
     Defines parameters for plots of persons' properties.
@@ -5807,7 +5808,7 @@ def organize_genes_signals_tissues_persons(
         columns_main_scale_unit=list(),
         fill_missing=True,
         index="person",
-        sequence="cluster", # "none", "sort", or "cluster"
+        sequence="sort", # "none", "sort", or "cluster"
     )
     # Return information
     return bin
@@ -6059,7 +6060,7 @@ def prepare_charts_genes_signals_tissues_persons_cohort(
             label=parameter["label"],
             master=parameter["property"],
             type_master=parameter["type"],
-            genes_query=source["query_gene_sets"]["distribution"],
+            genes_query=source["query_gene_sets"]["multimodal"],
             genes_distribution=source["genes_distribution"],
             data_gene_annotation=source["data_gene_annotation"],
             data_persons_properties=source["data_persons_properties"],
@@ -8867,23 +8868,25 @@ def execute_procedure(dock=None):
     ##########
     # Integration procedure
 
-    # Plot charts, scatter plots, for components by genes' pan-tissue
-    # signals across groups of persons.
-    prepare_charts_persons_genes_components(dock=dock)
+    if False:
 
-    # Plot charts, heatmaps, for multiple genes' pan-tissue signals across
-    # persons along with those persons' properties.
-    # Genes will be across rows, and persons will be across columns.
-    # Sort order across rows depends on hierarchical clustering.
-    # In some charts, sort order across columns depends on persons' properties
-    # (sex, age, body mass index, hardiness).
-    # In other charts, sort order across columns depends on hierarchical
-    # clustering.
-    prepare_charts_query_genes_signals_persons_properties(dock=dock)
+        # Plot charts, scatter plots, for components by genes' pan-tissue
+        # signals across groups of persons.
+        prepare_charts_persons_genes_components(dock=dock)
 
-    # Plot charts for correlations between pairs of genes of interest.
-    # Chart is adjacency matrix heatmap.
-    prepare_charts_signals_genes_correlations(dock=dock)
+        # Plot charts, heatmaps, for multiple genes' pan-tissue signals across
+        # persons along with those persons' properties.
+        # Genes will be across rows, and persons will be across columns.
+        # Sort order across rows depends on hierarchical clustering.
+        # In some charts, sort order across columns depends on persons' properties
+        # (sex, age, body mass index, hardiness).
+        # In other charts, sort order across columns depends on hierarchical
+        # clustering.
+        prepare_charts_query_genes_signals_persons_properties(dock=dock)
+
+        # Plot charts for correlations between pairs of genes of interest.
+        # Chart is adjacency matrix heatmap.
+        prepare_charts_signals_genes_correlations(dock=dock)
 
 
     if False:

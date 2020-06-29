@@ -890,6 +890,13 @@ def select_samples_genes_by_signals_coverage(
 
     Data format should have genes across rows and samples across columns.
 
+             sample_1 sample_2 sample_3 sample_4 sample_5
+    gene_1   ...      ...      ...      ...      ...
+    gene_2   ...      ...      ...      ...      ...
+    gene_3   ...      ...      ...      ...      ...
+    gene_4   ...      ...      ...      ...      ...
+    gene_5   ...      ...      ...      ...      ...
+
     arguments:
         threshold (float): minimal gene's signal for a sample
         proportion_gene (float): minimal proportion of samples that must have
@@ -1111,8 +1118,8 @@ def select_samples_genes_by_signals(
         # 1.0           0.5                 0.5
         data_gene_signal_selection = select_samples_genes_by_signals_coverage(
             threshold=0.1,
-            proportion_gene=0.5, # 0.5
-            proportion_sample=0.5, # 0.5
+            proportion_gene=0.1, # 0.1 - 0.5
+            proportion_sample=0.1, # 0.1 - 0.5
             data_gene_signal=data_gene_signal_fill,
             report=report,
         )
@@ -4814,8 +4821,10 @@ def execute_procedure(dock=None):
 
     # Select genes' annotations.
     if False:
+        # keep_x=False: 18326 protein-coding genes with GTEx signals
+        # keep_x=True: 19161 protein-coding genes with GTEx signals
         select_organize_genes_annotations(
-            keep_x=False,
+            keep_x=True,
             stringency="tight",
             dock=dock
         )
@@ -4832,7 +4841,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Select samples, genes, and their signals.
-    if False:
+    if True:
         select_organize_samples_genes_signals(
             stringency="tight",
             dock=dock
@@ -4850,7 +4859,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize persons and their properties for analyses.
-    if True:
+    if False:
         extract_organize_persons_properties(
             stringency="tight",
             dock=dock,

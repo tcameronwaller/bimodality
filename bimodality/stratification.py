@@ -150,7 +150,93 @@ def read_source_cohort_gene_components(
     }
 
 
-def organize_data_calculate_persons_genes_components(
+def organize_data_cohort_multimodal_genes_signals(
+    data_signals_genes_persons=None,
+    report=None,
+):
+    """
+    Organizes genes' pan-tissue signals across persons for principal component
+    analysis.
+
+    Data has persons across rows and genes across columns.
+
+             gene_1 gene_2 gene_3 gene_4 gene_5
+    person_1 ...    ...    ...    ...    ...
+    person_2 ...    ...    ...    ...    ...
+    person_3 ...    ...    ...    ...    ...
+    person_4 ...    ...    ...    ...    ...
+    person_5 ...    ...    ...    ...    ...
+
+    1. normalize genes' pan-tissue signals by logarithmic transformation
+    2. standardize genes' pan-tissue signals by z-score transformation
+
+    arguments:
+        data_signals_genes_persons (object): Pandas data frame of genes'
+            pan-tissue signals across persons
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict<object>): collection of Pandas data frames of genes' pairwise
+            correlations
+
+    """
+
+    # Copy data.
+    data_signals = data_signals_genes_persons.copy(deep=True)
+    # Normalize genes' pan-tissue signals across persons.
+    # Transform genes' signals to logarithmic space.
+    # Shift values arithmetically to avoid negative values.
+    data_normal = utility.calculate_pseudo_logarithm_signals_negative(
+        pseudo_count=1.0,
+        base=2,
+        axis="index", # apply function to each column of data frame
+        data=data_signals,
+    )
+    # Standardize genes' pan-tissue signals across persons.
+    # This method inserts missing values if the standard deviation is zero.
+    data_standard = data_normal.apply(
+        lambda series: scipy.stats.zscore(
+            series.to_numpy(),
+            axis=0,
+            ddof=1, # Sample standard deviation.
+            nan_policy="omit",
+        ),
+        axis="index", # apply function to each column of data frame
+    )
+
+    # Compare summary statistics before and after transformation.
+    utility.print_terminal_partition(level=3)
+    data_mean = data_standard.aggregate(
+        lambda x: x.mean(),
+        axis="index", # apply function to each column of data frame
+    )
+    print("Mean")
+    print(data_mean.iloc[0:10])
+    data_deviation = data_standard.aggregate(
+        lambda x: x.std(),
+        axis="index", # apply function to each column of data frame
+    )
+    print("Standard deviation")
+    print(data_deviation.iloc[0:10])
+    utility.print_terminal_partition(level=3)
+
+    if False:
+
+        # Report.
+        if report:
+            utility.print_terminal_partition(level=2)
+            print("Selection of genes with pan-tissue signals across persons.")
+            utility.print_terminal_partition(level=3)
+            print(data_selection)
+        # Return information.
+        return result
+    pass
+
+
+
+def organize_multimodal_genes_signals_persons_components(
     genes=None,
     data_signals_genes_persons=None,
     report=None,
@@ -235,6 +321,11 @@ def write_product_cohort_gene_components(
     pass
 
 
+# TODO:
+# normalize signals for multimodal genes and save them to file in order to plot them later
+#
+
+
 def organize_cohort_gene_components(
     cohort=None,
     paths=None,
@@ -266,26 +357,33 @@ def organize_cohort_gene_components(
         cohort=cohort,
         dock=paths["dock"],
     )
-    # Calculate principal components on genes across persons.
-    bin = organize_data_calculate_persons_genes_components(
-        genes=source["genes_candidacy"]["multimodal"],
+    # Organize data for principal component analysis.
+    data_signals_genes_persons = organize_data_cohort_multimodal_genes_signals(
         data_signals_genes_persons=source["data_signals_genes_persons"],
         report=report,
     )
-    # Compile information.
-    information = dict()
-    information["data_persons_genes_components"] = bin[
-        "data_observations_components"
-    ]
-    information["data_persons_genes_variances"] = bin[
-        "data_components_variances"
-    ]
-    # Write information to file.
-    write_product_cohort_gene_components(
-        cohort=cohort,
-        information=information,
-        paths=paths,
-    )
+
+    if False:
+        # Calculate principal components on genes across persons.
+        bin = calculate_multimodal_genes_signals_persons_components(
+            genes=source["genes_candidacy"]["multimodal"],
+            data_signals_genes_persons=data_signals_genes_persons,
+            report=report,
+        )
+        # Compile information.
+        information = dict()
+        information["data_persons_genes_components"] = bin[
+            "data_observations_components"
+        ]
+        information["data_persons_genes_variances"] = bin[
+            "data_components_variances"
+        ]
+        # Write information to file.
+        write_product_cohort_gene_components(
+            cohort=cohort,
+            information=information,
+            paths=paths,
+        )
     pass
 
 
@@ -600,6 +698,9 @@ def write_product_cohort_components_regressions(
     pass
 
 
+# TODO: need to introduce different models for each cohort... probably just "main" for each cohort
+
+
 def organize_cohort_components_regressions(
     cohort=None,
     paths=None,
@@ -688,11 +789,12 @@ def execute_procedure(
             paths=paths,
             report=True,
         )
-        organize_cohort_components_regressions(
-            cohort=cohort,
-            paths=paths,
-            report=True,
-        )
+        if False:
+            organize_cohort_components_regressions(
+                cohort=cohort,
+                paths=paths,
+                report=True,
+            )
     pass
 
 
