@@ -231,7 +231,7 @@ def aggregate_gene_signal_tissue(
         level=["person", "tissue_major"]
     )
     # Aggregate genes' signals within groups by mean.
-    data_gene_signal_tissue = groups.aggregate(statistics.mean)
+    data_gene_signal_tissue = groups.aggregate(numpy.nanmean)
     # Return information.
     return data_gene_signal_tissue
 

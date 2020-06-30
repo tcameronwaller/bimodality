@@ -420,12 +420,22 @@ def summarize_samples_genes(
         "Count of protein-coding genes on nuclear autosomes with signals in " +
         "GTEx: " + str(len(genes_gtex_annotation))
     )
+    print("That count does not consider newer annotations in GENCODE.")
 
     # Counts of samples and genes.
     utility.print_terminal_partition(level=2)
     print("Genes' signals...")
-    print("Count of samples: " + str(data_gene_signal.shape[1]))
-    print("Count of genes: " + str(data_gene_signal.shape[0]))
+    print("Count of data samples: " + str(data_gene_signal.shape[1]))
+    samples = utility.collect_unique_elements(
+        elements_original=data_gene_signal.columns.to_list()
+    )
+    print("Count of unique samples: " + str(len(samples)))
+    print("Count of data genes: " + str(data_gene_signal.shape[0]))
+    genes = utility.collect_unique_elements(
+        elements_original=data_gene_signal.index.to_list()
+    )
+    print("Count of unique genes: " + str(len(genes)))
+
 
     # Major tissue categories.
     # Transpose data structure.
@@ -852,12 +862,18 @@ def normalize_collect_report_gene_signals(
     """
 
     data = data_gene_signal.copy(deep=True)
+
+    # Fill missing signals with values of zero.
+    data_fill = data.fillna(
+        value=0.0,
+        inplace=False,
+    )
     # Transform genes' signals to logarithmic space.
     # Transform values of genes' signals to base-2 logarithmic space.
     data_log = utility.calculate_pseudo_logarithm_signals(
         pseudo_count=1.0,
         base=2.0,
-        data=data,
+        data=data_fill,
     )
     # Flatten signals to one dimensional array.
     signals = data_log.to_numpy().flatten()
@@ -878,10 +894,101 @@ def normalize_collect_report_gene_signals(
     return signals
 
 
+def aggregate_signal_data_by_person_tissue(
+    data_samples_tissues_persons=None,
+    data_gene_signal=None,
+    report=None,
+):
+    """
+    Selects samples and genes by signals beyond threshold.
+
+    Data format should have genes across rows and samples across columns.
+
+             sample_1 sample_2 sample_3 sample_4 sample_5
+    gene_1   ...      ...      ...      ...      ...
+    gene_2   ...      ...      ...      ...      ...
+    gene_3   ...      ...      ...      ...      ...
+    gene_4   ...      ...      ...      ...      ...
+    gene_5   ...      ...      ...      ...      ...
+
+    arguments:
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+        report (bool): whether to print reports about the selection
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals across samples
+    """
+
+    # Copy data.
+    data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
+    data_gene_signal = data_gene_signal.copy(deep=True)
+
+    # Transpose columns to rows and rows to columns.
+    # Organize variables across rows and persons across columns.
+    data_signal_transposition = data_gene_signal.transpose(copy=True)
+    data_signal_transposition.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_signal_transposition.rename_axis(
+        index="",
+        axis="index",
+        copy=False,
+        inplace=True
+    )
+    data_signal_transposition.rename_axis(
+        columns="",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    data_signal_transposition.set_index(
+        ["sample"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    # Associate samples to persons and tissues.
+    data_factor = assembly.associate_samples_persons_tissues(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_sample=data_signal_transposition,
+    )
+    data_factor.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_factor.drop(
+        labels=[
+            "sample", "tissue_minor",
+        ],
+        axis="columns",
+        inplace=True
+    )
+    data_factor.set_index(
+        ["person", "tissue_major"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    # Group and aggregate data.
+    groups = data_factor.groupby(
+        level=["person", "tissue_major"]
+    )
+    # Aggregate genes' signals within groups by mean.
+    data_signal_aggregation = groups.aggregate(numpy.nanmean)
+    return data_signal_aggregation
+
+
 def select_samples_genes_by_signals_coverage(
     threshold=None,
-    proportion_gene=None,
     proportion_sample=None,
+    proportion_gene=None,
+    data_samples_tissues_persons=None,
     data_gene_signal=None,
     report=None,
 ):
@@ -899,10 +1006,12 @@ def select_samples_genes_by_signals_coverage(
 
     arguments:
         threshold (float): minimal gene's signal for a sample
-        proportion_gene (float): minimal proportion of samples that must have
-            signals beyond threshold for a gene to pass
         proportion_sample (float): minimal proportion of genes that must have
             signals beyond threshold for a sample to pass
+        proportion_gene (float): minimal proportion of samples that must have
+            signals beyond threshold for a gene to pass
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
         data_gene_signal (object): Pandas data frame of genes' signals across
             samples
         report (bool): whether to print reports about the selection
@@ -913,42 +1022,91 @@ def select_samples_genes_by_signals_coverage(
         (object): Pandas data frame of genes' signals across samples
     """
 
-    # Filter genes by their signals across samples.
-    # Filter to keep only genes with signals beyond threshold in proportion of
-    # samples.
-    data_row = utility.filter_rows_columns_by_threshold_proportion(
-        data=data_gene_signal,
-        dimension="row",
-        threshold=threshold,
-        proportion=proportion_gene
-    )
-
+    # Copy data.
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    data_gene_signal = data_gene_signal.copy(deep=True)
+    data_signal = data_gene_signal.copy(deep=True)
     # Filter samples by their signals across genes.
     # Filter to keep only samples with signals beyond threshold in proportion
     # of genes.
-    data_column = utility.filter_rows_columns_by_threshold_proportion(
-        data=data_row,
-        dimension="column",
-        threshold=threshold,
-        proportion=proportion_sample
+    data_signal_filter_samples = (
+        utility.filter_rows_columns_by_threshold_proportion(
+            data=data_signal,
+            dimension="column",
+            threshold=threshold,
+            proportion=proportion_sample
+    ))
+    samples = utility.collect_unique_elements(
+        elements_original=data_signal_filter_samples.columns.to_list()
     )
 
     # Report.
     if report:
         utility.print_terminal_partition(level=2)
-        print(
-            "Selection of samples and genes by proportion of signals beyond " +
-            "threshold."
+        utility.print_terminal_partition(level=3)
+        print("count of samples after signal filter: " + str(len(samples)))
+        utility.print_terminal_partition(level=3)
+
+    # Organize data for filter on genes.
+    # Aggregate data by mean across persons and major tissues.
+    data_signal_aggregation = aggregate_signal_data_by_person_tissue(
+        data_samples_tissues_persons=data_samples,
+        data_gene_signal=data_signal_filter_samples,
+        report=report,
+    )
+    # Filter genes by their signals across samples.
+    # Filter to keep only genes with signals beyond threshold in proportion of
+    # samples.
+    data_signal_filter_genes = (
+        utility.filter_rows_columns_by_threshold_proportion(
+            data=data_signal_aggregation,
+            dimension="column",
+            threshold=threshold,
+            proportion=proportion_gene
+    ))
+    genes = utility.collect_unique_elements(
+        elements_original=data_signal_filter_genes.columns.to_list()
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        utility.print_terminal_partition(level=3)
+        print("count of genes after signal filter: " + str(len(genes)))
+        utility.print_terminal_partition(level=3)
+    # Select samples and genes from original signal data.
+    data_filter_samples = data_gene_signal.loc[
+        :,
+        data_gene_signal.columns.isin(samples)
+    ]
+    data_filter_genes = data_filter_samples.loc[
+        data_filter_samples.index.isin(genes),
+        :
+    ]
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=3)
+        print("shape of data after signal filters...")
+        print(data_filter_genes.shape)
+        print(data_filter_genes)
+        data_filter_genes.reset_index(
+            level=None,
+            inplace=True
         )
-        utility.print_terminal_partition(level=3)
-        print("shape of data after signal filter on genes...")
-        print(data_row.shape)
-        utility.print_terminal_partition(level=3)
-        print("shape of data after signal filter on samples...")
-        print(data_column.shape)
+        data_filter_genes.drop_duplicates(
+            subset=None,
+            keep="first",
+            inplace=True,
+        )
+        data_filter_genes.set_index(
+            ["gene"],
+            append=False,
+            drop=True,
+            inplace=True
+        )
+        print(data_filter_genes)
 
     # Return information.
-    return data_column
+    return data_filter_genes
 
 
 def report_selection_samples_genes_by_signals(
@@ -1049,6 +1207,7 @@ def report_selection_samples_genes_by_signals(
 def select_samples_genes_by_signals(
     stringency=None,
     report=None,
+    data_samples_tissues_persons=None,
     data_gene_signal=None,
 ):
     """
@@ -1057,6 +1216,8 @@ def select_samples_genes_by_signals(
     arguments:
         stringency (str): category, loose or tight, of selection criteria
         report (bool): whether to print reports about the selection
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues for all samples
         data_gene_signal (object): Pandas data frame of genes' signals across
             samples
 
@@ -1068,20 +1229,20 @@ def select_samples_genes_by_signals(
 
     # Select persons by tissues.
     data_gene_signal = data_gene_signal.copy(deep=True)
+    # Report.
+    if report:
+        # Select genes and samples by their signal coverage.
+        utility.print_terminal_partition(level=1)
+        print("Selection of genes and samples by signal coverage.")
+        utility.print_terminal_partition(level=1)
+        utility.print_terminal_partition(level=2)
+        print("shape of data before signal filters...")
+        print(data_gene_signal.shape)
 
-    # Select genes and samples by their signal coverage.
-    utility.print_terminal_partition(level=1)
-    print("Selection of genes and samples by signal coverage.")
-    utility.print_terminal_partition(level=1)
-    # Fill missing signals with values of zero.
-    data_gene_signal_fill = data_gene_signal.fillna(
-        value=0.0,
-        inplace=False,
-    )
     # Collect initial distribution of genes' signals for selection of signal
     # threshold.
     signals_initial = normalize_collect_report_gene_signals(
-        data_gene_signal=data_gene_signal_fill,
+        data_gene_signal=data_gene_signal,
         threshold=math.log((0.1 + 1.0), 2), # pseudo count 1.0, 0.1 TPM
         report=report,
     )
@@ -1095,7 +1256,8 @@ def select_samples_genes_by_signals(
             threshold=0.1,
             proportion_gene=0.01, # 0.01
             proportion_sample=0.1, # 0.1
-            data_gene_signal=data_gene_signal_fill,
+            data_samples_tissues_persons=data_samples_tissues_persons,
+            data_gene_signal=data_gene_signal,
             report=report,
         )
     elif stringency == "tight":
@@ -1118,9 +1280,10 @@ def select_samples_genes_by_signals(
         # 1.0           0.5                 0.5
         data_gene_signal_selection = select_samples_genes_by_signals_coverage(
             threshold=0.1,
-            proportion_gene=0.1, # 0.1 - 0.5
-            proportion_sample=0.1, # 0.1 - 0.5
-            data_gene_signal=data_gene_signal_fill,
+            proportion_sample=0.5, # 0.1 - 0.5
+            proportion_gene=0.5, # 0.1 - 0.5
+            data_samples_tissues_persons=data_samples_tissues_persons,
+            data_gene_signal=data_gene_signal,
             report=report,
         )
     # Collect initial distribution of genes' signals for selection of signal
@@ -1288,6 +1451,9 @@ def select_organize_samples_genes_signals(
     bin_signal = select_samples_genes_by_signals(
         stringency=stringency,
         report=True,
+        data_samples_tissues_persons=(
+            source["data_samples_tissues_persons"]
+        ),
         data_gene_signal=data_gene_signal_sample,
     )
 

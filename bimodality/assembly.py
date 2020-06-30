@@ -1797,7 +1797,10 @@ def read_gene_signal_samples(dock=None):
     headers.remove("Name")
     headers.remove("Description")
     samples = headers
-    return samples
+    samples_unique = utility.collect_unique_elements(
+        elements_original=samples
+    )
+    return samples_unique
 
 
 def read_gene_signal_genes(dock=None):
@@ -1840,11 +1843,14 @@ def read_gene_signal_genes(dock=None):
         ),
         identifiers_raw
     ))
+    identifiers_unique = utility.collect_unique_elements(
+        elements_original=identifiers
+    )
     # Report.
     utility.print_terminal_partition(level=2)
-    print("count of genes: " + str(len(identifiers)))
+    print("count of unique genes: " + str(len(identifiers_unique)))
     # Return information.
-    return identifiers
+    return identifiers_unique
 
 
 def compile_variables_types(
@@ -1952,7 +1958,7 @@ def organize_data_axes_indices(data=None):
         axis="columns",
         inplace=True,
     )
-    print(data.iloc[0:10, 0:10])
+    print(data)
     print("Organize data with names and indices.")
     data.set_index(
         "gene",
@@ -1971,8 +1977,50 @@ def organize_data_axes_indices(data=None):
         copy=False,
         inplace=True
     )
-    print(data.iloc[0:10, 0:10])
+    print(data)
     return data
+
+
+def aggregate_redundant_gene_signals(data=None):
+    """
+    Organizes data with names and indices.
+
+    arguments:
+        data (object): Pandas data frame of genes' signals for all samples.
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' signals for all samples.
+
+    """
+
+    # Aggregate redundant indices.
+    duplicates = data.index.duplicated(keep=False).tolist()
+    uniques = list(map(lambda value: not value, duplicates))
+    data_duplicates = data.loc[duplicates, :]
+    utility.print_terminal_partition(level=2)
+    print("data_duplicates")
+    print(data_duplicates)
+    groups = data_duplicates.groupby(level=["gene"])
+    data_aggregation = groups.aggregate(numpy.nanmax)
+    utility.print_terminal_partition(level=2)
+    print("data_aggregation")
+    print(data_aggregation)
+    # Replace indices.
+    data_uniques = data.loc[uniques, :]
+    utility.print_terminal_partition(level=2)
+    print("data_uniques")
+    print(data_uniques)
+    data_hybrid = data_uniques.append(
+        data_aggregation,
+        ignore_index=False,
+    )
+    utility.print_terminal_partition(level=2)
+    print("data_hybrid")
+    print(data_hybrid)
+    # Return information.
+    return data_hybrid
 
 
 def convert_data_types(data=None, type=None):
@@ -2062,12 +2110,21 @@ def summarize_raw_data_gene_signal(
     print("Genes' signals are in Transcripts Per Million (TPM).")
     print(data_gene_signal)
     print(data_gene_signal.iloc[0:10, 0:10])
-    print("Count of genes: " + str(data_gene_signal.shape[0]))
-    print("Count of samples: " + str(data_gene_signal.shape[1]))
+    print("Count of data genes: " + str(data_gene_signal.shape[0]))
+    print("Count of data samples: " + str(data_gene_signal.shape[1]))
+    duplicates = list(filter(
+        lambda value: value,
+        data_gene_signal.index.duplicated(keep="first").tolist()
+    ))
+    print("Count of duplicate genes: " + str(len(duplicates)))
     #print(source["data_gene_signal"].loc[:,"GTEX-1117F-0226-SM-5GZZ7"])
 
     pass
 
+
+# TODO: separate the duplicated indices from the others...
+# TODO: only worry about resolving redundancy for these
+# TODO: then recombine
 
 def organize_genes_signals(
     dock=None,
@@ -2099,6 +2156,13 @@ def organize_genes_signals(
     utility.print_terminal_partition(level=1)
     print("Read signals successfully.")
 
+    # Sort values by genes' names.
+    data_gene_signal.sort_values(
+        by=["Name"],
+        axis="index",
+        ascending=True,
+        inplace=True,
+    )
     # Summarize the structures of the raw data.
     summarize_raw_data_gene_signal(
         data_gene_signal=data_gene_signal,
@@ -2111,6 +2175,26 @@ def organize_genes_signals(
     # Organize data with names and indices.
     data_gene_signal = organize_data_axes_indices(
         data=data_gene_signal,
+    )
+    duplicates = list(filter(
+        lambda value: value,
+        data_gene_signal.index.duplicated(keep=False).tolist()
+    ))
+    print(
+        "Count of duplicate genes after translation: " +
+        str(len(duplicates))
+    )
+    # Resolve entries for redundant genes.
+    data_gene_signal = aggregate_redundant_gene_signals(
+        data=data_gene_signal,
+    )
+    duplicates = list(filter(
+        lambda value: value,
+        data_gene_signal.index.duplicated(keep=False).tolist()
+    ))
+    print(
+        "Count of duplicate genes after aggregation: " +
+        str(len(duplicates))
     )
 
     # Optimize data types.
@@ -2147,89 +2231,6 @@ def organize_genes_signals(
 # Association of samples, tissues, and persons
 
 
-def collect_samples_persons_tissues_reference(
-    data_samples_tissues_persons=None,
-):
-    """
-    Collects person and tissue for each sample.
-
-    arguments:
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples.
-
-    raises:
-
-    returns:
-        (dict<dict<str>>): person and tissue for each sample
-
-    """
-
-    data_samples = data_samples_tissues_persons.copy(deep=True)
-    data_samples.reset_index(level="sample", inplace=True)
-    samples_tissues_persons = utility.convert_dataframe_to_records(
-        data=data_samples
-    )
-    reference = dict()
-    for record in samples_tissues_persons:
-        sample = record["sample"]
-        person = record["person"]
-        tissue_major = record["tissue_major"]
-        tissue_minor = record["tissue_minor"]
-        if sample not in reference:
-            reference[sample] = dict()
-            reference[sample]["person"] = person
-            reference[sample]["tissue_major"] = tissue_major
-            reference[sample]["tissue_minor"] = tissue_minor
-    return reference
-
-
-def collect_genes_samples_persons_tissues(
-    reference=None,
-    data_gene_sample=None
-):
-    """
-    Collects samples, persons, and tissues for each gene's signal.
-
-    arguments:
-        reference (dict<dict<str>>): Tissue and person for each sample.
-        data_gene_sample (object): Pandas data frame of genes' signals across
-            samples
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals for all samples, tissues,
-            and persons.
-
-    """
-
-    def match_person(sample):
-        return reference[sample]["person"]
-    def match_tissue_major(sample):
-        return reference[sample]["tissue_major"]
-    def match_tissue_minor(sample):
-        return reference[sample]["tissue_minor"]
-    # Designate person and tissue of each sample.
-    data = data_gene_sample.copy(deep=True)
-    data.reset_index(level="sample", inplace=True)
-    data["person"] = (
-        data["sample"].apply(match_person)
-    )
-    data["tissue_major"] = (
-        data["sample"].apply(match_tissue_major)
-    )
-    data["tissue_minor"] = (
-        data["sample"].apply(match_tissue_minor)
-    )
-    data.set_index(
-        ["sample", "person", "tissue_major", "tissue_minor"],
-        append=False,
-        drop=True,
-        inplace=True
-    )
-    return data
-
-
 def associate_samples_persons_tissues(
     data_samples_tissues_persons=None,
     data_gene_sample=None
@@ -2239,6 +2240,10 @@ def associate_samples_persons_tissues(
 
     The table data_gene_sample needs to have samples across rows and genes
     across columns.
+
+    The table data_samples_tissues_persons is only an inclusive reference for
+    samples. The join prioritizes samples from data_gene_sample, which is a
+    subset of samples from data_samples_tissues_persons.
 
     arguments:
         data_samples_tissues_persons (object): Pandas data frame of persons
@@ -2253,24 +2258,33 @@ def associate_samples_persons_tissues(
 
     """
 
-    # Associate genes' signals to persons and tissues.
-    print("Associate samples to factors.")
-    #print(data_samples_tissues_persons)
-    #print(data_gene_sample)
-    # Create reference for tissues and persons of each sample.
-    reference = collect_samples_persons_tissues_reference(
-        data_samples_tissues_persons=data_samples_tissues_persons
+    # Select columns for factors.
+    data_samples_factors = data_samples_tissues_persons.loc[
+        :,
+        data_samples_tissues_persons.columns.isin(
+            ["sample", "person", "tissue_major", "tissue_minor"]
+        )
+    ]
+    # Join persons' genotypes with other properties.
+    # Importantly, treat the signal data as master so as not to introduce new
+    # samples.
+    data_hybrid = data_gene_sample.join(
+        data_samples_factors,
+        how="left",
+        on="sample"
     )
-    # Include identifiers for person and tissue for each sample in data for
-    # genes' signals.
-    data_gene_sample_person_tissue = collect_genes_samples_persons_tissues(
-        reference=reference,
-        data_gene_sample=data_gene_sample
+    data_hybrid.reset_index(
+        level=None,
+        inplace=True
     )
-    #print(data_gene_signal)
-    print(data_gene_sample_person_tissue.iloc[0:10, 0:7])
+    data_hybrid.set_index(
+        ["sample", "person", "tissue_major", "tissue_minor"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
     # Return information.
-    return data_gene_sample_person_tissue
+    return data_hybrid
 
 
 ##########

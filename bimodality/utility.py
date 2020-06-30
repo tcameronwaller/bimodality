@@ -1270,7 +1270,7 @@ def filter_rows_columns_by_threshold_proportion(
     """
 
     def count_true(slice=None, count=None):
-        values = slice.values.tolist()
+        values = slice.tolist()
         values_true = list(itertools.compress(values, values))
         return (len(values_true) >= count)
 
