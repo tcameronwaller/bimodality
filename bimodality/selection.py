@@ -513,7 +513,7 @@ def select_signals_by_genes(
     data_gene_signal = data_gene_signal.copy(deep=True)
     # Filter gene signals.
     data_gene_signal_annotation = data_gene_signal.loc[
-        genes, :
+        data_gene_signal.index.isin(genes), :
     ]
     # Return information.
     return data_gene_signal_annotation
@@ -1054,6 +1054,8 @@ def select_samples_genes_by_signals_coverage(
         data_gene_signal=data_signal_filter_samples,
         report=report,
     )
+    # After aggregation, data format has genes across columns and samples
+    # across rows.
     # Filter genes by their signals across samples.
     # Filter to keep only genes with signals beyond threshold in proportion of
     # samples.
@@ -1088,23 +1090,6 @@ def select_samples_genes_by_signals_coverage(
         print("shape of data after signal filters...")
         print(data_filter_genes.shape)
         print(data_filter_genes)
-        data_filter_genes.reset_index(
-            level=None,
-            inplace=True
-        )
-        data_filter_genes.drop_duplicates(
-            subset=None,
-            keep="first",
-            inplace=True,
-        )
-        data_filter_genes.set_index(
-            ["gene"],
-            append=False,
-            drop=True,
-            inplace=True
-        )
-        print(data_filter_genes)
-
     # Return information.
     return data_filter_genes
 
@@ -1228,6 +1213,7 @@ def select_samples_genes_by_signals(
     """
 
     # Select persons by tissues.
+    data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
     data_gene_signal = data_gene_signal.copy(deep=True)
     # Report.
     if report:
@@ -1241,8 +1227,13 @@ def select_samples_genes_by_signals(
 
     # Collect initial distribution of genes' signals for selection of signal
     # threshold.
-    signals_initial = normalize_collect_report_gene_signals(
+    data_initial = aggregate_signal_data_by_person_tissue(
+        data_samples_tissues_persons=data_samples_tissues_persons,
         data_gene_signal=data_gene_signal,
+        report=report,
+    )
+    signals_initial = normalize_collect_report_gene_signals(
+        data_gene_signal=data_initial,
         threshold=math.log((0.1 + 1.0), 2), # pseudo count 1.0, 0.1 TPM
         report=report,
     )
@@ -1280,16 +1271,21 @@ def select_samples_genes_by_signals(
         # 1.0           0.5                 0.5
         data_gene_signal_selection = select_samples_genes_by_signals_coverage(
             threshold=0.1,
-            proportion_sample=0.5, # 0.1 - 0.5
-            proportion_gene=0.5, # 0.1 - 0.5
+            proportion_sample=0.5, # 0.5
+            proportion_gene=0.1, # 0.1 - 0.5
             data_samples_tissues_persons=data_samples_tissues_persons,
             data_gene_signal=data_gene_signal,
             report=report,
         )
     # Collect initial distribution of genes' signals for selection of signal
     # threshold.
-    signals_final = normalize_collect_report_gene_signals(
+    data_final = aggregate_signal_data_by_person_tissue(
+        data_samples_tissues_persons=data_samples_tissues_persons,
         data_gene_signal=data_gene_signal_selection,
+        report=report,
+    )
+    signals_final = normalize_collect_report_gene_signals(
+        data_gene_signal=data_final,
         threshold=math.log((0.1 + 1.0), 2), # pseudo count 1.0, 0.1 TPM
         report=report,
     )
@@ -5007,7 +5003,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Select samples, genes, and their signals.
-    if True:
+    if False:
         select_organize_samples_genes_signals(
             stringency="tight",
             dock=dock
@@ -5025,7 +5021,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize persons and their properties for analyses.
-    if False:
+    if True:
         extract_organize_persons_properties(
             stringency="tight",
             dock=dock,

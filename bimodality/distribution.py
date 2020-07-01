@@ -23,6 +23,7 @@ import time
 import random
 import copy
 import sys
+import itertools
 
 # Relevant
 
@@ -217,16 +218,6 @@ def aggregate_gene_signal_tissue(
     """
 
     # Split data by person and major tissue category.
-    if False:
-        data_gene_samples_signals.reset_index(
-            level=["sample", "tissue_minor"],
-            inplace=True
-        )
-        data_gene_samples_signals.drop(
-            labels=["sample", "tissue_minor"],
-            axis="columns",
-            inplace=True
-        )
     groups = data_gene_samples_signals.groupby(
         level=["person", "tissue_major"]
     )
@@ -467,6 +458,8 @@ def evaluate_organization(
 
     """
 
+    # Copy data.
+    data_gene_samples_signals = data_gene_samples_signals.copy(deep=True)
     # Calculate mean of gene's signals across major tissue categories.
     data_gene_tissue_mean = calculate_gene_tissue_mean(
         data_gene_samples_signals=data_gene_samples_signals
@@ -525,12 +518,10 @@ def organize_data(
     data_gene_signal_tissue = aggregate_gene_signal_tissue(
         data_gene_samples_signals=data_gene_samples_signals
     )
-    #print(data_gene_signal_tissue)
     # Organize gene's signals across matrices of persons by tissues.
     data_gene_persons_tissues_signals = organize_gene_signal_persons_tissues(
         data_gene_signal_tissue=data_gene_signal_tissue
     )
-    #print(data_gene_persons_tissues_signals)
     # Describe dispersion of gene's signals across major tissue categories.
     pack = evaluate_organization(
         data_gene_samples_signals=data_gene_samples_signals,
@@ -551,124 +542,6 @@ def organize_data(
 
 ##########
 # Restriction
-
-
-def remove_null_persons_tissues(
-    data_gene_persons_tissues_signals=None
-):
-    """
-    Removes persons and tissues with only missing values.
-
-    arguments:
-        data_gene_persons_tissues_signals (object): Pandas data frame of a
-            gene's signals across persons and tissues
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of a gene's signals across persons and
-            tissues
-
-    """
-
-    # Copy data.
-    data_copy = data_gene_persons_tissues_signals.copy(deep=True)
-
-    if False:
-        utility.print_terminal_partition(level=2)
-        print(
-            "Remove persons and tissues with only missing values."
-        )
-
-        print(
-            "shape of original data frame: " +
-            str(data_gene_persons_tissues_signals.shape)
-        )
-    data_copy.dropna(
-        axis="index",
-        how="all",
-        inplace=True,
-    )
-    data_copy.dropna(
-        axis="columns",
-        how="all",
-        inplace=True,
-    )
-    if False:
-        print(
-            "shape of data frame: " +
-            str(data_copy.shape)
-        )
-    return data_copy
-
-
-def select_persons_tissues(
-    method=None,
-    count=None,
-    tissues=None,
-    data_gene_persons_tissues_signals=None,
-):
-    """
-    Select persons by availability of valid values of gene's signal for
-    specific tissues.
-
-    Data format should have tissues across columns and persons across rows.
-
-    arguments:
-        method (str): method for selection of tissues and persons in
-            restriction procedure, either "imputation" for selection by
-            specific tissues with imputation or "availability" for selection by
-            minimal count of tissues
-        count (int): either minimal count of tissues for selection by
-            "availability" or maximal count of imputation for selection by
-            "imputation"
-        tissues (list<str>): specific tissues to select by "imputation" method
-        data_gene_persons_tissues_signals (object): Pandas data frame of a
-            gene's signals across persons and tissues
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of a gene's signals across persons and
-            tissues
-
-    """
-
-    # Copy data.
-    data_original = data_gene_persons_tissues_signals.copy(deep=True)
-
-    if method == "availability":
-        data_selection = data_original.dropna(
-            axis="index",
-            how="all",
-            thresh=count,
-            inplace=False,
-        )
-        if False:
-            data_nonzero = (data_selection != 0)
-            data_selection = (
-                data_selection.loc[data_nonzero.any(axis="columns"), : ]
-            )
-
-        pass
-    elif method == "imputation":
-        # Select tissues of interest.
-        data_tissues = data_original.loc[ :, tissues]
-        # Select patients with coverage of tissues.
-        data_selection = data_tissues.dropna(
-            axis="index",
-            how="all",
-            thresh=count,
-            inplace=False,
-        )
-        if False:
-            data_nonzero = (data_selection != 0)
-            data_selection = (
-                data_selection.loc[data_nonzero.any(axis="columns"), : ]
-            )
-        pass
-    # Return information.
-    return data_selection
 
 
 def impute_gene_persons_tissues(
@@ -722,316 +595,12 @@ def impute_gene_persons_tissues(
     return data_imputation
 
 
-def evaluate_restriction(
-    data_gene_persons_tissues_signals=None,
-):
-    """
-    Prepare report for gene.
-
-    arguments:
-        data_gene_persons_tissues_signals (object): Pandas data frame of a
-            gene's signals across persons and tissues
-
-    raises:
-
-    returns:
-        (dict): report for gene
-
-    """
-
-    # Prepare gene report.
-    # Describe mean count of tissues across persons.
-    # Describe counts of tissues across persons.
-    # Describe specific tissues for which persons have valid signals for
-    # gene without imputation.
-
-    # Describe specific tissues for which each person has valid signals for
-    # gene without imputation.
-    data_persons_tissues = data_gene_persons_tissues_signals.applymap(
-        lambda x: (True) if (pandas.notna(x)) else (False)
-    )
-
-    # Describe counts of tissues for which each person has valid signals for
-    # gene without imputation.
-    data_persons_tissues_count = data_gene_persons_tissues_signals.aggregate(
-        lambda x: x.dropna().size,
-        axis="columns",
-    )
-
-    # Calculate count of persons.
-    persons = data_persons_tissues.shape[0]
-
-    # Calculate mean count of tissues per person.
-    mean = data_persons_tissues_count.mean()
-
-    # Calculate median count of tissues per person.
-    median = data_persons_tissues_count.median()
-
-    # Compile information.
-    information = {
-        "data_gene_persons_tissues": data_persons_tissues,
-        "data_gene_persons_tissues_count": data_persons_tissues_count,
-        "persons_count": persons,
-        "tissues_mean": mean,
-        "tissues_median": median,
-    }
-    # Return information.
-    return information
-
-
-def calculate_gene_signal_mean_by_persons_tissues_scrap(
-    persons_tissues_samples=None,
-    data_gene_signal=None
-):
-    """
-    Calculates the mean values of genes' signals in each tissue of each
-    person.
-
-    Redundant samples exist for many persons and tissues.
-    Calculate the mean signal for each gene from all of these redundant
-    samples.
-
-    Product data format.
-    Indices by person and tissue allow convenient access.
-    ##################################################
-    # index   index   gene_1 gene_2 gene_3
-    # person tissue
-    # bob     kidney  5.0    10.0   7.0
-    # bob     skin    5.0    10.0   7.0
-    # bob     liver   5.0    10.0   7.0
-    # april   brain   2.0    3.0    4.0
-    # april   liver   2.0    3.0    4.0
-    # april   skin    2.0    3.0    4.0
-    # martin  liver   1.0    6.0    9.0
-    # sue     heart   3.0    2.0    5.0
-    ##################################################
-
-    arguments:
-        persons_tissues_samples (dict<dict<list<str>>): Samples for each
-            tissue of each person.
-        data_gene_signal (object): Pandas data frame of gene's signals for all
-            samples.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of mean values of genes' signals for all
-            tissues of all persons.
-
-    """
-
-    # Create index for convenient access.
-    data_gene_signal_index = data_gene_signal.set_index("Name")
-    # Determine list of all genes with signals.
-    genes = data_gene_signal["Name"].to_list()
-    # Collect mean signals of all genes for each person and tissue.
-    summary = list()
-    # Iterate on persons.
-    for person in persons_tissues_samples:
-        # Iterate on tissues for which person has samples.
-        for tissue in persons_tissues_samples[person]:
-            # Collect signals for all genes in each sample.
-            signals_genes = dict()
-            for sample in persons_tissues_samples[person][tissue]:
-                for gene in genes:
-                    signal = data_gene_signal_index.at[gene, sample]
-                    # Determine whether an entry already exists for the gene.
-                    if gene in signals_genes:
-                        signals_genes[gene].append(signal)
-                    else:
-                        signals_genes[gene] = list([signal])
-            # Compile record.
-            record = dict()
-            record["person"] = person
-            record["tissue"] = tissue
-            # Calculate mean signal for each gene in each person and tissue.
-            for gene in genes:
-                signal_mean = statistics.mean(signals_genes[gene])
-                record[gene] = signal_mean
-            # Include record.
-            summary.append(record)
-    # Organize data.
-    data_summary = utility.convert_records_to_dataframe(
-        records=summary
-    )
-    #data_summary_index = data_summary.set_index(
-    #    ["person", "tissue"], append=False, drop=False
-    #)
-    return data_summary
-
-
-def calculate_gene_signal_median_by_tissues_scrap(
-    tissues=None,
-    persons=None,
-    tissues_persons_samples=None,
-    data_gene_signal_mean=None
-):
-    """
-    Calculates the median values of signals for all genes across specific
-    persons and tissues.
-
-    Redundant samples exist for many persons and tissues.
-    Calculate the mean signal for each gene from all of these redundant
-    samples.
-
-    Product data format.
-    Index by gene allows convenient access.
-    ##################################################
-    # gene   brain colon liver heart kidney
-    # abc1   7     3     2     6     3
-    # mpc1   5     3     2     6     3
-    # rip1   3     3     2     6     3
-    # rnt1   2     3     2     6     3
-    # rnx3   9     3     2     6     3
-    # sst5   3     3     2     6     3
-    # sph6   2     3     2     6     3
-    # xtr4   8     3     2     6     3
-    ##################################################
-
-    arguments:
-        tissues (list<str>): Tissues of interest.
-        persons (list<str>): persons with signal for tissues of interest.
-        tissues_persons_samples (dict<dict<list<str>>): Samples for each
-            person of each tissue.
-        data_gene_signal_mean (object): Pandas data frame of mean values of
-            genes' signals for all tissues of all persons.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of median values of genes' signals for all
-            tissues.
-
-    """
-
-    # Create index for convenient access.
-    data_gene_signal_mean_index = data_gene_signal_mean.set_index(
-        ["person", "tissue"], append=False, drop=True
-    )
-    # Extract genes from names of columns.
-    genes = data_gene_signal_mean_index.columns.to_list()
-    # Collect median signals of all genes for each tissue.
-    summary = list()
-    # Iterate on genes.
-    for gene in genes:
-        # Compile record.
-        record = dict()
-        record["gene"] = gene
-        # Iterate on tissues.
-        for tissue in tissues:
-            # Collect gene's signals in the tissue across all persons.
-            signals_tissue = list()
-            # Iterate on persons.
-            for person in tissues_persons_samples[tissue]:
-                signal_tissue_person = data_gene_signal_mean_index.loc[
-                    (person, tissue), gene
-                ]
-                signals_tissue.append(signal_tissue_person)
-            # Calculate median value of gene's signal in tissue across all
-            # persons.
-            signal_tissue = statistics.median(signals_tissue)
-            record[tissue] = signal_tissue
-        # Include record.
-        summary.append(record)
-    # Organize information within a data frame.
-    data_summary = utility.convert_records_to_dataframe(
-        records=summary
-    )
-    return data_summary
-
-
-def collect_gene_signal_by_persons_tissues_scrap(
-    tissues=None,
-    persons=None,
-    persons_tissues_samples=None,
-    data_gene_signal_median_tissue=None,
-    data_gene_signal_mean=None
-):
-    """
-    Collects the signals for all genes in each tissue of each person.
-
-    Product data format.
-    Indices by person and tissue allow convenient access.
-    ##################################################
-    # index   index   gene_1 gene_2 gene_3
-    # person tissue
-    # bob     kidney  5.0    10.0   7.0
-    # april   brain   2.0    3.0    4.0
-    # martin  liver   1.0    6.0    9.0
-    # sue     heart   3.0    2.0    5.0
-    ##################################################
-
-    arguments:
-        tissues (list<str>): Tissues of interest.
-        persons (list<str>): persons with signal for tissues of interest.
-        persons_tissues_samples (dict<dict<list<str>>): Samples for each
-            tissue of each person.
-        data_gene_signal_median_tissue (object): Pandas data frame of median
-            values of genes' signals for all tissues.
-        data_gene_signal_mean (object): Pandas data frame of mean values of
-            genes' signals for all tissues of all persons.
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of signals for all genes across
-            specific persons and tissues.
-
-    """
-
-    # Create indices for convenient access.
-    data_gene_signal_mean_index = data_gene_signal_mean.set_index(
-        ["person", "tissue"], append=False, drop=True
-    )
-    data_gene_signal_median_tissue_index = (
-        data_gene_signal_median_tissue.set_index("gene")
-    )
-    # Extract genes from names of columns.
-    genes = data_gene_signal_mean_index.columns.to_list()
-    # Collect signals of all genes for each person and tissue.
-    summary = list()
-    # Iterate on persons of interest.
-    for person in persons:
-        # Iterate on tissues of interest.
-        for tissue in tissues:
-            # Compile record.
-            record = dict()
-            record["person"] = person
-            record["tissue"] = tissue
-            # Determine whether the person has samples for the tissue.
-            if tissue in persons_tissues_samples[person]:
-                # Collect mean values for genes' signals.
-                # Iterate on genes.
-                for gene in genes:
-                    signal = data_gene_signal_mean_index.loc[
-                        (person, tissue), gene
-                    ]
-                    record[gene] = signal
-            else:
-                # Collect imputation values for genes' signals.
-                # Iterate on genes.
-                for gene in genes:
-                    signal = data_gene_signal_median_tissue_index.loc[
-                        gene, tissue
-                    ]
-                    record[gene] = signal
-            # Include record.
-            summary.append(record)
-    # Organize information within a data frame.
-    data_summary = utility.convert_records_to_dataframe(
-        records=summary
-    )
-    #data_summary_index = data_summary.set_index(
-    #    ["person", "tissue"], append=False, drop=False
-    #)
-    return data_summary
-
-
 def restrict_data(
     method=None,
+    threshold=None,
     count=None,
-    tissues=None,
     data_gene_persons_tissues_signals=None,
+    report=None,
 ):
     """
     Restricts gene's signals across samples, persons, and tissues.
@@ -1041,11 +610,12 @@ def restrict_data(
             restriction procedure, either "imputation" for selection by
             specific tissues with imputation or "availability" for selection by
             minimal count of tissues
+        threshold (float): minimal gene's signal for a sample
         count (int): minimal count of tissues with signal coverage for
             selection by "availability" or "imputation" methods
-        tissues (list<str>): specific tissues to select by "imputation" method
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
+        report (bool): whether to print reports about the restriction
 
     raises:
 
@@ -1054,68 +624,89 @@ def restrict_data(
 
     """
 
-    # Filter to select persons and tissues with valid values of gene's signals.
-    data_filter = remove_null_persons_tissues(
-        data_gene_persons_tissues_signals=data_gene_persons_tissues_signals
+    def count_true(slice=None):
+        values = slice.tolist()
+        values_true = list(itertools.compress(values, values))
+        return len(values_true)
+
+    def count_threshold_true(slice=None, threshold=None):
+        values = slice.tolist()
+        values_true = list(itertools.compress(values, values))
+        return (len(values_true) >= threshold)
+
+    # Copy data.
+    data_signals = data_gene_persons_tissues_signals.copy(deep=True)
+    # Count tissues for which each person has non-missing signal greater than
+    # or equal to threshold.
+    data_signals_threshold = (data_signals >= threshold)
+    persons_tissues_count = data_signals_threshold.aggregate(
+        lambda row: count_true(slice=row),
+        axis="columns",
+    )
+    data_persons_tissues_count = persons_tissues_count.to_frame(
+        name="count"
+    )
+    # Determine whether each person has adequate count of tissues with signal
+    # beyond threshold.
+    persons_tissues_threshold = data_signals_threshold.aggregate(
+        lambda row: count_threshold_true(slice=row, threshold=count),
+        axis="columns",
+    )
+    data_persons_tissues_threshold = persons_tissues_threshold.to_frame(
+        name="pass"
+    )
+    persons_count_restriction = data_persons_tissues_threshold.loc[
+        data_persons_tissues_threshold["pass"], :
+    ].index.to_list()
+    # Select data for persons with adequate signal coverage.
+    data_signals_restriction = data_signals.loc[
+        data_signals.index.isin(persons_count_restriction), :
+    ]
+    # Summarize tissues per person.
+    tissues_count_mean = numpy.nanmean(
+        data_persons_tissues_count["count"].to_numpy()
+    )
+    tissues_count_median = numpy.nanmedian(
+        data_persons_tissues_count["count"].to_numpy()
     )
 
-    # Select persons and tissues for subsequent aggregation and analysis.
-    # There are multiple methods for this selection.
-    if method == "availability":
-        # Select tissues and patients.
-        data_selection = select_persons_tissues(
-            method=method,
-            count=count,
-            tissues=tissues,
-            data_gene_persons_tissues_signals=data_filter,
-        )
-        # Prepare gene report.
-        # Describe mean count of tissues across persons.
-        # Describe counts of tissues across persons.
-        # Describe specific tissues for which persons have valid signals for
-        # gene without imputation.
-        pack = evaluate_restriction(
-            data_gene_persons_tissues_signals=data_selection,
-        )
-
-        pass
-    elif method == "imputation":
-        # Select tissues and patients.
-        data_temporary = select_persons_tissues(
-            method=method,
-            count=count,
-            tissues=tissues,
-            data_gene_persons_tissues_signals=data_filter,
-        )
-        # Impute missing values.
-        data_selection = impute_gene_persons_tissues(
-            data_selection=data_temporary,
-            data_gene_persons_tissues_signals=data_filter,
-        )
-
-        # Prepare gene report.
-        # Describe mean count of tissues across persons.
-        # Describe counts of tissues across persons.
-        # Describe specific tissues for which persons have valid signals for
-        # gene without imputation.
-        # Importantly, the gene's report is on the basis of the data before
-        # imputation.
-        pack = evaluate_restriction(
-            data_gene_persons_tissues_signals=data_temporary,
-        )
-
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=1)
+        print("Report for restriction...")
+        utility.print_terminal_partition(level=3)
+        print("source data: data_gene_persons_tissues_signals")
+        print(data_signals)
+        utility.print_terminal_partition(level=3)
+        print("data signals beyond threshold...")
+        print(data_signals_threshold)
+        utility.print_terminal_partition(level=3)
+        print("counts of tissues with signals beyond threshold...")
+        print(data_persons_tissues_count)
+        utility.print_terminal_partition(level=4)
+        print("mean tissues per person: " + str(tissues_count_mean))
+        print("median tissues per person: " + str(tissues_count_median))
+        utility.print_terminal_partition(level=3)
+        print("whether each person has adequate signal across tissues...")
+        print(data_persons_tissues_threshold)
+        utility.print_terminal_partition(level=3)
+        print("count of persons with adequate tissue signals...")
+        print(str(len(persons_count_restriction)))
+        utility.print_terminal_partition(level=3)
+        print("product data: for persons with adequate tissue coverage")
+        print(data_signals_restriction)
         pass
 
     # Compile information.
     information = {
-        "data_gene_persons_tissues_signals_restriction": data_selection,
-        "data_gene_persons_tissues": pack["data_gene_persons_tissues"],
-        "data_gene_persons_tissues_count": (
-            pack["data_gene_persons_tissues_count"]
+        "data_gene_persons_tissues_signals_restriction": (
+            data_signals_restriction
         ),
-        "persons_count_restriction": pack["persons_count"],
-        "tissues_count_mean": pack["tissues_mean"],
-        "tissues_count_median": pack["tissues_median"],
+        "data_gene_persons_tissues": data_signals_threshold,
+        "data_gene_persons_tissues_count": data_persons_tissues_count,
+        "persons_count_restriction": len(persons_count_restriction),
+        "tissues_count_mean": tissues_count_mean,
+        "tissues_count_median": tissues_count_median,
     }
     # Return information.
     return information
@@ -1132,8 +723,8 @@ def calculate_standard_score_gene_signal_by_tissue(
     Calculates the standard (z-score) of genes' signals across each tissue.
 
     The standard scores are relative to tissue.
-    The values of mean and standard deviation are across all samples (patients)
-    for each tissue.
+    The values of mean and standard deviation are across all persons for each
+    tissue.
 
     arguments:
         data_gene_persons_tissues_signals (object): Pandas data frame of a
@@ -1153,16 +744,17 @@ def calculate_standard_score_gene_signal_by_tissue(
         lambda series: scipy.stats.zscore(
             series.to_numpy(),
             axis=0,
-            ddof=1, # Sample standard deviation.
-            nan_policy="omit",
+            ddof=1, # sample standard deviation
+            nan_policy="omit", # ignore missing values
         ),
-        axis="index",
+        axis="index", # Apply function to each column of data.
     )
     return data_gene_standard
 
 
 def standardize_gene_signal(
-    data_gene_persons_tissues_signals=None
+    data_gene_persons_tissues_signals=None,
+    report=None,
 ):
     """
     Transforms values of genes' signals to standard or z-score space.
@@ -1179,6 +771,7 @@ def standardize_gene_signal(
     arguments:
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
+        report (bool): whether to print reports about the restriction
 
     raises:
 
@@ -1192,7 +785,8 @@ def standardize_gene_signal(
     data_gene_signal_standard = calculate_standard_score_gene_signal_by_tissue(
         data_gene_persons_tissues_signals=data_gene_persons_tissues_signals
     )
-    if False:
+    # Report.
+    if report:
         # Compare summary statistics before and after transformation.
         utility.print_terminal_partition(level=3)
         print("Summary statistics for gene signals before standardization.")
@@ -1228,51 +822,10 @@ def standardize_gene_signal(
     return data_gene_signal_standard
 
 
-def transform_gene_signal_pseudo_logarithm(
-    data_gene_signal=None,
-):
-    """
-    Calculates the base 2.0 logarithm of genes' signals in each sample.
-
-    Original gene signals are in transcript counts per million (TPM).
-
-    To accommodate gene signals of 0.0, add a pseudo count of 1.0 to all counts
-    before calculation of the base 2.0 logarithm.
-
-    arguments:
-        data_gene_signal (object): Pandas data frame of genes' signals
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of genes' signals in logarithmic space
-
-    """
-
-    # Transform genes' signals to base-2 logarithmic space.
-    # Transform before calculation of any median or mean values. <- maybe false
-    # Logarithms are not distributive.
-    # To accommodate gene signals of 0.0, add a pseudo count of 2.0 to all
-    # counts before calculation of the base-2 logarithm.
-    # log-2 signal = log2(TPM + pseudo-count)
-    # pseudo-count = 1.0
-    #utility.print_terminal_partition(level=2)
-    #print("Transformation of genes' signals to base-2 logarithmic space.")
-    #print(
-    #    "To accommodate gene signals of 0.0, add a pseudo count of " +
-    #    "1.0-5.0 to all counts before calculation of the base-2 logarithm."
-    #)
-    data_gene_signal_log = utility.calculate_pseudo_logarithm_signals(
-        pseudo_count=1.0,
-        base=2.0,
-        data=data_gene_signal,
-    )
-    return data_gene_signal_log
-
-
 # Transformation of gene's signals to logarithmic space.
 def normalize_standardize_gene_signal(
-    data_gene_persons_tissues_signals=None
+    data_gene_persons_tissues_signals=None,
+    report=None,
 ):
     """
     Normalizes and standardizes genes' signals across persons and tissues.
@@ -1289,6 +842,7 @@ def normalize_standardize_gene_signal(
     arguments:
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
+        report (bool): whether to print reports about the restriction
 
     raises:
 
@@ -1298,25 +852,22 @@ def normalize_standardize_gene_signal(
 
     """
 
-    if False:
-        utility.print_terminal_partition(level=2)
-        print(
-            "Notice that transformation to logarithmic and standard space " +
-            "propagates missing values."
-        )
-
     # Transform genes' signals to logarithmic space.
     # Transform values of genes' signals to base-2 logarithmic space.
-    data_normal = transform_gene_signal_pseudo_logarithm(
-        data_gene_signal=data_gene_persons_tissues_signals,
+    data_normal = utility.calculate_pseudo_logarithm_signals(
+        pseudo_count=1.0,
+        base=2.0,
+        data=data_gene_persons_tissues_signals,
     )
+
     # Transform genes' signals to standard or z-score space.
     # Calculate standard score for each gene.
     # Standard score is undefined if the series has inadequate variance.
     # Consider filtering before calculation.
     # Alternatively, filter afterwards.
     data_normal_standard = standardize_gene_signal(
-        data_gene_persons_tissues_signals=data_normal
+        data_gene_persons_tissues_signals=data_normal,
+        report=report,
     )
     return data_normal_standard
 
@@ -1343,77 +894,49 @@ def aggregate_gene_persons_signals(
     # Aggregate gene's signals across tissues for each person.
     # Exclude missing values from calculation of the mean.
     series_aggregate = data_gene_persons_tissues_signals.aggregate(
-        lambda x: x.mean(),
-        axis="columns",
+        lambda row: numpy.nanmean(row.to_numpy()),
+        axis="columns", # Apply function to each row.
     )
     data_aggregate = series_aggregate.to_frame(name="value")
     # Return information.
     return data_aggregate
 
 
-def determine_gene_persons_signals(
-    data_gene_persons_signals=None
+def create_null_aggregation_bin(
+    persons=None,
 ):
     """
-    Determines a gene's values of tissue-aggregate scores across persons.
+    Create null information for modality bin.
 
     arguments:
-        data_gene_persons_signals (object): Pandas data frame of a gene's
-            aggregate signals across persons
+        persons (list<str>): identifiers of persons in cohort
 
     raises:
 
     returns:
-        (dict): gene's tissue-aggregate scores across persons
+        (dict): null information for modality bin
 
     """
 
-    # Extract values of distribution.
-    # Remove missing values.
-    data = data_gene_persons_signals.copy(deep=True)
-    data.dropna(
-        axis="index",
-        how="any",
-        inplace=True,
+    # Create null signal data.
+    persons_values = dict()
+    persons_values["person"] = persons
+    persons_values["value"] = float("nan")
+    data_gene_persons_signals = pandas.DataFrame(data=persons_values)
+    data_gene_persons_signals.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
     )
-    values = data["value"].to_list()
-
     # Compile information.
     information = {
-        "data_gene_persons_signals": data,
-        "values": values,
-    }
-    # Return information.
-    return information
-
-
-def evaluate_aggregation(
-    data_gene_persons_signals=None,
-):
-    """
-    Prepare report for gene.
-
-    arguments:
-        data_gene_persons_signals (object): Pandas data frame of a gene's
-            aggregate, pan-tissue signals across persons
-
-    raises:
-
-    returns:
-        (dict): report for gene
-
-    """
-
-    # Prepare gene report.
-    # Describe gene's aggregate signals across persons.
-
-    # Calculate count of persons.
-    persons = data_gene_persons_signals.shape[0]
-
-    # Compile information.
-    information = {
-        "persons_count_aggregation": persons,
+        "data_gene_signals_tissues_persons_normal_standard": (
+            pandas.DataFrame({'key' : [""]})
+        ),
         "data_gene_persons_signals": data_gene_persons_signals,
+        "values": [], # nonmissing signals across persons
+        "persons_count_aggregation": 0,
     }
     # Return information.
     return information
@@ -1421,6 +944,7 @@ def evaluate_aggregation(
 
 def aggregate_data(
     data_gene_persons_tissues_signals=None,
+    report=None,
 ):
     """
     Aggregates genes' signals within tissues across persons.
@@ -1428,6 +952,7 @@ def aggregate_data(
     arguments:
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
+        report (bool): whether to print reports about the restriction
 
     raises:
 
@@ -1436,8 +961,8 @@ def aggregate_data(
 
     """
 
+    # Copy data.
     data = data_gene_persons_tissues_signals.copy(deep=True)
-
     # If data come from the "availability" method of the restriction procedure,
     # they might include missing values.
 
@@ -1446,6 +971,7 @@ def aggregate_data(
     # Transform gene's signals to standard, z-score space.
     data_normal_standard = normalize_standardize_gene_signal(
         data_gene_persons_tissues_signals=data,
+        report=report,
     )
 
     # Aggregate gene's signals across tissues from each person.
@@ -1458,24 +984,25 @@ def aggregate_data(
 
     # Determine values of gene's tissue-aggregate signals across persons.
     # This procedure includes basic filters to remove missing values.
-    collection = determine_gene_persons_signals(
-        data_gene_persons_signals=data_gene_persons_signals
+    data_valid = data_gene_persons_signals.copy(deep=True)
+    data_valid.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
     )
+    values = data_valid["value"].to_list()
 
     # Prepare gene report.
     # Describe gene's aggregate signals across persons.
-    pack = evaluate_aggregation(
-        data_gene_persons_signals=collection["data_gene_persons_signals"],
-    )
-
+    persons_aggregation = data_valid.index.to_list()
     # Compile information.
     information = {
         "data_gene_signals_tissues_persons_normal_standard": (
             data_normal_standard
         ),
-        "data_gene_persons_signals": data_gene_persons_signals, # These data include signals across all persons.
-        "values": collection["values"], # These values include only nonmissing signals across persons.
-        "persons_count_aggregation": pack["persons_count_aggregation"],
+        "data_gene_persons_signals": data_gene_persons_signals,
+        "values": values, # nonmissing signals across persons
+        "persons_count_aggregation": len(persons_aggregation),
     }
     # Return information.
     return information
@@ -1485,19 +1012,16 @@ def aggregate_data(
 # Modality
 
 
-def evaluate_gene_population(
-    threshold=None,
+def evaluate_gene_signal_population(
+    values=None,
     count=None,
-    data_gene_persons_signals=None
 ):
     """
     Evaluates the a gene's representation across persons.
 
     arguments:
-        threshold (float): minimal signal value
+        values (list<float>): values of a gene's signals across persons
         count (int): minimal count of persons with signal beyond threshold
-        data_gene_persons_signals (object): Pandas data frame of a gene's
-            aggregate, pan-tissue signals across persons
 
     raises:
 
@@ -1507,18 +1031,10 @@ def evaluate_gene_population(
 
     """
 
-    # Copy data.
-    data = data_gene_persons_signals.copy(
-        deep=True
-    )
-    # Determine whether values exceed threshold.
-    data_threshold = (data >= threshold)
-    data_pass = data.loc[data_threshold["value"], :]
-    count_persons = data_pass.shape[0]
-    return (count_persons >= count)
+    return (len(values) >= count)
 
 
-def evaluate_gene_signal(
+def evaluate_gene_signal_deviation(
     threshold=None,
     data_gene_persons_signals=None
 ):
@@ -1538,57 +1054,12 @@ def evaluate_gene_signal(
     """
 
     # Calculate standard deviation of values.
-    deviation = numpy.std(
+    deviation = numpy.nanstd(
         data_gene_persons_signals["value"].to_numpy(),
-        axis=0
+        axis=0,
+        ddof=1, # sample standard deviation
     )
-    return deviation > threshold
-
-
-# This function is currently excluded from evaluation of candidacy.
-# TODO: this function will eventually need to accommodate additional attributes of persons...
-# 1. variation in gene's signal across tissue categories could indicate problems in aggregation of minor tissues
-# 2. impose a constraint on the mean count of tissues across persons
-# 3.
-def evaluate_gene_tissue(
-    threshold_proportion=None,
-    threshold_probability=None,
-    data_samples_tissues_persons=None,
-    data_gene_persons_tissues=None,
-    data_gene_persons_signals=None,
-):
-    """
-    Evaluates the selection of tissues for calculation of gene's aggregate
-    scores.
-
-    arguments:
-        threshold_proportion (float): minimal proportion of persons for
-            inclusion of a tissue's group in analysis
-        threshold_probability (float): minimal probability for candidacy
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues for all samples
-        data_gene_persons_tissues (object): Pandas data frame of a gene's
-            selection of tissues across persons
-        data_gene_persons_signals (object): Pandas data frame of a gene's
-            aggregate, pan-tissue signals across persons
-
-    raises:
-
-    returns:
-        (bool): whether the gene's selection of tissues is acceptable
-
-    """
-
-    # Organize information about gene's scores across persons and tissues.
-    data_persons_tissues_signals = category.organize_gene_persons_signals(
-        data_samples_tissues_persons=data_samples_tissues_persons,
-        data_gene_persons_tissues=data_gene_persons_tissues,
-        data_gene_persons_signals=data_gene_persons_signals,
-    )
-
-    # Determine minimal count of persons for inclusion of a tissue's group.
-    count_persons = data_gene_persons_signals.shape[0]
-    threshold_count = threshold_proportion * count_persons
+    return (deviation >= threshold)
 
 
 def measure_bimodality(
@@ -1620,7 +1091,6 @@ def measure_bimodality(
         "dip": dip,
         "mixture": mixture,
     }
-
     # Return information.
     return information
 
@@ -1650,23 +1120,28 @@ def generate_null_measures():
 
 
 def evaluate_gene_candidacy(
+    values=None,
     data_gene_persons_signals=None,
+    threshold_population=None,
+    threshold_deviation=None,
 ):
     """
     Evaluates a gene's candidacy for further bimodal analysis by multiple
     criteria.
 
     1. candidacy by population
-    - gene must have tissue-aggregate signals across at least 100 persons
+    - gene must have tissue-aggregate signals across at least 50 persons
     2. candidacy by signal
     - gene's tissue-aggregate signals across persons must have a standard
         deviation greater than 0
-    3. candidacy by tissue independence
-    - consider tissues with representation in at least 5% of persons
 
     arguments:
+        values (list<float>): values of a gene's signals across persons
         data_gene_persons_signals (object): Pandas data frame of a gene's
             aggregate, pan-tissue signals across persons
+        threshold_population (float): minimal count of valid signals
+        threshold_deviation (float): minimal standard deviation across tissue
+            aggregate signals
 
     raises:
 
@@ -1675,32 +1150,45 @@ def evaluate_gene_candidacy(
 
     """
 
-    # Determine whether the gene's distribution is adequate.
-    # Distribution procedure applies filters to the gene's tissue-aggregate
-    # scores across persons.
-
     # Determine whether gene has representation across adequate persons.
-    population = evaluate_gene_population(
-        threshold=0.0,
-        count=50,
-        data_gene_persons_signals=data_gene_persons_signals,
+    population = evaluate_gene_signal_population(
+        count=threshold_population,
+        values=values,
     )
-
     # Determine whether gene's tissue-aggregate scores across persons have
     # adequate variance to apply measures to the distribution.
-    signal = evaluate_gene_signal(
-        threshold=0.0,
+    deviation = evaluate_gene_signal_deviation(
+        threshold=threshold_deviation,
         data_gene_persons_signals=data_gene_persons_signals,
     )
+    return (population and deviation)
 
-    return (population and signal)
+
+def create_null_modality_bin():
+    """
+    Create null information for modality bin.
+
+    arguments:
+
+    raises:
+
+    returns:
+        (dict): null information for modality bin
+
+    """
+
+    # Compile information.
+    information = {
+        "scores": generate_null_measures(),
+    }
+    # Return information.
+    return information
 
 
-# TODO: improve the candidacy checks on distributions...
-# TODO: maybe just remove the candidacy checks altogether... selection
-# TODO: procedure evaluates candidacy.
 def describe_distribution_modality(
     modality=None,
+    threshold_population=None,
+    threshold_deviation=None,
     values=None,
     data_gene_persons_signals=None,
 ):
@@ -1711,6 +1199,9 @@ def describe_distribution_modality(
     arguments:
         modality (bool): whether to calculate measures for the modality of
             gene's distribution
+        threshold_population (float): minimal count of valid signals
+        threshold_deviation (float): minimal standard deviation across tissue
+            aggregate signals
         values (list<float>): values of a gene's signals across persons
         data_gene_persons_signals (object): Pandas data frame of a gene's
             aggregate, pan-tissue signals across persons
@@ -1726,7 +1217,10 @@ def describe_distribution_modality(
     # Determine whether to calculate measures for gene's distribution.
     if modality:
         candidacy = evaluate_gene_candidacy(
+            values=values,
             data_gene_persons_signals=data_gene_persons_signals,
+            threshold_population=threshold_population,
+            threshold_deviation=threshold_deviation,
         )
         if candidacy:
             # Calculate measures.
@@ -1743,12 +1237,10 @@ def describe_distribution_modality(
         # Generate missing values.
         scores = generate_null_measures()
         pass
-
     # Compile information.
     information = {
         "scores": scores,
     }
-
     # Return information.
     return information
 
@@ -1761,6 +1253,7 @@ def describe_distribution_modality(
 
 
 def prepare_describe_distribution(
+    persons=None,
     data_gene_persons_tissues_signals=None,
 ):
     """
@@ -1768,6 +1261,7 @@ def prepare_describe_distribution(
     persons, and tissues.
 
     arguments:
+        persons (list<str>): identifiers of persons in cohort
         data_gene_persons_tissues_signals (object): Pandas data frame of a
             gene's signals across persons and tissues
 
@@ -1784,62 +1278,49 @@ def prepare_describe_distribution(
     # This selection includes all non-sexual tissues with coverage of samples
     # from at least 100 persons.
     method = "availability" # "availability" or "imputation"
+    threshold_signal = 0.01
     count = 10
-    tissues = [
-        "adipose", "adrenal", "artery", "blood", "brain", "colon",
-        "esophagus", "heart", "intestine", "liver", "lung", "muscle",
-        "nerve", "pancreas", "pituitary", "salivary", "skin", "spleen",
-        "stomach", "thyroid",
-    ]
-    # 18 September 2019
-    # count   persons
-    # 1       948
-    # 2       943
-    # 3       930
-    # 4       922
-    # 5       911
-    # 6       885
-    # 7       857
-    # 8       796
-    # 9       737
-    # 10      645
-    # 11      540
-    # 12      419
-    # 13      297
-    # 14      180
-    # 15      92
-    # 16      34
-    # 17      8
-    # 18      3
-    # 19      0
+    tissues = data_gene_persons_tissues_signals.columns.to_list()
     bin_restriction = restrict_data(
         method=method,
+        threshold=threshold_signal,
         count=count,
-        tissues=tissues,
         data_gene_persons_tissues_signals=data_gene_persons_tissues_signals,
+        report=False,
     )
 
-    # Aggregation
-    # Determine gene's distributions of aggregate tissue signals across
-    # persons.
-    # Use the final "data_gene_persons_tissues_signals" from restriction
-    # procedure after imputation.
-    bin_aggregation = aggregate_data(
-        data_gene_persons_tissues_signals=(
-            bin_restriction["data_gene_persons_tissues_signals_restriction"]
-        ),
-    )
-
-    # Modality
-    bin_modality = describe_distribution_modality(
-        modality=True,
-        values=bin_aggregation["values"],
-        data_gene_persons_signals=bin_aggregation["data_gene_persons_signals"],
-    )
+    # Determine whether adequate persons qualify.
+    threshold_population = (0.33 * len(persons))
+    if bin_restriction["persons_count_restriction"] > threshold_population:
+        # Aggregation
+        # Determine gene's distributions of aggregate tissue signals across
+        # persons.
+        # Use the final "data_gene_persons_tissues_signals" from restriction
+        # procedure after imputation.
+        bin_aggregation = aggregate_data(
+            data_gene_persons_tissues_signals=(
+                bin_restriction["data_gene_persons_tissues_signals_restriction"]
+            ),
+            report=False,
+        )
+        # Modality
+        bin_modality = describe_distribution_modality(
+            modality=True,
+            threshold_population=threshold_population,
+            threshold_deviation=0.001,
+            values=bin_aggregation["values"],
+            data_gene_persons_signals=bin_aggregation["data_gene_persons_signals"],
+        )
+    else:
+        bin_aggregation = create_null_aggregation_bin(
+            persons=persons,
+        )
+        bin_modality = create_null_modality_bin()
 
     # Compile information.
     information = {
         "method": method,
+        "threshold_signal": threshold_signal,
         "count": count,
         "tissues": tissues,
         "bin_restriction": bin_restriction,
@@ -1975,6 +1456,7 @@ def prepare_gene_report(
     persons_restriction=None,
     persons_aggregation=None,
     method=None,
+    threshold_signal=None,
     count=None,
     tissues=None,
     tissues_mean=None,
@@ -1996,6 +1478,7 @@ def prepare_gene_report(
             restriction procedure, either "imputation" for selection by
             specific tissues with imputation or "availability" for selection by
             minimal count of tissues
+        threshold_signal (float): minimal gene's signal for a sample
         count (int): minimal count of tissues with signal coverage for
             selection by "availability" or "imputation" methods
         tissues (int): count of tissues
@@ -2031,6 +1514,7 @@ def prepare_gene_report(
         "persons_restriction": persons_restriction,
         "persons_aggregation": persons_aggregation,
         "method": method,
+        "threshold_signal": threshold_signal,
         "count": count,
         "tissues": tissues,
         "tissues_mean": tissues_mean,
@@ -2129,12 +1613,6 @@ def write_product_gene(
     path_data_gene_persons_signals = os.path.join(
         path_gene, "data_gene_persons_signals.pickle"
     )
-    path_data_gene_families_persons_signals = os.path.join(
-        path_gene, "data_gene_families_persons_signals.pickle"
-    )
-    path_data_gene_families_persons_signals_text = os.path.join(
-        path_gene, "data_gene_families_persons_signals.tsv"
-    )
     path_data_gene_signals_tissues_persons_normal_standard = os.path.join(
         path_gene, "data_gene_signals_tissues_persons_normal_standard.pickle"
     )
@@ -2207,6 +1685,56 @@ def write_product_gene(
         path_data_gene_persons_signals
     )
     pandas.to_pickle(
+        information["data_gene_signals_tissues_persons_normal_standard"],
+        path_data_gene_signals_tissues_persons_normal_standard
+    )
+
+    # Modality
+    with open(path_scores, "wb") as file_product:
+        pickle.dump(information["scores"], file_product)
+
+    pass
+
+
+def write_product_gene_heritability(
+    gene=None,
+    cohort=None,
+    information=None,
+    paths=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        gene (str): identifier of single gene for which to execute the process
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        information (object): information to write to file
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    ##########
+    # Specify directories and files.
+    path_gene = os.path.join(paths[cohort]["genes"], gene)
+    utility.create_directory(path_gene)
+
+    # Aggregation
+    path_data_gene_families_persons_signals = os.path.join(
+        path_gene, "data_gene_families_persons_signals.pickle"
+    )
+    path_data_gene_families_persons_signals_text = os.path.join(
+        path_gene, "data_gene_families_persons_signals.tsv"
+    )
+
+    ##########
+    # Write information to file.
+    # General
+    pandas.to_pickle(
         information["data_gene_families_persons_signals"],
         path_data_gene_families_persons_signals
     )
@@ -2218,15 +1746,6 @@ def write_product_gene(
         header=False,
         index=False,
     )
-    pandas.to_pickle(
-        information["data_gene_signals_tissues_persons_normal_standard"],
-        path_data_gene_signals_tissues_persons_normal_standard
-    )
-
-    # Modality
-    with open(path_scores, "wb") as file_product:
-        pickle.dump(information["scores"], file_product)
-
     pass
 
 
@@ -2297,13 +1816,14 @@ def write_product_collection(
         pickle.dump(information["genes_scores"], file_product)
     with open(path_scores, "wb") as file_product:
         pickle.dump(information["scores"], file_product)
-    information["data_signals_genes_persons_trait"].to_csv(
-        path_or_buf=path_data_signals_genes_persons_trait,
-        sep="\t",
-        na_rep="NA",
-        header=True,
-        index=False,
-    )
+    if False:
+        information["data_signals_genes_persons_trait"].to_csv(
+            path_or_buf=path_data_signals_genes_persons_trait,
+            sep="\t",
+            na_rep="NA",
+            header=True,
+            index=False,
+        )
 
     pass
 
@@ -2618,6 +2138,7 @@ def read_collect_gene_report(
         "persons_restriction",
         "persons_aggregation",
         "method",
+        "threshold_signal",
         "count",
         "tissues",
         "tissues_mean",
@@ -2658,13 +2179,16 @@ def read_collect_gene_report(
     print(data_report)
     print("count of genes: " + str(data_report.shape[0]))
     data_valid = data_report.loc[
-        :, ["gene", "name", "coefficient", "dip", "mixture"]
+        :, data_report.columns.isin(
+            ["gene", "name", "coefficient", "mixture", "dip"]
+        )
     ]
     data_valid.dropna(
         axis="index",
         how="any",
         inplace=True,
     )
+    utility.print_terminal_partition(level=2)
     print("count of genes with valid modalities: " + str(data_valid.shape[0]))
     utility.print_terminal_partition(level=2)
 
@@ -2830,14 +2354,15 @@ def read_collect_write_iterations(
         paths=paths,
     )
 
-    # Format for Quantitative Trait Loci (QTL) in FastQTL
-    # Extract distribution of gene's signals across persons for heritability
-    # analysis.
-    data_signals_genes_persons_trait = (
-        organize_persons_genes_signals_quantitative_trait_loci(
-            data_signals_genes_persons=data_signals_genes_persons,
-            data_gene_annotation=data_gene_annotation,
-    ))
+    if False:
+        # Format for Quantitative Trait Loci (QTL) in FastQTL
+        # Extract distribution of gene's signals across persons for heritability
+        # analysis.
+        data_signals_genes_persons_trait = (
+            organize_persons_genes_signals_quantitative_trait_loci(
+                data_signals_genes_persons=data_signals_genes_persons,
+                data_gene_annotation=data_gene_annotation,
+        ))
 
     # Compile information.
     information = dict()
@@ -2845,9 +2370,9 @@ def read_collect_write_iterations(
     information["genes_scores"] = genes_scores["genes_scores"]
     information["scores"] = genes_scores["scores"]
     information["data_report"] = data_report
-    information["data_signals_genes_persons_trait"] = (
-        data_signals_genes_persons_trait
-    )
+    #information["data_signals_genes_persons_trait"] = (
+    #    data_signals_genes_persons_trait
+    #)
     # Write product information to file.
     write_product_collection(
         cohort=cohort,
@@ -2864,6 +2389,7 @@ def read_collect_write_iterations(
 def execute_procedure(
     gene=None,
     cohort=None,
+    persons=None,
     data_gene_samples_signals=None,
     data_families_persons=None,
     data_gene_annotation=None,
@@ -2875,6 +2401,7 @@ def execute_procedure(
     arguments:
         gene (str): identifier of gene
         cohort (str): cohort of persons--selection, respiration, or ventilation
+        persons (list<str>): identifiers of persons in cohort
         data_gene_samples_signals (object): Pandas data frame of a gene's
             signals across samples
         data_families_persons (object): Pandas data frame of person's
@@ -2900,19 +2427,10 @@ def execute_procedure(
     # This data frame gives gene's signals across tissues and persons after
     # normalization and standardization.
     bins = prepare_describe_distribution(
+        persons=persons,
         data_gene_persons_tissues_signals=(
             bin_organization["data_gene_persons_tissues_signals"]
         ),
-    )
-
-    # Format for heritability in GCTA
-    # Extract distribution of gene's signals across persons for heritability
-    # analysis.
-    data_gene_families_persons_signals = extract_gene_persons_signals(
-        data_gene_persons_signals=(
-            bins["bin_aggregation"]["data_gene_persons_signals"]
-        ),
-        data_families_persons=data_families_persons,
     )
 
     # Report
@@ -2925,6 +2443,7 @@ def execute_procedure(
             bins["bin_aggregation"]["persons_count_aggregation"]
         ),
         method=bins["method"],
+        threshold_signal=bins["threshold_signal"],
         count=bins["count"],
         tissues=len(bins["tissues"]),
         tissues_mean=bins["bin_restriction"]["tissues_count_mean"],
@@ -2936,25 +2455,45 @@ def execute_procedure(
     )
 
     # Compile information.
-    information = bin_organization.copy()
-    information.update(bins["bin_restriction"])
-    information.update(bins["bin_aggregation"])
-    information.update(bins["bin_modality"])
-    information["gene"] = gene
-    information["tissues"] = bins["tissues"]
-    information["data_gene_families_persons_signals"] = (
-        data_gene_families_persons_signals
-    )
-    information["report"] = report
-    information["chromosome"] = report["chromosome"].replace("chr", "")
+    information_gene = copy.deepcopy(bin_organization)
+    information_gene.update(bins["bin_restriction"])
+    information_gene.update(bins["bin_aggregation"])
+    information_gene.update(bins["bin_modality"])
+    information_gene["gene"] = gene
+    information_gene["tissues"] = bins["tissues"]
+    information_gene["report"] = report
+    information_gene["chromosome"] = report["chromosome"].replace("chr", "")
     # Write product information to file.
     write_product_gene(
         gene=gene,
         cohort=cohort,
-        information=information,
+        information=information_gene,
         paths=paths,
     )
 
+    # Format for heritability in GCTA
+    # Extract distribution of gene's signals across persons for heritability
+    # analysis.
+    if bins["bin_aggregation"]["persons_count_aggregation"] > 0:
+        data_gene_families_persons_signals = extract_gene_persons_signals(
+            data_gene_persons_signals=(
+                bins["bin_aggregation"]["data_gene_persons_signals"]
+            ),
+            data_families_persons=data_families_persons,
+        )
+        # Compile information.
+        information_heritability = dict()
+        information_heritability["data_gene_families_persons_signals"] = (
+            data_gene_families_persons_signals
+        )
+        # Write product information to file.
+        write_product_gene_heritability(
+            gene=gene,
+            cohort=cohort,
+            information=information_heritability,
+            paths=paths,
+        )
+        pass
     pass
 
 
@@ -2989,10 +2528,16 @@ def execute_procedure_local(dock=None):
         "ventilation",
     ]
     for cohort in cohorts:
-        execute_procedure_local_cohort(
-            cohort=cohort,
-            paths=paths,
-        )
+        if False:
+            execute_procedure_local_cohort_test(
+                cohort=cohort,
+                paths=paths,
+            )
+        if True:
+            execute_procedure_local_cohort(
+                cohort=cohort,
+                paths=paths,
+            )
     # Report date and time.
     utility.print_terminal_partition(level=3)
     end = datetime.datetime.now()
@@ -3000,6 +2545,60 @@ def execute_procedure_local(dock=None):
     print("duration: " + str(end - start))
     utility.print_terminal_partition(level=3)
 
+    pass
+
+
+def execute_procedure_local_cohort_test(
+    cohort=None,
+    paths=None,
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Report.
+    utility.print_terminal_partition(level=1)
+    print("... Distribution procedure for: " + str(cohort) + " persons...")
+
+    # Read source information from file.
+    source = read_source_initial(
+        cohort=cohort,
+        dock=paths["dock"],
+    )
+    print("count of genes: " + str(len(source["genes_selection"])))
+    # Specify genes on which to iterate.
+    genes_iteration = random.sample(source["genes_selection"], 100)
+
+    # Execute procedure.
+    for gene in genes_iteration:
+        execute_procedure_local_sub(
+            gene=gene,
+            cohort=cohort,
+            persons=source["persons"],
+            data_families_persons=source["data_families_persons"],
+            data_gene_annotation=source["data_gene_annotation"],
+            paths=paths,
+        )
+        pass
+
+    # Read, collect, and write information from iterations.
+    read_collect_write_iterations(
+        cohort=cohort,
+        genes=genes_iteration,
+        data_persons_properties=source["data_persons_properties"],
+        data_gene_annotation=source["data_gene_annotation"],
+        paths=paths,
+    )
     pass
 
 
@@ -3032,7 +2631,7 @@ def execute_procedure_local_cohort(
     )
     print("count of genes: " + str(len(source["genes_selection"])))
     # Specify genes on which to iterate.
-    #genes_iteration = random.sample(source["genes_selection"], 250)
+    #genes_iteration = random.sample(source["genes_selection"], 1000)
     genes_iteration = source["genes_selection"]#[0:1000]
 
     # Set up partial function for iterative execution.
@@ -3041,6 +2640,7 @@ def execute_procedure_local_cohort(
     execute_procedure_gene = functools.partial(
         execute_procedure_local_sub,
         cohort=cohort,
+        persons=source["persons"],
         data_families_persons=source["data_families_persons"],
         data_gene_annotation=source["data_gene_annotation"],
         paths=paths,
@@ -3070,6 +2670,7 @@ def execute_procedure_local_cohort(
 def execute_procedure_local_sub(
     gene=None,
     cohort=None,
+    persons=None,
     data_families_persons=None,
     data_gene_annotation=None,
     paths=None,
@@ -3080,6 +2681,7 @@ def execute_procedure_local_sub(
     arguments:
         gene (str): identifier of single gene for which to execute the process
         cohort (str): cohort of persons--selection, respiration, or ventilation
+        persons (list<str>): identifiers of persons in cohort
         data_families_persons (object): Pandas data frame of persons'
             identifiers and families' identifiers
         data_gene_annotation (object): Pandas data frame of genes' annotations
@@ -3103,6 +2705,7 @@ def execute_procedure_local_sub(
     execute_procedure(
         gene=gene,
         cohort=cohort,
+        persons=persons,
         data_gene_samples_signals=source["data_gene_samples_signals"],
         data_families_persons=data_families_persons,
         data_gene_annotation=data_gene_annotation,

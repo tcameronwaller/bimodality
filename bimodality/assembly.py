@@ -2054,8 +2054,8 @@ def convert_data_types(data=None, type=None):
     # Determine minimal and maximal values.
     utility.print_terminal_partition(level=3)
     print("Before down cast type.")
-    maximum = data.values.max()
-    minimum = data.values.min()
+    maximum = data.to_numpy().max()
+    minimum = data.to_numpy().min()
     print("Maximum: " + str(maximum))
     print("Minimum: " + str(minimum))
     utility.print_terminal_partition(level=3)
@@ -2067,8 +2067,8 @@ def convert_data_types(data=None, type=None):
     # Determine minimal and maximal values.
     utility.print_terminal_partition(level=3)
     print("After down cast type.")
-    maximum = data_type.values.max()
-    minimum = data_type.values.min()
+    maximum = data_type.to_numpy().max()
+    minimum = data_type.to_numpy().min()
     print("Maximum: " + str(maximum))
     print("Minimum: " + str(minimum))
     utility.print_terminal_partition(level=3)
@@ -2259,12 +2259,22 @@ def associate_samples_persons_tissues(
     """
 
     # Select columns for factors.
+    data_samples_tissues_persons.reset_index(
+        level=None,
+        inplace=True
+    )
     data_samples_factors = data_samples_tissues_persons.loc[
         :,
         data_samples_tissues_persons.columns.isin(
-            ["sample", "person", "tissue_major", "tissue_minor"]
+            ["sample", "tissue_major", "tissue_minor", "person"]
         )
     ]
+    data_samples_factors.set_index(
+        ["sample"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
     # Join persons' genotypes with other properties.
     # Importantly, treat the signal data as master so as not to introduce new
     # samples.

@@ -38,39 +38,6 @@ import utility
 # Functionality
 
 
-
-
-
-def useful_argument_annotations(
-    group=None,
-    paths=None,
-):
-    """
-    Function to execute module's main behavior.
-
-    arguments:
-        genes (list<str>): identifiers of genes
-        persons (list<str>): identifiers of persons
-        group (str): group of persons, either selection or ventilation
-        data_persons_properties (object): Pandas data frame of persons and
-            their relevant properties
-        data_families_persons (object): Pandas data frame of persons'
-            identifiers and families' identifiers
-        data_gene_annotation (object): Pandas data frame of genes' annotations
-        paths (dict<str>): collection of paths to directories for procedure's
-            files
-
-    raises:
-
-    returns:
-
-    """
-
-    pass
-
-
-
-
 def read_source(dock=None):
     """
     Reads and organizes source information from file
@@ -114,6 +81,47 @@ def read_source(dock=None):
     }
 
 
+def select_samples_signals_persons(
+    persons=None,
+    data_samples_tissues_persons=None,
+    data_gene_signal=None,
+):
+    """
+    Function to execute module's main behavior.
+
+    arguments:
+        persons (list<str>): identifiers of persons
+        data_samples_tissues_persons (object): Pandas data frame of persons
+            and tissues across samples
+        data_gene_signal (object): Pandas data frame of genes' signals across
+            samples
+
+    raises:
+
+    returns:
+
+    """
+
+    # Copy data.
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    data_signals = data_gene_signal.copy(deep=True)
+    # Select samples.
+    data_samples_persons = data_samples.loc[
+        data_samples["person"].isin(persons), :
+    ]
+    samples = data_samples_persons.index.to_list()
+    # Select signals.
+    data_signal_persons = data_signals.loc[
+        :, data_signals.columns.isin(samples)
+    ]
+    # Collect information.
+    bin = dict()
+    bin["data_samples_tissues_persons"] = data_samples_persons
+    bin["data_gene_signal"] = data_signal_persons
+    # Return information.
+    return bin
+
+
 def associate_factors(
     data_samples_tissues_persons=None,
     data_gene_signal=None
@@ -135,31 +143,23 @@ def associate_factors(
 
     """
 
-    # Organize samples.
-    # Organize data.
-    data_samples_tissues_persons.reset_index(
+    # Transpose data structure.
+    # Organize genes across columns and samples across rows.
+    data_signal_transposition = data_gene_signal.transpose(copy=True)
+    data_signal_transposition.reset_index(
         level=None,
         inplace=True
     )
-    data_samples = data_samples_tissues_persons.loc[
-        :, data_samples_tissues_persons.columns.isin([
-            "sample", "tissue_major", "tissue_minor", "person"
-        ])
-    ]
-    data_samples.set_index(
+    data_signal_transposition.set_index(
         ["sample"],
         append=False,
         drop=True,
         inplace=True
     )
-    # Transpose data structure.
-    # Organize genes across columns and samples across rows.
-    data_transposition = data_gene_signal.transpose(copy=True)
     # Associate samples to persons and tissues.
-    data_factor = data_transposition.join(
-        data_samples,
-        how="left",
-        on="sample"
+    data_factor = assembly.associate_samples_persons_tissues(
+        data_samples_tissues_persons=data_samples_tissues_persons,
+        data_gene_sample=data_signal_transposition,
     )
     # Return information.
     return data_factor
@@ -189,6 +189,8 @@ def split_genes_signals(
 
     """
 
+    # Copy data.
+    data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
     # Associate samples to factors.
     data_factor = associate_factors(
         data_samples_tissues_persons=data_samples_tissues_persons,
@@ -278,48 +280,8 @@ def summarize_genes_samples_signals(
     pass
 
 
-def select_samples_signals_persons(
-    persons=None,
-    data_samples_tissues_persons=None,
-    data_gene_signal=None,
-):
-    """
-    Function to execute module's main behavior.
-
-    arguments:
-        persons (list<str>): identifiers of persons
-        data_samples_tissues_persons (object): Pandas data frame of persons
-            and tissues across samples
-        data_gene_signal (object): Pandas data frame of genes' signals across
-            samples
-
-    raises:
-
-    returns:
-
-    """
-
-    # Copy data.
-    data_samples = data_samples_tissues_persons.copy(deep=True)
-    data_signals = data_gene_signal.copy(deep=True)
-    # Select samples.
-    data_samples_persons = data_samples.loc[
-        data_samples["person"].isin(persons), :
-    ]
-    samples = data_samples_persons.index.to_list()
-    # Select signals.
-    data_signal_persons = data_signals.loc[
-        :, data_signals.columns.isin(samples)
-    ]
-    # Collect information.
-    bin = dict()
-    bin["data_samples_tissues_persons"] = data_samples_persons
-    bin["data_gene_signal"] = data_signal_persons
-    # Return information.
-    return bin
-
-
 def split_report_write_genes_signals(
+    cohort=None,
     persons=None,
     data_samples_tissues_persons=None,
     data_gene_signal=None,
@@ -330,6 +292,7 @@ def split_report_write_genes_signals(
     Function to execute module's main behavior.
 
     arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         persons (list<str>): identifiers of persons
         data_samples_tissues_persons (object): Pandas data frame of persons
             and tissues across samples
@@ -345,6 +308,16 @@ def split_report_write_genes_signals(
 
     """
 
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=1)
+        print("... Split procedure for: " + str(cohort) + " persons...")
+        print("Count persons: " + str(len(persons)))
+        utility.print_terminal_partition(level=2)
+
+    # Copy data.
+    data_samples_tissues_persons = data_samples_tissues_persons.copy(deep=True)
+    data_gene_signal = data_gene_signal.copy(deep=True)
     # Select samples for relevant persons.
     bin = select_samples_signals_persons(
         persons=persons,
@@ -353,13 +326,16 @@ def split_report_write_genes_signals(
     )
     # Split genes' signals across tissues and patients by gene.
     genes_samples_signals = split_genes_signals(
-        data_samples_tissues_persons=bin["data_samples_tissues_persons"],
+        data_samples_tissues_persons=data_samples_tissues_persons,
         data_gene_signal=bin["data_gene_signal"],
     )
 
     # Organize genes' identifiers.
     # Format of genes' identifiers needs to be readable by Bash as an array.
-    genes = list(genes_samples_signals.keys())
+    genes = utility.collect_unique_elements(
+        elements_original=list(genes_samples_signals.keys())
+    )
+
     # Summarize information for a single gene.
     # Access data for single gene for demonstration.
     if report:
@@ -458,6 +434,7 @@ def execute_procedure(dock=None):
     source = read_source(dock=dock)
 
     split_report_write_genes_signals(
+        cohort="selection",
         persons=source["persons_sets"]["selection"],
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_signal=source["data_gene_signal"],
@@ -465,6 +442,7 @@ def execute_procedure(dock=None):
         report=True,
     )
     split_report_write_genes_signals(
+        cohort="respiration",
         persons=source["persons_sets"]["respiration"],
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_signal=source["data_gene_signal"],
@@ -472,6 +450,7 @@ def execute_procedure(dock=None):
         report=True,
     )
     split_report_write_genes_signals(
+        cohort="ventilation",
         persons=source["persons_sets"]["ventilation"],
         data_samples_tissues_persons=source["data_samples_tissues_persons"],
         data_gene_signal=source["data_gene_signal"],
