@@ -84,13 +84,13 @@ echo "Now set to call routine and procedures."
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access # run on 19 June 2020
 #python3 interface.py main --dock $path_dock --assembly # run on 28 June 2020
-#python3 interface.py main --dock $path_dock --selection # run on 19 June 2020
+python3 interface.py main --dock $path_dock --selection
 
 ##########
 # - Batch Routine
 
-#python3 interface.py main --dock $path_dock --split # run on 19 June 2020
-python3 interface.py main --dock $path_dock --distribution --local # run on 29 June 2020 for 17700 genes, duration 6 hours
+#python3 interface.py main --dock $path_dock --split # run on 1 July 2020
+#python3 interface.py main --dock $path_dock --distribution --local # run on 1 July 2020 for 17650 genes, duration 3.25 hours
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 

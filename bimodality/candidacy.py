@@ -21,6 +21,7 @@ import datetime
 import gc
 import time
 import random
+import copy
 
 # Relevant
 
@@ -190,7 +191,92 @@ def read_source(
     }
 
 
+def determine_selection_distribution_genes_valid_modalities(
+    genes_selection=None,
+    genes_distribution=None,
+    data_distribution_report=None,
+    report=None,
+):
+    """
+    Determines selection genes with valid modalities from distribution
+    procedure.
+
+    Only genes with adequate signal coverage across tissues and persons have
+    valid modalities from distribution procedure.
+
+    arguments:
+        genes_selection (list<str>): identifiers of genes from selection
+        genes_distribution (list<str>): identifiers of genes from distribution
+            procedure
+        data_distribution_report (object): Pandas data frame of information
+            about genes and their measures of modality
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict): information
+
+    """
+
+    # Organize data.
+    genes_selection = copy.deepcopy(genes_selection)
+    data_report = data_distribution_report.copy(deep=True)
+    # Select genes with valid distribution modalities.
+    data_valid = data_report.loc[
+        :, data_report.columns.isin(["gene", "coefficient", "mixture", "dip"])
+    ]
+    data_valid.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+    genes_distribution_valid = utility.collect_unique_elements(
+        elements_original=data_valid.index.to_list()
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print(
+            "count of all distribution genes: " +
+            str(len(genes_distribution))
+        )
+        utility.print_terminal_partition(level=4)
+        print(
+            "count of all distribution genes with valid modalities: " +
+            str(len(genes_distribution_valid))
+        )
+        utility.print_terminal_partition(level=2)
+        pass
+    # Select genes from selection procedure with valid distribution modalities.
+    genes_selection_distribution_valid = utility.filter_common_elements(
+        list_one=genes_selection,
+        list_two=genes_distribution_valid,
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print(
+            "count of all selection genes: " +
+            str(len(genes_selection))
+        )
+        utility.print_terminal_partition(level=4)
+        print(
+            "count of all selection genes with valid modalities: " +
+            str(len(genes_selection_distribution_valid))
+        )
+        utility.print_terminal_partition(level=2)
+        pass
+    # Compile information.
+    bin = dict()
+    bin["data_distribution_report"] = data_valid
+    bin["genes_selection_distribution"] = genes_selection_distribution_valid
+    # Return information.
+    return bin
+
+
 def report_modality_measure_correlations(
+    genes=None,
     measures=None,
     data_distribution_report=None,
 ):
@@ -198,6 +284,8 @@ def report_modality_measure_correlations(
     Reports the pairwise correlation coefficients between measures of modality.
 
     arguments:
+        genes (list<str>): identifiers of genes for which to report
+            correlations
         measures (list<str>): measures of modality
         data_distribution_report (object): Pandas data frame of information
             about genes and their measures of modality
@@ -207,16 +295,23 @@ def report_modality_measure_correlations(
     returns:
 
     """
-
     # Organize data.
-    data = data_distribution_report.copy(deep=True)
-
+    genes = copy.deepcopy(genes)
+    data_report = data_distribution_report.copy(deep=True)
+    data_report_genes = data_report.loc[
+        data_report.index.isin(genes), :
+    ]
+    utility.print_terminal_partition(level=2)
+    print(
+        "Report modality measure correlations across genes: " +
+        str(len(data_report_genes.index.to_list()))
+    )
     # Calculate correlations between gene pairs of their pantissue signals
     # across persons.
     correlations = utility.collect_pairwise_correlations_pobabilities(
         method="spearman",
         features=measures,
-        data=data_distribution_report,
+        data=data_report_genes,
     )
     # Organize data matrix for correlation coefficients.
     data_correlations = utility.organize_symmetric_adjacency_matrix(
@@ -248,15 +343,19 @@ def report_modality_measure_correlations(
 
 
 def select_genes_by_modality_measures_ranks(
+    genes=None,
     proportion_least=None,
     proportion_greatest=None,
     measures=None,
     data_distribution_report=None,
+    report=None,
 ):
     """
     Selects genes with least and greatest values of measures of modality.
 
     arguments:
+        genes (list<str>): identifiers of genes for which to consider
+            modalities
         proportion_least (float): proportion of genes to select from those with
             least values of modality measures
         proportion_greatest (float): proportion of genes to select from those
@@ -264,6 +363,7 @@ def select_genes_by_modality_measures_ranks(
         measures (list<str>): measures of modality
         data_distribution_report (object): Pandas data frame of information
             about genes and their measures of modality
+        report (bool): whether to print reports
 
     raises:
 
@@ -273,27 +373,32 @@ def select_genes_by_modality_measures_ranks(
     """
 
     # Organize data.
-    data = data_distribution_report.copy(deep=True)
+    genes = copy.deepcopy(genes)
+    data_report = data_distribution_report.copy(deep=True)
+    data_report_genes = data_report.loc[data_report.index.isin(genes), :]
     # Calculate count of genes to select from least and greatest extremes.
-    count_total = data_distribution_report.shape[0]
+    count_total = len(genes)
     count_least = round(proportion_least * count_total)
     count_greatest = round(proportion_greatest * count_total)
-    print(
-        "selection percentage least: " +
-        str(round((proportion_least * 100), 2))
-    )
-    print("selection count least: " + str(count_least))
-    utility.print_terminal_partition(level=3)
-    print(
-        "selection percentage greatest: " +
-        str(round((proportion_greatest * 100), 2))
-    )
-    print("selection count greatest: " + str(count_greatest))
+    # Report.
+    if report:
+        print(
+            "selection percentage least: " +
+            str(round((proportion_least * 100), 2))
+        )
+        print("selection count least: " + str(count_least))
+        utility.print_terminal_partition(level=3)
+        print(
+            "selection percentage greatest: " +
+            str(round((proportion_greatest * 100), 2))
+        )
+        print("selection count greatest: " + str(count_greatest))
+        pass
     # Iterate on measures of modality.
     bin = dict()
     for measure in measures:
         # Copy data.
-        data_measure = data.copy(deep=True)
+        data_measure = data_report_genes.copy(deep=True)
         data_measure = data_measure.loc[:, ["name", measure]]
         # Sort by values of the measure.
         data_measure.sort_values(
@@ -307,13 +412,17 @@ def select_genes_by_modality_measures_ranks(
         # I validated the selection of threshold values.
         threshold_least = data_measure.iat[(count_least - 1), 1]
         data_least = data_measure.iloc[:count_least]
-        genes_least = data_least.index.to_list()
-
+        genes_least = utility.collect_unique_elements(
+            elements_original=data_least.index.to_list()
+        )
         threshold_greatest = (
             data_measure.iat[(count_total - (count_greatest)), 1]
         )
         data_greatest = data_measure.iloc[(count_total - count_greatest):]
         genes_greatest = data_greatest.index.to_list()
+        genes_greatest = utility.collect_unique_elements(
+            elements_original=data_greatest.index.to_list()
+        )
         # Collect information.
         bin[measure] = dict()
         bin[measure]["least"] = dict()
@@ -323,11 +432,17 @@ def select_genes_by_modality_measures_ranks(
         bin[measure]["greatest"]["threshold"] = threshold_greatest
         bin[measure]["greatest"]["genes"] = genes_greatest
         pass
+    # Organize measures' thresholds for plot.
+    bin["measures_thresholds"] = dict()
+    for measure in measures:
+        bin["measures_thresholds"][measure] = (
+            bin[measure]["greatest"]["threshold"]
+        )
     # Return information.
     return bin
 
 
-def validate_selection_thresholds(
+def validate_report_selection_thresholds(
     measures=None,
     selection=None,
     genes_scores=None,
@@ -348,6 +463,11 @@ def validate_selection_thresholds(
 
     """
 
+    utility.print_terminal_partition(level=2)
+    print(
+        "Validation of thresholds for selection of unimodal and multimodal " +
+        "genes."
+    )
     # Iterate on measures of modality.
     for measure in measures:
         for direction in ["least", "greatest"]:
@@ -371,10 +491,11 @@ def validate_selection_thresholds(
     return selection
 
 
-def calculate_threshold_deviation_factors(
+def calculate_report_threshold_deviation_factors(
     measures=None,
     selection=None,
-    scores=None,
+    genes=None,
+    data_distribution_report=None,
 ):
     """
     Calculates how many standard deviations by which each threshold diverges
@@ -383,7 +504,10 @@ def calculate_threshold_deviation_factors(
     arguments:
         measures (list<str>): measures of modality
         selection (dict): selections of genes
-        scores (dict<dict>): information about genes' measures of bimodality
+        genes (list<str>): identifiers of genes for which to consider
+            modalities
+        data_distribution_report (object): Pandas data frame of information
+            about genes and their measures of modality
 
     raises:
 
@@ -392,20 +516,39 @@ def calculate_threshold_deviation_factors(
 
     """
 
+    # Organize data.
+    genes = copy.deepcopy(genes)
+    data_report = data_distribution_report.copy(deep=True)
+    data_report_measures = data_report.loc[
+        :, data_report.columns.isin(["gene", "coefficient", "mixture", "dip"])
+    ]
+    data_report_genes = data_report_measures.loc[
+        data_report_measures.index.isin(genes), :
+    ]
+
+    utility.print_terminal_partition(level=2)
+    print(
+        "By how many standard deviations do these thresholds differ from " +
+        "means?"
+    )
     # Iterate on measures of modality.
     factors = dict()
     for measure in measures:
         factors[measure] = dict()
         for direction in ["least", "greatest"]:
+            threshold = selection[measure][direction]["threshold"]
+            mean = numpy.nanmean(data_report_genes[measure].to_numpy())
+            deviation = numpy.nanstd(
+                data_report_genes[measure].to_numpy(),
+                axis=0,
+                ddof=1, # sample standard deviation
+            )
             # Calculate factor.
             if direction == "least":
                 # Least:
                 # threshold = mean - (factor * deviation)
                 # (factor * deviation) = (mean - threshold)
                 # factor = (mean - threshold) / deviation
-                threshold = selection[measure][direction]["threshold"]
-                mean = scores[measure]["mean"]
-                deviation = scores[measure]["deviation"]
                 factor = (mean - threshold) / deviation
                 factors[measure][direction] = factor
             elif direction == "greatest":
@@ -413,9 +556,6 @@ def calculate_threshold_deviation_factors(
                 # threshold = mean + (factor * deviation)
                 # (factor * deviation) = (threshold - mean)
                 # factor = (threshold - mean) / deviation
-                threshold = selection[measure][direction]["threshold"]
-                mean = scores[measure]["mean"]
-                deviation = scores[measure]["deviation"]
                 factor = (threshold - mean) / deviation
                 factors[measure][direction] = factor
             utility.print_terminal_partition(level=3)
@@ -1078,69 +1218,67 @@ def select_report_write_candidate_modality_genes_cohort(
         cohort=cohort,
         dock=paths["dock"],
     )
-    print(source["data_distribution_report"])
-
-    # Specify thresholds for each cohort.
-    # Aim for 756 genes in each group.
-    if cohort == "selection":
-        proportion_least = 0.2977 # 756
-        proportion_greatest = 0.0212 # 756
-    elif cohort == "respiration":
-        proportion_least = 0.3126 # 756
-        proportion_greatest = 0.0210411571 # 754
-    elif cohort == "ventilation":
-        proportion_least = 0.3015 # 756
-        proportion_greatest = 0.0216357 # 755
+    # Determine genes with valid modalities from distribution procedure.
+    bin_valid = (
+        determine_selection_distribution_genes_valid_modalities(
+            genes_selection=source["genes_selection"],
+            genes_distribution=source["genes_distribution"],
+            data_distribution_report=source["data_distribution_report"],
+            report=False,
+    ))
 
     # Set measures of modality.
     measures = list(source["scores"].keys())
-
     # Describe correlations between pairs of modality measures.
-    report_modality_measure_correlations(
-        measures=measures,
-        data_distribution_report=source["data_distribution_report"],
-    )
+    if False:
+        report_modality_measure_correlations(
+            genes=bin_valid["genes_selection_distribution"],
+            measures=measures,
+            data_distribution_report=source["data_distribution_report"],
+        )
+        pass
+
+    # Specify thresholds for each cohort.
+    # Aim for <= 785 genes in each group.
+    if cohort == "selection":
+        proportion_least = 0.292 # 785
+        proportion_greatest = 0.02125 # 785
+    elif cohort == "respiration":
+        proportion_least = 0.307 # 785
+        proportion_greatest = 0.0212905 # 784
+    elif cohort == "ventilation":
+        proportion_least = 0.2925 # 783
+        proportion_greatest = 0.0217 # 785
+
     # Select genes with least and greatest values of each measure of modality.
     # Use less stringency for unimodal genes in order to select those that are
     # not multimodal by any measures.
     # Select same count of unimodal genes and multimodal genes.
     utility.print_terminal_partition(level=2)
     selection = select_genes_by_modality_measures_ranks(
+        genes=bin_valid["genes_selection_distribution"],
         proportion_least=proportion_least,
         proportion_greatest=proportion_greatest,
         measures=measures,
         data_distribution_report=source["data_distribution_report"],
+        report=False,
     )
-    measures_thresholds = dict()
-    for measure in measures:
-        measures_thresholds[measure] = (
-            selection[measure]["greatest"]["threshold"]
-        )
-
     # Validate genes and thresholds.
-    utility.print_terminal_partition(level=2)
-    print(
-        "Validation of thresholds for selection of unimodal and multimodal " +
-        "genes."
-    )
-    validation = validate_selection_thresholds(
-        measures=measures,
-        selection=selection,
-        genes_scores=source["genes_scores"],
-    )
-
+    if True:
+        validation = validate_report_selection_thresholds(
+            measures=measures,
+            selection=selection,
+            genes_scores=source["genes_scores"],
+        )
     # Calculate how many standard deviations by which each threshold diverges
     # from mean.
-    utility.print_terminal_partition(level=2)
-    print(
-        "By how many standard deviations do these thresholds differ from " +
-        "means?"
-    )
-    factors = calculate_threshold_deviation_factors(
-        measures=measures,
-        selection=selection,
-        scores=source["scores"],
-    )
+    if True:
+        factors = calculate_report_threshold_deviation_factors(
+            measures=measures,
+            selection=selection,
+            genes=bin_valid["genes_selection_distribution"],
+            data_distribution_report=source["data_distribution_report"],
+        )
 
     # Extract genes that pass thresholds by measures of modality.
     utility.print_terminal_partition(level=2)
@@ -1161,16 +1299,20 @@ def select_report_write_candidate_modality_genes_cohort(
     # Determine all genes that are not in the multimodality set.
     genes_nonmultimodal = utility.filter_unique_exclusion_elements(
         elements_exclusion=bin_genes_multimodal["measures_1"],
-        elements_total=source["genes_distribution"],
+        elements_total=bin_valid["genes_selection_distribution"],
     )
     utility.print_terminal_partition(level=2)
     print(
-        "Count of all distribution genes: " +
-        str(len(source["genes_distribution"]))
+        "Count of all selection genes with valid modalities: " +
+        str(len(bin_valid["genes_selection_distribution"]))
     )
     print(
         "Count of multimodal genes: " +
         str(len(bin_genes_multimodal["measures_1"]))
+    )
+    print(
+        "Count of unimodal genes: " +
+        str(len(bin_genes_unimodal["measures_3"]))
     )
     print(
         "Count of all genes not multimodal (other): " +
@@ -1206,13 +1348,13 @@ def select_report_write_candidate_modality_genes_cohort(
 
     # Compile information.
     information = {
-        "genes_any": source["genes_distribution"],
+        "genes_any": bin_valid["genes_selection_distribution"],
         "genes_unimodal": bin_genes_unimodal["measures_3"],
         "genes_multimodal": bin_genes_multimodal["measures_1"],
         "genes_nonmultimodal": genes_nonmultimodal,
         "data_genes_unimodal": data_genes_unimodal,
         "data_genes_multimodal": data_genes_multimodal,
-        "measures_thresholds": measures_thresholds,
+        "measures_thresholds": selection["measures_thresholds"],
         "sets_unimodal": bin_genes_unimodal["sets_genes_measures"],
         "sets_multimodal": bin_genes_multimodal["sets_genes_measures"],
     }
@@ -1222,7 +1364,6 @@ def select_report_write_candidate_modality_genes_cohort(
         information=information,
         paths=paths,
     )
-
     pass
 
 
