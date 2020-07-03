@@ -47,6 +47,10 @@ rm -rf "$path_gtex/GenotypeFiles/phg001219.v1.GTEx_v8_WES.genotype-calls-vcf.c1"
 rm -rf "$path_gtex/GenotypeFiles/phg001219.v1.GTEx_v8_WES.genotype-calls-vcf.c1.GRU.tar"
 rm -rf "$path_gtex/GenotypeFiles/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1.GRU.tar"
 
+rm -rf "$path_gtex/GenotypeFiles/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_AllVar_QC_metrics.vcf.gz"
+rm -rf "$path_gtex/GenotypeFiles/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.SHAPEIT2_phased.vcf.gz"
+rm -rf "$path_gtex/GenotypeFiles/phg001219.v1.GTEx_v8_WGS.genotype-calls-vcf.c1/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.vcf.gz"
+
 rm -rf "$path_gtex/ExpressionFiles/phe000004.v4.GTEx_Pilot_AFFY_HuGene1ST.expression-data-matrixfmt.c1"
 rm -rf "$path_gtex/ExpressionFiles/phe000004.v4.GTEx_Pilot_AFFY_HuGene1ST.expression-data-matrixfmt.c1.GRU.tar"
 rm -rf "$path_gtex/ExpressionFiles/phe000004.v4.GTEx_Pilot_AFFY_HuGene1ST.raw-data-cel.c1"

@@ -3035,8 +3035,21 @@ def expand_persons_categories_matrix(
     """
     Expands a person's categorical properties to a binary matrix.
 
+    Format of data must have an index named "person".
+
+    data
+
+    person (index) category ...
+    Bob            a,b,c,d
+    Janis          m,n,o
+    Victoria       b,e,d,
+    Theodore
+    Hermione
+
     arguments:
-        category (str): name of a categorical property
+        category (str): name of a categorical property, a column within the
+            data with individual values of the variable encoded in a string
+            list
         values (list<str>): all unique values of the categorical property
             across persons
         delimiter (str): character for separation of values
