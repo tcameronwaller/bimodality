@@ -1249,6 +1249,9 @@ def describe_distribution_modality(
 # Distribution
 # The distribution subprocedure combines restriction, aggregation, and modality
 # functions.
+# This procedure selects persons with samples for adequate counts of tissues.
+# This procedure also determines whether enough persons qualify to evaluate
+# the distribution's modality.
 # This subprocedure is also useful in the permutation procedure.
 
 
@@ -1290,7 +1293,8 @@ def prepare_describe_distribution(
     )
 
     # Determine whether adequate persons qualify.
-    threshold_population = (0.33 * len(persons))
+    #threshold_population = (0.33 * len(persons))
+    threshold_population = 50
     if bin_restriction["persons_count_restriction"] > threshold_population:
         # Aggregation
         # Determine gene's distributions of aggregate tissue signals across
