@@ -1831,6 +1831,13 @@ def organize_regression_gene_associations_report_write(
         model=model,
         dock=paths["dock"],
     )
+
+
+    # TODO: Maybe introduce a new gene set in integration procedure.
+    # TODO: could include all candidacy distribution gene sets, heritability
+    # gene sets, and collection gene sets (COVID-19, cytokines, integrins)
+    # TODO: report associations for all of these genes?
+    
     # Specify genes sets.
     genes_sets = source["genes_candidacy"]
     #genes_sets = source["genes_heritability"]

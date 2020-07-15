@@ -1613,7 +1613,7 @@ def access_gene_name(
     data_gene_annotation=None,
 ):
     """
-    Combines elements in ordered pairs.
+    Accesses a gene's name by looking up its identifier in a reference table.
 
     arguments:
         identifier (str): identifier of gene
@@ -1629,6 +1629,91 @@ def access_gene_name(
 
     name = data_gene_annotation.at[identifier, "gene_name"].replace(".", "-")
     return name
+
+
+
+def read_source_gene_name_identifier_translations(dock=None):
+    """
+    Reads and organizes source information from file.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_customization = os.path.join(dock, "customization")
+    path_translations = os.path.join(
+        path_customization, "translation_gene_name_identifier.tsv"
+    )
+    # Read information from file.
+    data = pandas.read_csv(
+        path_translations,
+        sep="\t",
+        header=0,
+        low_memory=False,
+    )
+    data.set_index(
+        "name",
+        drop=True,
+        inplace=True,
+    )
+    translations = data.to_dict(orient="index")
+
+    # Compile and return information.
+    return translations
+
+
+def translate_gene_name_to_identifier(
+    name=None,
+    data_gene_annotation=None,
+    dock=None,
+):
+    """
+    Translates a gene's name to its identifier by looking up any exact match to
+    the name in a reference table.
+
+    arguments:
+        name (str): name of gene
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    returns:
+        (str): name of gene
+
+    raises:
+
+    """
+
+    translations = read_source_gene_name_identifier_translations(dock=dock)
+
+    # Clean name.
+    data_gene_annotation = data_gene_annotation.copy(deep=True)
+    data_name = data_gene_annotation.loc[
+        data_gene_annotation["gene_name"] == name.strip(), :
+    ]
+    identifiers = data_name.index.to_list()
+    if len(identifiers) > 1:
+        utility.print_terminal_partition(level=4)
+        print("warning: gene's name matches multiple identifiers")
+        print("gene name: " + str(name))
+        identifier = identifiers[0]
+    elif len(identifiers) == 1:
+        identifier = identifiers[0]
+    elif len(identifiers) == 0:
+        if name in translations.keys():
+            identifier = translations[name]["identifier"].strip()
+        else:
+            identifier = float("nan")
+    return identifier
+
 
 
 ##########

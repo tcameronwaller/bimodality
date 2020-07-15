@@ -32,6 +32,7 @@ import probability
 import heritability
 import prediction
 import function
+import collection
 import integration
 
 
@@ -300,7 +301,15 @@ def define_main_subparser(subparsers=None):
     parser_main.add_argument(
         "-function", "--function", dest="function", action="store_true",
         help=(
-            "Process information from external gene set enrichment analysis."
+            "Collect and organize sets of genes from set over " +
+            "representation in DAVID."
+        )
+    )
+    parser_main.add_argument(
+        "-collection", "--collection", dest="collection", action="store_true",
+        help=(
+            "Collect genes that have differential expression in persons " +
+            "with COVID-19."
         )
     )
     parser_main.add_argument(
@@ -549,6 +558,11 @@ def evaluate_main_parameters(arguments):
         print("... executing function procedure ...")
         # Execute procedure.
         function.execute_procedure(dock=arguments.dock)
+    if arguments.collection:
+        # Report status.
+        print("... executing collection procedure ...")
+        # Execute procedure.
+        collection.execute_procedure(dock=arguments.dock)
     if arguments.modality:
         # Report status.
         print("... executing modality procedure ...")

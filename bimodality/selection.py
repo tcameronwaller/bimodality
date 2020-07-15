@@ -1049,6 +1049,9 @@ def select_samples_genes_by_signals_coverage(
 
     # Organize data for filter on genes.
     # Aggregate data by mean across persons and major tissues.
+    # This aggregation removes the dimension of minor tissues.
+    # As subsequent analyses ignore minor tissues, this aggregation helps to
+    # establish comparable weight for each major tissue.
     data_signal_aggregation = aggregate_signal_data_by_person_tissue(
         data_samples_tissues_persons=data_samples,
         data_gene_signal=data_signal_filter_samples,
@@ -1272,7 +1275,7 @@ def select_samples_genes_by_signals(
         data_gene_signal_selection = select_samples_genes_by_signals_coverage(
             threshold=0.1,
             proportion_sample=0.5, # 0.5
-            proportion_gene=0.5, # 0.1 - 0.5
+            proportion_gene=0.1, # 0.1 - 0.5: threshold for gene's coverage
             data_samples_tissues_persons=data_samples_tissues_persons,
             data_gene_signal=data_gene_signal,
             report=report,
@@ -1601,7 +1604,7 @@ def read_source_organize_regression_model_variables(
 
     # Read information from file.
     path_data_regression_models = os.path.join(
-        dock, "annotation_2020-06-19", "regression",
+        dock, "annotation", "regression",
         "table_regression_models.csv"
     )
     data_regression_models = pandas.read_csv(
@@ -4995,7 +4998,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Select genes' annotations.
-    if True:
+    if False:
         # keep_x=False: 18326 protein-coding genes with GTEx signals
         # keep_x=True: 19161 protein-coding genes with GTEx signals
         select_organize_genes_annotations(
@@ -5016,7 +5019,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Select samples, genes, and their signals.
-    if True:
+    if False:
         select_organize_samples_genes_signals(
             stringency="tight",
             dock=dock
@@ -5034,7 +5037,7 @@ def execute_procedure(dock=None):
     ##################################################
 
     # Organize persons and their properties for analyses.
-    if False:
+    if True:
         extract_organize_persons_properties(
             stringency="tight",
             dock=dock,

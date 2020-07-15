@@ -93,6 +93,32 @@ def extract_subdirectory_names(path=None):
     return names
 
 
+def extract_directory_file_names(path=None):
+    """
+    Extracts names of files within a directory.
+
+    Reads all contents of a directory and returns only those of files (not
+    directories).
+
+    arguments:
+        path (str): path to directory
+
+    raises:
+
+    returns:
+        (list<str>): names of subdirectories
+
+    """
+
+    contents = os.listdir(path=path)
+    names = list(filter(
+        lambda content: not os.path.isdir(os.path.join(path, content)),
+        contents
+    ))
+    return names
+
+
+
 def create_directories(path=None):
     """
     Creates a directory if it does not already exist.
