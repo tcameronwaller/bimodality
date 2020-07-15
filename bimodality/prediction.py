@@ -212,7 +212,7 @@ def read_source_association(
         path_data_regression_genes
     )
     # Read genes sets.
-    genes_candidacy = integration.read_source_genes_sets_candidacy(
+    sets_genes = integration.read_source_genes_sets_candidacy_collection(
         cohort=cohort,
         dock=dock,
     )
@@ -224,7 +224,7 @@ def read_source_association(
     # Compile and return information.
     return {
         "data_regression_genes": data_regression_genes,
-        "genes_candidacy": genes_candidacy,
+        "sets_genes": sets_genes,
         #"genes_heritability": genes_heritability,
     }
 
@@ -305,10 +305,66 @@ def calculate_report_independent_variable_correlations(
     pass
 
 
+def standardize_genes_signals(
+    data_signals_genes_persons=None,
+    report=None,
+):
+    """
+    Calculates the standard (z-score) of genes' pan-tissue signals across
+    persons.
+
+    arguments:
+        data_signals_genes_persons (object): Pandas data frame of pan-tissue
+            signals across genes and persons
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of pan-tissue signals across genes and
+            persons
+
+    """
+
+    # Calculate standard score.
+    # This method inserts missing values if the standard deviation is zero.
+    data_standard = data_signals_genes_persons.apply(
+        lambda series: scipy.stats.zscore(
+            series.to_numpy(),
+            axis=0,
+            ddof=1, # sample standard deviation
+            nan_policy="omit", # ignore missing values
+        ),
+        axis="index", # Apply function to each column of data.
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("Summary statistics for signals after standardization.")
+        print(data_standard.iloc[0:10, 0:10])
+        data_mean = data_standard.aggregate(
+            lambda x: x.mean(),
+            axis="index"
+        )
+        print("Mean")
+        print(data_mean.iloc[0:10])
+        utility.print_terminal_partition(level=3)
+        data_deviation = data_standard.aggregate(
+            lambda x: x.std(),
+            axis="index"
+        )
+        print("Standard deviation")
+        print(data_deviation.iloc[0:10])
+        utility.print_terminal_partition(level=2)
+    return data_standard
+
+
+
 def organize_dependent_independent_variables(
     variables=None,
     data_persons_properties=None,
     data_signals_genes_persons=None,
+    standardization=None,
     report=None,
 ):
     """
@@ -321,6 +377,8 @@ def organize_dependent_independent_variables(
             their relevant properties
         data_signals_genes_persons (object): Pandas data frame of pan-tissue
             signals across genes and persons
+        standardization (bool): whether to standardize the dependent variable
+            by z score
         report (bool): whether to print reports
 
     raises:
@@ -340,14 +398,19 @@ def organize_dependent_independent_variables(
     data_persons_properties = data_persons_properties.loc[
         :, data_persons_properties.columns.isin(variables)
     ]
-
+    if standardization:
+        data_signals_standard = standardize_genes_signals(
+            data_signals_genes_persons=data_signals_genes_persons,
+            report=report,
+        )
+    else:
+        data_signals_standard = data_signals_genes_persons
     # Join signals on persons' properties.
     data_variables = data_persons_properties.join(
-        data_signals_genes_persons,
+        data_signals_standard,
         how="left",
         on="person"
     )
-
     # Report.
     if report:
         utility.print_terminal_partition(level=1)
@@ -768,6 +831,7 @@ def organize_data_regress_cases_report(
     data_persons_properties=None,
     data_signals_genes_persons=None,
     data_gene_annotation=None,
+    standardization=None,
     report=None,
 ):
     """
@@ -783,6 +847,8 @@ def organize_data_regress_cases_report(
         data_signals_genes_persons (object): Pandas data frame of pan-tissue
             signals across genes and persons
         data_gene_annotation (object): Pandas data frame of genes' annotations
+        standardization (bool): whether to standardize the dependent variable
+            by z score
         report (bool): whether to print reports
 
     raises:
@@ -815,7 +881,8 @@ def organize_data_regress_cases_report(
         variables=variables_regression,
         data_persons_properties=data_persons_properties,
         data_signals_genes_persons=data_signals_genes_persons,
-        report=False,
+        standardization=standardization,
+        report=report,
     )
 
     # Regress each gene's signal across persons.
@@ -1775,6 +1842,7 @@ def organize_data_regress_cases_report_write(
         cohort=cohort,
         dock=paths["dock"],
     )
+
     # Specify genes sets.
     genes_sets = source["genes_candidacy"]
     #genes_sets = source["genes_heritability"]
@@ -1793,6 +1861,7 @@ def organize_data_regress_cases_report_write(
         data_persons_properties=source["data_persons_properties"],
         data_signals_genes_persons=source["data_signals_genes_persons"],
         data_gene_annotation=source["data_gene_annotation"],
+        standardization=True,
         report=True,
     )
     write_product_regression(
@@ -1832,15 +1901,10 @@ def organize_regression_gene_associations_report_write(
         dock=paths["dock"],
     )
 
-
     # TODO: Maybe introduce a new gene set in integration procedure.
     # TODO: could include all candidacy distribution gene sets, heritability
     # gene sets, and collection gene sets (COVID-19, cytokines, integrins)
     # TODO: report associations for all of these genes?
-    
-    # Specify genes sets.
-    genes_sets = source["genes_candidacy"]
-    #genes_sets = source["genes_heritability"]
 
     # Define variables for regression.
     variables = selection.read_source_organize_regression_model_variables(
@@ -1853,10 +1917,10 @@ def organize_regression_gene_associations_report_write(
 
     # Select genes by their association to variables of hypothetical
     # interest.
-    sets_genes = select_genes_by_gene_distributions_variable_associations(
+    sets_genes_association = select_genes_by_gene_distributions_variable_associations(
         variables_separate=variables_interest,
         variables_together=variables_query_interest,
-        genes_sets=genes_sets,
+        genes_sets=source["sets_genes"],
         threshold_r_square=0.25, # 0.1, 0.25
         threshold_discovery=0.05,
         coefficient_sign="any", # "negative", "positive", or "any"
@@ -1865,22 +1929,26 @@ def organize_regression_gene_associations_report_write(
     )
     # Include union sets.
     sets_genes = collect_union_sets_genes(
-        sets=sets_genes,
+        sets=sets_genes_association,
         union_variables=variables_interest,
     )
     # Include query set in variables of interest.
     variables_summary = copy.deepcopy(variables_interest)
     variables_summary.append("query")
     variables_summary.append("union")
+
+    # TODO: change "distribution_master" to "set_master"
+    # TODO: make this the master comparison for percentages of genes? ... not sure
+
     report_association_variables_sets_genes(
         variables=variables_summary,
-        sets=sets_genes,
-        genes_sets=genes_sets,
+        sets=sets_genes_association,
+        genes_sets=source["sets_genes"],
         distribution_master="any", # "any" or "multimodal"
     )
     # Compile information.
     bin_sets = dict()
-    bin_sets["sets_genes"] = sets_genes
+    bin_sets["sets_genes"] = sets_genes_association
     write_product_genes(
         cohort=cohort,
         model=model,
@@ -1921,7 +1989,7 @@ def organize_regression_cohort_model(
     utility.print_terminal_partition(level=2)
 
     # Organize data, regress across genes, and write information to file.
-    if False:
+    if True:
         # Initialize directories.
         paths = initialize_directories(
             cohorts_models=cohorts_models,
@@ -1937,7 +2005,7 @@ def organize_regression_cohort_model(
     # with modality sets.
     # Select genes with significant association with each hypothetical
     # variable of interest.
-    if True:
+    if False:
         # Initialize directories.
         paths = initialize_directories(
             cohorts_models=cohorts_models,
@@ -1972,8 +2040,8 @@ def execute_procedure(
     # Define cohorts of persons.
     cohorts = [
         "selection",
-        "respiration",
-        "ventilation",
+        #"respiration",
+        #"ventilation",
     ]
     # Define regression models for each cohort.
     cohorts_models = dict()
@@ -1989,7 +2057,7 @@ def execute_procedure(
     ]
     cohorts_models["ventilation"] = [
         "ventilation_main",
-        #"ventilation_sex_age",
+        "ventilation_sex_age",
     ]
     # Execute procedure for each cohort.
     for cohort in cohorts:

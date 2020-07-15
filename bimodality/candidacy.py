@@ -1241,14 +1241,14 @@ def select_report_write_candidate_modality_genes_cohort(
     # Specify thresholds for each cohort.
     # Aim for <= 785 genes in each group.
     if cohort == "selection":
-        proportion_least = 0.292 # 785
-        proportion_greatest = 0.02125 # 785
+        proportion_least = 0.2915 # 784
+        proportion_greatest = 0.02155 # 785
     elif cohort == "respiration":
-        proportion_least = 0.307 # 785
-        proportion_greatest = 0.0212905 # 784
+        proportion_least = 0.3065 # 785
+        proportion_greatest = 0.0213825 # 784
     elif cohort == "ventilation":
-        proportion_least = 0.2925 # 783
-        proportion_greatest = 0.0217 # 785
+        proportion_least = 0.2923 # 784
+        proportion_greatest = 0.022 # 785
 
     # Select genes with least and greatest values of each measure of modality.
     # Use less stringency for unimodal genes in order to select those that are

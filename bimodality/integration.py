@@ -435,6 +435,83 @@ def read_source_genes_sets_candidacy(
     return bin
 
 
+def read_source_genes_sets_collection(
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_genes_covid19 = os.path.join(
+        dock, "collection", "covid19", "genes.pickle"
+    )
+    # Read information from file.
+    with open(path_genes_covid19, "rb") as file_source:
+        genes_covid19 = pickle.load(file_source)
+    # Compile information.
+    bin = dict()
+    bin["covid19"] = genes_covid19
+    # Return information.
+    return bin
+
+
+def read_source_genes_sets_candidacy_collection(
+    cohort=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Read genes sets.
+    genes_candidacy = read_source_genes_sets_candidacy(
+        cohort=cohort,
+        dock=dock,
+    )
+    genes_collection = read_source_genes_sets_collection(
+        dock=dock,
+    )
+    # Organize genes sets.
+    genes_covid19_multimodal = utility.filter_common_elements(
+        list_one=genes_collection["covid19"],
+        list_two=genes_candidacy["multimodal"],
+    )
+    # Compile information.
+    bin = dict()
+    bin["any"] = genes_candidacy["any"]
+    bin["multimodal"] = genes_candidacy["multimodal"]
+    bin["nonmultimodal"] = genes_candidacy["nonmultimodal"]
+    bin["unimodal"] = genes_candidacy["unimodal"]
+    bin["covid19"] = genes_collection["covid19"]
+    bin["covid19_multimodal"] = genes_covid19_multimodal
+    # Return information.
+    return bin
+
+
+
+
 def read_source_genes_sets_heritability(
     cohort=None,
     dock=None,

@@ -84,14 +84,14 @@ echo "Now set to call routine and procedures."
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access # run on 19 June 2020
 #python3 interface.py main --dock $path_dock --assembly # run on 28 June 2020
-#python3 interface.py main --dock $path_dock --selection # run on 15 July 2020 for 17,650 genes (10% threshold)
-#python3 interface.py main --dock $path_dock --collection # <-- use the more permissive selection of genes (17,650)
+#python3 interface.py main --dock $path_dock --selection # run on 15 July 2020 for 15,742 genes (50% threshold)
+#python3 interface.py main --dock $path_dock --collection # run on 15 July 2020 for 15,742 genes (50% threshold)
 
 ##########
 # - Batch Routine
 
 #python3 interface.py main --dock $path_dock --split # run on 15 July 2020 for 17,650 genes
-python3 interface.py main --dock $path_dock --distribution --local # run on 15 July 2020 for 17,650 genes; duration 3.25 hours
+#python3 interface.py main --dock $path_dock --distribution --local # run on 15 July 2020 for 17,650 genes (10% signal threshold); duration 4 hours
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 
@@ -116,7 +116,7 @@ python3 interface.py main --dock $path_dock --distribution --local # run on 15 J
 #python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
-#python3 interface.py main --dock $path_dock --prediction
+python3 interface.py main --dock $path_dock --prediction
 #python3 interface.py main --dock $path_dock --function
 #python3 interface.py main --dock $path_dock --integration
 

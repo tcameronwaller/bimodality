@@ -1275,7 +1275,7 @@ def select_samples_genes_by_signals(
         data_gene_signal_selection = select_samples_genes_by_signals_coverage(
             threshold=0.1,
             proportion_sample=0.5, # 0.5
-            proportion_gene=0.1, # 0.1 - 0.5: threshold for gene's coverage
+            proportion_gene=0.5, # 0.1 - 0.5: threshold for gene's coverage
             data_samples_tissues_persons=data_samples_tissues_persons,
             data_gene_signal=data_gene_signal,
             report=report,
@@ -1605,7 +1605,7 @@ def read_source_organize_regression_model_variables(
     # Read information from file.
     path_data_regression_models = os.path.join(
         dock, "annotation", "regression",
-        "table_regression_models.csv"
+        "table_regression_models.tsv"
     )
     data_regression_models = pandas.read_csv(
         path_data_regression_models,
@@ -1673,8 +1673,8 @@ def define_organization_variables():
     # Pairs of variables for interaction terms.
     interaction = list()
     pair = dict()
-    pair["name"] = "sex_risk*ventilation_binary"
-    pair["variable_one"] = "sex_risk"
+    pair["name"] = "sex_y*ventilation_binary"
+    pair["variable_one"] = "sex_y"
     pair["variable_two"] = "ventilation_binary"
     interaction.append(pair)
     pair = dict()
@@ -1683,8 +1683,8 @@ def define_organization_variables():
     pair["variable_two"] = "ventilation_binary"
     interaction.append(pair)
     pair = dict()
-    pair["name"] = "sex_risk*age"
-    pair["variable_one"] = "sex_risk"
+    pair["name"] = "sex_y*age"
+    pair["variable_one"] = "sex_y"
     pair["variable_two"] = "age"
     interaction.append(pair)
 
@@ -1734,9 +1734,9 @@ def define_organization_variables():
         "tissues_1",
         "tissues_2",
         "tissues_3",
-        "sex_risk*ventilation_binary",
+        "sex_y*ventilation_binary",
         "age*ventilation_binary",
-        "sex_risk*age",
+        "sex_y*age",
     ]
     # Compile information.
     bin = dict()
@@ -3275,7 +3275,7 @@ def calculate_variable_pairs_interaction_terms(
     data_persons_properties=None,
 ):
     """
-    Standardizes variables' values to z-score scale.
+    Calculates interaction terms by product of main terms.
 
     arguments:
         pairs (list<dict>): information about pairs of variables from which to
