@@ -1295,7 +1295,7 @@ def prepare_describe_distribution(
     # Determine whether adequate persons qualify.
     #threshold_population = (0.33 * len(persons))
     threshold_population = 50
-    if bin_restriction["persons_count_restriction"] > threshold_population:
+    if bin_restriction["persons_count_restriction"] >= threshold_population:
         # Aggregation
         # Determine gene's distributions of aggregate tissue signals across
         # persons.
