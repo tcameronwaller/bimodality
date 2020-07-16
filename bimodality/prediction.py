@@ -1342,6 +1342,7 @@ def report_association_variables_sets_genes(
 def collect_unique_union_genes_cohorts_models_variables(
     set_query=None,
     variables=None,
+    cohorts_models=None,
     cohorts_models_sets_genes=None,
     report=None,
 ):
@@ -1354,6 +1355,7 @@ def collect_unique_union_genes_cohorts_models_variables(
             collect significant associations to regression variables
         variables (list<str>): names of independent regression variables for
             which to summarize genes' associations
+        cohorts_models (dict<list<str>>): models in each cohort
         cohorts_models_sets_genes (dict<dict<dict<list<str>>>): collection of
             sets of genes by cohort, model, and variables of interest
         report (bool): whether to print reports
@@ -1370,23 +1372,27 @@ def collect_unique_union_genes_cohorts_models_variables(
     # Iterate on cohorts, models, and variables.
     # Cohorts.
     for cohort in cohorts_models_sets_genes.keys():
-        #utility.print_terminal_partition(level=2)
-        #print("cohort: " + cohort)
-        # Models.
-        for model in cohorts_models_sets_genes[cohort].keys():
-            #utility.print_terminal_partition(level=3)
-            #print("model: " + model)
-            # Define sets by variables.
-            sets_variables = (
-                cohorts_models_sets_genes[cohort][model][set_query]
-            )
-            # Variables.
-            for variable in sets_variables.keys():
-                if variable in variables:
-                    #utility.print_terminal_partition(level=4)
-                    #print("variable: " + variable)
-                    # Collect genes for cohort, model, and variable.
-                    genes.extend(sets_variables[variable])
+        if cohort in cohorts_models.keys():
+            #utility.print_terminal_partition(level=2)
+            #print("cohort: " + cohort)
+            # Models.
+            for model in cohorts_models_sets_genes[cohort].keys():
+                if model in cohorts_models[cohort]:
+                    #utility.print_terminal_partition(level=3)
+                    #print("model: " + model)
+                    # Define sets by variables.
+                    sets_variables = (
+                        cohorts_models_sets_genes[cohort][model][set_query]
+                    )
+                    # Variables.
+                    for variable in sets_variables.keys():
+                        if variable in variables:
+                            #utility.print_terminal_partition(level=4)
+                            #print("variable: " + variable)
+                            # Collect genes for cohort, model, and variable.
+                            genes.extend(sets_variables[variable])
+                        pass
+                    pass
                 pass
             pass
         pass
@@ -1436,6 +1442,7 @@ def collect_organize_genes_cohorts_models_variables(
     genes=None,
     set_query=None,
     variables=None,
+    cohorts_models=None,
     cohorts_models_sets_genes=None,
     report=None,
 ):
@@ -1449,6 +1456,7 @@ def collect_organize_genes_cohorts_models_variables(
             collect significant associations to regression variables
         variables (list<str>): names of independent regression variables for
             which to summarize genes' associations
+        cohorts_models (dict<list<str>>): models in each cohort
         cohorts_models_sets_genes (dict<dict<dict<list<str>>>): collection of
             sets of genes by cohort, model, and variables of interest
         report (bool): whether to print reports
@@ -1465,33 +1473,37 @@ def collect_organize_genes_cohorts_models_variables(
     # Iterate on cohorts, models, and variables.
     # Cohorts.
     for cohort in cohorts_models_sets_genes.keys():
-        #utility.print_terminal_partition(level=2)
-        #print("cohort: " + cohort)
-        # Models.
-        for model in cohorts_models_sets_genes[cohort].keys():
-            #utility.print_terminal_partition(level=3)
-            #print("model: " + model)
-            # Define sets by variables.
-            sets_variables = (
-                cohorts_models_sets_genes[cohort][model][set_query]
-            )
-            # Variables.
-            for variable in sets_variables.keys():
-                if variable in variables:
-                    #utility.print_terminal_partition(level=4)
-                    #print("variable: " + variable)
-                    # Create record for cohort, model, and variable.
-                    record = dict()
-                    record["cohort"] = cohort
-                    record["model"] = model
-                    record["variable"] = variable
-                    record = assign_binary_associations_across_genes(
-                        genes_true=sets_variables[variable],
-                        genes_total=genes,
-                        record_original=record,
+        if cohort in cohorts_models.keys():
+            #utility.print_terminal_partition(level=2)
+            #print("cohort: " + cohort)
+            # Models.
+            for model in cohorts_models_sets_genes[cohort].keys():
+                if model in cohorts_models[cohort]:
+                    #utility.print_terminal_partition(level=3)
+                    #print("model: " + model)
+                    # Define sets by variables.
+                    sets_variables = (
+                        cohorts_models_sets_genes[cohort][model][set_query]
                     )
-                    # Collect record.
-                    records.append(record)
+                    # Variables.
+                    for variable in sets_variables.keys():
+                        if variable in variables:
+                            #utility.print_terminal_partition(level=4)
+                            #print("variable: " + variable)
+                            # Create record for cohort, model, and variable.
+                            record = dict()
+                            record["cohort"] = cohort
+                            record["model"] = model
+                            record["variable"] = variable
+                            record = assign_binary_associations_across_genes(
+                                genes_true=sets_variables[variable],
+                                genes_total=genes,
+                                record_original=record,
+                            )
+                            # Collect record.
+                            records.append(record)
+                            pass
+                        pass
                     pass
                 pass
             pass
@@ -1542,6 +1554,7 @@ def collect_organize_genes_cohorts_models_variables(
 def organize_genes_association_summary_query_set(
     set_query=None,
     variables=None,
+    cohorts_models=None,
     cohorts_models_sets_genes=None,
     data_gene_annotation=None,
     report=None,
@@ -1553,10 +1566,11 @@ def organize_genes_association_summary_query_set(
     arguments:
         set_query (str): name of an original query of set of genes by which to
             collect significant associations to regression variables
-        cohorts_models_sets_genes (dict<dict<dict<list<str>>>): collection of
-            sets of genes by cohort, model, and variables of interest
         variables (list<str>): names of independent regression variables for
             which to summarize genes' associations
+        cohorts_models (dict<list<str>>): models in each cohort
+        cohorts_models_sets_genes (dict<dict<dict<list<str>>>): collection of
+            sets of genes by cohort, model, and variables of interest
         data_gene_annotation (object): Pandas data frame of genes' annotations
         report (bool): whether to print reports
     raises:
@@ -1577,6 +1591,7 @@ def organize_genes_association_summary_query_set(
     genes_union = collect_unique_union_genes_cohorts_models_variables(
         set_query=set_query,
         variables=variables,
+        cohorts_models=cohorts_models,
         cohorts_models_sets_genes=cohorts_models_sets_genes,
         report=report,
     )
@@ -1590,6 +1605,7 @@ def organize_genes_association_summary_query_set(
         genes=genes_union,
         set_query=set_query,
         variables=variables,
+        cohorts_models=cohorts_models,
         cohorts_models_sets_genes=cohorts_models_sets_genes,
         report=report,
     )
@@ -2449,6 +2465,7 @@ def organize_summary_gene_set_associations_report_write(
         data_summary = organize_genes_association_summary_query_set(
              set_query=set_query,
              variables=source["variables"],
+             cohorts_models=cohorts_models,
              cohorts_models_sets_genes=source["cohorts_models_sets_genes"],
              data_gene_annotation=source["data_gene_annotation"],
              report=True,
@@ -2509,7 +2526,7 @@ def execute_procedure(
     ]
     cohorts_models["ventilation"] = [
         "ventilation_main",
-        "ventilation_sex_age",
+        #"ventilation_sex_age",
     ]
     # Initialize directories.
     paths = initialize_directories(
