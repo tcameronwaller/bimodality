@@ -79,6 +79,13 @@ def initialize_directories(
     # Define paths to directories.
     paths["dock"] = dock
     paths["prediction"] = os.path.join(paths["dock"], "prediction")
+    paths["context_summaries"] = os.path.join(
+        paths["prediction"], "context_summaries"
+    )
+    # Initialize directories.
+    utility.create_directories(
+        path=paths["context_summaries"]
+    )
     # Remove previous files to avoid version or batch confusion.
     if restore:
         utility.remove_directory(path=paths["prediction"])
@@ -94,31 +101,19 @@ def initialize_directories(
             paths[cohort][model]["regression"] = os.path.join(
                 paths["prediction"], cohort, model, "regression"
             )
-            # Define paths for groups of genes by their distributions.
-            paths[cohort][model]["genes"] = os.path.join(
-                paths["prediction"], cohort, model, "genes"
+            # Define paths for sets of genes.
+            paths[cohort][model]["genes_associations"] = os.path.join(
+                paths["prediction"], cohort, model, "genes_associations"
             )
-            paths[cohort][model]["distribution"] = dict()
-            groups = list()
-            groups.append("any")
-            groups.append("multimodal")
-            groups.append("nonmultimodal")
-            groups.append("unimodal")
-            for group in groups:
-                paths[cohort][model]["distribution"][group] = os.path.join(
-                    paths["prediction"], cohort, model, "genes",
-                    "distribution", group
-                )
-                # Initialize directories.
-                utility.create_directories(
-                    path=paths[cohort][model]["regression"]
-                )
-                utility.create_directories(
-                    path=paths[cohort][model]["genes"]
-                )
-                utility.create_directories(
-                    path=paths[cohort][model]["distribution"][group]
-                )
+            # Initialize directories.
+            utility.create_directories(
+                path=paths[cohort][model]["regression"]
+            )
+            utility.create_directories(
+                path=paths[cohort][model]["genes_associations"]
+            )
+            pass
+        pass
     # Return information.
     return paths
 
@@ -226,6 +221,70 @@ def read_source_association(
         "data_regression_genes": data_regression_genes,
         "sets_genes": sets_genes,
         #"genes_heritability": genes_heritability,
+    }
+
+
+def read_source_association_summary(
+    cohorts_models=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohorts_models (dict<list<str>>): models in each cohort
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Read sets of genes for each cohort and model.
+    cohorts_models_sets_genes = dict()
+    for cohort in cohorts_models.keys():
+        cohorts_models_sets_genes[cohort] = dict()
+        for model in cohorts_models[cohort]:
+            # Specify directories and files.
+            path_sets_genes = os.path.join(
+                dock, "prediction", cohort, model, "genes_associations",
+                "sets_genes.pickle"
+            )
+            # Read information from file.
+            with open(path_sets_genes, "rb") as file_source:
+                sets_genes = pickle.load(file_source)
+            cohorts_models_sets_genes[cohort][model] = sets_genes
+            pass
+        pass
+    # Specify directories and files.
+    path_data_gene_annotation = os.path.join(
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
+    )
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
+    # Read information from file.
+    path_data_regression_models = os.path.join(
+        dock, "annotation", "regression",
+        "table_regression_models.tsv"
+    )
+    data_regression_models = pandas.read_csv(
+        path_data_regression_models,
+        sep="\t",
+        header=0,
+    )
+    # Select relevant information.
+    data_regression_models = data_regression_models.loc[
+        (data_regression_models["type"].isin(["hypothesis", "genotype"])), :
+    ]
+    variables = data_regression_models["variable"].to_list()
+    # Compile and return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+        "cohorts_models_sets_genes": cohorts_models_sets_genes,
+        "variables": variables
     }
 
 
@@ -1277,6 +1336,273 @@ def report_association_variables_sets_genes(
 
 
 ##########
+# Summary
+
+
+def collect_unique_union_genes_cohorts_models_variables(
+    set_query=None,
+    variables=None,
+    cohorts_models_sets_genes=None,
+    report=None,
+):
+    """
+    Collects and summarizes genes' associations across multiple cohorts,
+    regression models, and regression independent variables.
+
+    arguments:
+        set_query (str): name of an original query of set of genes by which to
+            collect significant associations to regression variables
+        variables (list<str>): names of independent regression variables for
+            which to summarize genes' associations
+        cohorts_models_sets_genes (dict<dict<dict<list<str>>>): collection of
+            sets of genes by cohort, model, and variables of interest
+        report (bool): whether to print reports
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' associations across multiple
+            cohorts, regression models, and regression independent variables
+
+    """
+
+    # Collect genes.
+    genes = list()
+    # Iterate on cohorts, models, and variables.
+    # Cohorts.
+    for cohort in cohorts_models_sets_genes.keys():
+        #utility.print_terminal_partition(level=2)
+        #print("cohort: " + cohort)
+        # Models.
+        for model in cohorts_models_sets_genes[cohort].keys():
+            #utility.print_terminal_partition(level=3)
+            #print("model: " + model)
+            # Define sets by variables.
+            sets_variables = (
+                cohorts_models_sets_genes[cohort][model][set_query]
+            )
+            # Variables.
+            for variable in sets_variables.keys():
+                if variable in variables:
+                    #utility.print_terminal_partition(level=4)
+                    #print("variable: " + variable)
+                    # Collect genes for cohort, model, and variable.
+                    genes.extend(sets_variables[variable])
+                pass
+            pass
+        pass
+    # Collect unique genes.
+    genes_unique = utility.collect_unique_elements(
+        elements_original=genes
+    )
+    # Return information.
+    return genes_unique
+
+
+def assign_binary_associations_across_genes(
+    genes_true=None,
+    genes_total=None,
+    record_original=None,
+):
+    """
+    Collects and summarizes genes' associations across multiple cohorts,
+    regression models, and regression independent variables.
+
+    arguments:
+        genes_true (list<str>): identifiers of genes
+        genes_total (list<str>): identifiers of genes
+        record_original (dict): information for row in summary table
+    raises:
+
+    returns:
+        (dict): novel record
+
+    """
+
+    # Copy record.
+    record_novel = copy.deepcopy(record_original)
+    # Assign binary values for each gene.
+    for gene in genes_total:
+        if gene in genes_true:
+            record_novel[gene] = 1
+        else:
+            record_novel[gene] = float("nan")
+            pass
+        pass
+    # Return information.
+    return record_novel
+
+
+def collect_organize_genes_cohorts_models_variables(
+    genes=None,
+    set_query=None,
+    variables=None,
+    cohorts_models_sets_genes=None,
+    report=None,
+):
+    """
+    Collects and summarizes genes' associations across multiple cohorts,
+    regression models, and regression independent variables.
+
+    arguments:
+        genes (list<str>): identifiers of genes
+        set_query (str): name of an original query of set of genes by which to
+            collect significant associations to regression variables
+        variables (list<str>): names of independent regression variables for
+            which to summarize genes' associations
+        cohorts_models_sets_genes (dict<dict<dict<list<str>>>): collection of
+            sets of genes by cohort, model, and variables of interest
+        report (bool): whether to print reports
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' associations across multiple
+            cohorts, regression models, and regression independent variables
+
+    """
+
+    # Collect information about genes across cohorts, models, and variables.
+    records = list()
+    # Iterate on cohorts, models, and variables.
+    # Cohorts.
+    for cohort in cohorts_models_sets_genes.keys():
+        #utility.print_terminal_partition(level=2)
+        #print("cohort: " + cohort)
+        # Models.
+        for model in cohorts_models_sets_genes[cohort].keys():
+            #utility.print_terminal_partition(level=3)
+            #print("model: " + model)
+            # Define sets by variables.
+            sets_variables = (
+                cohorts_models_sets_genes[cohort][model][set_query]
+            )
+            # Variables.
+            for variable in sets_variables.keys():
+                if variable in variables:
+                    #utility.print_terminal_partition(level=4)
+                    #print("variable: " + variable)
+                    # Create record for cohort, model, and variable.
+                    record = dict()
+                    record["cohort"] = cohort
+                    record["model"] = model
+                    record["variable"] = variable
+                    record = assign_binary_associations_across_genes(
+                        genes_true=sets_variables[variable],
+                        genes_total=genes,
+                        record_original=record,
+                    )
+                    # Collect record.
+                    records.append(record)
+                    pass
+                pass
+            pass
+        pass
+    # Organize data.
+    data = pandas.DataFrame(data=records)
+    data.set_index(
+        ["cohort", "model", "variable"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data_aggregate = data.copy(deep=True)
+    series_aggregate = data_aggregate.aggregate(
+        lambda column: numpy.nansum(column.to_numpy()),
+        axis="index",
+    )
+    series_aggregate.sort_values(
+        axis="index",
+        ascending=False,
+        inplace=True,
+        na_position="last",
+    )
+    #print(series_aggregate)
+    #print(series_aggregate.index.to_list())
+    data = data[[*series_aggregate.index.to_list()]]
+    data.rename_axis(
+        columns="identifier",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    data_transposition = data.transpose(copy=True)
+    data_transposition.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_transposition.set_index(
+        ["identifier"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    # Return information.
+    return data_transposition
+
+
+def organize_genes_association_summary_query_set(
+    set_query=None,
+    variables=None,
+    cohorts_models_sets_genes=None,
+    data_gene_annotation=None,
+    report=None,
+):
+    """
+    Collects and summarizes genes' associations across multiple cohorts,
+    regression models, and regression independent variables.
+
+    arguments:
+        set_query (str): name of an original query of set of genes by which to
+            collect significant associations to regression variables
+        cohorts_models_sets_genes (dict<dict<dict<list<str>>>): collection of
+            sets of genes by cohort, model, and variables of interest
+        variables (list<str>): names of independent regression variables for
+            which to summarize genes' associations
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        report (bool): whether to print reports
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' associations across multiple
+            cohorts, regression models, and regression independent variables
+
+    """
+
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=1)
+        print("Summary of associations for query gene set: " + str(set_query))
+        pass
+    # Collect unique identifiers of genes that association with any variables
+    # across cohorts and models.
+    genes_union = collect_unique_union_genes_cohorts_models_variables(
+        set_query=set_query,
+        variables=variables,
+        cohorts_models_sets_genes=cohorts_models_sets_genes,
+        report=report,
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("unique union genes: " + str(len(genes_union)))
+    # Collect summary of genes' associations across cohorts, models, and
+    # variables.
+    data_summary = collect_organize_genes_cohorts_models_variables(
+        genes=genes_union,
+        set_query=set_query,
+        variables=variables,
+        cohorts_models_sets_genes=cohorts_models_sets_genes,
+        report=report,
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print(data_summary)
+        print("unique union genes: " + str(len(data_summary.index.to_list())))
+    # Return information.
+    return data_summary
+
+
+##########
 # Tissue-tissue correlation
 
 
@@ -1738,7 +2064,7 @@ def write_product_regression(
 def write_product_genes_set_variable(
     cohort=None,
     model=None,
-    distribution=None,
+    set=None,
     variable=None,
     sets_genes=None,
     paths=None,
@@ -1749,8 +2075,7 @@ def write_product_genes_set_variable(
     arguments:
         cohort (str): cohort of persons--selection, respiration, or ventilation
         model (str): name of regression model
-        distribution (str): group of genes by distribution of pan-tissue
-            signals
+        set (str): name of set of genes for association to variables
         variable (str): name of independent regression variable
         sets_genes (dict<list<str>>): sets of genes that associate
             significantly to variables in regression
@@ -1763,21 +2088,29 @@ def write_product_genes_set_variable(
 
     """
 
+    # Initialize directories.
+    path_set = os.path.join(
+        paths[cohort][model]["genes_associations"], "sets", set
+    )
+    utility.create_directories(
+        path=path_set
+    )
+
     # Specify directories and files.
     path_variable = os.path.join(
-        paths[cohort][model]["distribution"][distribution],
+        path_set,
         str(variable + ".txt")
     )
     # Write information to file.
     utility.write_file_text_list(
-        elements=sets_genes[distribution][variable],
+        elements=sets_genes[set][variable],
         delimiter="\n",
         path_file=path_variable
     )
     pass
 
 
-def write_product_genes(
+def write_product_genes_associations(
     cohort=None,
     model=None,
     information=None,
@@ -1801,29 +2134,76 @@ def write_product_genes(
 
     # Specify directories and files.
     path_sets_genes = os.path.join(
-        paths[cohort][model]["genes"], "sets_genes.pickle"
+        paths[cohort][model]["genes_associations"], "sets_genes.pickle"
     )
     # Write information to file.
     with open(path_sets_genes, "wb") as file_product:
         pickle.dump(information["sets_genes"], file_product)
 
     # Write individual gene sets.
-    distributions = list()
-    distributions.append("any")
-    distributions.append("multimodal")
-    distributions.append("nonmultimodal")
-    distributions.append("unimodal")
-    for distribution in distributions:
-        for variable in information["sets_genes"][distribution].keys():
+    for set in information["sets_genes"].keys():
+        for variable in information["sets_genes"][set].keys():
             write_product_genes_set_variable(
                 cohort=cohort,
                 model=model,
-                distribution=distribution,
+                set=set,
                 variable=variable,
                 sets_genes=information["sets_genes"],
                 paths=paths,
             )
     pass
+
+
+def write_product_genes_associations_summary(
+    set_query=None,
+    information=None,
+    paths=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        set_query (str): name of an original query of set of genes by which to
+            collect significant associations to regression variables
+        information (object): information to write to file.
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Initialize directories.
+    path_set_query = os.path.join(
+        paths["context_summaries"], set_query
+    )
+    utility.create_directories(
+        path=path_set_query
+    )
+    # Specify directories and files.
+    path_data = os.path.join(
+        path_set_query, "data_summary.tsv"
+    )
+    path_genes_names = os.path.join(
+        path_set_query, "genes_names.txt"
+    )
+    # Write information to file.
+    information["data_summary"].to_csv(
+        path_or_buf=path_data,
+        sep="\t",
+        header=True,
+        index=True,
+    )
+    utility.write_file_text_list(
+        elements=information["genes_names"],
+        delimiter="\n",
+        path_file=path_genes_names
+    )
+    pass
+
+
 
 
 ###############################################################################
@@ -1953,19 +2333,16 @@ def organize_regression_gene_associations_report_write(
     variables_summary.append("query")
     variables_summary.append("union")
 
-    # TODO: change "distribution_master" to "set_master"
-    # TODO: make this the master comparison for percentages of genes? ... not sure
-
     report_association_variables_sets_genes(
         variables=variables_summary,
         sets_genes_association=sets_genes_association,
         sets_genes_original=source["sets_genes"],
-        set_master="any", # "any" or "multimodal"
+        set_master="covid19_multimodal", # "any", "multimodal", "covid19_multimodal"
     )
     # Compile information.
     bin_sets = dict()
     bin_sets["sets_genes"] = sets_genes_association
-    write_product_genes(
+    write_product_genes_associations(
         cohort=cohort,
         model=model,
         information=bin_sets,
@@ -2005,7 +2382,7 @@ def organize_regression_cohort_model(
     utility.print_terminal_partition(level=2)
 
     # Organize data, regress across genes, and write information to file.
-    if True:
+    if False:
         organize_data_regress_cases_report_write(
             cohort=cohort,
             model=model,
@@ -2015,12 +2392,84 @@ def organize_regression_cohort_model(
     # with modality sets.
     # Select genes with significant association with each hypothetical
     # variable of interest.
-    if False:
+    if True:
         organize_regression_gene_associations_report_write(
             cohort=cohort,
             model=model,
             paths=paths,
         )
+    pass
+
+
+def organize_summary_gene_set_associations_report_write(
+    cohorts_models=None,
+    paths=None,
+):
+    """
+    Prepares a summary of genes and their associations to variables across all
+    cohorts and models.
+
+    There will be a summary for each original set of genes, such as genes with
+    multimodal distributions or genes with differential expression in COVID-19.
+
+    arguments:
+        cohorts_models (dict<list<str>>): models in each cohort
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # TODO:
+    # 1. read in the original gene sets...
+    # 2. prepare summary for each original gene set
+    # 3. define variables of interest: hypothesis variables
+    # 4. collect unique genes that associate with any variables
+    # 5. collect cohorts, models, and variables to which each gene associates
+    # 6. count cohorts, models, and variables to which each gene associates
+    # 7. sort the summary by the count of associations
+
+    # Read source.
+    source = read_source_association_summary(
+        cohorts_models=cohorts_models,
+        dock=paths["dock"],
+    )
+    # Define an example of the original query gene sets.
+    example_sets_genes = (
+        source["cohorts_models_sets_genes"]["selection"]["selection_main"]
+    )
+    # Iterate on original query sets of genes.
+    # Examples of original query sets are genes with multimodal distributions
+    # or genes that have differential expression in COVID-19.
+    for set_query in example_sets_genes.keys():
+        # Organize summary for the query set.
+        data_summary = organize_genes_association_summary_query_set(
+             set_query=set_query,
+             variables=source["variables"],
+             cohorts_models_sets_genes=source["cohorts_models_sets_genes"],
+             data_gene_annotation=source["data_gene_annotation"],
+             report=True,
+        )
+        # Collect names of genes.
+        genes_identifiers = data_summary.index.to_list()
+        genes_names = list()
+        for identifier in genes_identifiers:
+            name = source["data_gene_annotation"].loc[identifier, "gene_name"]
+            genes_names.append(name)
+            pass
+        # Compile information.
+        bin = dict()
+        bin["data_summary"] = data_summary
+        bin["genes_names"] = genes_names
+        write_product_genes_associations_summary(
+            set_query=set_query,
+            information=bin,
+            paths=paths,
+        )
+        pass
     pass
 
 
@@ -2069,16 +2518,27 @@ def execute_procedure(
         dock=dock,
     )
     # Execute procedure for each cohort.
-    for cohort in cohorts:
-        # Execute procedure for each regression model.
-        for model in cohorts_models[cohort]:
-            # Organize data and regress cases.
-            organize_regression_cohort_model(
-                cohort=cohort,
-                model=model,
-                cohorts_models=cohorts_models,
-                paths=paths,
-            )
+    if False:
+        for cohort in cohorts:
+            # Execute procedure for each regression model.
+            for model in cohorts_models[cohort]:
+                # Organize data and regress cases.
+                organize_regression_cohort_model(
+                    cohort=cohort,
+                    model=model,
+                    cohorts_models=cohorts_models,
+                    paths=paths,
+                )
+                pass
+            pass
+        pass
+    # Collect summaries of genes' associations with variables of interest
+    # across cohorts and models.
+    if True:
+        organize_summary_gene_set_associations_report_write(
+            cohorts_models=cohorts_models,
+            paths=paths,
+        )
     pass
 
 
