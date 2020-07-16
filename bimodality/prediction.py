@@ -483,24 +483,6 @@ def regress_signal_ordinary_residuals(
 
     """
 
-    if False:
-        # Regress by SciKit Learn.
-        regression = LinearRegression(
-            fit_intercept=True,
-            normalize=False,
-            copy_X=True,
-            n_jobs=None
-        ).fit(
-            values_independence,
-            values_dependence,
-            sample_weight=None
-        )
-        score = regression.score(
-            values_independence,
-            values_dependence,
-            sample_weight=None
-        )
-
     # Organize data.
     data = data.copy(deep=True)
     # Determine minimal count of observations.
@@ -528,16 +510,17 @@ def regress_signal_ordinary_residuals(
     if data.shape[0] > threshold:
         # Extract values of dependent and independent variables.
         values_dependence = data[dependence].to_numpy()
-        values_independence = data.loc[ :, independence].to_numpy()
+        #values_independence = data.loc[ :, independence].to_numpy()
+        data_independence = data.loc[ :, independence]
         # Introduce constant value for intercept.
-        values_independence_intercept = statsmodels.api.add_constant(
-            values_independence,
-            prepend=True,
+        data_independence_intercept = statsmodels.api.add_constant(
+            data_independence,
+            prepend=True, # insert intercept constant first
         )
         # Define model.
         model = statsmodels.api.OLS(
             values_dependence,
-            values_independence_intercept,
+            data_independence_intercept,
             missing="drop",
         )
         report = model.fit()
@@ -553,29 +536,34 @@ def regress_signal_ordinary_residuals(
 
         # Organize residuals.
         residuals = report.resid
-
-        # Compile summary information.
-        counter = 1
+        # Collect parameters, probabilities, and statistics.
+        report_parameters = pandas.Series(data=report.params)
+        report_probabilities = pandas.Series(data=report.pvalues)
         parameters = dict()
         probabilities = dict()
         inflations = dict()
-        parameters["intercept_parameter"] = report.params[0]
-        probabilities["intercept_probability"] = report.pvalues[0]
+        #parameters["intercept_parameter"] = report.params[0]
+        parameters["intercept_parameter"] = report_parameters["const"]
+        #probabilities["intercept_probability"] = report.pvalues[0]
+        probabilities["intercept_probability"] = report_probabilities["const"]
         inflations["intercept_inflation"] = float("nan")
         # Iterate on each independent variable.
+        counter = 1
         # Accommodate index for intercept.
         for variable in independence:
             # Coefficient or parameter.
             parameter = str(variable + ("_parameter"))
-            parameters[parameter] = report.params[counter]
+            #parameters[parameter] = report.params[counter]
+            parameters[parameter] = report_parameters[variable]
             # Probability.
             probability = str(variable + ("_probability"))
-            probabilities[probability] = report.pvalues[counter]
+            #probabilities[probability] = report.pvalues[counter]
+            probabilities[probability] = report_probabilities[variable]
             # Variance Inflation Factor (VIF).
             inflation = str(variable + ("_inflation"))
             inflation_value = (
                 statsmodels.stats.outliers_influence.variance_inflation_factor(
-                    values_independence_intercept,
+                    data_independence_intercept.to_numpy(),
                     counter
                 )
             )
@@ -672,29 +660,30 @@ def regress_cases(
     residuals_genes = dict()
     counter = 0
     for case in cases:
-        # Report.
+        # Monitor progress.
         counter += 1
-        if report:
-            #print("count " + str(counter) + ": " + str(case))
-            percentage = (counter / count_total) * 100
-            if (percentage % 10 == 0):
-                print("complete cases: " + str(round(percentage)) + "%")
+        #print("count " + str(counter) + ": " + str(case))
+        percentage = (counter / count_total) * 100
+        # Report.
+        if ((percentage % 10 == 0) and report):
+            print("complete cases: " + str(round(percentage)) + "%")
+            pass
         bin_case = regress_signal_ordinary_residuals(
             dependence=case,
             independence=variables,
-            proportion=0.5,
+            proportion=0.25,
             data=data_variables,
         )
         # Collect residuals.
         residuals_genes[case] = bin_case["residuals"]
         # Collect reports.
-        report = bin_case["report"]
-        report["case"] = case
-        report["name"] = assembly.access_gene_name(
+        record = bin_case["report"]
+        record["case"] = case
+        record["name"] = assembly.access_gene_name(
             identifier=case,
             data_gene_annotation=data_gene_annotation,
         )
-        records.append(report)
+        records.append(record)
         pass
     # Organize data.
     data_regression = utility.convert_records_to_dataframe(
@@ -1134,7 +1123,7 @@ def select_genes_by_gene_distributions_variable_associations(
     threshold_discovery=None,
     coefficient_sign=None,
     count_selection=None,
-    genes_sets=None,
+    sets_genes=None,
     data_regression_genes=None,
 ):
     """
@@ -1151,8 +1140,7 @@ def select_genes_by_gene_distributions_variable_associations(
             positive, or any sign of their coefficients for the variable
         count_selection (int): count of genes with greatest and least values
             of variable's regression parameter to keep
-        genes_sets (dict<list<str>>): identifiers of all genes in groups by
-            distributions of their pan-tissue signals
+        sets_genes (dict<list<str>>): identifiers of genes in sets of interest
         data_regression_genes (object): Pandas data frame of parameters and
             statistics from regressions across cases
 
@@ -1167,7 +1155,7 @@ def select_genes_by_gene_distributions_variable_associations(
     # Select genes from each cohort that associate significantly with each
     # variable.
     sets = dict()
-    for set in genes_sets.keys():
+    for set in sets_genes.keys():
         sets[set] = select_genes_by_association_regression_variables(
             variables_separate=variables_separate,
             variables_together=variables_together,
@@ -1175,7 +1163,7 @@ def select_genes_by_gene_distributions_variable_associations(
             threshold_discovery=threshold_discovery,
             coefficient_sign=coefficient_sign,
             count_selection=count_selection,
-            genes=genes_sets[set],
+            genes=sets_genes[set],
             data_regression_genes=data_regression_genes,
         )
     # Return information.
@@ -1217,21 +1205,21 @@ def collect_union_sets_genes(
 
 def report_association_variables_sets_genes(
     variables=None,
-    sets=None,
-    genes_sets=None,
-    distribution_master=None,
+    sets_genes_association=None,
+    sets_genes_original=None,
+    set_master=None,
 ):
     """
     Selects and scales regression parameters.
 
     arguments:
         variables (list<str>): names of independent regression variables
-        sets (dict<dict<list<str>>>): sets of genes that associate
-            significantly to variables in regression
-        genes_sets (dict<list<str>>): identifiers of all genes in groups by
-            distributions of their pan-tissue signals
-        distribution_master (str): distribution group of genes for which to
-            report allocation to variables
+        sets_genes_association (dict<list<str>>): identifiers of genes of
+            interest that associate with variables of interest
+        sets_genes_original (dict<list<str>>): identifiers of genes in sets of
+            interest
+        set_master (str): set of genes for which to report allocation to
+            variables
 
     raises:
 
@@ -1241,20 +1229,20 @@ def report_association_variables_sets_genes(
 
     """
 
-    sets = copy.deepcopy(sets)
+    sets_genes_association = copy.deepcopy(sets_genes_association)
     utility.print_terminal_partition(level=2)
     print("Counts of genes.")
-    for distribution in genes_sets.keys():
-        print(distribution + " genes: " + str(len(genes_sets[distribution])))
+    for set in sets_genes_original.keys():
+        print(set + " genes: " + str(len(sets_genes_original[set])))
     utility.print_terminal_partition(level=3)
     print("Counts of genes that associate significantly with each variable.")
-    print("master distribution genes: " + distribution_master)
+    print("master set genes: " + set_master)
     for variable in variables:
         utility.print_terminal_partition(level=4)
         print(variable)
-        genes_master = genes_sets[distribution_master]
+        genes_master = sets_genes_original[set_master]
         count_master = len(genes_master)
-        count_variable = len(sets[distribution_master][variable])
+        count_variable = len(sets_genes_association[set_master][variable])
         percentage = (count_variable / count_master) * 100
         print("count variable genes: " + str(count_variable))
         print("master genes: " + str(round(percentage, 3)) + "%")
@@ -1853,8 +1841,8 @@ def organize_data_regress_cases_report_write(
         dock=paths["dock"],
     )
     # Regression on hypothesis variables.
-    #genes_regression = random.sample(genes_sets["any"], 100)
-    genes_regression = genes_sets["any"]#[0:10]
+    genes_regression = random.sample(genes_sets["any"], 100)
+    #genes_regression = genes_sets["any"]#[0:10]
     bin_regression = organize_data_regress_cases_report(
         genes=genes_regression,
         variables_regression=variables["model"],
@@ -1920,7 +1908,7 @@ def organize_regression_gene_associations_report_write(
     sets_genes_association = select_genes_by_gene_distributions_variable_associations(
         variables_separate=variables_interest,
         variables_together=variables_query_interest,
-        genes_sets=source["sets_genes"],
+        sets_genes=source["sets_genes"],
         threshold_r_square=0.25, # 0.1, 0.25
         threshold_discovery=0.05,
         coefficient_sign="any", # "negative", "positive", or "any"
@@ -1928,7 +1916,7 @@ def organize_regression_gene_associations_report_write(
         data_regression_genes=source["data_regression_genes"],
     )
     # Include union sets.
-    sets_genes = collect_union_sets_genes(
+    sets_genes_association = collect_union_sets_genes(
         sets=sets_genes_association,
         union_variables=variables_interest,
     )
@@ -1942,9 +1930,9 @@ def organize_regression_gene_associations_report_write(
 
     report_association_variables_sets_genes(
         variables=variables_summary,
-        sets=sets_genes_association,
-        genes_sets=source["sets_genes"],
-        distribution_master="any", # "any" or "multimodal"
+        sets_genes_association=sets_genes_association,
+        sets_genes_original=source["sets_genes"],
+        set_master="any", # "any" or "multimodal"
     )
     # Compile information.
     bin_sets = dict()
@@ -1962,7 +1950,7 @@ def organize_regression_cohort_model(
     cohort=None,
     model=None,
     cohorts_models=None,
-    dock=None,
+    paths=None,
 ):
     """
     Organizes and combines information about dependent and independent
@@ -1972,8 +1960,8 @@ def organize_regression_cohort_model(
         cohort (str): cohort of persons--selection, respiration, or ventilation
         model (str): name of regression model
         cohorts_models (dict<list<str>>): models in each cohort
-        dock (str): path to root or dock directory for source and product
-            directories and files
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
 
     raises:
 
@@ -1990,12 +1978,6 @@ def organize_regression_cohort_model(
 
     # Organize data, regress across genes, and write information to file.
     if True:
-        # Initialize directories.
-        paths = initialize_directories(
-            cohorts_models=cohorts_models,
-            restore=True,
-            dock=dock,
-        )
         organize_data_regress_cases_report_write(
             cohort=cohort,
             model=model,
@@ -2006,18 +1988,11 @@ def organize_regression_cohort_model(
     # Select genes with significant association with each hypothetical
     # variable of interest.
     if False:
-        # Initialize directories.
-        paths = initialize_directories(
-            cohorts_models=cohorts_models,
-            restore=False,
-            dock=dock,
-        )
         organize_regression_gene_associations_report_write(
             cohort=cohort,
             model=model,
             paths=paths,
         )
-
     pass
 
 
@@ -2040,8 +2015,8 @@ def execute_procedure(
     # Define cohorts of persons.
     cohorts = [
         "selection",
-        #"respiration",
-        #"ventilation",
+        "respiration",
+        "ventilation",
     ]
     # Define regression models for each cohort.
     cohorts_models = dict()
@@ -2059,6 +2034,12 @@ def execute_procedure(
         "ventilation_main",
         "ventilation_sex_age",
     ]
+    # Initialize directories.
+    paths = initialize_directories(
+        cohorts_models=cohorts_models,
+        restore=False,
+        dock=dock,
+    )
     # Execute procedure for each cohort.
     for cohort in cohorts:
         # Execute procedure for each regression model.
@@ -2068,7 +2049,7 @@ def execute_procedure(
                 cohort=cohort,
                 model=model,
                 cohorts_models=cohorts_models,
-                dock=dock,
+                paths=paths,
             )
     pass
 

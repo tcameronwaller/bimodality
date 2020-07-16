@@ -1443,16 +1443,21 @@ def calculate_false_discovery_rate(
     )
     # Calculate false discovery rates from probabilities.
     probabilities = data_valid[probability].to_numpy()
-    report = statsmodels.stats.multitest.multipletests(
-        probabilities,
-        alpha=threshold,
-        method="fdr_bh",
-        is_sorted=False,
-    )
-    significances = report[0]
-    discoveries = report[1]
-    data_valid[significance] = significances
-    data_valid[discovery] = discoveries
+    if len(probabilities) > 3:
+        report = statsmodels.stats.multitest.multipletests(
+            probabilities,
+            alpha=threshold,
+            method="fdr_bh",
+            is_sorted=False,
+        )
+        significances = report[0]
+        discoveries = report[1]
+        data_valid[significance] = significances
+        data_valid[discovery] = discoveries
+    else:
+        data_valid[significance] = float("nan")
+        data_valid[discovery] = float("nan")
+        pass
     data_null[significance] = False
     data_null[discovery] = float("nan")
 
