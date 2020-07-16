@@ -1224,7 +1224,7 @@ def select_report_write_candidate_modality_genes_cohort(
             genes_selection=source["genes_selection"],
             genes_distribution=source["genes_distribution"],
             data_distribution_report=source["data_distribution_report"],
-            report=False,
+            report=True,
     ))
 
     # Set measures of modality.

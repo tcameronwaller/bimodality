@@ -359,7 +359,6 @@ def standardize_genes_signals(
     return data_standard
 
 
-
 def organize_dependent_independent_variables(
     variables=None,
     data_persons_properties=None,
@@ -414,9 +413,14 @@ def organize_dependent_independent_variables(
     # Report.
     if report:
         utility.print_terminal_partition(level=1)
-        print("data_variables")
+        print("dependent variables")
+        utility.print_terminal_partition(level=3)
+        print(data_persons_properties)
         utility.print_terminal_partition(level=2)
+        print("data_variables")
+        utility.print_terminal_partition(level=3)
         print(data_variables)
+        utility.print_terminal_partition(level=2)
         pass
     # Return information.
     return data_variables
@@ -513,9 +517,14 @@ def regress_signal_ordinary_residuals(
         #values_independence = data.loc[ :, independence].to_numpy()
         data_independence = data.loc[ :, independence]
         # Introduce constant value for intercept.
+        # If any column in the independent variables already has constant
+        # values, then the function skips it by default.
+        # It is necessary to change parameter "has_constant" to avoid this
+        # conditional behavior.
         data_independence_intercept = statsmodels.api.add_constant(
             data_independence,
             prepend=True, # insert intercept constant first
+            has_constant="add", # Introduce new intercept constant regardless
         )
         # Define model.
         model = statsmodels.api.OLS(
@@ -542,12 +551,29 @@ def regress_signal_ordinary_residuals(
         parameters = dict()
         probabilities = dict()
         inflations = dict()
-        #parameters["intercept_parameter"] = report.params[0]
-        parameters["intercept_parameter"] = report_parameters["const"]
-        #probabilities["intercept_probability"] = report.pvalues[0]
-        probabilities["intercept_probability"] = report_probabilities["const"]
+        if ("const" in report_parameters.index):
+            #parameters["intercept_parameter"] = report.params[0]
+            parameters["intercept_parameter"] = report_parameters["const"]
+        else:
+            parameters["intercept_parameter"] = float("nan")
+            utility.print_terminal_partition(level=4)
+            print("Warning: regression data does not have constant intercept.")
+            print(dependence)
+            utility.print_terminal_partition(level=4)
+        if ("const" in report_probabilities.index):
+            #probabilities["intercept_probability"] = report.pvalues[0]
+            probabilities["intercept_probability"] = (
+                report_probabilities["const"]
+            )
+        else:
+            probabilities["intercept_probability"] = float("nan")
+            utility.print_terminal_partition(level=4)
+            print("Warning: regression data does not have constant intercept.")
+            print(dependence)
+            utility.print_terminal_partition(level=4)
         inflations["intercept_inflation"] = float("nan")
         # Iterate on each independent variable.
+        # Initiate counter at 1 to assume that intercept is at index 0.
         counter = 1
         # Accommodate index for intercept.
         for variable in independence:
@@ -1841,8 +1867,10 @@ def organize_data_regress_cases_report_write(
         dock=paths["dock"],
     )
     # Regression on hypothesis variables.
-    genes_regression = random.sample(genes_sets["any"], 100)
-    #genes_regression = genes_sets["any"]#[0:10]
+    #genes_regression = random.sample(genes_sets["any"], 100)
+    genes_regression = genes_sets["any"]#[0:10]
+    utility.print_terminal_partition(level=2)
+    print("regression genes: " + str(len(genes_regression)))
     bin_regression = organize_data_regress_cases_report(
         genes=genes_regression,
         variables_regression=variables["model"],
