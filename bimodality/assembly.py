@@ -343,7 +343,7 @@ def read_source_sample(dock=None):
     )
 
     path_data_person_smoke = os.path.join(
-        dock, "annotation_2020-06-19", "smoke",
+        dock, "annotation", "smoke",
         "data_person_smoke_threshold-1-year.csv",
     )
 
@@ -1516,9 +1516,11 @@ def organize_genes_annotations_set(
 
     # Define and select relevant columns.
     print(data_gene_annotation.shape)
+    print(data_gene_annotation.columns.to_list())
     columns = [
         "gene_id",
         "gene_name",
+        "havana_gene",
         "feature",
         "gene_type",
         "seqname",
@@ -1608,6 +1610,46 @@ def organize_genes_annotations(
     write_product_gene_annotation(dock=dock, information=information)
 
 
+def access_gene_contextual_annotations(
+    gene_identifier=None,
+    data_gene_annotation=None,
+):
+    """
+    Accesses a gene's contextual annotations.
+
+    arguments:
+        gene_identifier (str): identifier of gene
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+
+    returns:
+        (dict): contextual annotations about a gene
+
+    raises:
+
+    """
+
+    bin = dict()
+    if gene_identifier in data_gene_annotation.index.to_list():
+        bin["name"] = access_gene_name(
+            identifier=gene_identifier,
+            data_gene_annotation=data_gene_annotation,
+        )
+        bin["chromosome"] = data_gene_annotation.loc[
+            gene_identifier, "seqname"
+        ]
+        bin["start"] = data_gene_annotation.loc[gene_identifier, "start"]
+        bin["end"] = data_gene_annotation.loc[gene_identifier, "end"]
+        bin["strand"] = data_gene_annotation.loc[gene_identifier, "strand"]
+    else:
+        bin["name"] = float("nan")
+        bin["chromosome"] = float("nan")
+        bin["start"] = float("nan")
+        bin["end"] = float("nan")
+        bin["strand"] = float("nan")
+    # Return information.
+    return bin
+
+
 def access_gene_name(
     identifier=None,
     data_gene_annotation=None,
@@ -1629,7 +1671,6 @@ def access_gene_name(
 
     name = data_gene_annotation.at[identifier, "gene_name"].replace(".", "-")
     return name
-
 
 
 def read_source_gene_name_identifier_translations(dock=None):
@@ -1665,7 +1706,6 @@ def read_source_gene_name_identifier_translations(dock=None):
         inplace=True,
     )
     translations = data.to_dict(orient="index")
-
     # Compile and return information.
     return translations
 
@@ -1673,7 +1713,7 @@ def read_source_gene_name_identifier_translations(dock=None):
 def translate_gene_name_to_identifier(
     name=None,
     data_gene_annotation=None,
-    dock=None,
+    translations_genes=None,
 ):
     """
     Translates a gene's name to its identifier by looking up any exact match to
@@ -1682,8 +1722,9 @@ def translate_gene_name_to_identifier(
     arguments:
         name (str): name of gene
         data_gene_annotation (object): Pandas data frame of genes' annotations
-        dock (str): path to root or dock directory for source and product
-            directories and files
+        translations_genes (dict<str>): pairwise custom translations of genes'
+            names to Ensembl identifiers, see
+            assembly.read_source_gene_name_identifier_translations()
 
     returns:
         (str): name of gene
@@ -1691,8 +1732,6 @@ def translate_gene_name_to_identifier(
     raises:
 
     """
-
-    translations = read_source_gene_name_identifier_translations(dock=dock)
 
     # Clean name.
     data_gene_annotation = data_gene_annotation.copy(deep=True)
@@ -1708,12 +1747,14 @@ def translate_gene_name_to_identifier(
     elif len(identifiers) == 1:
         identifier = identifiers[0]
     elif len(identifiers) == 0:
-        if name in translations.keys():
-            identifier = translations[name]["identifier"].strip()
+        if name in translations_genes.keys():
+            identifier = translations_genes[name]["identifier"].strip()
         else:
             identifier = float("nan")
+            print(name.strip())
+            pass
+        pass
     return identifier
-
 
 
 ##########
@@ -2599,7 +2640,7 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
-    if False:
+    if True:
 
         # Organize persons' genotypes.
         organize_persons_genotypes(dock=dock)
@@ -2632,7 +2673,7 @@ def execute_procedure(dock=None):
     ##################################################
     ##################################################
 
-    if True:
+    if False:
 
         # Organize genes' signals.
         organize_genes_signals(dock=dock)

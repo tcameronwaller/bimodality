@@ -15,6 +15,8 @@ import os
 import copy
 import pickle
 import itertools
+import statistics
+import math
 
 # Relevant
 
@@ -72,10 +74,11 @@ def initialize_directories(dock=None):
     return paths
 
 
+##########
 # Collection of COVID-19 genes
 
 
-def read_source_covid_genes(
+def read_source_covid19_genes(
     dock=None
 ):
     """
@@ -101,8 +104,13 @@ def read_source_covid_genes(
         dock, "selection", "tight", "gene_annotation",
         "data_gene_annotation_gencode.pickle"
     )
+    translations_genes = (
+        assembly.read_source_gene_name_identifier_translations(
+            dock=dock
+    ))
     path_collection = os.path.join(
-        dock, "annotation", "gene_sets", "genes_covid19", "collection"
+        dock, "annotation", "gene_sets", "genes_covid19",
+        "collection_2020-07-20"
     )
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
@@ -118,16 +126,18 @@ def read_source_covid_genes(
     for file_name in files_collection:
         utility.print_terminal_partition(level=4)
         print(file_name)
-        designation = file_name.split(".")[0]
-        identifier = str(designation.replace("genes_", ""))
-        data_key = str("data_" + designation)
+        name = file_name.split(".")[0]
+        study = str(name.replace("genes_", ""))
+        identifier = str(name.replace("genes_pubmed_", ""))
+        data_key = str("data_" + name)
         print(data_key)
         # Specify directories and files.
         path_file = os.path.join(path_collection, file_name)
         # Read information from file.
-        bin[identifier] = dict()
-        bin[identifier]["identifier"] = identifier
-        bin[identifier]["data"] = pandas.read_csv(
+        bin[study] = dict()
+        bin[study]["study"] = study
+        bin[study]["identifier"] = identifier
+        bin[study]["data"] = pandas.read_csv(
             path_file,
             sep="\t",
             header=0,
@@ -137,16 +147,73 @@ def read_source_covid_genes(
     # Return information.
     return {
         "data_gene_annotation": data_gene_annotation,
+        "translations_genes": translations_genes,
         "genes_selection": genes_candidacy["any"],
         "bin_studies": bin,
     }
 
 
-def collect_sort_unique_study_comparisons(
+def translate_study_genes_identifiers(
+    bin_studies=None,
+    data_gene_annotation=None,
+    translations_genes=None,
+    report=None,
+):
+    """
+    Translates genes' names from all studies to Ensembl identifiers.
+
+    arguments:
+        bin_studies (dict): collection of information about each study
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        translations_genes (dict<str>): pairwise custom translations of genes'
+            names to Ensembl identifiers, see
+            assembly.read_source_gene_name_identifier_translations()
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict): collection of information about each study with genes'
+            identifiers
+
+    """
+
+    utility.print_terminal_partition(level=2)
+    print("translating genes' names to Ensembl identifiers...")
+    print("following genes' names do not match...")
+    utility.print_terminal_partition(level=2)
+    # Iterate on studies.
+    bin_studies = copy.deepcopy(bin_studies)
+    for study in bin_studies.keys():
+        data_study = bin_studies[study]["data"]
+        # Determine whether the study already includes genes' identifiers.
+        if ("identifier" not in data_study.columns.to_list()):
+            data_study["identifier"] = data_study["name"].apply(
+                lambda gene_name:
+                    assembly.translate_gene_name_to_identifier(
+                        name=gene_name,
+                        data_gene_annotation=data_gene_annotation,
+                        translations_genes=translations_genes,
+                    )
+            )
+            bin_studies[study]["data"] = data_study
+            # Report.
+            if report:
+                print(data_study)
+                pass
+            pass
+        pass
+    utility.print_terminal_partition(level=2)
+    print("end translation...")
+    utility.print_terminal_partition(level=2)
+    return bin_studies
+
+
+def collect_studies_unique_gene_identifiers(
     bin_studies=None,
 ):
     """
-    Collects and organizes unique designations of comparisons from all studies.
+    Collects unique identifiers of genes from all studies.
 
     arguments:
         bin_studies (dict): collection of information about each study
@@ -154,7 +221,91 @@ def collect_sort_unique_study_comparisons(
     raises:
 
     returns:
-        (list<str>): unique designations of comparisons from all studies
+        (list<str>): unique identifiers of genes from all studies
+
+    """
+
+    genes_collection = []
+    for study in bin_studies.keys():
+        data_study = bin_studies[study]["data"]
+        genes_study = data_study["identifier"].to_list()
+        genes_collection.extend(genes_study)
+    # Determine valid, non null values of the gene's fold change.
+    genes_valid = list(filter(
+        lambda identifier: ("ENSG" in str(identifier)),
+        genes_collection
+    ))
+    genes_unique = utility.collect_unique_elements(
+        elements_original=genes_valid
+    )
+    return genes_unique
+
+
+def translate_study_comparisons_identifiers(
+    bin_studies=None,
+    report=None,
+):
+    """
+    Collects and organizes unique designations of comparisons from all studies.
+
+    arguments:
+        bin_studies (dict): collection of information about each study
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict): collection of information about each study with unique
+            comparisons in each study
+
+    """
+
+    bin_studies = copy.deepcopy(bin_studies)
+    for study in bin_studies.keys():
+        identifier_study = bin_studies[study]["identifier"]
+        data_study = bin_studies[study]["data"]
+        columns = data_study.columns.to_list()
+        comparisons = list(filter(
+            lambda value: (not value in ["identifier", "name"]),
+            columns
+        ))
+        comparisons_unique = sorted(utility.collect_unique_elements(
+            elements_original=comparisons
+        ))
+        bin_studies[study]["comparisons"] = comparisons_unique
+        # Organize study's unique comparisons.
+        bin_studies[study]["comparisons_translation"] = dict()
+        for comparison in comparisons_unique:
+            name = str(identifier_study + "_" + comparison)
+            bin_studies[study]["comparisons_translation"][comparison] = name
+            pass
+        # Translate comparison columns.
+        data_study.rename(
+            columns=bin_studies[study]["comparisons_translation"],
+            inplace=True,
+        )
+        bin_studies[study]["data"] = data_study
+        # Report.
+        if report:
+            print(data_study)
+            pass
+        pass
+    return bin_studies
+
+
+def collect_studies_unique_comparisons(
+    bin_studies=None,
+):
+    """
+    Collects unique identifiers of comparisons from all studies.
+
+    arguments:
+        bin_studies (dict): collection of information about each study
+
+    raises:
+
+    returns:
+        (list<str>): unique identifiers of comparisons from all studies
 
     """
 
@@ -167,89 +318,180 @@ def collect_sort_unique_study_comparisons(
             columns
         ))
         collection.extend(comparisons)
-    comparisons_unique = utility.collect_unique_elements(
+    comparisons_unique = sorted(utility.collect_unique_elements(
         elements_original=collection
-    )
-    return sorted(comparisons_unique)
-
-
-def collect_unique_gene_names(
-    bin_studies=None,
-):
-    """
-    Collects unique names of genes from all studies.
-
-    arguments:
-        bin_studies (dict): collection of information about each study
-
-    raises:
-
-    returns:
-        (list<str>): unique names of genes from all studies
-
-    """
-
-    collection = []
-    for study in bin_studies.keys():
-        data_study = bin_studies[study]["data"]
-        genes_names_study = data_study["name"].to_list()
-        collection.extend(genes_names_study)
-    genes_names_unique = utility.collect_unique_elements(
-        elements_original=collection
-    )
-    return genes_names_unique
+    ))
+    return comparisons_unique
 
 
 def determine_gene_study_comparison_value(
-    gene=None,
+    gene_identifier=None,
     comparison=None,
-    data_study_gene=None,
+    data_study=None,
+    warn=None,
 ):
     """
-    Determines whether a gene belongs to a comparison set in a study.
+    Determines a gene's value of fold change for a comparison in a study.
+
+    The function that calls this function already verifies that the study
+    includes the gene and the comparison.
 
     arguments:
-        gene (str): name of a gene
+        gene_identifier (str): unique identifier of a gene
         comparison (str): name of a comparison
-        data_study_gene (object): Pandas data frame of a gene's inclusion in
-           comparison sets in a study
+        data_study (object): Pandas data frame of information about comparisons
+            across genes in a study
+        warn (bool): whether to print warnings
 
     raises:
 
     returns:
-        (bool): whether gene belongs to the comparison set in the study
+        (float): gene's value of fold change for a comparison in a study
 
     """
 
-    # Determine whether current study reports comparison.
-    if comparison in data_study_gene.columns.to_list():
-        values = data_study_gene[comparison].to_list()
-        match = any(list(map(
-            lambda value: (value > 0.5),
-            values
-        )))
+    # Select study's information for gene.
+    data_study = data_study.copy(deep=True)
+    data_study_gene = data_study.loc[
+        data_study["identifier"] == gene_identifier, :
+    ].copy(deep=True)
+    data_study_gene.drop_duplicates(
+        subset=None,
+        keep="first",
+        inplace=True,
+        #ignore_index=True,
+    )
+    # Determine valid, non null values of the gene's fold change.
+    values_valid = list(filter(
+        lambda value: (not math.isnan(value)),
+        data_study_gene[comparison].to_list()
+    ))
+    if len(values_valid) > 1:
+        value = statistics.mean(values_valid)
+        if warn:
+            utility.print_terminal_partition(level=3)
+            print(
+                "warning: gene has multiple fold change values for a single " +
+                "study and comparison." +
+                gene_identifier
+            )
+    elif len(values_valid) == 1:
+        value = values_valid[0]
     else:
-        match = False
+        value = float("nan")
     # Return information.
-    return match
+    return value
 
 
-def collect_gene_studies_comparisons(
-    gene_name=None,
+def collect_genes_annotations_studies_comparisons_valid_change(
+    genes_identifiers=None,
+    bin_studies=None,
+    data_gene_annotation=None,
+    warn=None,
+):
+    """
+    Collects unique studies in which each gene has a valid fold change.
+
+    arguments:
+        genes_identifiers (list<str>): unique identifiers of genes in all
+            studies
+        bin_studies (dict): collection of information about each study
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        warn (bool): whether to print warnings
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of studies for each gene
+
+    """
+
+    # Iterate across genes.
+    records = list()
+    for gene_identifier in genes_identifiers:
+        # Determine whether gene has a valid identifier.
+        if ("ENSG" in str(gene_identifier)):
+            # Collect studies and comparisons for the gene.
+            studies_gene = list()
+            comparisons_gene = list()
+            for study in bin_studies.keys():
+                data_study = bin_studies[study]["data"]
+                # Determine whether the gene has valid fold change in study.
+                if (gene_identifier in data_study["identifier"].to_list()):
+                    # Study mentions current gene.
+                    # Determine whether the gene has a valid fold change.
+                    # Consider each study comparison for the gene.
+                    comparisons_study = list(filter(
+                        lambda value: (not value in ["identifier", "name"]),
+                        data_study.columns.to_list()
+                    ))
+                    # Iterate across study's comparisons.
+                    for comparison in comparisons_study:
+                        value = determine_gene_study_comparison_value(
+                            gene_identifier=gene_identifier,
+                            comparison=comparison,
+                            data_study=data_study,
+                            warn=warn,
+                        )
+                        if not math.isnan(value):
+                            studies_gene.append(study)
+                            comparisons_gene.append(comparison)
+                            pass
+                        pass
+                    pass
+                pass
+            # Collect unique studies.
+            studies_gene_unique = sorted(utility.collect_unique_elements(
+                elements_original=studies_gene
+            ))
+            comparisons_gene_unique = sorted(utility.collect_unique_elements(
+                elements_original=comparisons_gene
+            ))
+            # Organize record.
+            record = dict()
+            record["identifier"] = gene_identifier
+            record["comparisons"] = comparisons_gene_unique
+            record["studies"] = studies_gene_unique
+            record["reference"] = ";".join(record["studies"])
+            annotations = assembly.access_gene_contextual_annotations(
+                gene_identifier=gene_identifier,
+                data_gene_annotation=data_gene_annotation,
+            )
+            record.update(annotations)
+            records.append(record)
+            pass
+        pass
+    # Organize data.
+    data = pandas.DataFrame(data=records)
+    data.set_index(
+        "identifier",
+        drop=True,
+        inplace=True,
+    )
+    return data
+
+
+def collect_gene_studies_comparisons_folds(
+    gene_identifier=None,
     entry_original=None,
     comparisons=None,
     bin_studies=None,
+    warn=None,
 ):
     """
-    Collects and organizes genes that show differential expression in multiple
-    studies and comparisons.
+    Collects information about a gene's fold changes across multiple studies
+    and comparisons.
+
+    This function assumes that comparisons are not redundant across studies.
+    Similar comparisons are distinct if they belong to different studies.
 
     arguments:
-        gene_name (str): name of a gene
+        gene_identifier (str): unique identifier of a gene
         entry_original (dict): entry of information about a gene
         comparisons (list<str>): unique designations of comparisons in all
             studies
         bin_studies (dict): collection of information about each study
+        warn (bool): whether to print warnings
 
     raises:
 
@@ -260,86 +502,93 @@ def collect_gene_studies_comparisons(
 
     # Copy original entry.
     entry = copy.deepcopy(entry_original)
-    entry["names"].append(gene_name)
     # Iterate across studies.
     for study in bin_studies.keys():
         data_study = bin_studies[study]["data"]
-        genes_names_study = data_study["name"].to_list()
-        # Determine whether study mentions the current name of the gene.
-        # If a gene has multiple names, then each will have its own separate
-        # consideration in this function.
-        if (gene_name in genes_names_study):
-            # Study mentions current gene.
-            if study not in entry["studies"]:
-                entry["studies"].append(study)
-            # Select study's information for gene.
-            data_study_gene = data_study.loc[
-                data_study["name"] == gene_name, :
-            ].copy(deep=True)
-            data_study_gene.drop_duplicates(
-                subset=None,
-                keep="first",
-                inplace=True,
-                #ignore_index=True,
-            )
-            # Need to consider each comparison for the gene.
-            # Iterate across comparisons.
-            for comparison in comparisons:
-                # Determine whether entry already has a value for the
+        # Determine whether study mentions the current gene.
+        if (gene_identifier in data_study["identifier"].to_list()):
+            # Consider each study comparison for the gene.
+            comparisons_study = list(filter(
+                lambda value: (not value in ["identifier", "name"]),
+                data_study.columns.to_list()
+            ))
+            # Iterate across study's comparisons.
+            for comparison in comparisons_study:
+                # Determine whether gene's entry already has a value for the
                 # comparison.
-                if (comparison in entry.keys()):
-                    # Determine whether record has a true value for the
-                    # comparison.
-                    # If value is already true, then ignore.
-                    # If value is not already true, then consider.
-                    if not entry[comparison]:
-                        # While the gene already has a false value for the
-                        # comparison, reconsider to include any true
-                        # values from novel names of the gene or novel studies.
-                        value = determine_gene_study_comparison_value(
-                            gene=gene_name,
-                            comparison=comparison,
-                            data_study_gene=data_study_gene,
-                        )
-                        entry[comparison] = value
-                        pass
-                else:
-                    # As the gene does not have a value for the comparison,
-                    # consider.
+                if (comparison not in entry.keys()):
+                    # Collect comparison's fold change value for the gene.
                     value = determine_gene_study_comparison_value(
-                        gene=gene_name,
+                        gene_identifier=gene_identifier,
                         comparison=comparison,
-                        data_study_gene=data_study_gene,
+                        data_study=data_study,
                     )
                     entry[comparison] = value
+                else:
+                    # Determine whether gene's entry has a null value for the
+                    # comparison.
+                    if math.isnan(entry[comparison]):
+                        # Gene does not have a valid value for the study and
+                        # comparison.
+                        value = determine_gene_study_comparison_value(
+                            gene_identifier=gene_identifier,
+                            comparison=comparison,
+                            data_study=data_study,
+                            warn=warn,
+                        )
+                        entry[comparison] = value
+                    else:
+                        # Gene already has a valid value for the study and
+                        # comparison.
+                        value = determine_gene_study_comparison_value(
+                            gene_identifier=gene_identifier,
+                            comparison=comparison,
+                            data_study=data_study,
+                            warn=warn,
+                        )
+                        entry[comparison] = statistics.mean(
+                            entry[comparison], value
+                        )
+                        # Warn.
+                        if warn:
+                            utility.print_terminal_partition(level=3)
+                            print(
+                                "warning: encountered multiple values for a " +
+                                "gene, study, and comparison."
+                            )
                     pass
                 pass
             pass
         pass
-    entry["reference"] = ";".join(entry["studies"])
+    # Collect null values for any comparisons that do not apply to the gene.
+    for comparison in comparisons:
+        if comparison not in entry.keys():
+            entry[comparison] = float("nan")
+            pass
+        pass
     # Return novel entry.
     return entry
 
 
-def collect_genes_summaries(
-    genes_names=None,
+def integrate_genes_studies_comparisons(
+    genes_identifiers=None,
     comparisons=None,
     bin_studies=None,
     data_gene_annotation=None,
-    dock=None,
+    warn=None,
 ):
     """
     Collects and organizes genes that show differential expression in multiple
     studies and comparisons.
 
     arguments:
-        genes_names (list<str>): unique names of genes in all studies
+        genes_identifiers (list<str>): unique identifiers of genes in all
+            studies
         comparisons (list<str>): unique designations of comparisons in all
             studies
         bin_studies (dict): collection of information about each study
         data_gene_annotation (object): Pandas data frame of genes' annotations
-        dock (str): path to root or dock directory for source and product
-            directories and files
+        warn (bool): whether to print warnings
 
     raises:
 
@@ -351,67 +600,70 @@ def collect_genes_summaries(
 
     # Iterate across genes.
     entries = dict()
-    for gene_name in genes_names:
-        # Access information about gene.
-        identifier = assembly.translate_gene_name_to_identifier(
-            name=gene_name,
-            data_gene_annotation=data_gene_annotation,
-            dock=dock,
-        )
-        # Determine whether an entry already exists for the gene.
-        # Multiple gene names might translate to a single identifier.
-        if identifier not in entries.keys():
-            # An entry does not already exist for the gene.
-            # Create new entry for gene.
-            entry = dict()
-            entry["identifier"] = identifier
-            entry["name"] = gene_name
-            entry["names"] = list()
-            entry["studies"] = list()
-            # Collect information for gene.
-            entry_novel = collect_gene_studies_comparisons(
-                gene_name=gene_name,
-                entry_original=entry,
-                comparisons=comparisons,
-                bin_studies=bin_studies,
-            )
-        else:
-            # Collect information for gene.
-            entry_novel = collect_gene_studies_comparisons(
-                gene_name=gene_name,
-                entry_original=entries[identifier],
-                comparisons=comparisons,
-                bin_studies=bin_studies,
-            )
-        # Collect entry.
-        entries_novel = dict()
-        entries_novel[entry_novel["identifier"]] = entry_novel
-        entries.update(entries_novel)
+    for gene_identifier in genes_identifiers:
+        # Determine whether gene has a valid identifier.
+        if ("ENSG" in str(gene_identifier)):
+            # Determine whether an entry already exists for the gene.
+            # Multiple gene names might translate to a single identifier.
+            if gene_identifier not in entries.keys():
+                # An entry does not already exist for the gene.
+                # Create new entry for gene.
+                entry = dict()
+                entry["identifier"] = gene_identifier
+                # Collect information for gene.
+                entry_novel = collect_gene_studies_comparisons_folds(
+                    gene_identifier=gene_identifier,
+                    entry_original=entry,
+                    comparisons=comparisons,
+                    bin_studies=bin_studies,
+                    warn=warn,
+                )
+            else:
+                # Collect information for gene.
+                entry_novel = collect_gene_studies_comparisons_folds(
+                    gene_identifier=gene_identifier,
+                    entry_original=entries[identifier],
+                    comparisons=comparisons,
+                    bin_studies=bin_studies,
+                    warn=warn,
+                )
+                pass
+            # Collect entry.
+            entries_novel = dict()
+            entries_novel[entry_novel["identifier"]] = entry_novel
+            entries.update(entries_novel)
+            pass
+        pass
     # Organize data.
     records = entries.values()
     data = pandas.DataFrame(data=records)
     return data
 
 
-def collect_organize_genes_summaries(
-    genes_names=None,
+def integrate_organize_genes_studies_comparisons(
+    genes_identifiers=None,
     comparisons=None,
     bin_studies=None,
+    data_genes_studies_valid=None,
     data_gene_annotation=None,
-    dock=None,
+    report=None,
+    warn=None,
 ):
     """
     Collects and organizes genes that show differential expression in multiple
     studies and comparisons.
 
     arguments:
-        genes_names (list<str>): unique names of genes in all studies
+        genes_identifiers (list<str>): unique identifiers of genes in all
+            studies
         comparisons (list<str>): unique designations of comparisons in all
             studies
         bin_studies (dict): collection of information about each study
+        data_genes_studies_valid (object): Pandas data frame of studies for
+            each gene
         data_gene_annotation (object): Pandas data frame of genes' annotations
-        dock (str): path to root or dock directory for source and product
-            directories and files
+        report (bool): whether to print reports
+        warn (bool): whether to print warnings
 
     raises:
 
@@ -422,58 +674,76 @@ def collect_organize_genes_summaries(
     """
 
     # Collect genes' summaries across studies and comparisons.
-    data = collect_genes_summaries(
-        genes_names=genes_names,
+    data = integrate_genes_studies_comparisons(
+        genes_identifiers=genes_identifiers,
         comparisons=comparisons,
         bin_studies=bin_studies,
         data_gene_annotation=data_gene_annotation,
-        dock=dock,
-    )
-    # Organize data.
-    data["count_studies"] = data.apply(
-        lambda row: len(row["studies"]),
-        axis="columns",
-    )
-    data.drop(
-        labels=["studies"],
-        axis="columns",
-        inplace=True
-    )
-    data["count_comparisons"] = data.apply(
-        lambda row: len(list(
-            itertools.compress(
-                row.loc[comparisons].to_list(), row.loc[comparisons].to_list()
-            )
-        )),
-        axis="columns",
-    )
-    data = data[[
-        "identifier",
-        "name",
-        "names",
-        *comparisons,
-        "reference",
-        "count_studies",
-        "count_comparisons",
-    ]]
-    data.sort_values(
-        by=["count_studies"],
-        axis="index",
-        ascending=False,
-        inplace=True,
+        warn=warn,
     )
     data.set_index(
         "identifier",
         drop=True,
         inplace=True,
     )
-    return data
+    # Calculate logarithmic fold changes.
+    # Transform genes' signals to logarithmic space.
+    # Transform values of genes' signals to base-2 logarithmic space.
+    data_log = utility.calculate_pseudo_logarithm_signals(
+        pseudo_count=0.0,
+        base=2.0,
+        data=data,
+    )
+    # Introduce genes' contextual annotations and references to studies.
+    data_genes_folds = data_log.join(
+        data_genes_studies_valid,
+        how="left",
+        on="identifier"
+    )
+    # Introduce counts of studies and comparisons for each gene.
+    data_genes_folds["count_studies"] = data_genes_folds.apply(
+        lambda row: len(row["studies"]),
+        axis="columns",
+    )
+    data_genes_folds["count_comparisons"] = data_genes_folds.apply(
+        lambda row: len(row["comparisons"]),
+        axis="columns",
+    )
+    data_genes_folds.drop(
+        labels=["studies"],
+        axis="columns",
+        inplace=True
+    )
+    data_genes_folds.drop(
+        labels=["comparisons"],
+        axis="columns",
+        inplace=True
+    )
+    data_genes_folds = data_genes_folds[[
+        #"identifier",
+        "name",
+        "chromosome",
+        "start",
+        "end",
+        "strand",
+        "count_studies",
+        "count_comparisons",
+        *comparisons,
+        "reference",
+    ]]
+    data_genes_folds.sort_values(
+        by=["count_studies"],
+        axis="index",
+        ascending=False,
+        inplace=True,
+    )
+    return data_genes_folds
 
 
-def collect_organize_genes_studies_comparisons(
+def collect_integrate_organize_genes_studies_comparisons(
     bin_studies=None,
     data_gene_annotation=None,
-    dock=None,
+    translations_genes=None,
     report=None,
 ):
     """
@@ -483,8 +753,9 @@ def collect_organize_genes_studies_comparisons(
     arguments:
         bin_studies (dict): collection of information about each study
         data_gene_annotation (object): Pandas data frame of genes' annotations
-        dock (str): path to root or dock directory for source and product
-            directories and files
+        translations_genes (dict<str>): pairwise custom translations of genes'
+            names to Ensembl identifiers, see
+            assembly.read_source_gene_name_identifier_translations()
         report (bool): whether to print reports
 
     raises:
@@ -495,25 +766,58 @@ def collect_organize_genes_studies_comparisons(
 
     """
 
-    # Collect unique comparisons from all studies.
-    comparisons = collect_sort_unique_study_comparisons(
-        bin_studies=bin_studies,
-    )
-    # Collect unique gene names.
-    genes_names = collect_unique_gene_names(
-        bin_studies=bin_studies,
-    )
-    if report:
-        utility.print_terminal_partition(level=2)
-        print("unique genes: " + str(len(genes_names)))
-    # Collect relevance of comparisons and references to studies for each gene.
-    data_genes_comparisons_studies = collect_organize_genes_summaries(
-        genes_names=genes_names,
-        comparisons=comparisons,
+    # Translate genes' names to Ensembl identifiers.
+    bin_studies_genes = translate_study_genes_identifiers(
         bin_studies=bin_studies,
         data_gene_annotation=data_gene_annotation,
-        dock=dock,
+        translations_genes=translations_genes,
+        report=False,
     )
+    # Collect unique genes' identifiers across all studies.
+    genes_identifiers = collect_studies_unique_gene_identifiers(
+        bin_studies=bin_studies_genes,
+    )
+    # Report.
+    if report:
+        print("unique genes from all studies: " + str(len(genes_identifiers)))
+        pass
+
+    # Translate comparison identifiers from all studies.
+    bin_studies_comparisons = translate_study_comparisons_identifiers(
+        bin_studies=bin_studies_genes,
+        report=False,
+    )
+    # Collect unique comparisons across all studies.
+    comparisons = collect_studies_unique_comparisons(
+        bin_studies=bin_studies_comparisons,
+    )
+    # Report.
+    if report:
+        print(
+            "unique comparisons from all studies: " +
+            str(len(comparisons))
+        )
+        pass
+    # Collect studies that report valid fold changes for each gene.
+    data_genes_studies_valid = (
+        collect_genes_annotations_studies_comparisons_valid_change(
+            genes_identifiers=genes_identifiers,
+            bin_studies=bin_studies_comparisons,
+            data_gene_annotation=data_gene_annotation,
+            warn=True,
+    ))
+    # Collect and integrate genes' fold changes across comparisons in all
+    # studies.
+    data_genes_comparisons_studies = (
+        integrate_organize_genes_studies_comparisons(
+            genes_identifiers=genes_identifiers,
+            comparisons=comparisons,
+            bin_studies=bin_studies_comparisons,
+            data_genes_studies_valid=data_genes_studies_valid,
+            data_gene_annotation=data_gene_annotation,
+            report=report,
+            warn=True,
+    ))
     # Return information.
     return data_genes_comparisons_studies
 
@@ -643,7 +947,7 @@ def write_product_covid_genes(
 # Procedure
 
 
-def read_collect_organize_report_write_covid_genes(
+def read_collect_organize_report_write_covid19_genes(
     paths=None,
 ):
     """
@@ -661,17 +965,28 @@ def read_collect_organize_report_write_covid_genes(
     """
 
     # Read source information from file.
-    source = read_source_covid_genes(
+    source = read_source_covid19_genes(
         dock=paths["dock"],
     )
+
     # Collect and organize genes from each study and comparison.
+    # Do not combine similar comparisons from different studies. For example,
+    # do not combine information from "cd4_t_cell" in two different studies.
+    # Such a combination of fold changes would complicate interpretation and
+    # would be problematic as different studies use different tissues such as
+    # PBMCs versus BALF.
+    # Instead, organize comparisons that are distinct for each study.
     data_genes_comparisons_studies = (
-        collect_organize_genes_studies_comparisons(
+        collect_integrate_organize_genes_studies_comparisons(
             bin_studies=source["bin_studies"],
             data_gene_annotation=source["data_gene_annotation"],
-            dock=paths["dock"],
+            translations_genes=source["translations_genes"],
             report=True,
     ))
+
+    utility.print_terminal_partition(level=1)
+    print(data_genes_comparisons_studies)
+
     # Select genes that show differential expression in multiple studies.
     genes_covid19 = select_covid19_genes_by_studies(
         data_genes_comparisons_studies=data_genes_comparisons_studies,
@@ -688,8 +1003,6 @@ def read_collect_organize_report_write_covid_genes(
         paths=paths,
     )
     pass
-
-
 
 
 def execute_procedure(
@@ -711,7 +1024,7 @@ def execute_procedure(
     # Initialize directories.
     paths = initialize_directories(dock=dock)
     # Organize genes with differential expression in COVID-19.
-    read_collect_organize_report_write_covid_genes(
+    read_collect_organize_report_write_covid19_genes(
         paths=paths,
     )
 

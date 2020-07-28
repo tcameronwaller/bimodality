@@ -85,7 +85,7 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --access # run on 19 June 2020
 #python3 interface.py main --dock $path_dock --assembly # run on 28 June 2020
 #python3 interface.py main --dock $path_dock --selection # run on 15 July 2020 for 15,742 genes (50% threshold)
-#python3 interface.py main --dock $path_dock --collection # run on 15 July 2020 for 15,742 genes (50% threshold)
+python3 interface.py main --dock $path_dock --collection # run on 15 July 2020 for 15,742 genes (50% threshold)
 
 ##########
 # - Batch Routine
@@ -116,7 +116,7 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
-python3 interface.py main --dock $path_dock --prediction
+#python3 interface.py main --dock $path_dock --prediction
 #python3 interface.py main --dock $path_dock --function
 #python3 interface.py main --dock $path_dock --integration
 

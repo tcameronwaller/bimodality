@@ -1494,7 +1494,9 @@ def calculate_pseudo_logarithm_signals(
     """
 
     data_log = data.applymap(
-        lambda value: math.log((value + pseudo_count), base)
+        lambda value:
+            math.log((value + pseudo_count), base) if (not math.isnan(value))
+            else float("nan")
     )
     return data_log
 
