@@ -1010,19 +1010,19 @@ def read_source_genes_sets_prediction_interaction(
 
     # Read source information from file.
     sets_main = read_source_genes_sets_prediction_interaction_cohort_model(
-        cohort="selection",
+        cohort=cohort,
         model="selection_main",
         dock=dock,
     )
     sets_sex_ventilation = (
         read_source_genes_sets_prediction_interaction_cohort_model(
-            cohort="selection",
+            cohort=cohort,
             model="selection_sex_ventilation",
             dock=dock,
     ))
     sets_age_ventilation = (
         read_source_genes_sets_prediction_interaction_cohort_model(
-            cohort="selection",
+            cohort=cohort,
             model="selection_age_ventilation",
             dock=dock,
     ))
@@ -1166,7 +1166,10 @@ def write_product_prediction_interaction_genes(
     )
     pass
 
-
+# TODO: I think this sub-procedure is now obsolete...
+# TODO: I now know that it is better to include the main terms (sex, age, ventilation) in the model
+# TODO: with the interaction terms (sex*ventilation, age*ventilation)...
+# TODO: this sub-procedure combines genes from separate models... not ideal...
 def read_organize_report_write_prediction_interaction_gene_sets(paths=None):
     """
     Organizes sets of genes by integration of information from multiple

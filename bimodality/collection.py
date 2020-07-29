@@ -414,6 +414,8 @@ def collect_genes_annotations_studies_comparisons_valid_change(
             # Collect studies and comparisons for the gene.
             studies_gene = list()
             comparisons_gene = list()
+            accumulations = list()
+            depletions = list()
             for study in bin_studies.keys():
                 data_study = bin_studies[study]["data"]
                 # Determine whether the gene has valid fold change in study.
@@ -436,6 +438,10 @@ def collect_genes_annotations_studies_comparisons_valid_change(
                         if not math.isnan(value):
                             studies_gene.append(study)
                             comparisons_gene.append(comparison)
+                            if value >= 1:
+                                accumulations.append(value)
+                            elif value < 1:
+                                depletions.append(value)
                             pass
                         pass
                     pass
@@ -450,9 +456,11 @@ def collect_genes_annotations_studies_comparisons_valid_change(
             # Organize record.
             record = dict()
             record["identifier"] = gene_identifier
-            record["comparisons"] = comparisons_gene_unique
-            record["studies"] = studies_gene_unique
-            record["reference"] = ";".join(record["studies"])
+            record["studies"] = len(studies_gene_unique)
+            record["comparisons"] = len(comparisons_gene_unique)
+            record["reference"] = ";".join(studies_gene_unique)
+            record["accumulations"] = len(accumulations)
+            record["depletions"] = len(depletions)
             annotations = assembly.access_gene_contextual_annotations(
                 gene_identifier=gene_identifier,
                 data_gene_annotation=data_gene_annotation,
@@ -701,24 +709,6 @@ def integrate_organize_genes_studies_comparisons(
         on="identifier"
     )
     # Introduce counts of studies and comparisons for each gene.
-    data_genes_folds["count_studies"] = data_genes_folds.apply(
-        lambda row: len(row["studies"]),
-        axis="columns",
-    )
-    data_genes_folds["count_comparisons"] = data_genes_folds.apply(
-        lambda row: len(row["comparisons"]),
-        axis="columns",
-    )
-    data_genes_folds.drop(
-        labels=["studies"],
-        axis="columns",
-        inplace=True
-    )
-    data_genes_folds.drop(
-        labels=["comparisons"],
-        axis="columns",
-        inplace=True
-    )
     data_genes_folds = data_genes_folds[[
         #"identifier",
         "name",
@@ -726,13 +716,15 @@ def integrate_organize_genes_studies_comparisons(
         "start",
         "end",
         "strand",
-        "count_studies",
-        "count_comparisons",
+        "studies",
+        "comparisons",
+        "accumulations",
+        "depletions",
         *comparisons,
         "reference",
     ]]
     data_genes_folds.sort_values(
-        by=["count_studies"],
+        by=["studies"],
         axis="index",
         ascending=False,
         inplace=True,
@@ -822,7 +814,7 @@ def collect_integrate_organize_genes_studies_comparisons(
     return data_genes_comparisons_studies
 
 
-def select_covid19_genes_by_studies(
+def select_covid19_genes_by_studies_fold_directions(
     data_genes_comparisons_studies=None,
     genes_selection=None,
     threshold_studies=None,
@@ -842,7 +834,7 @@ def select_covid19_genes_by_studies(
     raises:
 
     returns:
-        (list<str>): identifiers of genes
+        (dict<list<str>>): sets of genes
 
     """
 
@@ -859,12 +851,42 @@ def select_covid19_genes_by_studies(
         )
         print("selection genes DE COVID-19: " + str(data.shape[0]))
     # Select data for genes that match threshold.
-    data = data.loc[
-        data["count_studies"] >= threshold_studies, :
+    data_studies = data.loc[
+        data["studies"] >= threshold_studies, :
     ]
-    genes_covid19 = utility.collect_unique_elements(
-        elements_original=data.index.to_list()
+    genes_studies = utility.collect_unique_elements(
+        elements_original=data_studies.index.to_list()
     )
+    # Select data for genes that show accumulation in majority of studies.
+    data_accumulation = data_studies.loc[
+        data_studies["accumulations"] > (data_studies["depletions"] + 1), :
+    ]
+    genes_accumulation = utility.collect_unique_elements(
+        elements_original=data_accumulation.index.to_list()
+    )
+    # Select data for genes that show depletion in majority of studies.
+    data_depletion = data_studies.loc[
+        data_studies["depletions"] > (data_studies["accumulations"] + 1), :
+    ]
+    genes_depletion = utility.collect_unique_elements(
+        elements_original=data_depletion.index.to_list()
+    )
+    # Select data for genes that show depletion in majority of studies.
+    data_mix = data_studies.loc[
+        lambda datum:
+            (datum["accumulations"] == datum["depletions"]) |
+            (datum["accumulations"] == (datum["depletions"] + 1)) |
+            (datum["depletions"] == (datum["accumulations"] + 1))
+    ]
+    genes_mix = utility.collect_unique_elements(
+        elements_original=data_mix.index.to_list()
+    )
+    # Compile information.
+    bin = dict()
+    bin["studies"] = genes_studies
+    bin["accumulation"] = genes_accumulation
+    bin["depletion"] = genes_depletion
+    bin["mix"] = genes_mix
     # Report.
     if report:
         utility.print_terminal_partition(level=2)
@@ -872,10 +894,12 @@ def select_covid19_genes_by_studies(
             "Count of differential expression genes that match threshold."
         )
         print("threshold count of studies: " + str(threshold_studies))
-        print("threshold genes DE COVID-19: " + str(data.shape[0]))
-        print("DE COVID-19 genes: " + str(len(genes_covid19)))
+        print("genes DE COVID-19 by studies: " + str(len(genes_studies)))
+        print("genes by accumulation: " + str(len(genes_accumulation)))
+        print("genes by depletion: " + str(len(genes_depletion)))
+        print("genes by mix of folds: " + str(len(genes_mix)))
     # Return information.
-    return genes_covid19
+    return bin
 
 
 def write_product_covid_genes(
@@ -903,13 +927,6 @@ def write_product_covid_genes(
     path_data_text = os.path.join(
         paths["covid19"], "data_genes_comparisons_studies.tsv"
     )
-    path_genes = os.path.join(
-        paths["covid19"], "genes.pickle"
-    )
-    path_genes_text = os.path.join(
-        paths["covid19"], "genes.txt"
-    )
-
     # Write information to file.
     pandas.to_pickle(
         information["data_genes_comparisons_studies"],
@@ -921,16 +938,24 @@ def write_product_covid_genes(
         header=True,
         index=True,
     )
-    with open(path_genes, "wb") as file_product:
-        pickle.dump(
-            information["genes"], file_product
-        )
-    utility.write_file_text_list(
-        elements=information["genes"],
-        delimiter="\n",
-        path_file=path_genes_text
-    )
 
+    # Specify directories and files.
+    path_sets_genes = os.path.join(
+        paths["covid19"], "sets_genes.pickle"
+    )
+    # Write information to file.
+    with open(path_sets_genes, "wb") as file_product:
+        pickle.dump(information["sets_genes"], file_product)
+    # Write individual gene sets.
+    for set in information["sets_genes"].keys():
+        # Specify directories and files.
+        path_set = os.path.join(paths["covid19"], str(set + ".txt"))
+        # Write information to file.
+        utility.write_file_text_list(
+            elements=information["sets_genes"][set],
+            delimiter="\n",
+            path_file=path_set
+        )
     pass
 
 
@@ -988,16 +1013,17 @@ def read_collect_organize_report_write_covid19_genes(
     print(data_genes_comparisons_studies)
 
     # Select genes that show differential expression in multiple studies.
-    genes_covid19 = select_covid19_genes_by_studies(
+    sets_genes = select_covid19_genes_by_studies_fold_directions(
         data_genes_comparisons_studies=data_genes_comparisons_studies,
         genes_selection=source["genes_selection"],
         threshold_studies=2,
         report=True,
     )
+
     # Compile information.
     bin = dict()
     bin["data_genes_comparisons_studies"] = data_genes_comparisons_studies
-    bin["genes"] = genes_covid19
+    bin["sets_genes"] = sets_genes
     write_product_covid_genes(
         information=bin,
         paths=paths,

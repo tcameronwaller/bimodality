@@ -85,7 +85,7 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --access # run on 19 June 2020
 #python3 interface.py main --dock $path_dock --assembly # run on 28 June 2020
 #python3 interface.py main --dock $path_dock --selection # run on 15 July 2020 for 15,742 genes (50% threshold)
-python3 interface.py main --dock $path_dock --collection # run on 15 July 2020 for 15,742 genes (50% threshold)
+python3 interface.py main --dock $path_dock --collection # run on 28 July 2020 for 15,742 genes (50% threshold)
 
 ##########
 # - Batch Routine
