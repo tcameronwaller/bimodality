@@ -1673,13 +1673,18 @@ def define_organization_variables():
     # Pairs of variables for interaction terms.
     interaction = list()
     pair = dict()
-    pair["name"] = "sex_y*ventilation_binary"
+    pair["name"] = "sex_y*ventilation"
     pair["variable_one"] = "sex_y"
     pair["variable_two"] = "ventilation_binary"
     interaction.append(pair)
     pair = dict()
-    pair["name"] = "age*ventilation_binary"
+    pair["name"] = "age*ventilation"
     pair["variable_one"] = "age"
+    pair["variable_two"] = "ventilation_binary"
+    interaction.append(pair)
+    pair = dict()
+    pair["name"] = "race*ventilation"
+    pair["variable_one"] = "race_white"
     pair["variable_two"] = "ventilation_binary"
     interaction.append(pair)
     pair = dict()
@@ -1694,6 +1699,7 @@ def define_organization_variables():
         "sex_y",
         "age",
         "body",
+        "race_white",
         "climate",
         "hardiness",
         "respiration_binary",
@@ -1734,8 +1740,9 @@ def define_organization_variables():
         "tissues_1",
         "tissues_2",
         "tissues_3",
-        "sex_y*ventilation_binary",
-        "age*ventilation_binary",
+        "sex_y*ventilation",
+        "age*ventilation",
+        "race*ventilation",
         "sex_y*age",
     ]
     # Compile information.
@@ -2224,6 +2231,37 @@ def organize_samples_sex_variables(
     return data_samples
 
 
+def organize_samples_race_variables(
+    data_samples_tissues_persons=None,
+):
+    """
+    Organize variables that relate to racial identity.
+
+    The emphasis of this variable is a person's own social, culture racial
+    identity. This variable does not necessarily relate to genetic ancestry.
+    This variable relates more to social, cultural, and environmental factors.
+
+    arguments:
+        data_samples_tissues_persons_selection (object): Pandas data frame of
+            persons and tissues across selection samples
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of persons and tissues across samples
+
+    """
+
+    # Copy data.
+    data_samples = data_samples_tissues_persons.copy(deep=True)
+    # Sex.
+    data_samples["race_white"] = data_samples["race"].apply(
+        lambda value: (1 if (value == "europe") else 0)
+    )
+    # Return information.
+    return data_samples
+
+
 def organize_samples_smoke_variables(
     data_samples_tissues_persons=None,
 ):
@@ -2429,9 +2467,13 @@ def organize_samples_properties(
     data_sex = organize_samples_sex_variables(
         data_samples_tissues_persons=data_season,
     )
+    # Race, or racial identity.
+    data_race = organize_samples_race_variables(
+        data_samples_tissues_persons=data_sex,
+    )
     # Smoke.
     data_smoke = organize_samples_smoke_variables(
-        data_samples_tissues_persons=data_sex,
+        data_samples_tissues_persons=data_race,
     )
     # Impute missing values of boolean variables.
     data_boolean = impute_logical_variables(
@@ -3853,6 +3895,14 @@ def summarize_persons_properties_associations(
         report=True,
     )
 
+    report_persons_properties_correlation(
+        persons_selection=persons_sets["selection"],
+        variables=["race_white_scale", "genotype_1"],
+        data_persons_properties=data_persons_properties,
+        method="spearman",
+        report=True,
+    )
+
 
     organize_contingency_table_chi(
         persons_selection=persons_sets["selection"],
@@ -4100,12 +4150,12 @@ def extract_organize_persons_properties(
             bin_persons_selection["data_persons_properties"]
         ),
     )
-    # Summarize proportion of missing values of GTEx clinical annotations.
-    summarize_persons_health_variables_collections(
-        persons_sets=persons_sets,
-        collections_health_variables=source["collections_health_variables"],
-    )
-
+    if False:
+        # Summarize proportion of missing values of GTEx clinical annotations.
+        summarize_persons_health_variables_collections(
+            persons_sets=persons_sets,
+            collections_health_variables=source["collections_health_variables"],
+        )
     # Compile information.
     information = dict()
     information["persons_sets"] = persons_sets

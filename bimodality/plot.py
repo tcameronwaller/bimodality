@@ -1839,6 +1839,146 @@ def plot_scatter_threshold(
     return figure
 
 
+def plot_scatter_label_emphasis_points(
+    emphasis_keys=None,
+    label_keys=None,
+    column_key=None,
+    column_label=None,
+    data=None,
+    abscissa=None,
+    ordinate=None,
+    title_abscissa=None,
+    title_ordinate=None,
+    fonts=None,
+    colors=None,
+):
+    """
+    Creates a figure of a chart of type scatter with thresholds on each
+        dimension.
+
+    arguments:
+        emphasis_keys (list<str>): keys for rows of points for emphasis
+        label_keys (list<str>): keys for rows of points for labels
+        column_key (str): name of column in data with keys
+        column_label (str): name of column in data with labels
+        data (object): Pandas data frame of groups, series, and values
+        abscissa (str): name of data column with independent variable
+        ordinate (str): name of data column with dependent variable
+        title_abscissa (str): title for abscissa on horizontal axis
+        title_ordinate (str): title for ordinate on vertical axis
+        fonts (dict<object>): references to definitions of font properties
+        colors (dict<tuple>): references to definitions of color properties
+
+    raises:
+
+    returns:
+        (object): figure object
+
+    """
+
+    # Organize data.
+    data = data.copy(deep=True)
+    data_bore = data.loc[~data[column_key].isin(emphasis_keys), :]
+    data_emphasis = data.loc[data[column_key].isin(emphasis_keys), :]
+    data_bore.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+    data_emphasis.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+
+    ##########
+    # Create figure.
+    figure = matplotlib.pyplot.figure(
+        figsize=(15.748, 11.811),
+        tight_layout=True
+    )
+    # Create axes.
+    axes = matplotlib.pyplot.axes()
+    axes.set_xlabel(
+        xlabel=title_abscissa,
+        labelpad=20,
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["one"]
+    )
+    axes.set_ylabel(
+        ylabel=title_ordinate,
+        labelpad=20,
+        alpha=1.0,
+        backgroundcolor=colors["white"],
+        color=colors["black"],
+        fontproperties=fonts["properties"]["one"]
+    )
+    axes.tick_params(
+        axis="both",
+        which="both",
+        direction="out",
+        length=5.0,
+        width=3.0,
+        color=colors["black"],
+        pad=5,
+        labelsize=fonts["values"]["one"]["size"],
+        labelcolor=colors["black"]
+    )
+    # Plot points for values from each group.
+    handle = axes.plot(
+        data_bore[abscissa].to_numpy(),
+        data_bore[ordinate].to_numpy(),
+        linestyle="",
+        marker="o",
+        markersize=2.5,
+        markeredgecolor=colors["gray"],
+        markerfacecolor=colors["gray"]
+    )
+    handle = axes.plot(
+        data_emphasis[abscissa].to_numpy(),
+        data_emphasis[ordinate].to_numpy(),
+        linestyle="",
+        marker="o",
+        markersize=5,
+        markeredgecolor=colors["blue"],
+        markerfacecolor=colors["blue"]
+    )
+
+    # Plot lines for each threshold value...
+    # Create lines for thresholds.
+    axes.axvline(
+        x=0.0,
+        ymin=0,
+        ymax=1,
+        alpha=1.0,
+        color=colors["black"],
+        linestyle="--",
+        linewidth=3.0,
+    )
+    # Plot labels.
+    for label_key in label_keys:
+        data_label = data.loc[data[column_key].isin([label_key]), :]
+        if (data_label.shape[0] > 0):
+            for index_point in data_label.index.to_list():
+                axes.text(
+                    (data_label.at[index_point, abscissa]),
+                    (data_label.at[index_point, ordinate]),
+                    data_label[column_label].to_list()[0],
+                    backgroundcolor=colors["white_faint"],
+                    color=colors["black"],
+                    fontproperties=fonts["properties"]["five"],
+                    horizontalalignment="center",
+                    verticalalignment="center"
+                )
+                pass
+            pass
+        pass
+    # Return figure.
+    return figure
+
+
 def create_legend_elements(
     colors=None,
     labels=None,
@@ -4155,6 +4295,193 @@ def prepare_charts_gene_heritability(
             path_file=path_file
         )
 
+    pass
+
+
+##########
+# Collection of COVID-19 genes
+# Status: in progress
+
+
+def read_source_collection_comparisons_folds(
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Read genes sets.
+    genes_candidacy = integration.read_source_genes_sets_candidacy(
+        cohort="selection",
+        dock=dock,
+    )
+    # Specify directories and files.
+    path_data_gene_annotation = os.path.join(
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
+    )
+    path_data_covid19 = os.path.join(
+        dock, "collection", "covid19", "data_genes_comparisons_studies.pickle"
+    )
+
+    # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
+    data_covid19 = pandas.read_pickle(path_data_covid19)
+
+    # Compile and return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+        "data_covid19": data_covid19,
+        "genes_candidacy": genes_candidacy,
+    }
+
+
+def plot_chart_collection_comparisons_folds(
+    emphasis_keys=None,
+    label_keys=None,
+    column_key=None,
+    column_label=None,
+    data=None,
+    path_file=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        emphasis_keys (list<str>): keys for rows of points for emphasis
+        label_keys (list<str>): keys for rows of points for labels
+        column_key (str): name of column in data with keys
+        column_label (str): name of column in data with labels
+        data (object): Pandas data frame of variables
+        path_file (str): path for file
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_scatter_label_emphasis_points(
+        emphasis_keys=emphasis_keys,
+        label_keys=label_keys,
+        column_key=column_key,
+        column_label=column_label,
+        data=data,
+        abscissa="log2_fold_direction",
+        ordinate="comparisons",
+        title_abscissa="log2 fold change",
+        title_ordinate="count DE comparisons",
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure_png(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_charts_collection_comparisons_folds(
+    dock=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_collection_comparisons_folds(dock=dock)
+
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    utility.create_directory(path_plot)
+    path_directory = os.path.join(path_plot, "collection")
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+    path_file = os.path.join(
+        path_directory, "covid19_compilation.png"
+    )
+
+    # Copy data.
+    data = source["data_covid19"].copy(deep=True)
+    # Replicate records for positive and negative logarithmic fold changes of
+    # genes in COVID-19 patients.
+    data.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_up = data.loc[
+        :, data.columns.isin([
+            "identifier", "name", "comparisons", "log2_fold_positive"
+        ])
+    ]
+    data_down = data.loc[
+        :, data.columns.isin([
+            "identifier", "name", "comparisons", "log2_fold_negative"
+        ])
+    ]
+    data_up["direction"] = "up"
+    data_down["direction"] = "down"
+    data_up.rename(
+        columns={
+            "log2_fold_positive": "log2_fold_direction",
+        },
+        inplace=True,
+    )
+    data_down.rename(
+        columns={
+            "log2_fold_negative": "log2_fold_direction",
+        },
+        inplace=True,
+    )
+    data_direction = data_up.append(
+        data_down,
+        ignore_index=True,
+    )
+    data_direction.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+    # Plot chart and create figure.
+    label_keys = [
+        "ENSG00000169738", "ENSG00000134107", "ENSG00000096060",
+        "ENSG00000166523",
+    ]
+    plot_chart_collection_comparisons_folds(
+        emphasis_keys=source["genes_candidacy"]["multimodal"],
+        label_keys=label_keys,
+        column_key="identifier",
+        column_label="name",
+        data=data_direction,
+        path_file=path_file
+    )
     pass
 
 
@@ -8739,11 +9066,11 @@ def execute_procedure(dock=None):
     # Sort order across columns depends on hierarchical clustering.
     # This chart depicts groups of individual variables that relate, such as
     # all variables for inflammation.
-    prepare_charts_persons_health_collection_variables(dock=dock)
+    #prepare_charts_persons_health_collection_variables(dock=dock)
 
     # Plot charts, heatmaps, for adjacent summaries of properties across
     # persons.
-    prepare_charts_persons_properties_adjacency(dock=dock)
+    #prepare_charts_persons_properties_adjacency(dock=dock)
 
     # Plot chart, histogram, for distribution of values of ventilation
     # duration.
@@ -8779,29 +9106,40 @@ def execute_procedure(dock=None):
     ##########
     ##########
     ##########
-    # Distribution procedure
+    # Collection procedure
 
-    # Plot charts of distributions of genes' pan-tissue aggregate signals
-    # across persons.
-    prepare_charts_genes_persons_signals(dock=dock)
+    # Plot charts to summarize positive and negative logarithmic fold changes
+    # of genes in multiple studies on COVID-19 patients.
+    prepare_charts_collection_comparisons_folds(dock=dock)
 
-    # Plot charts, heatmaps, for each gene's signals across persons (columns)
-    # and tissues (rows).
-    # Include a chart to depict persons' properties.
-    # Sort order of persons is by pan-tissue signal.
-    prepare_charts_genes_signals_tissues_persons(dock=dock)
+    if False:
 
-    ##########
-    ##########
-    ##########
-    # Candidacy procedure
+        ##########
+        ##########
+        ##########
+        # Distribution procedure
 
-    # Plot charts of overlap between sets in selection of genes by bimodality.
-    prepare_charts_candidacy_gene_sets_overlap(dock=dock)
+        # Plot charts of distributions of genes' pan-tissue aggregate signals
+        # across persons.
+        prepare_charts_genes_persons_signals(dock=dock)
 
-    # Plot charts of distributions of each modality measure's scores across
-    # genes.
-    prepare_charts_modality_measure_genes_distribution(dock=dock)
+        # Plot charts, heatmaps, for each gene's signals across persons (columns)
+        # and tissues (rows).
+        # Include a chart to depict persons' properties.
+        # Sort order of persons is by pan-tissue signal.
+        prepare_charts_genes_signals_tissues_persons(dock=dock)
+
+        ##########
+        ##########
+        ##########
+        # Candidacy procedure
+
+        # Plot charts of overlap between sets in selection of genes by bimodality.
+        prepare_charts_candidacy_gene_sets_overlap(dock=dock)
+
+        # Plot charts of distributions of each modality measure's scores across
+        # genes.
+        prepare_charts_modality_measure_genes_distribution(dock=dock)
 
 
     if False:
@@ -8844,13 +9182,15 @@ def execute_procedure(dock=None):
     ##########
     # Prediction procedure
 
-    # Plot charts, scatter plots, for residuals from regressions on each gene's
-    # pan-tissue signals across persons.
-    #prepare_charts_genes_regression_residuals(dock=dock)
+    if False:
 
-    # Plot charts, set overlap charts, for genes in multiple sets from
-    # regression and association to predictor variables.
-    prepare_charts_prediction_gene_sets_overlap(dock=dock)
+        # Plot charts, scatter plots, for residuals from regressions on each gene's
+        # pan-tissue signals across persons.
+        #prepare_charts_genes_regression_residuals(dock=dock)
+
+        # Plot charts, set overlap charts, for genes in multiple sets from
+        # regression and association to predictor variables.
+        prepare_charts_prediction_gene_sets_overlap(dock=dock)
 
 
 

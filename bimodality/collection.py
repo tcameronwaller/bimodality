@@ -17,6 +17,7 @@ import pickle
 import itertools
 import statistics
 import math
+import numpy
 
 # Relevant
 
@@ -648,6 +649,66 @@ def integrate_genes_studies_comparisons(
     return data
 
 
+def calculate_mean_positive_negative_log_folds(
+    data_studies_comparisons_folds=None,
+    report=None,
+):
+    """
+    Calculates the mean positive and mean negative logarithmic fold changes
+    separately for each gene across studies and comparisons.
+
+    arguments:
+        data_studies_comparisons_folds (object): Pandas data frame of genes'
+            logarithmic fold changes across studies and comparisons
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' mean positive and negative
+            logarithmic fold changes
+
+    """
+
+    def calculate_directional_mean(series=None, direction=None,):
+        array = series.to_numpy()
+        if direction == "positive":
+            array_direction = numpy.where(array > 0, array, numpy.nan)
+        elif direction == "negative":
+            array_direction = numpy.where(array < 0, array, numpy.nan)
+        array_valid = array_direction[numpy.where(
+            ~numpy.isnan(array_direction)
+        )]
+        if array_valid.shape[0] > 0:
+            mean = numpy.nanmean(array_valid)
+        else:
+            mean = numpy.nan
+        return mean
+
+    # Copy data.
+    data = data_studies_comparisons_folds.copy(deep=True)
+    # Calculate mean positive and negative logarithmic fold changes separately.
+    data["log2_fold_positive"] = data.apply(
+        lambda row: calculate_directional_mean(
+            series=row,
+            direction="positive",
+        ), axis="columns", # Apply function to each row of data.
+    )
+    data["log2_fold_negative"] = data.apply(
+        lambda row: calculate_directional_mean(
+            series=row,
+            direction="negative",
+        ),
+        axis="columns", # Apply function to each row of data.
+    )
+    # Organize data.
+    data = data.loc[
+        :, data.columns.isin(["log2_fold_positive", "log2_fold_negative"])
+    ]
+    # Return information.
+    return data
+
+
 def integrate_organize_genes_studies_comparisons(
     genes_identifiers=None,
     comparisons=None,
@@ -702,14 +763,29 @@ def integrate_organize_genes_studies_comparisons(
         base=2.0,
         data=data,
     )
-    # Introduce genes' contextual annotations and references to studies.
-    data_genes_folds = data_log.join(
+    # Calculate mean values of logarithmic fold changes across studies and
+    # comparisons.
+    # Keep positive and negative logarithmic fold changes separate.
+    data_directional_aggregate = calculate_mean_positive_negative_log_folds(
+        data_studies_comparisons_folds=data_log,
+        report=True,
+    )
+    # Combine data.
+    # Logarithmic fold changes across studies and comparisons.
+    # Aggregate positive and negative logarithmic fold changes.
+    # Genes' contextual annotations and references to studies.
+    data_folds_aggregates = data_log.join(
+        data_directional_aggregate,
+        how="left",
+        on="identifier"
+    )
+    data_annotation = data_folds_aggregates.join(
         data_genes_studies_valid,
         how="left",
         on="identifier"
     )
     # Introduce counts of studies and comparisons for each gene.
-    data_genes_folds = data_genes_folds[[
+    data_annotation = data_annotation[[
         #"identifier",
         "name",
         "chromosome",
@@ -720,16 +796,18 @@ def integrate_organize_genes_studies_comparisons(
         "comparisons",
         "accumulations",
         "depletions",
+        "log2_fold_positive",
+        "log2_fold_negative",
         *comparisons,
         "reference",
     ]]
-    data_genes_folds.sort_values(
-        by=["studies"],
+    data_annotation.sort_values(
+        by=["studies", "comparisons"],
         axis="index",
         ascending=False,
         inplace=True,
     )
-    return data_genes_folds
+    return data_annotation
 
 
 def collect_integrate_organize_genes_studies_comparisons(
@@ -884,8 +962,8 @@ def select_covid19_genes_by_studies_fold_directions(
     # Compile information.
     bin = dict()
     bin["studies"] = genes_studies
-    bin["accumulation"] = genes_accumulation
-    bin["depletion"] = genes_depletion
+    bin["up"] = genes_accumulation
+    bin["down"] = genes_depletion
     bin["mix"] = genes_mix
     # Report.
     if report:
@@ -1016,7 +1094,7 @@ def read_collect_organize_report_write_covid19_genes(
     sets_genes = select_covid19_genes_by_studies_fold_directions(
         data_genes_comparisons_studies=data_genes_comparisons_studies,
         genes_selection=source["genes_selection"],
-        threshold_studies=2,
+        threshold_studies=1,
         report=True,
     )
 

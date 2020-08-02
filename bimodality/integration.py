@@ -82,6 +82,9 @@ def initialize_directories(dock=None):
         paths[cohort]["set"]["cardinality"] = os.path.join(
             paths["integration"], cohort, "set", "cardinality"
         )
+        paths[cohort]["set"]["collection_candidacy"] = os.path.join(
+            paths["integration"], cohort, "set", "collection_candidacy"
+        )
         paths[cohort]["set"]["allocation"] = os.path.join(
             paths["integration"], cohort, "set", "allocation"
         )
@@ -106,6 +109,9 @@ def initialize_directories(dock=None):
         )
         # Initialize directories.
         utility.create_directories(path=paths[cohort]["set"]["cardinality"])
+        utility.create_directories(
+            path=paths[cohort]["set"]["collection_candidacy"]
+        )
         utility.create_directories(path=paths[cohort]["set"]["allocation"])
         utility.create_directories(
             path=paths[cohort]["set"]["prediction_ontology"]
@@ -453,15 +459,15 @@ def read_source_genes_sets_collection(
     """
 
     # Specify directories and files.
-    path_genes_covid19 = os.path.join(
-        dock, "collection", "covid19", "genes.pickle"
+    path_sets_genes_covid19 = os.path.join(
+        dock, "collection", "covid19", "sets_genes.pickle"
     )
     # Read information from file.
-    with open(path_genes_covid19, "rb") as file_source:
-        genes_covid19 = pickle.load(file_source)
+    with open(path_sets_genes_covid19, "rb") as file_source:
+        sets_genes_covid19 = pickle.load(file_source)
     # Compile information.
     bin = dict()
-    bin["covid19"] = genes_covid19
+    bin["covid19"] = sets_genes_covid19
     # Return information.
     return bin
 
@@ -485,6 +491,8 @@ def read_source_genes_sets_candidacy_collection(
 
     """
 
+    # Compile information.
+    bin = dict()
     # Read genes sets.
     genes_candidacy = read_source_genes_sets_candidacy(
         cohort=cohort,
@@ -494,20 +502,105 @@ def read_source_genes_sets_candidacy_collection(
         dock=dock,
     )
     # Organize genes sets.
-    genes_covid19_multimodal = utility.filter_common_elements(
-        list_one=genes_collection["covid19"],
-        list_two=genes_candidacy["multimodal"],
-    )
-    # Compile information.
-    bin = dict()
     bin["any"] = genes_candidacy["any"]
     bin["multimodal"] = genes_candidacy["multimodal"]
     bin["nonmultimodal"] = genes_candidacy["nonmultimodal"]
     bin["unimodal"] = genes_candidacy["unimodal"]
-    bin["covid19"] = genes_collection["covid19"]
-    bin["covid19_multimodal"] = genes_covid19_multimodal
+    bin["covid19"] = genes_collection["covid19"]["studies"]
+    bin["covid19_multimodal"] = utility.filter_common_elements(
+        list_one=genes_collection["covid19"]["studies"],
+        list_two=genes_candidacy["multimodal"],
+    )
+    bin["covid19_up"] = genes_collection["covid19"]["up"]
+    bin["covid19_down"] = genes_collection["covid19"]["down"]
+    bin["covid19_mix"] = genes_collection["covid19"]["mix"]
+    bin["covid19_up_multimodal"] = utility.filter_common_elements(
+        list_one=genes_collection["covid19"]["up"],
+        list_two=genes_candidacy["multimodal"],
+    )
+    bin["covid19_down_multimodal"] = utility.filter_common_elements(
+        list_one=genes_collection["covid19"]["down"],
+        list_two=genes_candidacy["multimodal"],
+    )
+    bin["covid19_mix_multimodal"] = utility.filter_common_elements(
+        list_one=genes_collection["covid19"]["mix"],
+        list_two=genes_candidacy["multimodal"],
+    )
     # Return information.
     return bin
+
+
+def write_product_collection_candidacy_gene_sets(
+    cohort=None,
+    set=None,
+    genes=None,
+    paths=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        set (str): name of set of genes
+        genes (list<str>): identifiers of genes in set
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_genes = os.path.join(
+        paths[cohort]["set"]["collection_candidacy"], str(set + ".txt")
+    )
+    # Write information to file.
+    utility.write_file_text_list(
+        elements=genes,
+        delimiter="\n",
+        path_file=path_genes
+    )
+    pass
+
+
+def read_organize_report_write_collection_candidacy_gene_sets(paths=None):
+    """
+    Organizes sets of genes by integration of information from multiple
+    procedures.
+
+    arguments:
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_genes_sets_candidacy_collection(
+        cohort="selection",
+        dock=paths["dock"],
+    )
+    # Write sets of genes to file.
+    for set in source.keys():
+        # Report.
+        utility.print_terminal_partition(level=2)
+        print(set + " genes: " + str(len(source[set])))
+        write_product_collection_candidacy_gene_sets(
+            cohort="selection",
+            set=set,
+            genes=source[set],
+            paths=paths,
+        )
+        pass
+    pass
+
+
+
 
 
 
@@ -2048,10 +2141,16 @@ def execute_procedure(dock=None):
     # Initialize directories.
     paths = initialize_directories(dock=dock)
 
+    # Organize sets of genes from collection and candidacy.
+    read_organize_report_write_collection_candidacy_gene_sets(paths=paths)
+
+
+
+    # TODO: this subprocedure is not obsolete...
     # Organize sets of genes that are specific to regression interaction
     # variables for sex, age, and ventilation.
     # Subtract from these sets genes that associate with each variable alone.
-    read_organize_report_write_prediction_interaction_gene_sets(paths=paths)
+    #read_organize_report_write_prediction_interaction_gene_sets(paths=paths)
 
     if False:
         # Organize sets of genes by integration of distribution modality,

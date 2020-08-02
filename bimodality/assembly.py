@@ -785,6 +785,45 @@ def translate_ancestry(value=None):
     return ancestry
 
 
+def determine_person_race_identity(
+    person=None,
+    data_person_attribute_private=None,
+):
+    """
+    Determines a person's categorical race.
+
+    The emphasis of this variable is a person's own social, culture racial
+    identity. This variable does not necessarily relate to genetic ancestry.
+    This variable relates more to social, cultural, and environmental factors.
+
+    arguments:
+        person (str): identifier of a person
+        data_person_attribute_private (object): Pandas data frame of private
+            attributes for persons
+
+    raises:
+
+    returns:
+        (str): person's categorical racial identity
+
+    """
+
+    # Extract person's race attribute.
+    race_raw = data_person_attribute_private.at[person, "RACE"]
+    race_translation = translate_race(value=race_raw)
+    # Extract person's ethnicity attribute.
+    ethnicity_raw = data_person_attribute_private.at[person, "ETHNCTY"]
+    ethnicity_translation = translate_ethnicity(value=ethnicity_raw)
+
+    # Determine consensus between race and ethnicity.
+    if (ethnicity_translation == "hispanic") and (race_translation == "other"):
+        race = "america"
+    else:
+        race = race_translation
+    # Return information.
+    return race
+
+
 def determine_person_ancestry(
     person=None,
     data_person_attribute_private=None,
@@ -792,6 +831,9 @@ def determine_person_ancestry(
 ):
     """
     Determines a person's categorical ancestry.
+
+    This variable is not an accurate representation of genetic ancestry and is
+    of little use for any analyses.
 
     arguments:
         person (str): identifier of a person
@@ -807,20 +849,11 @@ def determine_person_ancestry(
 
     """
 
-    # Extract person's race attribute.
-    race_raw = data_person_attribute_private.at[person, "RACE"]
-    race_translation = translate_race(value=race_raw)
-
-    # Extract person's ethnicity attribute.
-    ethnicity_raw = data_person_attribute_private.at[person, "ETHNCTY"]
-    ethnicity_translation = translate_ethnicity(value=ethnicity_raw)
-
-    # Determine consensus between race and ethnicity.
-    if (ethnicity_translation == "hispanic") and (race_translation == "other"):
-        race = "america"
-    else:
-        race = race_translation
-
+    # Determine person's racial identity.
+    race = determine_person_race_identity(
+        person=person,
+        data_person_attribute_private=data_person_attribute_private,
+    )
     # Determine ancestry from genotype ancestral analysis by Meghana Pagadala.
     if person in data_person_ancestry.index.values.tolist():
         ancestry_raw = data_person_ancestry.at[person, "ethnicity"]
@@ -841,7 +874,7 @@ def determine_person_ancestry(
             " ancestry: " + ancestry_translation
         )
         ancestry = ancestry_translation
-
+    # Return information.
     return ancestry
 
 
@@ -1110,6 +1143,12 @@ def determine_sample_associations_attributes(
     ventilation_unit = (
         data_person_attribute_private.at[person, "DTHVNTDU"]
     )
+    # Determine person's categorical race, with emphasis on self report of
+    # racial identity.
+    race = determine_person_race_identity(
+        person=person,
+        data_person_attribute_private=data_person_attribute_private,
+    )
     # Determine person's categorical ancestry.
     ancestry = determine_person_ancestry(
         person=person,
@@ -1173,6 +1212,7 @@ def determine_sample_associations_attributes(
         "tissue_major": tissue_major,
         "tissue_minor": tissue_minor,
         "person": person,
+        "race": race,
         "ancestry": ancestry,
         "sex_text": sex_text,
         "decade": decade,
