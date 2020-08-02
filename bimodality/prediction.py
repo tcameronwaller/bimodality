@@ -2509,6 +2509,7 @@ def execute_procedure(
         "selection_main",
         "selection_sex_ventilation",
         "selection_age_ventilation",
+        "selection_race_ventilation",
         #"selection_test_1",
         #"selection_test_2",
     ]
@@ -2530,7 +2531,7 @@ def execute_procedure(
         # Execute procedure for each regression model.
         for model in cohorts_models[cohort]:
             # Organize data, regress across genes, and write information to file.
-            if False:
+            if True:
                 utility.print_terminal_partition(level=2)
                 print("cohort: " + str(cohort))
                 print("model: " + str(model))
@@ -2561,7 +2562,7 @@ def execute_procedure(
     pass
     # Collect summaries of genes' associations with variables of interest
     # across cohorts and models.
-    if True:
+    if False:
         organize_summary_gene_set_associations_report_write(
             cohorts_models=cohorts_models,
             paths=paths,
