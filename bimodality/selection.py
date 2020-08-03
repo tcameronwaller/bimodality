@@ -2662,7 +2662,7 @@ def organize_persons_properties_sets(
 
     # Copy data.
     data_samples = data_samples_tissues_persons.copy(deep=True)
-    data_persons = data_persons_properties.copy(deep=True)
+    data_persons_properties = data_persons_properties.copy(deep=True)
     # Organize data.
     bin = dict()
     bin["gtex"] = utility.collect_unique_elements(

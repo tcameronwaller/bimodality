@@ -68,9 +68,11 @@ def initialize_directories(dock=None):
     # Define paths to directories.
     paths["dock"] = dock
     paths["integration"] = os.path.join(paths["dock"], "integration")
+    paths["groups"] = os.path.join(paths["dock"], "integration", "groups")
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=paths["integration"])
     utility.create_directory(path=paths["integration"])
+    utility.create_directories(path=paths["groups"])
     # Define paths.
     cohorts = list()
     cohorts.append("selection")
@@ -588,8 +590,8 @@ def read_organize_report_write_collection_candidacy_gene_sets(paths=None):
     # Write sets of genes to file.
     for set in source.keys():
         # Report.
-        utility.print_terminal_partition(level=2)
-        print(set + " genes: " + str(len(source[set])))
+        #utility.print_terminal_partition(level=2)
+        #print(set + " genes: " + str(len(source[set])))
         write_product_collection_candidacy_gene_sets(
             cohort="selection",
             set=set,
@@ -600,9 +602,406 @@ def read_organize_report_write_collection_candidacy_gene_sets(paths=None):
     pass
 
 
+##########
+# Comparisons of gene pan-tissue signals between groups of persons
+
+
+def read_source_genes_signals_persons_properties(
+    cohort=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_data_gene_annotation = os.path.join(
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
+    )
+    path_data_persons_properties = os.path.join(
+        dock, "selection", "tight", "persons_properties", cohort,
+        "data_persons_properties.pickle"
+    )
+    path_data_signals_genes_persons = os.path.join(
+        dock, "distribution", cohort, "collection",
+        "data_signals_genes_persons.pickle"
+    )
+    # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
+    data_persons_properties = pandas.read_pickle(path_data_persons_properties)
+    data_signals_genes_persons = pandas.read_pickle(
+        path_data_signals_genes_persons
+    )
+    # Return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+        "data_persons_properties": data_persons_properties,
+        "data_signals_genes_persons": data_signals_genes_persons,
+    }
+
+
+def organize_persons_properties_sets(
+    data_persons_properties=None,
+    report=None,
+):
+    """
+    Extracts identifiers of persons.
+
+    arguments:
+        data_persons_properties (object): Pandas data frame of persons'
+            properties
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (dict): identifiers of persons in groups by their properties
+
+    """
+
+    # Copy data.
+    data_persons_properties = data_persons_properties.copy(deep=True)
+    # Organize data.
+    bin = dict()
+    # Sex.
+    bin["male"] = data_persons_properties.loc[
+        data_persons_properties["sex_text"] == "male", :
+    ].index.to_list()
+    bin["female"] = data_persons_properties.loc[
+        data_persons_properties["sex_text"] == "female", :
+    ].index.to_list()
+    # Age.
+    bin["age_young"] = data_persons_properties.loc[
+        data_persons_properties["age_grade"] == 0, :
+    ].index.to_list()
+    bin["age_old"] = data_persons_properties.loc[
+        data_persons_properties["age_grade"] == 2, :
+    ].index.to_list()
+    # Race.
+    bin["race_europe"] = data_persons_properties.loc[
+        data_persons_properties["race"] == "europe", :
+    ].index.to_list()
+    bin["race_africa"] = data_persons_properties.loc[
+        data_persons_properties["race"] == "africa", :
+    ].index.to_list()
+    bin["race_asia"] = data_persons_properties.loc[
+        data_persons_properties["race"] == "asia", :
+    ].index.to_list()
+    bin["race_america"] = data_persons_properties.loc[
+        data_persons_properties["race"] == "america", :
+    ].index.to_list()
+    bin["race_other"] = data_persons_properties.loc[
+        data_persons_properties["race"] == "other", :
+    ].index.to_list()
+    bin["race_white"] = data_persons_properties.loc[
+        data_persons_properties["race_white"] == 1, :
+    ].index.to_list()
+    bin["race_not_white"] = data_persons_properties.loc[
+        data_persons_properties["race_white"] == 0, :
+    ].index.to_list()
+    # Ventilation.
+    bin["breath"] = data_persons_properties.loc[
+        data_persons_properties["ventilation"] == False, :
+    ].index.to_list()
+    bin["ventilation"] = data_persons_properties.loc[
+        data_persons_properties["ventilation"] == True, :
+    ].index.to_list()
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("Count of persons in each group...")
+        utility.print_terminal_partition(level=2)
+        for group in bin.keys():
+            #utility.print_terminal_partition(level=4)
+            print(group + " persons: " + str(len(bin[group])))
+            pass
+        utility.print_terminal_partition(level=2)
+        pass
+    # Return information.
+    return bin
+
+
+def organize_genes_signals_persons_groups(
+    gene_identifier=None,
+    comparison=None,
+    group_1_persons=None,
+    group_2_persons=None,
+    group_1_label=None,
+    group_2_label=None,
+    data_signals_genes_persons=None,
+    data_gene_annotation=None,
+    report=None,
+):
+    """
+    Organizes and combines information about dependent and independent
+    variables for regression.
+
+    arguments:
+        gene_identifier (str): identifier of a gene
+        comparison (str): name for comparison
+        group_1_persons (list<str>): identifiers of persons in first group
+        group_2_persons (list<str>): identifiers of persons in second group
+        group_1_label (str): name of first group of persons
+        group_2_label (str): name of first group of persons
+        data_signals_genes_persons (object): Pandas data frame of pan-tissue
+            signals across genes and persons
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of dependent and independent variables
+
+    """
+
+    # Compile information.
+    bin = dict()
+    bin["gene_identifier"] = gene_identifier
+    bin["gene_name"] = assembly.access_gene_name(
+        identifier=gene_identifier,
+        data_gene_annotation=data_gene_annotation,
+    )
+    bin["comparison"] = comparison
+    bin["title"] = str(bin["gene_name"] + "_" + comparison)
+    bin["group_1_persons"] = len(group_1_persons)
+    bin["group_2_persons"] = len(group_2_persons)
+    bin["group_1_label"] = group_1_label
+    bin["group_2_label"] = group_2_label
+    # Copy data.
+    data_signals = data_signals_genes_persons.copy(deep=True)
+    # Select data for persons in groups.
+    data_group_1 = data_signals.loc[
+        data_signals.index.isin(group_1_persons), :
+    ]
+    data_group_2 = data_signals.loc[
+        data_signals.index.isin(group_2_persons), :
+    ]
+    # Select gene's signals for each group.
+    bin["group_1_values"] = data_group_1[gene_identifier].to_numpy()
+    bin["group_2_values"] = data_group_2[gene_identifier].to_numpy()
+    # Calculate probability by t test.
+    t_statistic, p_value = scipy.stats.ttest_ind(
+        bin["group_1_values"],
+        bin["group_2_values"],
+        equal_var=True,
+        nan_policy="omit",
+    )
+    bin["probability"] = p_value
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("gene: " + bin["gene_name"])
+        print("comparison: " + bin["comparison"])
+        print(
+            bin["group_1_label"] + "(" + str(bin["group_1_persons"]) + ")" +
+            " versus " +
+            bin["group_2_label"] + " (" + str(bin["group_2_persons"]) + ")"
+        )
+        print("t test p-value: " + str(bin["probability"]))
+    # Return information.
+    return bin
+
+
+def write_product_genes_signals_persons_groups(
+    information=None,
+    paths=None,
+):
+    """
+    Writes product information to file.
+
+    arguments:
+        information (object): information to write to file
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify directories and files.
+    path_comparisons = os.path.join(
+        paths["groups"], "genes_groups_comparisons.pickle"
+    )
+    # Write information to file.
+    with open(path_comparisons, "wb") as file_product:
+        pickle.dump(information["comparisons"], file_product)
+    pass
+
+
+def read_organize_report_write_genes_signals_persons_groups(paths=None):
+    """
+    Organizes the comparisons of genes' signals between groups of persons.
+
+    arguments:
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_genes_signals_persons_properties(
+        cohort="selection",
+        dock=paths["dock"],
+    )
+    # Standardize scale of genes' signals.
+    data_signals_standard = prediction.standardize_genes_signals(
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+        report=True,
+    )
+    # Organize groups of persons by their properties.
+    sets_persons = organize_persons_properties_sets(
+        data_persons_properties=source["data_persons_properties"],
+        report=True,
+    )
+    # Organize genes' signals in groups of persons.
+    # KDM5C: ENSG00000126012
+    # DCXR: ENSG00000169738
+    # BHLHE40: ENSG00000134107
+    # CCL4L2: ENSG00000276070
+    # FKBP5: ENSG00000096060
+    # CLEC4E: ENSG00000166523
+    comparisons = list()
+    comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000126012",
+        comparison="sex",
+        group_1_persons=sets_persons["male"],
+        group_2_persons=sets_persons["female"],
+        group_1_label="male",
+        group_2_label="female",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000126012",
+        comparison="ventilation",
+        group_1_persons=sets_persons["breath"],
+        group_2_persons=sets_persons["ventilation"],
+        group_1_label="breath",
+        group_2_label="ventilation",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000169738",
+        comparison="sex",
+        group_1_persons=sets_persons["male"],
+        group_2_persons=sets_persons["female"],
+        group_1_label="male",
+        group_2_label="female",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000134107",
+        comparison="age",
+        group_1_persons=sets_persons["age_young"],
+        group_2_persons=sets_persons["age_old"],
+        group_1_label="young",
+        group_2_label="old",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000134107",
+        comparison="ventilation",
+        group_1_persons=sets_persons["breath"],
+        group_2_persons=sets_persons["ventilation"],
+        group_1_label="breath",
+        group_2_label="ventilation",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000276070",
+        comparison="race_other",
+        group_1_persons=sets_persons["race_white"],
+        group_2_persons=sets_persons["race_not_white"],
+        group_1_label="white",
+        group_2_label="other",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000276070",
+        comparison="race",
+        group_1_persons=sets_persons["race_europe"],
+        group_2_persons=sets_persons["race_africa"],
+        group_1_label="white",
+        group_2_label="black",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000276070",
+        comparison="ventilation",
+        group_1_persons=sets_persons["breath"],
+        group_2_persons=sets_persons["ventilation"],
+        group_1_label="breath",
+        group_2_label="ventilation",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000096060",
+        comparison="ventilation",
+        group_1_persons=sets_persons["breath"],
+        group_2_persons=sets_persons["ventilation"],
+        group_1_label="breath",
+        group_2_label="ventilation",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000166523",
+        comparison="ventilation",
+        group_1_persons=sets_persons["breath"],
+        group_2_persons=sets_persons["ventilation"],
+        group_1_label="breath",
+        group_2_label="ventilation",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    # Write information to file.
+    information = dict()
+    information["comparisons"] = comparisons
+    write_product_genes_signals_persons_groups(
+        information=information,
+        paths=paths,
+    )
+    pass
 
 
 
+##### old stuff#####
 
 
 def read_source_genes_sets_heritability(
@@ -2144,7 +2543,8 @@ def execute_procedure(dock=None):
     # Organize sets of genes from collection and candidacy.
     read_organize_report_write_collection_candidacy_gene_sets(paths=paths)
 
-
+    # Organize comparisons of genes' signals between groups of persons.
+    read_organize_report_write_genes_signals_persons_groups(paths=paths)
 
     # TODO: this subprocedure is not obsolete...
     # Organize sets of genes that are specific to regression interaction

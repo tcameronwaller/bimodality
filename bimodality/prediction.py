@@ -472,7 +472,7 @@ def organize_dependent_independent_variables(
     # Report.
     if report:
         utility.print_terminal_partition(level=1)
-        print("dependent variables")
+        print("independent variables")
         utility.print_terminal_partition(level=3)
         print(data_persons_properties)
         utility.print_terminal_partition(level=2)
@@ -2507,6 +2507,7 @@ def execute_procedure(
     cohorts_models = dict()
     cohorts_models["selection"] = [
         "selection_main",
+        "selection_lite",
         "selection_sex_ventilation",
         "selection_age_ventilation",
         "selection_race_ventilation",
@@ -2518,7 +2519,7 @@ def execute_procedure(
     ]
     cohorts_models["ventilation"] = [
         "ventilation_main",
-        #"ventilation_sex_age",
+        "ventilation_sex_age",
     ]
     # Initialize directories.
     paths = initialize_directories(
@@ -2531,7 +2532,7 @@ def execute_procedure(
         # Execute procedure for each regression model.
         for model in cohorts_models[cohort]:
             # Organize data, regress across genes, and write information to file.
-            if True:
+            if False:
                 utility.print_terminal_partition(level=2)
                 print("cohort: " + str(cohort))
                 print("model: " + str(model))
@@ -2562,7 +2563,7 @@ def execute_procedure(
     pass
     # Collect summaries of genes' associations with variables of interest
     # across cohorts and models.
-    if False:
+    if True:
         organize_summary_gene_set_associations_report_write(
             cohorts_models=cohorts_models,
             paths=paths,

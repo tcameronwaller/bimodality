@@ -1932,7 +1932,7 @@ def plot_scatter_label_emphasis_points(
         data_bore[ordinate].to_numpy(),
         linestyle="",
         marker="o",
-        markersize=2.5,
+        markersize=3,
         markeredgecolor=colors["gray"],
         markerfacecolor=colors["gray"]
     )
@@ -1941,7 +1941,7 @@ def plot_scatter_label_emphasis_points(
         data_emphasis[ordinate].to_numpy(),
         linestyle="",
         marker="o",
-        markersize=5,
+        markersize=6,
         markeredgecolor=colors["blue"],
         markerfacecolor=colors["blue"]
     )
@@ -1968,7 +1968,7 @@ def plot_scatter_label_emphasis_points(
                     data_label[column_label].to_list()[0],
                     backgroundcolor=colors["white_faint"],
                     color=colors["black"],
-                    fontproperties=fonts["properties"]["five"],
+                    fontproperties=fonts["properties"]["three"],
                     horizontalalignment="center",
                     verticalalignment="center"
                 )
@@ -4300,7 +4300,7 @@ def prepare_charts_gene_heritability(
 
 ##########
 # Collection of COVID-19 genes
-# Status: in progress
+# Status: working
 
 
 def read_source_collection_comparisons_folds(
@@ -4471,8 +4471,8 @@ def prepare_charts_collection_comparisons_folds(
     )
     # Plot chart and create figure.
     label_keys = [
-        "ENSG00000169738", "ENSG00000134107", "ENSG00000096060",
-        "ENSG00000166523",
+        "ENSG00000126012", "ENSG00000169738", "ENSG00000134107",
+        "ENSG00000276070", "ENSG00000096060", "ENSG00000166523",
     ]
     plot_chart_collection_comparisons_folds(
         emphasis_keys=source["genes_candidacy"]["multimodal"],
