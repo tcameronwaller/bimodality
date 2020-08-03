@@ -156,7 +156,7 @@ def read_source_annotation_sets(dock=None):
     # Read information from file.
 
     # Ontology.
-    path_annotation = os.path.join(dock, "annotation_2020-06-19")
+    path_annotation = os.path.join(dock, "annotation")
     path_function = os.path.join(path_annotation, "function")
     path_structure = os.path.join(path_annotation, "structure")
     path_hypothesis = os.path.join(path_annotation, "hypothesis")
@@ -718,6 +718,43 @@ def organize_persons_properties_sets(
     bin["ventilation"] = data_persons_properties.loc[
         data_persons_properties["ventilation"] == True, :
     ].index.to_list()
+    # Combinations.
+    bin["ventilation_female"] = data_persons_properties.loc[
+        (
+            (data_persons_properties["ventilation"] == True) &
+            (data_persons_properties["sex_text"] == "female")
+        ), :
+    ].index.to_list()
+    bin["ventilation_male"] = data_persons_properties.loc[
+        (
+            (data_persons_properties["ventilation"] == True) &
+            (data_persons_properties["sex_text"] == "male")
+        ), :
+    ].index.to_list()
+    bin["ventilation_young"] = data_persons_properties.loc[
+        (
+            (data_persons_properties["ventilation"] == True) &
+            (data_persons_properties["age_grade"] == 0)
+        ), :
+    ].index.to_list()
+    bin["ventilation_old"] = data_persons_properties.loc[
+        (
+            (data_persons_properties["ventilation"] == True) &
+            (data_persons_properties["age_grade"] == 2)
+        ), :
+    ].index.to_list()
+    bin["ventilation_white"] = data_persons_properties.loc[
+        (
+            (data_persons_properties["ventilation"] == True) &
+            (data_persons_properties["race"] == "europe")
+        ), :
+    ].index.to_list()
+    bin["ventilation_black"] = data_persons_properties.loc[
+        (
+            (data_persons_properties["ventilation"] == True) &
+            (data_persons_properties["race"] == "africa")
+        ), :
+    ].index.to_list()
     # Report.
     if report:
         utility.print_terminal_partition(level=2)
@@ -790,8 +827,10 @@ def organize_genes_signals_persons_groups(
         data_signals.index.isin(group_2_persons), :
     ]
     # Select gene's signals for each group.
-    bin["group_1_values"] = data_group_1[gene_identifier].to_numpy()
-    bin["group_2_values"] = data_group_2[gene_identifier].to_numpy()
+    bin["group_1_values"] = data_group_1[gene_identifier].dropna().to_numpy()
+    bin["group_2_values"] = data_group_2[gene_identifier].dropna().to_numpy()
+    bin["group_1_valids"] = bin["group_1_values"].size
+    bin["group_2_valids"] = bin["group_2_values"].size
     # Calculate probability by t test.
     t_statistic, p_value = scipy.stats.ttest_ind(
         bin["group_1_values"],
@@ -806,9 +845,9 @@ def organize_genes_signals_persons_groups(
         print("gene: " + bin["gene_name"])
         print("comparison: " + bin["comparison"])
         print(
-            bin["group_1_label"] + "(" + str(bin["group_1_persons"]) + ")" +
+            bin["group_1_label"] + " (" + str(bin["group_1_valids"]) + ")" +
             " versus " +
-            bin["group_2_label"] + " (" + str(bin["group_2_persons"]) + ")"
+            bin["group_2_label"] + " (" + str(bin["group_2_valids"]) + ")"
         )
         print("t test p-value: " + str(bin["probability"]))
     # Return information.
@@ -883,10 +922,10 @@ def read_organize_report_write_genes_signals_persons_groups(paths=None):
     comparisons.append(organize_genes_signals_persons_groups(
         gene_identifier="ENSG00000126012",
         comparison="sex",
-        group_1_persons=sets_persons["male"],
-        group_2_persons=sets_persons["female"],
-        group_1_label="male",
-        group_2_label="female",
+        group_1_persons=sets_persons["female"],
+        group_2_persons=sets_persons["male"],
+        group_1_label="female",
+        group_2_label="male",
         data_signals_genes_persons=data_signals_standard,
         data_gene_annotation=source["data_gene_annotation"],
         report=True,
@@ -903,12 +942,23 @@ def read_organize_report_write_genes_signals_persons_groups(paths=None):
         report=True,
     ))
     comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000126012",
+        comparison="ventilation_sex",
+        group_1_persons=sets_persons["ventilation_female"],
+        group_2_persons=sets_persons["ventilation_male"],
+        group_1_label="ventilation_female",
+        group_2_label="ventilation_male",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
         gene_identifier="ENSG00000169738",
         comparison="sex",
-        group_1_persons=sets_persons["male"],
-        group_2_persons=sets_persons["female"],
-        group_1_label="male",
-        group_2_label="female",
+        group_1_persons=sets_persons["female"],
+        group_2_persons=sets_persons["male"],
+        group_1_label="female",
+        group_2_label="male",
         data_signals_genes_persons=data_signals_standard,
         data_gene_annotation=source["data_gene_annotation"],
         report=True,
@@ -936,12 +986,23 @@ def read_organize_report_write_genes_signals_persons_groups(paths=None):
         report=True,
     ))
     comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000134107",
+        comparison="ventilation_age",
+        group_1_persons=sets_persons["ventilation_young"],
+        group_2_persons=sets_persons["ventilation_old"],
+        group_1_label="ventilation_young",
+        group_2_label="ventilation_old",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
         gene_identifier="ENSG00000276070",
         comparison="race_other",
-        group_1_persons=sets_persons["race_white"],
-        group_2_persons=sets_persons["race_not_white"],
-        group_1_label="white",
-        group_2_label="other",
+        group_1_persons=sets_persons["race_not_white"],
+        group_2_persons=sets_persons["race_white"],
+        group_1_label="other",
+        group_2_label="white",
         data_signals_genes_persons=data_signals_standard,
         data_gene_annotation=source["data_gene_annotation"],
         report=True,
@@ -949,10 +1010,10 @@ def read_organize_report_write_genes_signals_persons_groups(paths=None):
     comparisons.append(organize_genes_signals_persons_groups(
         gene_identifier="ENSG00000276070",
         comparison="race",
-        group_1_persons=sets_persons["race_europe"],
-        group_2_persons=sets_persons["race_africa"],
-        group_1_label="white",
-        group_2_label="black",
+        group_1_persons=sets_persons["race_africa"],
+        group_2_persons=sets_persons["race_europe"],
+        group_1_label="black",
+        group_2_label="white",
         data_signals_genes_persons=data_signals_standard,
         data_gene_annotation=source["data_gene_annotation"],
         report=True,
@@ -964,6 +1025,17 @@ def read_organize_report_write_genes_signals_persons_groups(paths=None):
         group_2_persons=sets_persons["ventilation"],
         group_1_label="breath",
         group_2_label="ventilation",
+        data_signals_genes_persons=data_signals_standard,
+        data_gene_annotation=source["data_gene_annotation"],
+        report=True,
+    ))
+    comparisons.append(organize_genes_signals_persons_groups(
+        gene_identifier="ENSG00000276070",
+        comparison="ventilation_race",
+        group_1_persons=sets_persons["ventilation_black"],
+        group_2_persons=sets_persons["ventilation_white"],
+        group_1_label="ventilation_black",
+        group_2_label="ventilation_white",
         data_signals_genes_persons=data_signals_standard,
         data_gene_annotation=source["data_gene_annotation"],
         report=True,
@@ -1738,7 +1810,7 @@ def read_source_annotation_query_genes_set(
 
     # Annotation.
     path_data_genes_query = os.path.join(
-        dock, "annotation_2020-06-19", "query_gene_sets", "query_genes.csv"
+        dock, "annotation", "gene_sets", "query_gene_sets", "query_genes.tsv"
     )
     data_genes_query = pandas.read_csv(
         path_data_genes_query,
@@ -1776,7 +1848,7 @@ def read_source_annotation_query_genes_all(
 
     # Annotation.
     path_data_genes_query = os.path.join(
-        dock, "annotation_2020-06-19", "query_gene_sets", "query_genes.csv"
+        dock, "annotation", "query_gene_sets", "query_genes.tsv"
     )
     data_genes_query = pandas.read_csv(
         path_data_genes_query,
@@ -1803,28 +1875,13 @@ def read_source_annotation_query_genes_sets(dock=None):
 
     """
 
-    genes_distribution = read_source_annotation_query_genes_set(
-        set="distribution",
-        dock=dock,
-    )
-    genes_multimodal = read_source_annotation_query_genes_set(
-        set="multimodal",
-        dock=dock,
-    )
-    genes_covid = read_source_annotation_query_genes_set(
-        set="covid_19",
-        dock=dock,
-    )
-    genes_angiotensin = read_source_annotation_query_genes_set(
-        set="angiotensin",
+    genes_covid19_drug = read_source_annotation_query_genes_set(
+        set="covid19_drug",
         dock=dock,
     )
     # Compile and return information.
     return {
-        "distribution": genes_distribution,
-        "multimodal": genes_multimodal,
-        "covid_19": genes_covid,
-        "angiotensin": genes_angiotensin,
+        "covid19_drug": genes_covid19_drug,
     }
 
 
