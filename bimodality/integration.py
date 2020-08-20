@@ -2603,7 +2603,7 @@ def execute_procedure(dock=None):
     # Organize comparisons of genes' signals between groups of persons.
     read_organize_report_write_genes_signals_persons_groups(paths=paths)
 
-    # TODO: this subprocedure is not obsolete...
+    # TODO: this subprocedure is now obsolete... ?
     # Organize sets of genes that are specific to regression interaction
     # variables for sex, age, and ventilation.
     # Subtract from these sets genes that associate with each variable alone.

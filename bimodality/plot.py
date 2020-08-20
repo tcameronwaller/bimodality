@@ -88,9 +88,25 @@ def define_font_properties():
         "variant": "normal",
         "stretch": 500,
         "weight": 500,
-        "size": 15
+        "size": 17
     }
     values_five = {
+        "family": "sans-serif",
+        "style": "normal",
+        "variant": "normal",
+        "stretch": 400,
+        "weight": 400,
+        "size": 15
+    }
+    values_six = {
+        "family": "sans-serif",
+        "style": "normal",
+        "variant": "normal",
+        "stretch": 300,
+        "weight": 300,
+        "size": 13
+    }
+    values_seven = {
         "family": "sans-serif",
         "style": "normal",
         "variant": "normal",
@@ -98,7 +114,7 @@ def define_font_properties():
         "weight": 300,
         "size": 10
     }
-    values_six = {
+    values_eight = {
         "family": "sans-serif",
         "style": "normal",
         "variant": "normal",
@@ -106,7 +122,7 @@ def define_font_properties():
         "weight": 200,
         "size": 7
     }
-    values_seven = {
+    values_nine = {
         "family": "sans-serif",
         "style": "normal",
         "variant": "normal",
@@ -171,6 +187,22 @@ def define_font_properties():
         weight=values_seven["weight"],
         size=values_seven["size"]
     )
+    properties_eight = matplotlib.font_manager.FontProperties(
+        family=values_eight["family"],
+        style=values_eight["style"],
+        variant=values_eight["variant"],
+        stretch=values_eight["stretch"],
+        weight=values_eight["weight"],
+        size=values_eight["size"]
+    )
+    properties_nine = matplotlib.font_manager.FontProperties(
+        family=values_nine["family"],
+        style=values_nine["style"],
+        variant=values_nine["variant"],
+        stretch=values_nine["stretch"],
+        weight=values_nine["weight"],
+        size=values_nine["size"]
+    )
     # Compile and return references.
     return {
         "values": {
@@ -181,6 +213,8 @@ def define_font_properties():
             "five": values_five,
             "six": values_six,
             "seven": values_seven,
+            "eight": values_eight,
+            "nine": values_nine,
         },
         "properties": {
             "one": properties_one,
@@ -190,6 +224,8 @@ def define_font_properties():
             "five": properties_five,
             "six": properties_six,
             "seven": properties_seven,
+            "eight": properties_eight,
+            "nine": properties_nine,
         }
     }
 
@@ -214,6 +250,9 @@ def define_color_properties():
     # White.
     white = (1.0, 1.0, 1.0, 1.0)
     white_faint = (1.0, 1.0, 1.0, 0.75)
+    # Clear.
+    clear = (1.0, 1.0, 1.0, 0.0)
+    clear_faint = (1.0, 1.0, 1.0, 0.25)
     # Blue.
     blue = (0.0, 0.2, 0.5, 1.0)
     blue_faint = (0.0, 0.2, 0.5, 0.75)
@@ -226,6 +265,8 @@ def define_color_properties():
         "gray": gray,
         "white": white,
         "white_faint": white_faint,
+        "clear": clear,
+        "clear_faint": clear_faint,
         "blue": blue,
         "blue_faint": blue_faint,
         "orange": orange,
@@ -1997,12 +2038,18 @@ def plot_scatter_label_emphasis_points(
     data = data.copy(deep=True)
     data_bore = data.loc[~data[column_key].isin(emphasis_keys), :]
     data_emphasis = data.loc[data[column_key].isin(emphasis_keys), :]
+    data_label = data.loc[data[column_key].isin(label_keys), :]
     data_bore.dropna(
         axis="index",
         how="any",
         inplace=True,
     )
     data_emphasis.dropna(
+        axis="index",
+        how="any",
+        inplace=True,
+    )
+    data_label.dropna(
         axis="index",
         how="any",
         inplace=True,
@@ -2049,7 +2096,7 @@ def plot_scatter_label_emphasis_points(
         data_bore[ordinate].to_numpy(),
         linestyle="",
         marker="o",
-        markersize=3,
+        markersize=5,
         markeredgecolor=colors["gray"],
         markerfacecolor=colors["gray"]
     )
@@ -2058,9 +2105,18 @@ def plot_scatter_label_emphasis_points(
         data_emphasis[ordinate].to_numpy(),
         linestyle="",
         marker="o",
-        markersize=6,
+        markersize=7,
         markeredgecolor=colors["blue"],
         markerfacecolor=colors["blue"]
+    )
+    handle = axes.plot(
+        data_label[abscissa].to_numpy(),
+        data_label[ordinate].to_numpy(),
+        linestyle="",
+        marker="o",
+        markersize=9,
+        markeredgecolor=colors["orange"],
+        markerfacecolor=colors["orange"]
     )
 
     # Plot lines for each threshold value...
@@ -2083,11 +2139,11 @@ def plot_scatter_label_emphasis_points(
                     (data_label.at[index_point, abscissa]),
                     (data_label.at[index_point, ordinate]),
                     data_label[column_label].to_list()[0],
-                    backgroundcolor=colors["white_faint"],
+                    backgroundcolor=colors["clear"],
                     color=colors["black"],
                     fontproperties=fonts["properties"]["three"],
                     horizontalalignment="center",
-                    verticalalignment="center"
+                    verticalalignment="bottom"
                 )
                 pass
             pass
@@ -4554,12 +4610,12 @@ def prepare_charts_collection_comparisons_folds(
     )
     data_up = data.loc[
         :, data.columns.isin([
-            "identifier", "name", "comparisons", "log2_fold_positive"
+            "identifier", "name", "accumulations", "log2_fold_positive",
         ])
     ]
     data_down = data.loc[
         :, data.columns.isin([
-            "identifier", "name", "comparisons", "log2_fold_negative"
+            "identifier", "name", "depletions", "log2_fold_negative",
         ])
     ]
     data_up["direction"] = "up"
@@ -4567,12 +4623,14 @@ def prepare_charts_collection_comparisons_folds(
     data_up.rename(
         columns={
             "log2_fold_positive": "log2_fold_direction",
+            "accumulations": "comparisons",
         },
         inplace=True,
     )
     data_down.rename(
         columns={
             "log2_fold_negative": "log2_fold_direction",
+            "depletions": "comparisons",
         },
         inplace=True,
     )

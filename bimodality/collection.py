@@ -212,12 +212,14 @@ def translate_study_genes_identifiers(
 
 def collect_studies_unique_gene_identifiers(
     bin_studies=None,
+    report=None,
 ):
     """
     Collects unique identifiers of genes from all studies.
 
     arguments:
         bin_studies (dict): collection of information about each study
+        report (bool): whether to print reports
 
     raises:
 
@@ -226,11 +228,25 @@ def collect_studies_unique_gene_identifiers(
 
     """
 
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("unique genes from each study")
+
     genes_collection = []
     for study in bin_studies.keys():
         data_study = bin_studies[study]["data"]
-        genes_study = data_study["identifier"].to_list()
+        genes_study = utility.collect_unique_elements(
+            elements_original=data_study["identifier"].to_list()
+        )
+        genes_study_valid = list(filter(
+            lambda identifier: ("ENSG" in str(identifier)),
+            genes_study
+        ))
         genes_collection.extend(genes_study)
+        # Report.
+        if report:
+            print("study " + study + " : " + str(len(genes_study_valid)))
     # Determine valid, non null values of the gene's fold change.
     genes_valid = list(filter(
         lambda identifier: ("ENSG" in str(identifier)),
@@ -413,7 +429,7 @@ def collect_genes_annotations_studies_comparisons_valid_change(
         # Determine whether gene has a valid identifier.
         if ("ENSG" in str(gene_identifier)):
             # Collect studies and comparisons for the gene.
-            studies_gene = list()
+            studies = list()
             comparisons_gene = list()
             accumulations = list()
             depletions = list()
@@ -437,31 +453,37 @@ def collect_genes_annotations_studies_comparisons_valid_change(
                             warn=warn,
                         )
                         if not math.isnan(value):
-                            studies_gene.append(study)
+                            studies.append(study)
                             comparisons_gene.append(comparison)
                             if value >= 1:
-                                accumulations.append(value)
+                                accumulations.append(comparison)
                             elif value < 1:
-                                depletions.append(value)
+                                depletions.append(comparison)
                             pass
                         pass
                     pass
                 pass
             # Collect unique studies.
-            studies_gene_unique = sorted(utility.collect_unique_elements(
-                elements_original=studies_gene
+            studies_unique = sorted(utility.collect_unique_elements(
+                elements_original=studies
             ))
             comparisons_gene_unique = sorted(utility.collect_unique_elements(
                 elements_original=comparisons_gene
             ))
+            accumulations_unique = sorted(utility.collect_unique_elements(
+                elements_original=accumulations
+            ))
+            depletions_unique = sorted(utility.collect_unique_elements(
+                elements_original=depletions
+            ))
             # Organize record.
             record = dict()
             record["identifier"] = gene_identifier
-            record["studies"] = len(studies_gene_unique)
+            record["studies"] = len(studies_unique)
             record["comparisons"] = len(comparisons_gene_unique)
-            record["reference"] = ";".join(studies_gene_unique)
-            record["accumulations"] = len(accumulations)
-            record["depletions"] = len(depletions)
+            record["reference"] = ";".join(studies_unique)
+            record["accumulations"] = len(accumulations_unique)
+            record["depletions"] = len(depletions_unique)
             annotations = assembly.access_gene_contextual_annotations(
                 gene_identifier=gene_identifier,
                 data_gene_annotation=data_gene_annotation,
@@ -846,6 +868,7 @@ def collect_integrate_organize_genes_studies_comparisons(
     # Collect unique genes' identifiers across all studies.
     genes_identifiers = collect_studies_unique_gene_identifiers(
         bin_studies=bin_studies_genes,
+        report=True,
     )
     # Report.
     if report:
