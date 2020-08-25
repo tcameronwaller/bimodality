@@ -116,11 +116,11 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
-#python3 interface.py main --dock $path_dock --prediction
+python3 interface.py main --dock $path_dock --prediction
 #python3 interface.py main --dock $path_dock --function
 #python3 interface.py main --dock $path_dock --integration
 
-python3 interface.py main --dock $path_dock --plot
+#python3 interface.py main --dock $path_dock --plot
 
 
 ##########

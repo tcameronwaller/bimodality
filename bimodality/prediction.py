@@ -102,12 +102,18 @@ def initialize_directories(
                 paths["prediction"], cohort, model, "regression"
             )
             # Define paths for sets of genes.
+            paths[cohort][model]["regressions_discoveries"] = os.path.join(
+                paths["prediction"], cohort, model, "regressions_discoveries"
+            )
             paths[cohort][model]["genes_associations"] = os.path.join(
                 paths["prediction"], cohort, model, "genes_associations"
             )
             # Initialize directories.
             utility.create_directories(
                 path=paths[cohort][model]["regression"]
+            )
+            utility.create_directories(
+                path=paths[cohort][model]["regressions_discoveries"]
             )
             utility.create_directories(
                 path=paths[cohort][model]["genes_associations"]
@@ -207,7 +213,7 @@ def read_source_association(
         path_data_regression_genes
     )
     # Read genes sets.
-    sets_genes = integration.read_source_genes_sets_candidacy_collection(
+    sets_genes = integration.read_source_genes_sets_collection_candidacy(
         cohort=cohort,
         dock=dock,
     )
@@ -243,6 +249,22 @@ def read_source_association_summary(
 
     """
 
+    # Read regression summaries for each cohort and model.
+    cohorts_models_regressions = dict()
+    for cohort in cohorts_models.keys():
+        cohorts_models_regressions[cohort] = dict()
+        for model in cohorts_models[cohort]:
+            # Specify directories and files.
+            path_regressions_discoveries = os.path.join(
+                dock, "prediction", cohort, model, "regressions_discoveries",
+                "regressions_discoveries.pickle"
+            )
+            # Read information from file.
+            with open(path_regressions_discoveries, "rb") as file_source:
+                regressions = pickle.load(file_source)
+            cohorts_models_regressions[cohort][model] = regressions
+            pass
+        pass
     # Read sets of genes for each cohort and model.
     cohorts_models_sets_genes = dict()
     for cohort in cohorts_models.keys():
@@ -283,6 +305,7 @@ def read_source_association_summary(
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
+        "cohorts_models_regressions": cohorts_models_regressions,
         "cohorts_models_sets_genes": cohorts_models_sets_genes,
         "variables": variables
     }
@@ -860,45 +883,6 @@ def report_regression_models_quality(
     pass
 
 
-def calculate_regression_discoveries(
-    variables=None,
-    threshold=None,
-    data=None,
-):
-    """
-    Selects and scales regression parameters.
-
-    arguments:
-        variables (list<str>): names of independent regression variables for
-            which to calculate false discovery rates
-        threshold (float): value of alpha, or family-wise error rate of false
-            discoveries
-        data (object): Pandas data frame of parameters and statistics from
-            regressions across cases
-
-    raises:
-
-    returns:
-        (object): Pandas data frame of parameters and statistics from
-            regressions across cases
-
-    """
-
-    # Iterate on relevant variables.
-    for variable in variables:
-        # Calculate false discovery rate from probability.
-        data = utility.calculate_false_discovery_rate(
-            threshold=threshold,
-            probability=str(variable + ("_probability")),
-            discovery=str(variable + ("_discovery")),
-            significance=str(variable + ("_significance")),
-            data_probabilities=data,
-        )
-        pass
-    # Return information.
-    return data
-
-
 def organize_data_regress_cases_report(
     genes=None,
     variables_regression=None,
@@ -994,6 +978,135 @@ def organize_data_regress_cases_report(
 
 ##########
 # Sets
+
+
+def calculate_regression_discoveries(
+    variables=None,
+    threshold=None,
+    data=None,
+):
+    """
+    Selects and scales regression parameters.
+
+    arguments:
+        variables (list<str>): names of independent regression variables for
+            which to calculate false discovery rates
+        threshold (float): value of alpha, or family-wise error rate of false
+            discoveries
+        data (object): Pandas data frame of parameters and statistics from
+            regressions across cases
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of parameters and statistics from
+            regressions across cases
+
+    """
+
+    # Iterate on relevant variables.
+    variables = copy.deepcopy(variables)
+    variables.insert(0, "intercept")
+    for variable in variables:
+        # Calculate false discovery rate from probability.
+        data = utility.calculate_false_discovery_rate(
+            threshold=threshold,
+            probability=str(variable + ("_probability")),
+            discovery=str(variable + ("_discovery")),
+            significance=str(variable + ("_significance")),
+            data_probabilities=data,
+        )
+        pass
+    # Return information.
+    return data
+
+
+def select_regression_cases_thresholds_discoveries(
+    threshold_r_square_adjust=None,
+    threshold_discovery=None,
+    variables_model=None,
+    sets_cases=None,
+    data_regression_genes=None,
+):
+    """
+    Select regression summaries for subsets of cases and calculate false
+    discovery rates.
+
+    This function accepts a summary of regressions (R-squares, coefficients,
+    etc) across cases (genes) for a single cohort and model. This function also
+    accepts multiple subsets of those cases (genes) of interest and a single
+    threshold for the value of each regression's R-square adjust statistic.
+
+    This function filters the summary of regressions by the threshold on
+    R-square adjust. It then filters the summary by each subset of cases.
+
+    For each of these subsets, this function then calculates the false
+    discovery rates for each variable in the regression model.
+
+    arguments:
+        threshold_r_square_adjust (float): threshold by R-square adjust
+        threshold_discovery (float): threshold by false discovery rate
+        variables_model (list<str>): names of variables in regression model
+        sets_cases (dict<list<str>>): identifiers of cases in sets of interest
+        data_regression_genes (object): Pandas data frame of parameters and
+            statistics from regressions across cases
+
+    raises:
+
+    returns:
+        (dict<object>): collection of Pandas data frames with statistics from
+            regressions across cases
+
+    """
+
+    # Copy data.
+    data_regressions = data_regression_genes.copy(deep=True)
+    # Filter regression cases by threshold on R-square adjust.
+    data_regressions_threshold = data_regressions.loc[
+        data_regressions["r_square_adjust"] >= threshold_r_square_adjust, :
+    ]
+    # Iterate across sets of genes of interest.
+    # Each set of genes is a query against the total regression cases.
+    regressions_discoveries = dict()
+    for set in sets_cases.keys():
+        # Select regression data for genes of interest.
+        data_cases = data_regressions_threshold.loc[
+            data_regressions_threshold.index.isin(sets_cases[set]), :
+        ]
+        # Adjust parameter probabilities for multiple hypothesis tests.
+        # Calculate false discovery rate by Benjamini-Hochberg's method.
+        data_discoveries = calculate_regression_discoveries(
+            variables=variables_model,
+            threshold=threshold_discovery,
+            data=data_cases,
+        )
+        # Organize data.
+        columns = list()
+        columns.append("name")
+        columns.append("observations")
+        columns.append("freedom")
+        columns.append("r_square")
+        columns.append("r_square_adjust")
+        columns.append("log_likelihood")
+        columns.append("akaike")
+        columns.append("bayes")
+        columns.append("condition")
+        columns.append("intercept_parameter")
+        columns.append("intercept_probability")
+        columns.append("intercept_discovery")
+        columns.append("intercept_significance")
+        for variable in variables_model:
+            columns.append(str(variable + ("_parameter")))
+            columns.append(str(variable + ("_probability")))
+            columns.append(str(variable + ("_discovery")))
+            columns.append(str(variable + ("_significance")))
+            columns.append(str(variable + ("_inflation")))
+            pass
+        data_discoveries = data_discoveries[[*columns]]
+        # Collect information.
+        regressions_discoveries[set] = data_discoveries
+    # Return information.
+    return regressions_discoveries
 
 
 def select_genes_by_association_variables_separate(
@@ -1092,8 +1205,6 @@ def select_genes_by_association_variables_together(
     arguments:
         variables (list<str>): names of independent regression
             variables for which to select genes by significant association
-        count_selection (int): count of genes with greatest and least values
-            of variable's regression parameter to keep
         data_regression_genes (object): Pandas data frame of parameters and
             statistics from regressions across cases
 
@@ -1131,8 +1242,6 @@ def select_genes_by_association_variables_together(
 def select_genes_by_association_regression_variables(
     variables_separate=None,
     variables_together=None,
-    threshold_r_square=None,
-    threshold_discovery=None,
     coefficient_sign=None,
     count_selection=None,
     genes=None,
@@ -1146,8 +1255,6 @@ def select_genes_by_association_regression_variables(
             variables for which to select genes by significant association
         variables_together (list<str>): names of multiple variables for which
             to select genes that associate significantly with all together
-        threshold_r_square (float): threshold by r square
-        threshold_discovery (float): threshold by false discovery rate
         coefficient_sign (str): option to select only genes with negative,
             positive, or any sign of their coefficients for the variable
         count_selection (int): count of genes with greatest and least values
@@ -1168,17 +1275,6 @@ def select_genes_by_association_regression_variables(
     data_regression = data_regression_genes.copy(deep=True)
     # Select regression data for genes of interest.
     data_genes = data_regression.loc[data_regression.index.isin(genes), :]
-    # Select regression data by threshold on r square.
-    data_threshold_r = data_genes.loc[
-        data_genes["r_square"] >= threshold_r_square, :
-    ]
-    # Adjust probabilities for multiple hypothesis tests.
-    # Calculate false discovery rate by Benjamini-Hochberg's method.
-    data_discovery = calculate_regression_discoveries(
-        variables=variables_separate,
-        threshold=threshold_discovery,
-        data=data_threshold_r,
-    )
     # Select genes that associate significantly with each variable of interest
     # separately.
     # Any, or logic.
@@ -1186,14 +1282,14 @@ def select_genes_by_association_regression_variables(
         variables=variables_separate,
         coefficient_sign=coefficient_sign,
         count_selection=count_selection,
-        data_regression_genes=data_discovery,
+        data_regression_genes=data_genes,
     )
     # Select genes that associate significantly with multiple query variables
     # together.
     # All, and logic.
     set_together = select_genes_by_association_variables_together(
         variables=variables_together,
-        data_regression_genes=data_discovery,
+        data_regression_genes=data_genes,
     )
     # Compile information.
     sets.update(dict(query=set_together))
@@ -1204,12 +1300,10 @@ def select_genes_by_association_regression_variables(
 def select_genes_by_gene_distributions_variable_associations(
     variables_separate=None,
     variables_together=None,
-    threshold_r_square=None,
-    threshold_discovery=None,
     coefficient_sign=None,
     count_selection=None,
     sets_genes=None,
-    data_regression_genes=None,
+    regressions_discoveries=None,
 ):
     """
     Selects and scales regression parameters.
@@ -1219,15 +1313,13 @@ def select_genes_by_gene_distributions_variable_associations(
             variables for which to select genes by significant association
         variables_together (list<str>): names of multiple variables for which
             to select genes that associate significantly with all together
-        threshold_r_square (float): threshold by r square
-        threshold_discovery (float): threshold by false discovery rate
         coefficient_sign (str): option to select only genes with negative,
             positive, or any sign of their coefficients for the variable
         count_selection (int): count of genes with greatest and least values
             of variable's regression parameter to keep
         sets_genes (dict<list<str>>): identifiers of genes in sets of interest
-        data_regression_genes (object): Pandas data frame of parameters and
-            statistics from regressions across cases
+        regressions_discoveries (dict<object>): collection of Pandas data
+            frames with statistics from regressions across cases
 
     raises:
 
@@ -1237,6 +1329,8 @@ def select_genes_by_gene_distributions_variable_associations(
 
     """
 
+    # Copy data.
+    regressions_discoveries = copy.deepcopy(regressions_discoveries)
     # Select genes from each cohort that associate significantly with each
     # variable.
     sets = dict()
@@ -1244,12 +1338,10 @@ def select_genes_by_gene_distributions_variable_associations(
         sets[set] = select_genes_by_association_regression_variables(
             variables_separate=variables_separate,
             variables_together=variables_together,
-            threshold_r_square=threshold_r_square,
-            threshold_discovery=threshold_discovery,
             coefficient_sign=coefficient_sign,
             count_selection=count_selection,
             genes=sets_genes[set],
-            data_regression_genes=data_regression_genes,
+            data_regression_genes=regressions_discoveries[set],
         )
     # Return information.
     return sets
@@ -1448,11 +1540,74 @@ def assign_binary_associations_across_genes(
     return record_novel
 
 
-def collect_organize_genes_cohorts_models_variables(
-    genes=None,
+def collect_regressions_discoveries_across_genes(
+    genes_union=None,
+    variable=None,
+    data_regression_genes=None,
+    record_original=None,
+):
+    """
+    Collects and summarizes genes' associations across multiple cohorts,
+    regression models, and regression independent variables.
+
+    arguments:
+        genes_union (list<str>): identifiers of genes that associate with any
+            of the variables of interest
+        variable (str): name of variable in regression model
+        data_regression_genes (object): Pandas data frame of parameters and
+            statistics from regressions across cases
+        record_original (dict): information for row in summary table
+    raises:
+
+    returns:
+        (dict): novel record
+
+    """
+
+    # Copy record.
+    record_novel = copy.deepcopy(record_original)
+    # Organize information.
+    parameter_name = str(variable + ("_parameter"))
+    discovery_name = str(variable + ("_discovery"))
+    significance_name = str(variable + ("_significance"))
+    # Assign binary values for each gene.
+    for gene in genes_union:
+        # Determine whether gene is in table.
+        if gene in data_regression_genes.index.to_list():
+            # Access regression information for gene.
+            parameter = data_regression_genes.at[gene, parameter_name]
+            discovery = data_regression_genes.at[gene, discovery_name]
+            significance = data_regression_genes.at[gene, significance_name]
+            # Determine whether gene associates significantly with the
+            # variable.
+            if significance:
+                # Organize information.
+                parameter_string =str(round(parameter, 3))
+                discovery_string =str(numpy.format_float_scientific(
+                    discovery, precision=3
+                ))
+                entry = str(
+                    str(parameter_string) +
+                    " (fdr: " + str(discovery_string) + ")"
+                )
+                record_novel[gene] = entry
+            else:
+                record_novel[gene] = ""
+                pass
+        else:
+            record_novel[gene] = ""
+            pass
+        pass
+    # Return information.
+    return record_novel
+
+
+def collect_genes_cohorts_models_variables(
+    genes_union=None,
     set_query=None,
     variables=None,
     cohorts_models=None,
+    cohorts_models_regressions=None,
     cohorts_models_sets_genes=None,
     report=None,
 ):
@@ -1461,19 +1616,22 @@ def collect_organize_genes_cohorts_models_variables(
     regression models, and regression independent variables.
 
     arguments:
-        genes (list<str>): identifiers of genes
+        genes_union (list<str>): identifiers of genes that associate with any
+            of the variables of interest
         set_query (str): name of an original query of set of genes by which to
             collect significant associations to regression variables
         variables (list<str>): names of independent regression variables for
             which to summarize genes' associations
         cohorts_models (dict<list<str>>): models in each cohort
+        cohorts_models_regressions (dict<object>): collection of statistics
+            from regressions for each cohort and model
         cohorts_models_sets_genes (dict<dict<dict<list<str>>>): collection of
             sets of genes by cohort, model, and variables of interest
         report (bool): whether to print reports
     raises:
 
     returns:
-        (object): Pandas data frame of genes' associations across multiple
+        (list<dict>): records of genes' associations across multiple
             cohorts, regression models, and regression independent variables
 
     """
@@ -1495,6 +1653,9 @@ def collect_organize_genes_cohorts_models_variables(
                     sets_variables = (
                         cohorts_models_sets_genes[cohort][model][set_query]
                     )
+                    data_regression_genes = (
+                        cohorts_models_regressions[cohort][model][set_query]
+                    )
                     # Variables.
                     for variable in sets_variables.keys():
                         if variable in variables:
@@ -1505,11 +1666,13 @@ def collect_organize_genes_cohorts_models_variables(
                             record["cohort"] = cohort
                             record["model"] = model
                             record["variable"] = variable
-                            record = assign_binary_associations_across_genes(
-                                genes_true=sets_variables[variable],
-                                genes_total=genes,
-                                record_original=record,
-                            )
+                            record = (
+                                collect_regressions_discoveries_across_genes(
+                                    genes_union=genes_union,
+                                    variable=variable,
+                                    data_regression_genes=data_regression_genes,
+                                    record_original=record,
+                            ))
                             # Collect record.
                             records.append(record)
                             pass
@@ -1518,6 +1681,54 @@ def collect_organize_genes_cohorts_models_variables(
                 pass
             pass
         pass
+    # Return information.
+    return records
+
+
+def collect_organize_genes_cohorts_models_variables(
+    genes_union=None,
+    set_query=None,
+    variables=None,
+    cohorts_models=None,
+    cohorts_models_regressions=None,
+    cohorts_models_sets_genes=None,
+    report=None,
+):
+    """
+    Collects and summarizes genes' associations across multiple cohorts,
+    regression models, and regression independent variables.
+
+    arguments:
+        genes_union (list<str>): identifiers of genes that associate with any
+            of the variables of interest
+        set_query (str): name of an original query of set of genes by which to
+            collect significant associations to regression variables
+        variables (list<str>): names of independent regression variables for
+            which to summarize genes' associations
+        cohorts_models (dict<list<str>>): models in each cohort
+        cohorts_models_regressions (dict<object>): collection of statistics
+            from regressions for each cohort and model
+        cohorts_models_sets_genes (dict<dict<dict<list<str>>>): collection of
+            sets of genes by cohort, model, and variables of interest
+        report (bool): whether to print reports
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' associations across multiple
+            cohorts, regression models, and regression independent variables
+
+    """
+
+    # Collect information about genes across cohorts, models, and variables.
+    records = collect_genes_cohorts_models_variables(
+        genes_union=genes_union,
+        set_query=set_query,
+        variables=variables,
+        cohorts_models=cohorts_models,
+        cohorts_models_regressions=cohorts_models_regressions,
+        cohorts_models_sets_genes=cohorts_models_sets_genes,
+        report=report,
+    )
     # Organize data.
     data = pandas.DataFrame(data=records)
     data.set_index(
@@ -1526,20 +1737,6 @@ def collect_organize_genes_cohorts_models_variables(
         drop=True,
         inplace=True
     )
-    data_aggregate = data.copy(deep=True)
-    series_aggregate = data_aggregate.aggregate(
-        lambda column: numpy.nansum(column.to_numpy()),
-        axis="index",
-    )
-    series_aggregate.sort_values(
-        axis="index",
-        ascending=False,
-        inplace=True,
-        na_position="last",
-    )
-    #print(series_aggregate)
-    #print(series_aggregate.index.to_list())
-    data = data[[*series_aggregate.index.to_list()]]
     data.rename_axis(
         columns="identifier",
         axis="columns",
@@ -1557,6 +1754,21 @@ def collect_organize_genes_cohorts_models_variables(
         drop=True,
         inplace=True
     )
+    # Sort genes by their counts of valid variable associations.
+    data_transposition["count_valid"] = data_transposition.apply(
+        lambda series:
+            len(list(filter(
+                lambda value: (len(str(value)) > 0),
+                series.to_list()
+            ))),
+        axis="columns", # Apply function to each row of data.
+    )
+    data_transposition.sort_values(
+        by=["count_valid"],
+        axis="index",
+        ascending=False,
+        inplace=True,
+    )
     # Return information.
     return data_transposition
 
@@ -1567,6 +1779,7 @@ def organize_genes_association_summary_query_set(
     union_variables=None,
     priority_variables=None,
     cohorts_models=None,
+    cohorts_models_regressions=None,
     cohorts_models_sets_genes=None,
     data_gene_annotation=None,
     report=None,
@@ -1585,6 +1798,8 @@ def organize_genes_association_summary_query_set(
         priority_variables (list<str>): names of variables for which to collect
             priority genes
         cohorts_models (dict<list<str>>): models in each cohort
+        cohorts_models_regressions (dict<object>): collection of statistics
+            from regressions for each cohort and model
         cohorts_models_sets_genes (dict<dict<dict<list<str>>>): collection of
             sets of genes by cohort, model, and variables of interest
         data_gene_annotation (object): Pandas data frame of genes' annotations
@@ -1627,10 +1842,11 @@ def organize_genes_association_summary_query_set(
     # Collect summary of genes' associations across cohorts, models, and
     # variables.
     data_summary = collect_organize_genes_cohorts_models_variables(
-        genes=genes_union,
+        genes_union=genes_union,
         set_query=set_query,
         variables=variables,
         cohorts_models=cohorts_models,
+        cohorts_models_regressions=cohorts_models_regressions,
         cohorts_models_sets_genes=cohorts_models_sets_genes,
         report=report,
     )
@@ -2174,10 +2390,16 @@ def write_product_genes_associations(
     """
 
     # Specify directories and files.
+    path_regressions_discoveries = os.path.join(
+        paths[cohort][model]["regressions_discoveries"],
+        "regressions_discoveries.pickle"
+    )
     path_sets_genes = os.path.join(
         paths[cohort][model]["genes_associations"], "sets_genes.pickle"
     )
     # Write information to file.
+    with open(path_regressions_discoveries, "wb") as file_product:
+        pickle.dump(information["regressions_discoveries"], file_product)
     with open(path_sets_genes, "wb") as file_product:
         pickle.dump(information["sets_genes"], file_product)
 
@@ -2338,12 +2560,7 @@ def organize_regression_gene_associations_report_write(
         dock=paths["dock"],
     )
 
-    # TODO: Maybe introduce a new gene set in integration procedure.
-    # TODO: could include all candidacy distribution gene sets, heritability
-    # gene sets, and collection gene sets (COVID-19, cytokines, integrins)
-    # TODO: report associations for all of these genes?
-
-    # Define variables for regression.
+    # Define variables for regression associations.
     variables = selection.read_source_organize_regression_model_variables(
         model=model,
         dock=paths["dock"],
@@ -2352,6 +2569,23 @@ def organize_regression_gene_associations_report_write(
     variables_interest = variables["model"]
     variables_query_interest = variables_query["six"]
 
+    # Select regression summaries for genes of interest.
+    # Impose thresholds by R-square adjust.
+    # Calculate false discovery rates relative to each query set of genes.
+    regressions_discoveries = select_regression_cases_thresholds_discoveries(
+        threshold_r_square_adjust=0.25,
+        threshold_discovery=0.05,
+        variables_model=variables["model"],
+        sets_cases=source["sets_genes"],
+        data_regression_genes=source["data_regression_genes"],
+    )
+    # Report.
+    data_example = regressions_discoveries["covid19_up_multimodal"]
+    utility.print_terminal_partition(level=2)
+    print("regression data for genes in 'covid19_up_multimodal'...")
+    print(data_example.iloc[0:10, 0:10])
+    utility.print_terminal_partition(level=2)
+
     # Select genes by their association to variables of hypothetical
     # interest.
     sets_genes_association = (
@@ -2359,12 +2593,11 @@ def organize_regression_gene_associations_report_write(
             variables_separate=variables_interest,
             variables_together=variables_query_interest,
             sets_genes=source["sets_genes"],
-            threshold_r_square=0.25, # 0.1, 0.25
-            threshold_discovery=0.05,
             coefficient_sign="any", # "negative", "positive", or "any"
             count_selection=1000, # select count of genes with greatest absolute values of regression parameters (beta coefficients)
-            data_regression_genes=source["data_regression_genes"],
+            regressions_discoveries=regressions_discoveries,
     ))
+
     # Include union sets.
     sets_genes_association = collect_union_priority_sets_genes(
         sets=sets_genes_association,
@@ -2389,6 +2622,7 @@ def organize_regression_gene_associations_report_write(
     )
     # Compile information.
     bin_sets = dict()
+    bin_sets["regressions_discoveries"] = regressions_discoveries
     bin_sets["sets_genes"] = sets_genes_association
     write_product_genes_associations(
         cohort=cohort,
@@ -2436,6 +2670,11 @@ def organize_summary_gene_set_associations_report_write(
         dock=paths["dock"],
     )
     # Define an example of the original query gene sets.
+    # These are the same sets of genes for selection and calculation of false
+    # discovery rates on the regression statistics.
+    # As the genes of interest and their false discovery rates are
+    # interdependent, each original set of genes will have a separate summary
+    # table.
     example_sets_genes = (
         source["cohorts_models_sets_genes"]["selection"]["selection_main"]
     )
@@ -2454,6 +2693,7 @@ def organize_summary_gene_set_associations_report_write(
                 "age*ventilation_binary_scale", "sex_y*age_scale",
             ],
             cohorts_models=cohorts_models,
+            cohorts_models_regressions=source["cohorts_models_regressions"],
             cohorts_models_sets_genes=source["cohorts_models_sets_genes"],
             data_gene_annotation=source["data_gene_annotation"],
             report=True,
