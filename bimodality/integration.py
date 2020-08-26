@@ -69,10 +69,14 @@ def initialize_directories(dock=None):
     paths["dock"] = dock
     paths["integration"] = os.path.join(paths["dock"], "integration")
     paths["groups"] = os.path.join(paths["dock"], "integration", "groups")
+    paths["gene_set_summaries"] = os.path.join(
+        paths["dock"], "integration", "gene_set_summaries"
+    )
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=paths["integration"])
     utility.create_directory(path=paths["integration"])
     utility.create_directories(path=paths["groups"])
+    utility.create_directories(path=paths["gene_set_summaries"])
     # Define paths.
     cohorts = list()
     cohorts.append("selection")
@@ -760,6 +764,70 @@ def read_organize_report_write_collection_candidacy_gene_sets(
         )
         pass
     pass
+
+
+##########
+# Gene query summary tables
+
+
+def read_source_gene_sets_covid19_prediction_heritability(
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # TODO: read in COVID-19 DE gene table
+    # TODO: read in prediction context summary tables
+    # TODO: read in heritability summary
+
+    # Specify directories and files.
+    path_regressions_discoveries = os.path.join(
+        dock, "prediction", cohort, model, "regressions_discoveries",
+        "regressions_discoveries.pickle"
+    )
+    pass
+
+
+def read_organize_report_write_gene_sets_covid19_prediction_heritability(
+    paths=None,
+    report=None,
+):
+    """
+    Organizes summary tables for gene's COVID-19 expression, associations to
+    regression variables, and heritabilities of pan-tissue signals.
+
+    arguments:
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_gene_sets_covid19_prediction_heritability(
+        dock=paths["dock"],
+    )
+    # Write information to file.
+    information = dict()
+    pass
+
+
+
 
 
 ##########
@@ -1513,7 +1581,7 @@ def read_organize_report_write_pairwise_gene_correlations(
 
 
 
-
+#####################################
 ##################################################
 ##### old stuff#####
 
@@ -2672,6 +2740,14 @@ def execute_procedure(dock=None):
     # genes.
     read_organize_report_write_collection_candidacy_gene_sets(
         paths=paths
+    )
+
+    # Integrate and organize summary tables for query sets of genes with their
+    # COVID-19 differential expression, variable associations from regressions,
+    # and heritabilities.
+    read_organize_report_write_gene_sets_covid19_prediction_heritability(
+        paths=paths,
+        report=True,
     )
 
     # Calculate and organize correlations in pan-tissue signals between pairs

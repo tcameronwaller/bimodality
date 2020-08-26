@@ -2449,6 +2449,9 @@ def write_product_genes_associations_summary(
     path_data = os.path.join(
         path_set_query, "data_summary.tsv"
     )
+    path_genes_identifiers = os.path.join(
+        path_set_query, "genes_identifiers.pickle"
+    )
     path_genes_names = os.path.join(
         path_set_query, "genes_names.txt"
     )
@@ -2459,14 +2462,14 @@ def write_product_genes_associations_summary(
         header=True,
         index=True,
     )
+    with open(path_genes_identifiers, "wb") as file_product:
+        pickle.dump(information["genes_identifiers"], file_product)
     utility.write_file_text_list(
         elements=information["genes_names"],
         delimiter="\n",
         path_file=path_genes_names
     )
     pass
-
-
 
 
 ###############################################################################
@@ -2655,15 +2658,6 @@ def organize_summary_gene_set_associations_report_write(
 
     """
 
-    # TODO:
-    # 1. read in the original gene sets...
-    # 2. prepare summary for each original gene set
-    # 3. define variables of interest: hypothesis variables
-    # 4. collect unique genes that associate with any variables
-    # 5. collect cohorts, models, and variables to which each gene associates
-    # 6. count cohorts, models, and variables to which each gene associates
-    # 7. sort the summary by the count of associations
-
     # Read source.
     source = read_source_association_summary(
         cohorts_models=cohorts_models,
@@ -2711,6 +2705,7 @@ def organize_summary_gene_set_associations_report_write(
         # Compile information.
         bin = dict()
         bin["data_summary"] = data_summary
+        bin["genes_identifiers"] = genes_identifiers
         bin["genes_names"] = genes_names
         write_product_genes_associations_summary(
             set_query=set_query,
