@@ -9399,20 +9399,23 @@ def execute_procedure(dock=None):
     ##########
     # Selection procedure
 
+    # TODO: what is this? probably obsolete...
     # Plot charts for sex, age, and hardiness of persons in GTEx cohort.
     #prepare_charts_persons_sex_age_hardiness(dock=dock)
 
     # Plot charts of overlap between sets of persons by clinical categories.
     #prepare_charts_sets_selection_persons_properties(dock=dock)
 
+
+    #TODO: need to save the necessary file in selection procedure for this plot to work again.
+    # Plot chart for counts of major tissue type per person, a histogram.
+    #prepare_chart_tissues_per_person(dock=dock)
+
+
     if False:
 
         # Plot chart for counts of persons per major tissue type.
         prepare_chart_persons_per_tissue(dock=dock)
-
-        # Plot chart for counts of major tissue type per person, a histogram.
-        prepare_chart_tissues_per_person(dock=dock)
-
 
         # Plot charts of overlap between sets in selection of genes and samples.
         prepare_charts_sets_selection_genes_samples(dock=dock)

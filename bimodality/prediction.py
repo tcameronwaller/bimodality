@@ -185,6 +185,7 @@ def read_source_regression(
 def read_source_association(
     cohort=None,
     model=None,
+    cohort_multimodality=None,
     dock=None
 ):
     """
@@ -193,6 +194,7 @@ def read_source_association(
     arguments:
         cohort (str): cohort of persons--selection, respiration, or ventilation
         model (str): name of regression model
+        cohort_multimodality (str): cohort from which to draw multimodal genes
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -213,8 +215,9 @@ def read_source_association(
         path_data_regression_genes
     )
     # Read genes sets.
+    # Specify the same set of multimodal genes for all cohorts.
     sets_genes = integration.read_source_genes_sets_collection_candidacy(
-        cohort=cohort,
+        cohort=cohort_multimodality,
         dock=dock,
     )
     if False:
@@ -2560,6 +2563,7 @@ def organize_regression_gene_associations_report_write(
     source = read_source_association(
         cohort=cohort,
         model=model,
+        cohort_multimodality="selection", # respiration, ventilation
         dock=paths["dock"],
     )
 
@@ -2742,7 +2746,9 @@ def execute_procedure(
     cohorts_models = dict()
     cohorts_models["selection"] = [
         "selection_main",
-        "selection_lite",
+        "selection_race",
+        #"selection_lite",
+        "selection_sex_age",
         "selection_sex_ventilation",
         "selection_age_ventilation",
         "selection_race_ventilation",
@@ -2750,10 +2756,12 @@ def execute_procedure(
         #"selection_test_2",
     ]
     cohorts_models["respiration"] = [
-        "respiration_main"
+        "respiration_main",
+        "respiration_race",
     ]
     cohorts_models["ventilation"] = [
         "ventilation_main",
+        "ventilation_race",
         "ventilation_sex_age",
     ]
     # Initialize directories.
@@ -2767,7 +2775,7 @@ def execute_procedure(
         # Execute procedure for each regression model.
         for model in cohorts_models[cohort]:
             # Organize data, regress across genes, and write information to file.
-            if False:
+            if True:
                 utility.print_terminal_partition(level=2)
                 print("cohort: " + str(cohort))
                 print("model: " + str(model))
@@ -2798,7 +2806,7 @@ def execute_procedure(
     pass
     # Collect summaries of genes' associations with variables of interest
     # across cohorts and models.
-    if True:
+    if False:
         organize_summary_gene_set_associations_report_write(
             cohorts_models=cohorts_models,
             paths=paths,

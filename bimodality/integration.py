@@ -769,6 +769,7 @@ def read_organize_report_write_collection_candidacy_gene_sets(
 ##########
 # Gene query summary tables
 
+# TODO: need to finish this...
 
 def read_source_gene_sets_covid19_prediction_heritability(
     dock=None,
@@ -1144,59 +1145,11 @@ def read_organize_report_write_genes_signals_persons_groups(
         report=report,
     )
     # Organize genes' signals in groups of persons.
-    # KDM5C: ENSG00000126012
-    # DCXR: ENSG00000169738
     # BHLHE40: ENSG00000134107
-    # CCL4L2: ENSG00000276070
-    # FKBP5: ENSG00000096060
-    # CLEC4E: ENSG00000166523
+    # SAMHD1: ENSG00000101347
     comparisons = list()
     comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000126012",
-        comparison="sex",
-        group_1_persons=sets_persons["female"],
-        group_2_persons=sets_persons["male"],
-        group_1_label="female",
-        group_2_label="male",
-        data_signals_genes_persons=data_signals_standard,
-        data_gene_annotation=source["data_gene_annotation"],
-        report=report,
-    ))
-    comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000126012",
-        comparison="ventilation",
-        group_1_persons=sets_persons["breath"],
-        group_2_persons=sets_persons["ventilation"],
-        group_1_label="breath",
-        group_2_label="ventilation",
-        data_signals_genes_persons=data_signals_standard,
-        data_gene_annotation=source["data_gene_annotation"],
-        report=report,
-    ))
-    comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000126012",
-        comparison="ventilation_sex",
-        group_1_persons=sets_persons["ventilation_female"],
-        group_2_persons=sets_persons["ventilation_male"],
-        group_1_label="ventilation_female",
-        group_2_label="ventilation_male",
-        data_signals_genes_persons=data_signals_standard,
-        data_gene_annotation=source["data_gene_annotation"],
-        report=report,
-    ))
-    comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000169738",
-        comparison="sex",
-        group_1_persons=sets_persons["female"],
-        group_2_persons=sets_persons["male"],
-        group_1_label="female",
-        group_2_label="male",
-        data_signals_genes_persons=data_signals_standard,
-        data_gene_annotation=source["data_gene_annotation"],
-        report=report,
-    ))
-    comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000134107",
+        gene_identifier="ENSG00000134107", # BHLHE40
         comparison="age",
         group_1_persons=sets_persons["age_young"],
         group_2_persons=sets_persons["age_old"],
@@ -1207,7 +1160,7 @@ def read_organize_report_write_genes_signals_persons_groups(
         report=report,
     ))
     comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000134107",
+        gene_identifier="ENSG00000134107", # BHLHE40
         comparison="ventilation",
         group_1_persons=sets_persons["breath"],
         group_2_persons=sets_persons["ventilation"],
@@ -1218,7 +1171,7 @@ def read_organize_report_write_genes_signals_persons_groups(
         report=report,
     ))
     comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000134107",
+        gene_identifier="ENSG00000134107", # BHLHE40
         comparison="ventilation_age",
         group_1_persons=sets_persons["ventilation_young"],
         group_2_persons=sets_persons["ventilation_old"],
@@ -1229,29 +1182,18 @@ def read_organize_report_write_genes_signals_persons_groups(
         report=report,
     ))
     comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000276070",
-        comparison="race_other",
-        group_1_persons=sets_persons["race_not_white"],
-        group_2_persons=sets_persons["race_white"],
-        group_1_label="other",
-        group_2_label="white",
+        gene_identifier="ENSG00000101347", # SAMHD1
+        comparison="age",
+        group_1_persons=sets_persons["age_young"],
+        group_2_persons=sets_persons["age_old"],
+        group_1_label="young",
+        group_2_label="old",
         data_signals_genes_persons=data_signals_standard,
         data_gene_annotation=source["data_gene_annotation"],
         report=report,
     ))
     comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000276070",
-        comparison="race",
-        group_1_persons=sets_persons["race_africa"],
-        group_2_persons=sets_persons["race_europe"],
-        group_1_label="black",
-        group_2_label="white",
-        data_signals_genes_persons=data_signals_standard,
-        data_gene_annotation=source["data_gene_annotation"],
-        report=report,
-    ))
-    comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000276070",
+        gene_identifier="ENSG00000101347", # SAMHD1
         comparison="ventilation",
         group_1_persons=sets_persons["breath"],
         group_2_persons=sets_persons["ventilation"],
@@ -1261,39 +1203,7 @@ def read_organize_report_write_genes_signals_persons_groups(
         data_gene_annotation=source["data_gene_annotation"],
         report=report,
     ))
-    comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000276070",
-        comparison="ventilation_race",
-        group_1_persons=sets_persons["ventilation_black"],
-        group_2_persons=sets_persons["ventilation_white"],
-        group_1_label="ventilation_black",
-        group_2_label="ventilation_white",
-        data_signals_genes_persons=data_signals_standard,
-        data_gene_annotation=source["data_gene_annotation"],
-        report=report,
-    ))
-    comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000096060",
-        comparison="ventilation",
-        group_1_persons=sets_persons["breath"],
-        group_2_persons=sets_persons["ventilation"],
-        group_1_label="breath",
-        group_2_label="ventilation",
-        data_signals_genes_persons=data_signals_standard,
-        data_gene_annotation=source["data_gene_annotation"],
-        report=report,
-    ))
-    comparisons.append(organize_genes_signals_persons_groups(
-        gene_identifier="ENSG00000166523",
-        comparison="ventilation",
-        group_1_persons=sets_persons["breath"],
-        group_2_persons=sets_persons["ventilation"],
-        group_1_label="breath",
-        group_2_label="ventilation",
-        data_signals_genes_persons=data_signals_standard,
-        data_gene_annotation=source["data_gene_annotation"],
-        report=report,
-    ))
+
     # Write information to file.
     information = dict()
     information["comparisons"] = comparisons
@@ -2742,25 +2652,26 @@ def execute_procedure(dock=None):
         paths=paths
     )
 
-    # Integrate and organize summary tables for query sets of genes with their
-    # COVID-19 differential expression, variable associations from regressions,
-    # and heritabilities.
-    read_organize_report_write_gene_sets_covid19_prediction_heritability(
-        paths=paths,
-        report=True,
-    )
+    if False:
+        # Integrate and organize summary tables for query sets of genes with their
+        # COVID-19 differential expression, variable associations from regressions,
+        # and heritabilities.
+        read_organize_report_write_gene_sets_covid19_prediction_heritability(
+            paths=paths,
+            report=True,
+        )
 
     # Calculate and organize correlations in pan-tissue signals between pairs
     # of relevant genes.
     read_organize_report_write_pairwise_gene_correlations(
         paths=paths,
-        report=True,
+        report=False,
     )
 
     # Organize comparisons of genes' signals between groups of persons.
     read_organize_report_write_genes_signals_persons_groups(
         paths=paths,
-        report=False,
+        report=True,
     )
 
     # TODO: this subprocedure is now obsolete... ?

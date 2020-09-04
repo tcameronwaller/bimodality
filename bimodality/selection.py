@@ -3509,6 +3509,8 @@ def organize_quantitative_trait_loci_variables(
     # Return information.
     return data_transposition
 
+# TODO: within this function, call "prepare_persons_properties_summary()"
+# TODO: tissues per person, persons per tissue, etc...
 
 def organize_persons_properties(
     persons=None,
@@ -4713,7 +4715,6 @@ def write_product_persons_properties(
         pickle.dump(information["persons_sets"], file_product)
 
     pass
-
 
 
 def write_product_trait(
