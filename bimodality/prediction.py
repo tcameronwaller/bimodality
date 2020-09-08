@@ -782,7 +782,7 @@ def regress_cases(
         bin_case = regress_signal_ordinary_residuals(
             dependence=case,
             independence=variables,
-            proportion=0.25,
+            proportion=0.5,
             data=data_variables,
         )
         # Collect residuals.
@@ -2516,7 +2516,7 @@ def organize_data_regress_cases_report_write(
         dock=paths["dock"],
     )
     # Regression on hypothesis variables.
-    #genes_regression = random.sample(genes_sets["any"], 100)
+    #genes_regression = random.sample(genes_sets["any"], 1000)
     genes_regression = genes_sets["any"]#[0:10]
     utility.print_terminal_partition(level=2)
     print("regression genes: " + str(len(genes_regression)))
@@ -2738,31 +2738,31 @@ def execute_procedure(
 
     # Define cohorts of persons.
     cohorts = [
-        "selection",
-        "respiration",
+        #"selection",
+        #"respiration",
         "ventilation",
     ]
     # Define regression models for each cohort.
     cohorts_models = dict()
     cohorts_models["selection"] = [
-        "selection_main",
-        "selection_race",
-        #"selection_lite",
-        "selection_sex_age",
-        "selection_sex_ventilation",
-        "selection_age_ventilation",
-        "selection_race_ventilation",
-        #"selection_test_1",
-        #"selection_test_2",
+        #"selection_main",
+        #"selection_race",
+        #"selection_sex_age",
+        #"selection_sex_ventilation",
+        #"selection_age_ventilation",
+        #"selection_race_ventilation",
+        "selection_lite",
     ]
     cohorts_models["respiration"] = [
-        "respiration_main",
-        "respiration_race",
+        #"respiration_main",
+        #"respiration_race",
+        "respiration_lite",
     ]
     cohorts_models["ventilation"] = [
-        "ventilation_main",
-        "ventilation_race",
-        "ventilation_sex_age",
+        #"ventilation_main",
+        #"ventilation_race",
+        #"ventilation_sex_age",
+        "ventilation_lite",
     ]
     # Initialize directories.
     paths = initialize_directories(
