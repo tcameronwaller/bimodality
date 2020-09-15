@@ -832,7 +832,7 @@ def regress_cases(
     return bin
 
 
-def report_regression_models_quality(
+def prepare_regressions_quality_summary(
     variables=None,
     data_regression_models=None,
 ):
@@ -849,6 +849,7 @@ def report_regression_models_quality(
     raises:
 
     returns:
+        (object): Pandas series of mean measures of regression quality
 
     """
 
@@ -876,14 +877,10 @@ def report_regression_models_quality(
     data = data[[*columns]]
     # Aggregate data by mean.
     series = data.aggregate(
-        lambda x: x.mean()
+        lambda column: numpy.nanmean(column.to_numpy())
     )
-    # Report information.
-    utility.print_terminal_partition(level=2)
-    print("Mean statistics for regression models.")
-    print(series)
-    utility.print_terminal_partition(level=2)
-    pass
+    # Return information
+    return series
 
 
 def organize_data_regress_cases_report(
@@ -956,12 +953,17 @@ def organize_data_regress_cases_report(
         report=True,
     )
     # Summarize regression quality.
+    series_quality = prepare_regressions_quality_summary(
+        variables=variables_regression,
+        data_regression_models=bin_regression["data_regression_genes"],
+    )
     # Report means of statistics across independent models.
     if report:
-        report_regression_models_quality(
-            variables=variables_regression,
-            data_regression_models=bin_regression["data_regression_genes"],
-        )
+        # Report information.
+        utility.print_terminal_partition(level=2)
+        print("Mean statistics for regression models.")
+        print(series_quality)
+        utility.print_terminal_partition(level=2)
         pass
 
     # Review.
@@ -975,6 +977,7 @@ def organize_data_regress_cases_report(
     bin = dict()
     bin["residuals_genes"] = bin_regression["residuals_genes"]
     bin["data_regression_genes"] = bin_regression["data_regression_genes"]
+    # bin["series_quality"] =
     # Return information.
     return bin
 
@@ -2738,31 +2741,38 @@ def execute_procedure(
 
     # Define cohorts of persons.
     cohorts = [
-        #"selection",
-        #"respiration",
+        "selection",
+        "respiration",
         "ventilation",
     ]
     # Define regression models for each cohort.
     cohorts_models = dict()
     cohorts_models["selection"] = [
-        #"selection_main",
-        #"selection_race",
-        #"selection_sex_age",
-        #"selection_sex_ventilation",
-        #"selection_age_ventilation",
-        #"selection_race_ventilation",
+        "selection_main",
         "selection_lite",
+        "selection_race",
+        "selection_sex_age",
+        "selection_sex_ventilation",
+        "selection_age_ventilation",
+        "selection_race_ventilation",
+        "selection_sex_leukocyte",
+        "selection_age_leukocyte",
+        "selection_race_leukocyte",
     ]
     cohorts_models["respiration"] = [
-        #"respiration_main",
-        #"respiration_race",
+        "respiration_main",
         "respiration_lite",
+        "respiration_race",
+        "respiration_sex_age",
     ]
     cohorts_models["ventilation"] = [
-        #"ventilation_main",
-        #"ventilation_race",
-        #"ventilation_sex_age",
+        "ventilation_main",
         "ventilation_lite",
+        "ventilation_race",
+        "ventilation_sex_age",
+        "ventilation_sex_leukocyte",
+        "ventilation_age_leukocyte",
+        "ventilation_race_leukocyte",
     ]
     # Initialize directories.
     paths = initialize_directories(
@@ -2775,7 +2785,7 @@ def execute_procedure(
         # Execute procedure for each regression model.
         for model in cohorts_models[cohort]:
             # Organize data, regress across genes, and write information to file.
-            if True:
+            if False:
                 utility.print_terminal_partition(level=2)
                 print("cohort: " + str(cohort))
                 print("model: " + str(model))
@@ -2804,9 +2814,17 @@ def execute_procedure(
             pass
         pass
     pass
+    # Collect summaries of regression quality for each cohort and model.
+    # TODO: I need to implement this...
+    # TODO: use "prepare_regressions_quality_summary"
+    if False:
+        organize_summary_gene_set_associations_report_write(
+            cohorts_models=cohorts_models,
+            paths=paths,
+        )
     # Collect summaries of genes' associations with variables of interest
     # across cohorts and models.
-    if False:
+    if True:
         organize_summary_gene_set_associations_report_write(
             cohorts_models=cohorts_models,
             paths=paths,

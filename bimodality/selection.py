@@ -1692,6 +1692,21 @@ def define_organization_variables():
     pair["variable_one"] = "sex_y"
     pair["variable_two"] = "age"
     interaction.append(pair)
+    pair = dict()
+    pair["name"] = "sex_y*leukocyte"
+    pair["variable_one"] = "sex_y"
+    pair["variable_two"] = "leukocyte_binary"
+    interaction.append(pair)
+    pair = dict()
+    pair["name"] = "age*leukocyte"
+    pair["variable_one"] = "age"
+    pair["variable_two"] = "leukocyte_binary"
+    interaction.append(pair)
+    pair = dict()
+    pair["name"] = "race*leukocyte"
+    pair["variable_one"] = "race_white"
+    pair["variable_two"] = "leukocyte_binary"
+    interaction.append(pair)
 
     # Variables of raw values that might require standardization to adjust
     # scale.
@@ -1743,6 +1758,9 @@ def define_organization_variables():
         "sex_y*ventilation",
         "age*ventilation",
         "race*ventilation",
+        "sex_y*leukocyte",
+        "age*leukocyte",
+        "race*leukocyte",
         "sex_y*age",
     ]
     # Compile information.
@@ -2957,8 +2975,11 @@ def determine_stratification_bin(
             return 0
         elif (thresholds[1][0] <= value and value < thresholds[1][1]):
             return 1
-        elif (thresholds[2][0] <= value and value <= thresholds[2][1]):
-            return 2
+        elif len(thresholds) > 2:
+            if (thresholds[2][0] <= value and value <= thresholds[2][1]):
+                return 2
+            else:
+                return float("nan")
         else:
             return float("nan")
     else:
@@ -2967,6 +2988,7 @@ def determine_stratification_bin(
 
 def stratify_persons_continuous_variable_ordinal(
     variable=None,
+    variable_grade=None,
     bins=None,
     data_persons_properties=None,
     report=None,
@@ -2976,6 +2998,7 @@ def stratify_persons_continuous_variable_ordinal(
 
     arguments:
         variable (str): name of continuous variable for stratification
+        variable_grade (str): name for new ordinal variable
         bins (list<list<float>>): proportions for three stratification bins
         data_persons_properties (object): Pandas data frame of persons'
             properties
@@ -2990,8 +3013,6 @@ def stratify_persons_continuous_variable_ordinal(
 
     # Copy data.
     data = data_persons_properties.copy(deep=True)
-    # Define name for stratification variable.
-    variable_grade = str(variable + ("_grade"))
     # Determine whether variable qualifies for stratification.
     series, values_unique = pandas.factorize(
         data[variable],
@@ -3056,15 +3077,24 @@ def stratify_persons_continuous_variables_ordinal(
     # Age.
     data_age = stratify_persons_continuous_variable_ordinal(
         variable="age",
+        variable_grade="age_grade",
         bins=[[0.0, 0.3], [0.3, 0.7], [0.7, 1.0]],
         data_persons_properties=data_persons_properties,
+        report=report,
+    )
+    data_age_halves = stratify_persons_continuous_variable_ordinal(
+        variable="age",
+        variable_grade="age_halves",
+        bins=[[0.0, 0.5], [0.5, 1.0]],
+        data_persons_properties=data_age,
         report=report,
     )
     # Ventilation duration.
     data_ventilation = stratify_persons_continuous_variable_ordinal(
         variable="ventilation_duration",
+        variable_grade="ventilation_duration_grade",
         bins=[[0.0, 0.3], [0.3, 0.7], [0.7, 1.0]],
-        data_persons_properties=data_age,
+        data_persons_properties=data_age_halves,
         report=report,
     )
     # Return information.

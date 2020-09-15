@@ -4746,7 +4746,7 @@ def read_source_genes_signals_persons_groups(
     }
 
 
-def plot_chart_genes_signals_persons_groups_comparison(
+def plot_chart_genes_signals_persons_two_groups_comparison(
     comparison=None,
     path_directory=None,
 ):
@@ -4792,6 +4792,81 @@ def plot_chart_genes_signals_persons_groups_comparison(
         label_top_center=str("p: " + numpy.format_float_scientific(
             comparison["probability"], precision=3
         )),
+        label_top_left="",
+        label_top_right="",
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure_png(
+        path=path_file,
+        figure=figure
+    )
+
+    pass
+
+
+def plot_chart_genes_signals_persons_four_groups_comparison(
+    comparison=None,
+    path_directory=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        comparison (dict): information for chart
+        path_directory (str): path for directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Specify path to directory and file.
+    path_file = os.path.join(
+        path_directory, str(comparison["title"] + ".png")
+    )
+    # Organize group labels.
+    label_1 = str(
+        comparison["group_1_label"] +
+        " (" + str(comparison["group_1_valids"]) + ")"
+    )
+    label_2 = str(
+        comparison["group_2_label"] +
+        " (" + str(comparison["group_2_valids"]) + ")"
+    )
+    label_3 = str(
+        comparison["group_3_label"] +
+        " (" + str(comparison["group_3_valids"]) + ")"
+    )
+    label_4 = str(
+        comparison["group_4_label"] +
+        " (" + str(comparison["group_4_valids"]) + ")"
+    )
+    labels_groups = [label_1, label_2, label_3, label_4]
+
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    # Create figure.
+    figure = plot_boxes(
+        arrays=[
+            comparison["group_1_values"], comparison["group_2_values"],
+            comparison["group_3_values"], comparison["group_4_values"],
+        ],
+        labels_groups=labels_groups,
+        label_vertical=str(comparison["gene_name"] + " pan-tissue signal"),
+        label_horizontal="groups",
+        label_top_center="",
+        label_top_left=str("p: " + numpy.format_float_scientific(
+            comparison["probability_1_2"], precision=3
+        )),
+        label_top_right=str("p: " + numpy.format_float_scientific(
+            comparison["probability_3_4"], precision=3
+        )),
         fonts=fonts,
         colors=colors,
     )
@@ -4831,7 +4906,7 @@ def prepare_charts_genes_signals_persons_groups(
     utility.create_directories(path=path_directory)
     # Create figures.
     for comparison in source["comparisons"]:
-        plot_chart_genes_signals_persons_groups_comparison(
+        plot_chart_genes_signals_persons_four_groups_comparison(
             comparison=comparison,
             path_directory=path_directory,
         )
