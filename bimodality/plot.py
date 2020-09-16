@@ -1571,6 +1571,8 @@ def plot_boxes(
     label_vertical=None,
     label_horizontal=None,
     label_top_center=None,
+    label_top_left=None,
+    label_top_right=None,
     fonts=None,
     colors=None,
 ):
@@ -1584,6 +1586,8 @@ def plot_boxes(
         label_vertical (str): label for vertical axis
         label_horizontal (str): label for horizontal axis
         label_top_center (str): label for top center of plot area
+        label_top_left (str): label for top left of plot area
+        label_top_right (str): label for top right of plot area
         fonts (dict<object>): references to definitions of font properties
         colors (dict<tuple>): references to definitions of color properties
 
@@ -1660,6 +1664,30 @@ def plot_boxes(
             0.5,
             0.9,
             label_top_center,
+            horizontalalignment="center",
+            verticalalignment="top",
+            transform=axes.transAxes,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"]["two"]
+        )
+    if len(label_top_left) > 0:
+        axes.text(
+            0.25,
+            0.9,
+            label_top_left,
+            horizontalalignment="center",
+            verticalalignment="top",
+            transform=axes.transAxes,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"]["two"]
+        )
+    if len(label_top_right) > 0:
+        axes.text(
+            0.75,
+            0.9,
+            label_top_right,
             horizontalalignment="center",
             verticalalignment="top",
             transform=axes.transAxes,

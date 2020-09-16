@@ -1396,6 +1396,8 @@ def read_organize_report_write_genes_signals_persons_groups(
 
     comparisons = organize_person_groups_signal_comparisons_across_genes(
         genes=[
+            "ENSG00000140465", # CYP1A1
+            "ENSG00000106086", # PLEKHA8
             "ENSG00000158050", # DUSP2
             "ENSG00000146013", # GFRA3
             "ENSG00000154134", # ROBO3
