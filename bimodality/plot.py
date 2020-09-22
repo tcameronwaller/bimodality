@@ -4790,7 +4790,7 @@ def prepare_charts_collection_comparisons_folds(
     # Plot chart and create figure.
     plot_chart_collection_comparisons_folds(
         emphasis_keys=source["genes_sets"]["candidacy"]["multimodal"],
-        label_keys=source["genes_sets"]["query"]["covid19_drug"],
+        label_keys=source["genes_sets"]["query"]["feature"],
         column_key="identifier",
         column_label="name",
         data=data_direction,

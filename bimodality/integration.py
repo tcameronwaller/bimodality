@@ -1713,7 +1713,7 @@ def read_organize_report_write_pairwise_gene_correlations(
         dock=paths["dock"],
     )
     # Specify set of genes for which to calculate pairwise correlations.
-    if False:
+    if True:
         genes_correlation = (
             source["genes_sets"]["collection_candidacy"]["covid19_multimodal"]
         )
@@ -1726,7 +1726,7 @@ def read_organize_report_write_pairwise_gene_correlations(
         genes_correlation = (
             source["genes_sets"]["query"]["correlation"]
         )
-    if True:
+    if False:
         genes_correlation = (
             source["genes_sets"]["query"]["covid19_up_prediction"]
         )
