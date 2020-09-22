@@ -569,6 +569,10 @@ def read_source_annotation_query_genes_sets(dock=None):
 
     """
 
+    feature = read_source_annotation_query_genes_set(
+        set="feature",
+        dock=dock,
+    )
     correlation = read_source_annotation_query_genes_set(
         set="correlation",
         dock=dock,
@@ -587,6 +591,7 @@ def read_source_annotation_query_genes_sets(dock=None):
     )
     # Compile and return information.
     return {
+        "feature": feature,
         "correlation": correlation,
         "covid19": covid19,
         "covid19_up_prediction": covid19_up_prediction,
@@ -996,7 +1001,8 @@ def organize_persons_properties_sets(
     # Combinations.
     bin = combine_persons_properties_sets(
         sets_first=[
-            "young", "younger", "old", "older", "race_white", "race_not_white"
+            "male", "female", "young", "younger", "old", "older",
+            "race_white", "race_not_white"
         ],
         sets_second=["breath", "ventilation", "calm", "leukocyte"],
         bin=bin,
@@ -1251,7 +1257,37 @@ def organize_person_groups_signal_comparisons_across_genes(
     for gene in genes:
         comparisons.append(compare_genes_signals_persons_groups_four(
             gene_identifier=gene,
-            comparison="age_respiration",
+            comparison="sex_ventilation",
+            group_1_persons=sets_persons["male_breath"],
+            group_2_persons=sets_persons["male_ventilation"],
+            group_3_persons=sets_persons["female_breath"],
+            group_4_persons=sets_persons["female_ventilation"],
+            group_1_label="male_breath",
+            group_2_label="male_vent",
+            group_3_label="female_breath",
+            group_4_label="female_vent",
+            data_signals_genes_persons=data_signals_genes_persons,
+            data_gene_annotation=data_gene_annotation,
+            report=report,
+        ))
+        comparisons.append(compare_genes_signals_persons_groups_four(
+            gene_identifier=gene,
+            comparison="sex_inflammation",
+            group_1_persons=sets_persons["male_calm"],
+            group_2_persons=sets_persons["male_leukocyte"],
+            group_3_persons=sets_persons["female_calm"],
+            group_4_persons=sets_persons["female_leukocyte"],
+            group_1_label="male_calm",
+            group_2_label="male_leukocyte",
+            group_3_label="female_calm",
+            group_4_label="female_leukocyte",
+            data_signals_genes_persons=data_signals_genes_persons,
+            data_gene_annotation=data_gene_annotation,
+            report=report,
+        ))
+        comparisons.append(compare_genes_signals_persons_groups_four(
+            gene_identifier=gene,
+            comparison="age_ventilation",
             group_1_persons=sets_persons["young_breath"],
             group_2_persons=sets_persons["young_ventilation"],
             group_3_persons=sets_persons["old_breath"],
@@ -1260,21 +1296,6 @@ def organize_person_groups_signal_comparisons_across_genes(
             group_2_label="young_vent",
             group_3_label="old_breath",
             group_4_label="old_vent",
-            data_signals_genes_persons=data_signals_genes_persons,
-            data_gene_annotation=data_gene_annotation,
-            report=report,
-        ))
-        comparisons.append(compare_genes_signals_persons_groups_four(
-            gene_identifier=gene,
-            comparison="race_respiration",
-            group_1_persons=sets_persons["race_white_breath"],
-            group_2_persons=sets_persons["race_white_ventilation"],
-            group_3_persons=sets_persons["race_not_white_breath"],
-            group_4_persons=sets_persons["race_not_white_ventilation"],
-            group_1_label="white_breath",
-            group_2_label="white_vent",
-            group_3_label="other_breath",
-            group_4_label="other_vent",
             data_signals_genes_persons=data_signals_genes_persons,
             data_gene_annotation=data_gene_annotation,
             report=report,
@@ -1290,6 +1311,51 @@ def organize_person_groups_signal_comparisons_across_genes(
             group_2_label="young_leukocyte",
             group_3_label="old_calm",
             group_4_label="old_leukocyte",
+            data_signals_genes_persons=data_signals_genes_persons,
+            data_gene_annotation=data_gene_annotation,
+            report=report,
+        ))
+        comparisons.append(compare_genes_signals_persons_groups_four(
+            gene_identifier=gene,
+            comparison="ager_ventilation",
+            group_1_persons=sets_persons["younger_breath"],
+            group_2_persons=sets_persons["younger_ventilation"],
+            group_3_persons=sets_persons["older_breath"],
+            group_4_persons=sets_persons["older_ventilation"],
+            group_1_label="young_breath",
+            group_2_label="young_vent",
+            group_3_label="old_breath",
+            group_4_label="old_vent",
+            data_signals_genes_persons=data_signals_genes_persons,
+            data_gene_annotation=data_gene_annotation,
+            report=report,
+        ))
+        comparisons.append(compare_genes_signals_persons_groups_four(
+            gene_identifier=gene,
+            comparison="ager_inflammation",
+            group_1_persons=sets_persons["younger_calm"],
+            group_2_persons=sets_persons["younger_leukocyte"],
+            group_3_persons=sets_persons["older_calm"],
+            group_4_persons=sets_persons["older_leukocyte"],
+            group_1_label="young_calm",
+            group_2_label="young_leukocyte",
+            group_3_label="old_calm",
+            group_4_label="old_leukocyte",
+            data_signals_genes_persons=data_signals_genes_persons,
+            data_gene_annotation=data_gene_annotation,
+            report=report,
+        ))
+        comparisons.append(compare_genes_signals_persons_groups_four(
+            gene_identifier=gene,
+            comparison="race_ventilation",
+            group_1_persons=sets_persons["race_white_breath"],
+            group_2_persons=sets_persons["race_white_ventilation"],
+            group_3_persons=sets_persons["race_not_white_breath"],
+            group_4_persons=sets_persons["race_not_white_ventilation"],
+            group_1_label="white_breath",
+            group_2_label="white_vent",
+            group_3_label="other_breath",
+            group_4_label="other_vent",
             data_signals_genes_persons=data_signals_genes_persons,
             data_gene_annotation=data_gene_annotation,
             report=report,
@@ -1377,10 +1443,8 @@ def read_organize_report_write_genes_signals_persons_groups(
     # BHLHE40: ENSG00000134107
     # SAMHD1: ENSG00000101347
 
-    # TODO: introduce "age_younger" and "age_older"
-    # TODO: introduce persons for leukocyte
-
-    # TODO: instead of explicit "group_1" "group_2" arguments, pass lists...
+    # TODO: prepare two-group comparisons and save as comparisons_two
+    # TODO: prepare four-group comparisons and save as comparisons_four
 
     compare_genes_signals_persons_groups_two(
         gene_identifier="ENSG00000158050", # DUSP2
