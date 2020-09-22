@@ -462,6 +462,15 @@ def plot_heatmap_symmetric_diverge(
                 color=colors["black"],
                 fontproperties=fonts["properties"]["eight"]
             )
+    if False:
+        # Rotate the tick labels and set their alignment.
+        matplotlib.pyplot.setp(
+            axes.get_xticklabels(),
+            rotation=-30,
+            ha="right",
+            rotation_mode="anchor"
+        )
+        pass
     # Return figure.
     return figure
 
@@ -549,7 +558,7 @@ def plot_heatmap_asymmetric(
     # Create figure.
     figure = matplotlib.pyplot.figure(
         figsize=(15.748, 11.811), # 40 cm, 30 cm
-        #tight_layout=True,
+        tight_layout=True,
     )
     figure.suptitle(
         title,
@@ -562,89 +571,21 @@ def plot_heatmap_asymmetric(
         fontproperties=fonts["properties"]["two"]
     )
     axes = matplotlib.pyplot.axes()
-    # Define color map and labels.
-    if (
-        (type == "category") or
-        (type == "binary") or
-        (type == "ordinal") or
-        (type == "continuous")
-    ):
-        color_map = "RdPu" # or "RdBu"
-        scale = matplotlib.colors.Normalize(
-            vmin=bucket["minimum"],
-            vmax=bucket["maximum"],
-        )
-        ticks = [bucket["minimum"], bucket["maximum"]]
-        labels_ticks = [bucket["minimum"], bucket["maximum"]]
-    elif (type == "continuous_divergent"):
-        color_map = "PuOr" # or "RdBu"
-        scale = matplotlib.colors.TwoSlopeNorm(
-            vmin=bucket["minimum"],
-            vcenter=0.0,
-            vmax=bucket["maximum"],
-        )
-        ticks = [bucket["minimum"], 0.0, bucket["maximum"]]
-        labels_ticks = [bucket["minimum"], 0.0, bucket["maximum"]]
-    # Represent data as a color grid.
-    image = axes.imshow(
-        bucket["matrix"],
-        cmap=color_map, # sequential: "RdPu", diverging: "PuOr"
-        aspect="auto", # "auto", "equal"
-        origin="upper", # "lower" or "upper"
-        # Extent: (left, right, bottom, top)
-        #extent=(-0.5, (matrix.shape[1] - 0.5), (matrix.shape[0] - 0.5), -0.5),
-        alpha=1.0,
-        norm=scale,
-        filternorm=True,
-        resample=True,
-    )
-
-    if False:
-        # Create legend for color map.
-        label_bar = "legend"
-        bar = axes.figure.colorbar(image, ax=axes)
-        bar.ax.set_ylabel(label_bar, rotation=-90, va="bottom")
-
-        # Create ticks and labels for each grid.
-        # Let the horizontal axes labeling appear on top.
-        axes.tick_params(
-            axis="both",
-            which="both",
-            direction="out",
-            length=5.0,
-            width=3.0,
-            color=colors["black"],
-            pad=5,
-            labelsize=fonts["values"]["two"]["size"],
-            labelcolor=colors["black"],
-            top=True,
-            bottom=False,
-            labeltop=True,
-            labelbottom=False
-        )
-        # Rotate the tick labels and set their alignment.
-        matplotlib.pyplot.setp(
-            axes.get_xticklabels(),
-            rotation=-30,
-            ha="right",
-            rotation_mode="anchor"
-        )
-
-        if label_columns:
-            axes.set_xticks(numpy.arange(matrix.shape[1]))
-            axes.set_xticklabels(labels_columns)
-        if label_rows:
-            axes.set_yticks(numpy.arange(matrix.shape[0]))
-            axes.set_yticklabels(
-                labels_rows,
-                minor=False,
-                alpha=1.0,
-                backgroundcolor=colors["white"],
-                color=colors["black"],
-                fontproperties=fonts["properties"]["five"]
-            )
-
-        pass
+     # Main chart in bottom panel.
+    organize_heatmap_asymmetric_master_main_bottom(
+        label_scale=label_scale,
+        type=type,
+        matrix=bucket["matrix"],
+        minimum=bucket["minimum"],
+        maximum=bucket["maximum"],
+        labels_rows=bucket["labels_rows"],
+        labels_columns=bucket["labels_columns"],
+        fonts=fonts,
+        colors=colors,
+        axis_main=axes,
+        axis_scale=axes,
+        figure=figure,
+     )
 
     return figure
 
@@ -1145,7 +1086,7 @@ def organize_heatmap_asymmetric_master_main_top(
 
 
 def organize_heatmap_asymmetric_master_main_bottom(
-    label=None,
+    label_scale=None,
     type=None,
     matrix=None,
     minimum=None,
@@ -1154,14 +1095,15 @@ def organize_heatmap_asymmetric_master_main_bottom(
     labels_columns=None,
     fonts=None,
     colors=None,
-    axes=None,
+    axis_main=None,
+    axis_scale=None,
     figure=None,
 ):
     """
     Organizes top panel of figure.
 
     arguments:
-        label (str): label for main heatmap scale
+        label_scale (str): label for heatmap scale bar
         type (str): type of property, category, binary, ordinal, continuous, or
             continuous_divergent
         matrix (array<array>): values of properties
@@ -1171,7 +1113,8 @@ def organize_heatmap_asymmetric_master_main_bottom(
         labels_columns (list<str>): labels for matrix columns
         fonts (dict<object>): references to definitions of font properties
         colors (dict<tuple>): references to definitions of color properties
-        axes (object): instance axis object
+        axis_main (object): instance of axis for main plot
+        axis_scale (object): instance of axis for scale bar plot
         figure (object): instance figure object
 
     raises:
@@ -1206,7 +1149,7 @@ def organize_heatmap_asymmetric_master_main_bottom(
         labels_ticks = [minimum, 0.0, maximum]
 
     # Initialize chart.
-    image = axes[1, 0].imshow(
+    image = axis_main.imshow(
         matrix,
         cmap=color_map, # sequential: "RdPu", diverging: "PuOr"
         aspect="auto", # "auto", "equal"
@@ -1228,7 +1171,7 @@ def organize_heatmap_asymmetric_master_main_bottom(
             size_count = "five"
         elif matrix.shape[0] <= 25:
             size_count = "four"
-        axes[1, 0].tick_params(
+        axis_main.tick_params(
             axis="both",
             which="both",
             direction="out",
@@ -1247,8 +1190,8 @@ def organize_heatmap_asymmetric_master_main_bottom(
             labelsize=fonts["values"][size_count]["size"],
             labelcolor=colors["black"],
         )
-        axes[1, 0].set_yticks(numpy.arange(matrix.shape[0]))
-        axes[1, 0].set_yticklabels(
+        axis_main.set_yticks(numpy.arange(matrix.shape[0]))
+        axis_main.set_yticklabels(
             labels_rows,
             #minor=False,
             ha="right", # horizontal alignment
@@ -1260,15 +1203,24 @@ def organize_heatmap_asymmetric_master_main_bottom(
         )
         pass
     # Create legend for color map.
-    bar = figure.colorbar(
-        image,
-        cax=axes[1, 1],
-        ticks=ticks,
-        orientation="vertical",
-        use_gridspec=True,
-    )
+    if axis_scale is axis_main:
+        bar = axis_main.figure.colorbar(
+            image,
+            orientation="vertical",
+            ax=axis_main,
+            ticks=ticks,
+        )
+    else:
+        bar = figure.colorbar(
+            image,
+            cax=axis_scale,
+            ticks=ticks,
+            orientation="vertical",
+            use_gridspec=True,
+        )
+        pass
     bar.ax.set_ylabel(
-        label,
+        label_scale,
         rotation=-90,
         ha="center",
         va="bottom",
@@ -1277,12 +1229,12 @@ def organize_heatmap_asymmetric_master_main_bottom(
         color=colors["black"],
         fontproperties=fonts["properties"]["three"],
     )
-    bar.ax.yaxis.set_label_coords(2, 0.5)
+    bar.ax.yaxis.set_label_coords(2.5, 0.5)
     bar.ax.set_yticklabels(
         labels_ticks,
         #minor=False,
         ha="left", # horizontal alignment
-        va="top", # vertical alignment
+        va="center", # vertical alignment
         alpha=1.0,
         backgroundcolor=colors["white"],
         color=colors["black"],
@@ -1389,7 +1341,7 @@ def plot_heatmap_asymmetric_master_main_top_bottom(
 
      # Main chart in bottom panel.
     organize_heatmap_asymmetric_master_main_bottom(
-        label=label_main,
+        label_scale=label_main,
         type=type_main,
         matrix=bin_data["matrix_main"],
         minimum=bin_data["minimum_main"],
@@ -1398,7 +1350,8 @@ def plot_heatmap_asymmetric_master_main_top_bottom(
         labels_columns=bin_data["labels_columns_main"],
         fonts=fonts,
         colors=colors,
-        axes=axes,
+        axis_main=axes[1, 0],
+        axis_scale=axes[1, 1],
         figure=figure,
      )
 
@@ -6962,11 +6915,6 @@ def prepare_charts_genes_signals_tissues_persons_by_properties(
     pass
 
 
-
-
-# BLARG
-
-
 def plot_chart_genes_signals_tissues_persons(
     gene=None,
     gene_name=None,
@@ -6998,10 +6946,12 @@ def plot_chart_genes_signals_tissues_persons(
     # Define colors.
     colors = define_color_properties()
 
+    label_scale = str(gene_name + "   signals across tissues and persons")
+
     # Create figure.
     figure = plot_heatmap_asymmetric(
-        title=gene_name,
-        label_scale="genes' signals across tissues and persons",
+        title="",
+        label_scale=label_scale,
         type="continuous_divergent",
         label_rows=True,
         label_columns=True,
@@ -7016,6 +6966,11 @@ def plot_chart_genes_signals_tissues_persons(
     )
 
     pass
+
+
+# BLARG
+# TODO: organize data in a new general and versatile function...
+# TODO: drop rows columns with all missing, fill missing, scale columns, cluster
 
 
 def prepare_charts_genes_signals_tissues_persons_gene(
@@ -7084,8 +7039,6 @@ def prepare_charts_genes_signals_tissues_persons_gene(
         #axis="columns",
         inplace=True,
     )
-    utility.print_terminal_partition(level=1)
-    print(data_sort)
     # Cluster columns of data.
     data_cluster_columns = utility.cluster_data_columns(
         data=data_sort,
