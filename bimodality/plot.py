@@ -4638,7 +4638,8 @@ def read_source_collection_comparisons_folds(
 
     # Read genes sets.
     genes_sets = (
-        integration.read_source_organize_genes_sets_collection_candidacy_query(
+        integration.
+        read_source_organize_genes_sets_collection_candidacy_prediction_query(
             cohort="selection",
             dock=dock,
     ))
@@ -7232,7 +7233,8 @@ def read_source_prediction_genes_signals_persons_properties(
 
     # Read genes sets.
     genes_sets = (
-        integration.read_source_organize_genes_sets_collection_candidacy_query(
+        integration.
+        read_source_organize_genes_sets_collection_candidacy_prediction_query(
             cohort="selection",
             dock=dock,
     ))
@@ -7608,19 +7610,10 @@ def prepare_charts_query_genes_signals_persons_properties_cohort(
         path_parent=path_cohort,
     )
     prepare_charts_query_genes_signals_persons_properties_genes(
-        set_name="covid19_up_multimodal",
+        set_name="covid19_multimodal_prediction",
         genes=(
-            source["genes_sets"]["collection_candidacy"]
-            ["covid19_up_multimodal"]
+            source["genes_sets"]["prediction"]["priority"]
         ),
-        data_gene_annotation=source["data_gene_annotation"],
-        data_persons_properties=source["data_persons_properties"],
-        data_signals_genes_persons=source["data_signals_genes_persons"],
-        path_parent=path_cohort,
-    )
-    prepare_charts_query_genes_signals_persons_properties_genes(
-        set_name="query_covid19_prediction",
-        genes=source["genes_sets"]["query"]["covid19_up_prediction"],
         data_gene_annotation=source["data_gene_annotation"],
         data_persons_properties=source["data_persons_properties"],
         data_signals_genes_persons=source["data_signals_genes_persons"],

@@ -1314,6 +1314,11 @@ def select_genes_by_gene_distributions_variable_associations(
     """
     Selects and scales regression parameters.
 
+    1. Subset regression data by a set of query genes of interest.
+    2. Correct for multiple hypotheses within the scope of the query genes of
+    interest.
+    3. Identify genes that associate significantly with each variable.
+
     arguments:
         variables_separate (list<str>): names of independent regression
             variables for which to select genes by significant association
@@ -2609,14 +2614,16 @@ def organize_regression_gene_associations_report_write(
     ))
 
     # Include union sets.
-    sets_genes_association = collect_union_priority_sets_genes(
-        sets=sets_genes_association,
-        union_variables=variables_interest,
-        priority_variables=[
+    if False:
+        variables_priority = [
             "sex_y_scale", "age_scale", "ventilation_duration_scale",
             "ventilation_binary_scale", "sex_y*ventilation_binary_scale",
             "age*ventilation_binary_scale", "sex_y*age_scale",
-        ],
+        ]
+    sets_genes_association = collect_union_priority_sets_genes(
+        sets=sets_genes_association,
+        union_variables=variables_interest,
+        priority_variables=variables["hypothesis"],
     )
     # Include query set in variables of interest.
     variables_summary = copy.deepcopy(variables_interest)
@@ -2800,7 +2807,7 @@ def execute_procedure(
             # with modality sets.
             # Select genes with significant association with each hypothetical
             # variable of interest.
-            if False:
+            if True:
                 utility.print_terminal_partition(level=2)
                 print("cohort: " + str(cohort))
                 print("model: " + str(model))
@@ -2824,7 +2831,7 @@ def execute_procedure(
         )
     # Collect summaries of genes' associations with variables of interest
     # across cohorts and models.
-    if True:
+    if False:
         organize_summary_gene_set_associations_report_write(
             cohorts_models=cohorts_models,
             paths=paths,

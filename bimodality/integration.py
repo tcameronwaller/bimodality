@@ -478,6 +478,49 @@ def read_source_genes_sets_candidacy(
     return bin
 
 
+def read_source_genes_sets_prediction(
+    cohort=None,
+    model=None,
+    genes_query_scope=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file.
+
+    Priority parameters:
+    cohort="selection"
+    model="selection_main"
+    genes_query_scope="covid19_multimodal"
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        model (str): name of regression model
+        genes_query_scope (str): the set of genes by which to query
+            associations, thereby reducing the scope of multiple hypotheses
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_sets_genes = os.path.join(
+        dock, "prediction", cohort, model, "genes_associations",
+        "sets_genes.pickle"
+    )
+    # Read information from file.
+    with open(path_sets_genes, "rb") as file_source:
+        sets_genes = pickle.load(file_source)
+    # Compile information.
+    sets = copy.deepcopy(sets_genes[genes_query_scope])
+    # Return information.
+    return sets
+
+
 def read_source_annotation_query_genes_all(
     dock=None,
 ):
@@ -659,7 +702,7 @@ def read_source_genes_sets_collection_candidacy(
 
 # TODO: include ontology gene sets... DAVID enrichment sets on multimodal genes and COVID-19 genes
 
-def read_source_organize_genes_sets_collection_candidacy_query(
+def read_source_organize_genes_sets_collection_candidacy_prediction_query(
     cohort=None,
     dock=None,
 ):
@@ -690,6 +733,12 @@ def read_source_organize_genes_sets_collection_candidacy_query(
     )
     bin["collection_candidacy"] = read_source_genes_sets_collection_candidacy(
         cohort=cohort,
+        dock=dock,
+    )
+    bin["prediction"] = read_source_genes_sets_prediction(
+        cohort=cohort,
+        model=str(cohort + "_main"),
+        genes_query_scope="covid19_multimodal",
         dock=dock,
     )
     bin["query"] = read_source_annotation_query_genes_sets(
@@ -1808,36 +1857,6 @@ def read_source_genes_sets_heritability(
     bin["multimodal"] = genes_multimodal
     # Return information.
     return bin
-
-
-def read_source_genes_sets_prediction(
-    cohort=None,
-    dock=None,
-):
-    """
-    Reads and organizes source information from file
-
-    arguments:
-        cohort (str): cohort of persons--selection, respiration, or ventilation
-        dock (str): path to root or dock directory for source and product
-            directories and files
-
-    raises:
-
-    returns:
-        (object): source information
-
-    """
-
-    # Specify directories and files.
-    path_sets_genes = os.path.join(
-        dock, "prediction", cohort, "genes", "sets_genes.pickle"
-    )
-    # Read information from file.
-    with open(path_sets_genes, "rb") as file_source:
-        sets_genes = pickle.load(file_source)
-    # Return information.
-    return sets_genes
 
 
 def read_source_genes_sets_function(
