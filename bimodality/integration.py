@@ -1407,50 +1407,6 @@ def organize_genes_person_two_groups_signal_comparisons(
             data_gene_annotation=data_gene_annotation,
             report=report,
         ))
-        comparisons.append(compare_genes_signals_persons_groups_two(
-            gene_identifier=gene,
-            comparison="ager_breath",
-            group_1_persons=sets_persons["younger_breath"],
-            group_2_persons=sets_persons["older_breath"],
-            group_1_label="younger_breath",
-            group_2_label="older_breath",
-            data_signals_genes_persons=data_signals_genes_persons,
-            data_gene_annotation=data_gene_annotation,
-            report=report,
-        ))
-        comparisons.append(compare_genes_signals_persons_groups_two(
-            gene_identifier=gene,
-            comparison="ager_ventilation",
-            group_1_persons=sets_persons["younger_ventilation"],
-            group_2_persons=sets_persons["older_ventilation"],
-            group_1_label="younger_vent",
-            group_2_label="older_vent",
-            data_signals_genes_persons=data_signals_genes_persons,
-            data_gene_annotation=data_gene_annotation,
-            report=report,
-        ))
-        comparisons.append(compare_genes_signals_persons_groups_two(
-            gene_identifier=gene,
-            comparison="ager_leukocytosis",
-            group_1_persons=sets_persons["younger_leukocytosis"],
-            group_2_persons=sets_persons["older_leukocytosis"],
-            group_1_label="younger_leukocytosis",
-            group_2_label="older_leukocytosis",
-            data_signals_genes_persons=data_signals_genes_persons,
-            data_gene_annotation=data_gene_annotation,
-            report=report,
-        ))
-        comparisons.append(compare_genes_signals_persons_groups_two(
-            gene_identifier=gene,
-            comparison="ager_calm",
-            group_1_persons=sets_persons["younger_calm"],
-            group_2_persons=sets_persons["older_calm"],
-            group_1_label="younger_calm",
-            group_2_label="older_calm",
-            data_signals_genes_persons=data_signals_genes_persons,
-            data_gene_annotation=data_gene_annotation,
-            report=report,
-        ))
     return comparisons
 
 
@@ -1602,6 +1558,36 @@ def organize_genes_person_four_groups_signal_comparisons(
             data_gene_annotation=data_gene_annotation,
             report=report,
         ))
+        comparisons.append(compare_genes_signals_persons_groups_four(
+            gene_identifier=gene,
+            comparison="ventilation_age",
+            group_1_persons=sets_persons["young_breath"],
+            group_2_persons=sets_persons["old_breath"],
+            group_3_persons=sets_persons["young_ventilation"],
+            group_4_persons=sets_persons["old_ventilation"],
+            group_1_label="young_breath",
+            group_2_label="old_breath",
+            group_3_label="young_vent",
+            group_4_label="old_vent",
+            data_signals_genes_persons=data_signals_genes_persons,
+            data_gene_annotation=data_gene_annotation,
+            report=report,
+        ))
+        comparisons.append(compare_genes_signals_persons_groups_four(
+            gene_identifier=gene,
+            comparison="leukocytosis_age",
+            group_1_persons=sets_persons["young_calm"],
+            group_2_persons=sets_persons["old_calm"],
+            group_3_persons=sets_persons["young_leukocytosis"],
+            group_4_persons=sets_persons["old_leukocytosis"],
+            group_1_label="young_calm",
+            group_2_label="old_calm",
+            group_3_label="old_leukocytosis",
+            group_4_label="old_leukocytosis",
+            data_signals_genes_persons=data_signals_genes_persons,
+            data_gene_annotation=data_gene_annotation,
+            report=report,
+        ))
     return comparisons
 
 
@@ -1693,11 +1679,12 @@ def read_organize_report_write_genes_signals_persons_groups(
             "ENSG00000146013", # GFRA3
             "ENSG00000154134", # ROBO3
             "ENSG00000153234", # NR4A2
+            "ENSG00000134986", # NREP
         ],
         sets_persons=sets_persons,
         data_signals_genes_persons=data_signals_standard,
         data_gene_annotation=source["data_gene_annotation"],
-        report=False,
+        report=report,
     )
     # Write information to file.
     information = dict()
