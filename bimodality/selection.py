@@ -3078,7 +3078,7 @@ def stratify_persons_continuous_variables_ordinal(
     data_age = stratify_persons_continuous_variable_ordinal(
         variable="age",
         variable_grade="age_grade",
-        bins=[[0.0, 0.3], [0.3, 0.7], [0.7, 1.0]],
+        bins=[[0.0, 0.33], [0.33, 0.67], [0.67, 1.0]],
         data_persons_properties=data_persons_properties,
         report=report,
     )
@@ -3093,7 +3093,7 @@ def stratify_persons_continuous_variables_ordinal(
     data_ventilation = stratify_persons_continuous_variable_ordinal(
         variable="ventilation_duration",
         variable_grade="ventilation_duration_grade",
-        bins=[[0.0, 0.3], [0.3, 0.7], [0.7, 1.0]],
+        bins=[[0.0, 0.33], [0.33, 0.67], [0.67, 1.0]],
         data_persons_properties=data_age_halves,
         report=report,
     )

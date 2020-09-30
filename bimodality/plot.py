@@ -6283,7 +6283,7 @@ def prepare_charts_genes_persons_signals_cohort(
     utility.create_directories(path=path_directory)
 
     # Plot charts for genes of interest.
-    genes_interest = source["query_gene_sets"]["feature"]
+    genes_interest = source["query_gene_sets"]["distribution"]
     for gene in genes_interest:
         prepare_chart_gene_persons_signals(
             gene=gene,
@@ -6627,6 +6627,11 @@ def define_parameters_genes_signals_tissues_persons():
     # Use "source["sets_genes"]["multimodal"][parameter["set"]]" to iterate
     # through multiple sets of genes.
     parameters = list()
+    parameters.append(dict(
+        title="sex", label="sex",
+        set="sex_y_scale",
+        property="sex_y", type="binary",
+    ))
     parameters.append(dict(
         title="ventilation_binary", label="ventilation",
         set="ventilation_binary_scale",
@@ -7155,7 +7160,7 @@ def prepare_charts_genes_signals_tissues_persons_cohort(
     )
     # Prepare plots with persons sorted and clustered by persons' properties.
     prepare_charts_genes_signals_tissues_persons_by_properties(
-        genes_query=source["query_gene_sets"]["feature"],
+        genes_query=source["query_gene_sets"]["distribution"],
         genes_distribution=source["genes_distribution"],
         data_gene_annotation=source["data_gene_annotation"],
         data_persons_properties=source["data_persons_properties"],
@@ -7164,7 +7169,7 @@ def prepare_charts_genes_signals_tissues_persons_cohort(
     )
     # Prepare plots with persons sorted by pan-tissue signal.
     prepare_charts_genes_signals_tissues_persons_simple(
-        genes_query=source["query_gene_sets"]["feature"],
+        genes_query=source["query_gene_sets"]["distribution"],
         genes_distribution=source["genes_distribution"],
         data_gene_annotation=source["data_gene_annotation"],
         data_persons_properties=source["data_persons_properties"],
