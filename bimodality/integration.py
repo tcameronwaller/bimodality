@@ -647,6 +647,37 @@ def read_source_annotation_query_genes_sets(dock=None):
     }
 
 
+def read_source_genes_sets_correlation(
+    cohort=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Specify directories and files.
+    path_genes_correlation = os.path.join(
+        dock, "integration", cohort, "correlation", "genes.pickle"
+    )
+    # Read information from file.
+    with open(path_genes_correlation, "rb") as file_source:
+        genes_correlation = pickle.load(file_source)
+    # Return information.
+    return genes_correlation
+
+
+
 def read_source_genes_sets_collection_candidacy(
     cohort=None,
     dock=None,
@@ -1045,12 +1076,19 @@ def organize_persons_properties_sets(
     bin["ventilation"] = data_persons_properties.loc[
         data_persons_properties["ventilation"] == True, :
     ].index.to_list()
-    # Leukocyte.
+    # Leukocytosis.
     bin["calm"] = data_persons_properties.loc[
         data_persons_properties["leukocyte"] == False, :
     ].index.to_list()
     bin["leukocytosis"] = data_persons_properties.loc[
         data_persons_properties["leukocyte"] == True, :
+    ].index.to_list()
+    # Chronic inflammation.
+    bin["calm_chronic"] = data_persons_properties.loc[
+        data_persons_properties["inflammation"] == False, :
+    ].index.to_list()
+    bin["inflammation"] = data_persons_properties.loc[
+        data_persons_properties["inflammation"] == True, :
     ].index.to_list()
     # Combinations.
     bin = combine_persons_properties_sets(
@@ -1354,55 +1392,22 @@ def organize_genes_person_two_groups_signal_comparisons(
         ))
         comparisons.append(compare_genes_signals_persons_groups_two(
             gene_identifier=gene,
+            comparison="inflammation",
+            group_1_persons=sets_persons["calm_chronic"],
+            group_2_persons=sets_persons["inflammation"],
+            group_1_label="calm",
+            group_2_label="inflammation",
+            data_signals_genes_persons=data_signals_genes_persons,
+            data_gene_annotation=data_gene_annotation,
+            report=report,
+        ))
+        comparisons.append(compare_genes_signals_persons_groups_two(
+            gene_identifier=gene,
             comparison="ventilation",
             group_1_persons=sets_persons["breath"],
             group_2_persons=sets_persons["ventilation"],
             group_1_label="breath",
             group_2_label="ventilation",
-            data_signals_genes_persons=data_signals_genes_persons,
-            data_gene_annotation=data_gene_annotation,
-            report=report,
-        ))
-        comparisons.append(compare_genes_signals_persons_groups_two(
-            gene_identifier=gene,
-            comparison="age_breath",
-            group_1_persons=sets_persons["young_breath"],
-            group_2_persons=sets_persons["old_breath"],
-            group_1_label="young_breath",
-            group_2_label="old_breath",
-            data_signals_genes_persons=data_signals_genes_persons,
-            data_gene_annotation=data_gene_annotation,
-            report=report,
-        ))
-        comparisons.append(compare_genes_signals_persons_groups_two(
-            gene_identifier=gene,
-            comparison="age_ventilation",
-            group_1_persons=sets_persons["young_ventilation"],
-            group_2_persons=sets_persons["old_ventilation"],
-            group_1_label="young_vent",
-            group_2_label="old_vent",
-            data_signals_genes_persons=data_signals_genes_persons,
-            data_gene_annotation=data_gene_annotation,
-            report=report,
-        ))
-        comparisons.append(compare_genes_signals_persons_groups_two(
-            gene_identifier=gene,
-            comparison="age_calm",
-            group_1_persons=sets_persons["young_calm"],
-            group_2_persons=sets_persons["old_calm"],
-            group_1_label="young_calm",
-            group_2_label="old_calm",
-            data_signals_genes_persons=data_signals_genes_persons,
-            data_gene_annotation=data_gene_annotation,
-            report=report,
-        ))
-        comparisons.append(compare_genes_signals_persons_groups_two(
-            gene_identifier=gene,
-            comparison="age_leukocytosis",
-            group_1_persons=sets_persons["young_leukocytosis"],
-            group_2_persons=sets_persons["old_leukocytosis"],
-            group_1_label="young_leukocytosis",
-            group_2_label="old_leukocytosis",
             data_signals_genes_persons=data_signals_genes_persons,
             data_gene_annotation=data_gene_annotation,
             report=report,
@@ -1461,9 +1466,9 @@ def organize_genes_person_four_groups_signal_comparisons(
             group_3_persons=sets_persons["female_calm"],
             group_4_persons=sets_persons["female_leukocytosis"],
             group_1_label="male_calm",
-            group_2_label="male_leukocytosis",
+            group_2_label="male_leuk",
             group_3_label="female_calm",
-            group_4_label="female_leukocytosis",
+            group_4_label="female_leuk",
             data_signals_genes_persons=data_signals_genes_persons,
             data_gene_annotation=data_gene_annotation,
             report=report,
@@ -1491,9 +1496,9 @@ def organize_genes_person_four_groups_signal_comparisons(
             group_3_persons=sets_persons["old_calm"],
             group_4_persons=sets_persons["old_leukocytosis"],
             group_1_label="young_calm",
-            group_2_label="young_leukocytosis",
+            group_2_label="young_leuk",
             group_3_label="old_calm",
-            group_4_label="old_leukocytosis",
+            group_4_label="old_leuk",
             data_signals_genes_persons=data_signals_genes_persons,
             data_gene_annotation=data_gene_annotation,
             report=report,
@@ -1521,9 +1526,9 @@ def organize_genes_person_four_groups_signal_comparisons(
             group_3_persons=sets_persons["older_calm"],
             group_4_persons=sets_persons["older_leukocytosis"],
             group_1_label="younger_calm",
-            group_2_label="younger_leukocytosis",
+            group_2_label="younger_leuk",
             group_3_label="older_calm",
-            group_4_label="older_leukocytosis",
+            group_4_label="older_leuk",
             data_signals_genes_persons=data_signals_genes_persons,
             data_gene_annotation=data_gene_annotation,
             report=report,
@@ -1551,9 +1556,9 @@ def organize_genes_person_four_groups_signal_comparisons(
             group_3_persons=sets_persons["race_not_white_calm"],
             group_4_persons=sets_persons["race_not_white_leukocytosis"],
             group_1_label="white_calm",
-            group_2_label="white_leukocytosis",
+            group_2_label="white_leuk",
             group_3_label="other_calm",
-            group_4_label="other_leukocytosis",
+            group_4_label="other_leuk",
             data_signals_genes_persons=data_signals_genes_persons,
             data_gene_annotation=data_gene_annotation,
             report=report,
@@ -1565,10 +1570,10 @@ def organize_genes_person_four_groups_signal_comparisons(
             group_2_persons=sets_persons["old_breath"],
             group_3_persons=sets_persons["young_ventilation"],
             group_4_persons=sets_persons["old_ventilation"],
-            group_1_label="young_breath",
-            group_2_label="old_breath",
-            group_3_label="young_vent",
-            group_4_label="old_vent",
+            group_1_label="breath_young",
+            group_2_label="breath_old",
+            group_3_label="vent_young",
+            group_4_label="vent_old",
             data_signals_genes_persons=data_signals_genes_persons,
             data_gene_annotation=data_gene_annotation,
             report=report,
@@ -1580,10 +1585,10 @@ def organize_genes_person_four_groups_signal_comparisons(
             group_2_persons=sets_persons["old_calm"],
             group_3_persons=sets_persons["young_leukocytosis"],
             group_4_persons=sets_persons["old_leukocytosis"],
-            group_1_label="young_calm",
-            group_2_label="old_calm",
-            group_3_label="old_leukocytosis",
-            group_4_label="old_leukocytosis",
+            group_1_label="calm_young",
+            group_2_label="calm_old",
+            group_3_label="leuk_young",
+            group_4_label="leuk_old",
             data_signals_genes_persons=data_signals_genes_persons,
             data_gene_annotation=data_gene_annotation,
             report=report,
@@ -1667,6 +1672,8 @@ def read_organize_report_write_genes_signals_persons_groups(
             "ENSG00000177575", # CD163
             "ENSG00000169738", # DCXR
             "ENSG00000134986", # NREP
+            "ENSG00000154134", # ROBO3
+            "ENSG00000153234", # NR4A2
         ],
         sets_persons=sets_persons,
         data_signals_genes_persons=data_signals_standard,
@@ -1900,11 +1907,18 @@ def write_product_pairwise_gene_correlations(
         paths[cohort]["correlation"],
         "data_genes_correlations.pickle"
     )
+    path_genes_correlation = os.path.join(
+        paths[cohort]["correlation"], "genes.pickle"
+    )
     # Write information to file.
     pandas.to_pickle(
         information["data_genes_correlations"],
         path_data_genes_correlations
     )
+    with open(path_genes_correlation, "wb") as file_product:
+        pickle.dump(
+            information["genes_correlation"], file_product
+        )
     pass
 
 
@@ -1933,11 +1947,11 @@ def read_organize_report_write_pairwise_gene_correlations(
         dock=paths["dock"],
     )
     # Specify set of genes for which to calculate pairwise correlations.
-    if False:
+    if True:
         genes_correlation = (
             source["genes_sets"]["collection_candidacy"]["covid19_multimodal"]
         )
-    if True:
+    if False:
         genes_correlation = (
             source["genes_sets"]["prediction"]["priority"]
         )
@@ -1959,8 +1973,8 @@ def read_organize_report_write_pairwise_gene_correlations(
     # Use Spearman correlations.
     data_correlation = organize_genes_pairwise_signals_correlations(
         method="spearman", # pearson (normal distribution), spearman
-        threshold_high=0.0, # 1.0, 0.75, 0.5, 0.25, 0.0
-        threshold_low=-0.0, # -1.0, -0.75, -0.5, -0.25, -0.0
+        threshold_high=0.75, # 1.0, 0.75, 0.5, 0.25, 0.0
+        threshold_low=-0.75, # -1.0, -0.75, -0.5, -0.25, -0.0
         discovery=0.05,
         genes=genes_correlation,
         data_signals_genes_persons=source["data_signals_genes_persons"],
@@ -1969,10 +1983,12 @@ def read_organize_report_write_pairwise_gene_correlations(
     if report:
         utility.print_terminal_partition(level=2)
         print("correlation genes: " + str(data_correlation.shape[0]))
+        print(data_correlation)
         utility.print_terminal_partition(level=2)
     # Compile information.
     information = dict()
     information["data_genes_correlations"] = data_correlation
+    information["genes_correlation"] = data_correlation.index.to_list()
     # Write information to file.
     write_product_pairwise_gene_correlations(
         cohort="selection",
@@ -3128,13 +3144,13 @@ def execute_procedure(dock=None):
     # of relevant genes.
     read_organize_report_write_pairwise_gene_correlations(
         paths=paths,
-        report=False,
+        report=True,
     )
 
     # Organize comparisons of genes' signals between groups of persons.
     read_organize_report_write_genes_signals_persons_groups(
         paths=paths,
-        report=True,
+        report=False,
     )
 
     # TODO: this subprocedure is now obsolete... ?

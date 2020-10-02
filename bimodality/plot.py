@@ -70,7 +70,7 @@ def define_font_properties():
         "family": "sans-serif",
         "style": "normal",
         "variant": "normal",
-        "stretch": 500,
+        "stretch": 900,
         "weight": 1000,
         "size": 25
     }
@@ -78,7 +78,7 @@ def define_font_properties():
         "family": "sans-serif",
         "style": "normal",
         "variant": "normal",
-        "stretch": 500,
+        "stretch": 750,
         "weight": 1000,
         "size": 20
     }
@@ -129,6 +129,14 @@ def define_font_properties():
         "stretch": 150,
         "weight": 150,
         "size": 5
+    }
+    values_ten = {
+        "family": "sans-serif",
+        "style": "normal",
+        "variant": "normal",
+        "stretch": 100,
+        "weight": 100,
+        "size": 3
     }
     # Define font properties.
     properties_one = matplotlib.font_manager.FontProperties(
@@ -203,6 +211,14 @@ def define_font_properties():
         weight=values_nine["weight"],
         size=values_nine["size"]
     )
+    properties_ten = matplotlib.font_manager.FontProperties(
+        family=values_ten["family"],
+        style=values_ten["style"],
+        variant=values_ten["variant"],
+        stretch=values_ten["stretch"],
+        weight=values_ten["weight"],
+        size=values_ten["size"]
+    )
     # Compile and return references.
     return {
         "values": {
@@ -215,6 +231,7 @@ def define_font_properties():
             "seven": values_seven,
             "eight": values_eight,
             "nine": values_nine,
+            "ten": values_ten,
         },
         "properties": {
             "one": properties_one,
@@ -226,6 +243,7 @@ def define_font_properties():
             "seven": properties_seven,
             "eight": properties_eight,
             "nine": properties_nine,
+            "ten": properties_ten,
         }
     }
 
@@ -346,7 +364,7 @@ def plot_heatmap_symmetric_diverge(
         alpha=1.0,
         backgroundcolor=colors["white"],
         color=colors["black"],
-        fontproperties=fonts["properties"]["four"],
+        fontproperties=fonts["properties"]["three"],
     )
     bar.ax.tick_params(
         axis="both",
@@ -355,8 +373,8 @@ def plot_heatmap_symmetric_diverge(
         length=5.0,
         width=2.0,
         color=colors["black"],
-        pad=3,
-        labelsize=fonts["values"]["three"]["size"],
+        pad=2,
+        labelsize=fonts["values"]["five"]["size"],
         labelcolor=colors["black"],
     )
 
@@ -369,7 +387,7 @@ def plot_heatmap_symmetric_diverge(
         length=5.0,
         width=1.0,
         color=colors["black"],
-        pad=7,
+        pad=5,
         labelcolor=colors["black"],
         top=True,
         bottom=False, # False
@@ -382,86 +400,52 @@ def plot_heatmap_symmetric_diverge(
     )
 
     # Create ticks and labels.
-    if label_columns:
-        if (data.shape[1] <= 30):
-            axes.set_xticks(numpy.arange(matrix.shape[1]))
-            axes.set_xticklabels(
-                labels_columns,
-                #minor=False,
-                rotation=-30,
-                rotation_mode="anchor",
-                ha="right", # horizontal alignment
-                va="bottom", # vertical alignment
-                alpha=1.0,
-                backgroundcolor=colors["white"],
-                color=colors["black"],
-                fontproperties=fonts["properties"]["six"]
-            )
-        elif (data.shape[1] <= 50):
-            axes.set_xticks(numpy.arange(matrix.shape[1]))
-            axes.set_xticklabels(
-                labels_columns,
-                #minor=False,
-                rotation=-30,
-                rotation_mode="anchor",
-                ha="right", # horizontal alignment
-                va="bottom", # vertical alignment
-                alpha=1.0,
-                backgroundcolor=colors["white"],
-                color=colors["black"],
-                fontproperties=fonts["properties"]["seven"]
-            )
-        elif (data.shape[1] <= 75):
-            axes.set_xticks(numpy.arange(matrix.shape[1]))
-            axes.set_xticklabels(
-                labels_columns,
-                #minor=False,
-                rotation=-30,
-                rotation_mode="anchor",
-                ha="right", # horizontal alignment
-                va="bottom", # vertical alignment
-                alpha=1.0,
-                backgroundcolor=colors["white"],
-                color=colors["black"],
-                fontproperties=fonts["properties"]["nine"]
-            )
-    if label_rows:
-        if (data.shape[0] <= 30):
-            axes.set_yticks(numpy.arange(matrix.shape[0]))
-            axes.set_yticklabels(
-                labels_rows,
-                #minor=False,
-                ha="right", # horizontal alignment
-                va="center", # vertical alignment
-                alpha=1.0,
-                backgroundcolor=colors["white"],
-                color=colors["black"],
-                fontproperties=fonts["properties"]["four"]
-            )
-        elif (data.shape[0] <= 50):
-            axes.set_yticks(numpy.arange(matrix.shape[0]))
-            axes.set_yticklabels(
-                labels_rows,
-                #minor=False,
-                ha="right", # horizontal alignment
-                va="center", # vertical alignment
-                alpha=1.0,
-                backgroundcolor=colors["white"],
-                color=colors["black"],
-                fontproperties=fonts["properties"]["five"]
-            )
-        elif (data.shape[0] <= 75):
-            axes.set_yticks(numpy.arange(matrix.shape[0]))
-            axes.set_yticklabels(
-                labels_rows,
-                #minor=False,
-                ha="right", # horizontal alignment
-                va="center", # vertical alignment
-                alpha=1.0,
-                backgroundcolor=colors["white"],
-                color=colors["black"],
-                fontproperties=fonts["properties"]["eight"]
-            )
+    if (label_columns and data.shape[1] <= 100):
+        if (100 >= data.shape[1] and data.shape[1] >= 90):
+            size_column = "ten"
+        elif (90 > data.shape[1] and data.shape[1] >= 75):
+            size_column = "nine"
+        elif (75 > data.shape[1] and data.shape[1] >= 50):
+            size_column = "eight"
+        elif (50 > data.shape[1] and data.shape[1] >= 25):
+            size_column = "seven"
+        elif (25 > data.shape[1]):
+            size_column = "six"
+        axes.set_xticks(numpy.arange(matrix.shape[1]))
+        axes.set_xticklabels(
+            labels_columns,
+            #minor=False,
+            rotation=-60,
+            rotation_mode="anchor",
+            ha="right", # horizontal alignment
+            va="bottom", # vertical alignment
+            alpha=1.0,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"][size_column]
+        )
+    if (label_rows and data.shape[0] <= 100):
+        if (100 >= data.shape[0] and data.shape[0] >= 90):
+            size_row = "nine"
+        elif (90 > data.shape[0] and data.shape[0] >= 75):
+            size_row = "eight"
+        elif (75 > data.shape[0] and data.shape[0] >= 50):
+            size_row = "six"
+        elif (50 > data.shape[0] and data.shape[0] >= 25):
+            size_row = "five"
+        elif (25 > data.shape[0]):
+            size_row = "three"
+        axes.set_yticks(numpy.arange(matrix.shape[0]))
+        axes.set_yticklabels(
+            labels_rows,
+            #minor=False,
+            ha="right", # horizontal alignment
+            va="center", # vertical alignment
+            alpha=1.0,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"][size_row]
+        )
     if False:
         # Rotate the tick labels and set their alignment.
         matplotlib.pyplot.setp(
@@ -1166,11 +1150,17 @@ def organize_heatmap_asymmetric_master_main_bottom(
 
     # Create ticks and labels for each grid.
     # Let the horizontal axes labeling appear on top.
-    if matrix.shape[0] < 70:
-        if matrix.shape[0] > 25:
-            size_count = "five"
-        elif matrix.shape[0] <= 25:
-            size_count = "four"
+    if matrix.shape[0] <= 100:
+        if (100 >= matrix.shape[0] and matrix.shape[0] >= 90):
+            size_count = "ten"
+        elif (90 > matrix.shape[0] and matrix.shape[0] >= 75):
+            size_count = "nine"
+        elif (75 > matrix.shape[0] and matrix.shape[0] >= 50):
+            size_count = "eight"
+        elif (50 > matrix.shape[0] and matrix.shape[0] >= 25):
+            size_count = "seven"
+        elif (25 > matrix.shape[0]):
+            size_count = "three"
         axis_main.tick_params(
             axis="both",
             which="both",
@@ -1633,6 +1623,7 @@ def plot_boxes(
     label_top_center=None,
     label_top_left=None,
     label_top_right=None,
+    orientation=None,
     fonts=None,
     colors=None,
 ):
@@ -1648,6 +1639,8 @@ def plot_boxes(
         label_top_center (str): label for top center of plot area
         label_top_left (str): label for top left of plot area
         label_top_right (str): label for top right of plot area
+        orientation (str): orientation of figure, either "portrait" or
+            "landscape"
         fonts (dict<object>): references to definitions of font properties
         colors (dict<tuple>): references to definitions of color properties
 
@@ -1671,10 +1664,16 @@ def plot_boxes(
             seaborn.color_palette("hls", n_colors=color_count)
         )
     # Create figure.
-    figure = matplotlib.pyplot.figure(
-        figsize=(15.748, 11.811),
-        tight_layout=True
-    )
+    if orientation == "portrait":
+        figure = matplotlib.pyplot.figure(
+            figsize=(11.811, 15.748),
+            tight_layout=True
+        )
+    elif orientation == "landscape":
+        figure = matplotlib.pyplot.figure(
+            figsize=(15.748, 11.811),
+            tight_layout=True
+        )
     # Create axes.
     axes = matplotlib.pyplot.axes()
     # Create boxes.
@@ -1682,6 +1681,7 @@ def plot_boxes(
         arrays,
         notch=False,
         vert=True,
+        widths=0.7,
         patch_artist=True,
         labels=labels_groups,
         manage_ticks=True,
@@ -1699,15 +1699,16 @@ def plot_boxes(
         color=colors["black"],
         fontproperties=fonts["properties"]["two"]
     )
-    axes.set_xlabel(
-        xlabel=label_horizontal,
-        labelpad=20,
-        alpha=1.0,
-        backgroundcolor=colors["white"],
-        color=colors["black"],
-        fontproperties=fonts["properties"]["one"],
-        rotation="horizontal",
-    )
+    if len(label_horizontal) > 0:
+        axes.set_xlabel(
+            xlabel=label_horizontal,
+            labelpad=20,
+            alpha=1.0,
+            backgroundcolor=colors["white"],
+            color=colors["black"],
+            fontproperties=fonts["properties"]["one"],
+            rotation="horizontal",
+        )
     axes.tick_params(
         axis="both",
         which="both",
@@ -1729,7 +1730,7 @@ def plot_boxes(
             transform=axes.transAxes,
             backgroundcolor=colors["white"],
             color=colors["black"],
-            fontproperties=fonts["properties"]["two"]
+            fontproperties=fonts["properties"]["one"]
         )
     if len(label_top_left) > 0:
         axes.text(
@@ -4823,15 +4824,21 @@ def read_source_genes_signals_persons_groups(
     """
 
     # Specify directories and files.
-    path_comparisons = os.path.join(
-        dock, "integration", "groups", "genes_groups_comparisons.pickle"
+    path_comparisons_two = os.path.join(
+        dock, "integration", "groups", "genes_comparisons_two_groups.pickle"
+    )
+    path_comparisons_four = os.path.join(
+        dock, "integration", "groups", "genes_comparisons_four_groups.pickle"
     )
     # Read information from file.
-    with open(path_comparisons, "rb") as file_source:
-        comparisons = pickle.load(file_source)
+    with open(path_comparisons_two, "rb") as file_source:
+        comparisons_two = pickle.load(file_source)
+    with open(path_comparisons_four, "rb") as file_source:
+        comparisons_four = pickle.load(file_source)
     # Compile and return information.
     return {
-        "comparisons": comparisons,
+        "comparisons_two": comparisons_two,
+        "comparisons_four": comparisons_four,
     }
 
 
@@ -4877,12 +4884,13 @@ def plot_chart_genes_signals_persons_two_groups_comparison(
         arrays=[comparison["group_1_values"], comparison["group_2_values"]],
         labels_groups=labels_groups,
         label_vertical=str(comparison["gene_name"] + " pan-tissue signal"),
-        label_horizontal="groups",
+        label_horizontal="",
         label_top_center=str("p: " + numpy.format_float_scientific(
             comparison["probability"], precision=3
         )),
         label_top_left="",
         label_top_right="",
+        orientation="portrait",
         fonts=fonts,
         colors=colors,
     )
@@ -4948,7 +4956,7 @@ def plot_chart_genes_signals_persons_four_groups_comparison(
         ],
         labels_groups=labels_groups,
         label_vertical=str(comparison["gene_name"] + " pan-tissue signal"),
-        label_horizontal="groups",
+        label_horizontal="",
         label_top_center="",
         label_top_left=str("p: " + numpy.format_float_scientific(
             comparison["probability_1_2"], precision=3
@@ -4956,6 +4964,7 @@ def plot_chart_genes_signals_persons_four_groups_comparison(
         label_top_right=str("p: " + numpy.format_float_scientific(
             comparison["probability_3_4"], precision=3
         )),
+        orientation="landscape",
         fonts=fonts,
         colors=colors,
     )
@@ -4990,14 +4999,23 @@ def prepare_charts_genes_signals_persons_groups(
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
     path_integration = os.path.join(path_plot, "integration")
-    path_directory = os.path.join(path_integration, "groups")
-    utility.remove_directory(path=path_directory)
-    utility.create_directories(path=path_directory)
+    path_directory_two = os.path.join(path_integration, "groups_two")
+    utility.remove_directory(path=path_directory_two)
+    utility.create_directories(path=path_directory_two)
+    path_directory_four = os.path.join(path_integration, "groups_four")
+    utility.remove_directory(path=path_directory_four)
+    utility.create_directories(path=path_directory_four)
     # Create figures.
-    for comparison in source["comparisons"]:
+    for comparison in source["comparisons_two"]:
+        plot_chart_genes_signals_persons_two_groups_comparison(
+            comparison=comparison,
+            path_directory=path_directory_two,
+        )
+        pass
+    for comparison in source["comparisons_four"]:
         plot_chart_genes_signals_persons_four_groups_comparison(
             comparison=comparison,
-            path_directory=path_directory,
+            path_directory=path_directory_four,
         )
         pass
     pass
@@ -7071,7 +7089,6 @@ def prepare_charts_genes_signals_tissues_persons_gene(
     # enable cluster by rows flag
     # enable scale adjustment for specific columns as in the master_main function
 
-
     # Create charts for the gene.
     plot_chart_genes_signals_tissues_persons(
         gene=gene,
@@ -7210,6 +7227,261 @@ def prepare_charts_genes_signals_tissues_persons(
 
 
 ##########
+# Genes' signals across persons
+# Sort order of persons is by pan-tissue signal
+# heatmaps
+# Status: working
+
+
+def read_source_genes_signals_persons(
+    cohort=None,
+    dock=None
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (object): source information
+
+    """
+
+    # Read genes sets.
+    genes_sets = (
+        integration.
+        read_source_organize_genes_sets_collection_candidacy_prediction_query(
+            cohort=cohort,
+            dock=dock,
+    ))
+    genes_correlation = integration.read_source_genes_sets_correlation(
+            cohort=cohort,
+            dock=dock,
+    )
+    path_genes_distribution = os.path.join(
+        dock, "distribution", cohort, "genes"
+    )
+    # Specify directories and files.
+    path_data_gene_annotation = os.path.join(
+        dock, "selection", "tight", "gene_annotation",
+        "data_gene_annotation_gencode.pickle"
+    )
+    path_data_signals_genes_persons = os.path.join(
+        dock, "distribution", cohort, "collection",
+        "data_signals_genes_persons.pickle"
+    )
+    # Read information from file.
+    data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
+    data_signals_genes_persons = pandas.read_pickle(
+        path_data_signals_genes_persons
+    )
+    genes_distribution = utility.extract_subdirectory_names(
+        path=path_genes_distribution
+    )
+    # Compile and return information.
+    return {
+        "data_gene_annotation": data_gene_annotation,
+        "data_signals_genes_persons": data_signals_genes_persons,
+        "genes_sets": genes_sets,
+        "genes_correlation": genes_correlation,
+        "genes_distribution": genes_distribution,
+    }
+
+
+def plot_chart_genes_signals_persons(
+    set_name=None,
+    data=None,
+    path_directory=None
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        set_name (str): name of set of genes
+        data (object): Pandas data frame of a gene's aggregate, pantissue
+            signals across tissues and persons
+        path_directory (str): path for directory
+
+    raises:
+
+    returns:
+
+    """
+
+    # Define file name.
+    path_figure = os.path.join(
+        path_directory, str(set_name + ".png")
+    )
+    # Define fonts.
+    fonts = define_font_properties()
+    # Define colors.
+    colors = define_color_properties()
+
+    label_scale = str("genes' signals across tissues and persons")
+
+    # Create figure.
+    figure = plot_heatmap_asymmetric(
+        title="",
+        label_scale=label_scale,
+        type="continuous_divergent",
+        label_rows=True,
+        label_columns=True,
+        data=data,
+        fonts=fonts,
+        colors=colors,
+    )
+    # Write figure.
+    write_figure_png(
+        path=path_figure,
+        figure=figure
+    )
+
+    pass
+
+
+def prepare_chart_genes_signals_persons(
+    set_name=None,
+    genes=None,
+    data_gene_annotation=None,
+    data_signals_genes_persons=None,
+    path_directory=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        set_name (str): name of set of genes
+        genes (list<str>): identifiers of genes
+        data_gene_annotation (object): Pandas data frame of genes' annotations
+        data_signals_genes_persons (object): Pandas data frame of pan-tissue
+            signals across genes and persons
+        path_directory (str): path to directory
+
+
+    raises:
+
+    returns:
+
+    """
+
+    # Organize data.
+    # Select and translate data for genes.
+    data_signals = (
+        integration.select_translate_gene_identifiers_data_columns(
+            genes_query=genes,
+            data_gene_annotation=data_gene_annotation,
+            data_signals_genes_persons=data_signals_genes_persons,
+    ))
+    # Drop any rows or columns in main data with only missing values.
+    data_signals.dropna(
+        axis="index",
+        how="all",
+        inplace=True,
+    )
+    data_signals.dropna(
+        axis="columns",
+        how="all",
+        inplace=True,
+    )
+    # Replace missing values in main data with zero.
+    # Set any infinite values to missing.
+    data_signals[data_signals == numpy.inf] = numpy.nan
+    data_signals.fillna(
+        value=0.0,
+        #axis="columns",
+        inplace=True,
+    )
+    # Cluster columns of data.
+    data_cluster_columns = utility.cluster_data_columns(
+        data=data_signals,
+    )
+    data_cluster_columns.reset_index(
+        level=None,
+        inplace=True
+    )
+    data_cluster_columns.set_index(
+        ["person"],
+        append=False,
+        drop=True,
+        inplace=True
+    )
+    data_cluster_rows = utility.cluster_data_rows(
+        data=data_cluster_columns,
+    )
+
+    # Scale data?
+
+    # TODO: write a function similar to "organize_data_master_main" but for the simpler scenario
+    # --> yeah... probably worth it
+    # enable cluster by columns flag
+    # enable cluster by rows flag
+    # enable scale adjustment for specific columns as in the master_main function
+
+    # Create charts for the gene.
+    plot_chart_genes_signals_persons(
+        set_name=set_name,
+        data=data_cluster_rows,
+        path_directory=path_directory,
+    )
+    pass
+
+
+def prepare_charts_genes_signals_persons(
+    dock=None,
+):
+    """
+    Plots charts from the analysis process.
+
+    arguments:
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_genes_signals_persons(
+        cohort="selection",
+        dock=dock,
+    )
+    # Specify directories and files.
+    path_plot = os.path.join(dock, "plot")
+    path_integration = os.path.join(path_plot, "integration")
+    path_directory = os.path.join(
+        path_integration, "genes_across_persons"
+    )
+    # Remove previous files to avoid version or batch confusion.
+    utility.remove_directory(path=path_directory)
+    utility.create_directories(path=path_directory)
+    # Filter query genes to ensure that they have signals.
+    genes_query = source["genes_correlation"]
+    genes_query_valid = utility.filter_common_elements(
+        list_one=genes_query,
+        list_two=source["genes_distribution"],
+    )
+    # Prepare and plot data for sets of genes.
+    prepare_chart_genes_signals_persons(
+        set_name="correlation",
+        genes=genes_query_valid,
+        data_gene_annotation=source["data_gene_annotation"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+        path_directory=path_directory,
+    )
+
+
+    pass
+
+
+
+##########
 # Multiple genes' (rows) signals across persons (columns), with a chart
 # for those persons' properties
 # Sort order of persons is by property and my hierarchical clustering.
@@ -7243,6 +7515,11 @@ def read_source_prediction_genes_signals_persons_properties(
             cohort="selection",
             dock=dock,
     ))
+    genes_correlation = integration.read_source_genes_sets_correlation(
+            cohort="selection",
+            dock=dock,
+    )
+
     # Specify directories and files.
     path_data_gene_annotation = os.path.join(
         dock, "selection", "tight", "gene_annotation",
@@ -7268,6 +7545,7 @@ def read_source_prediction_genes_signals_persons_properties(
         "data_persons_properties": data_persons_properties,
         "data_signals_genes_persons": data_signals_genes_persons,
         "genes_sets": genes_sets,
+        "genes_correlation": genes_correlation,
     }
 
 
@@ -7619,6 +7897,14 @@ def prepare_charts_query_genes_signals_persons_properties_cohort(
         genes=(
             source["genes_sets"]["prediction"]["priority"]
         ),
+        data_gene_annotation=source["data_gene_annotation"],
+        data_persons_properties=source["data_persons_properties"],
+        data_signals_genes_persons=source["data_signals_genes_persons"],
+        path_parent=path_cohort,
+    )
+    prepare_charts_query_genes_signals_persons_properties_genes(
+        set_name="correlation",
+        genes=source["genes_correlation"],
         data_gene_annotation=source["data_gene_annotation"],
         data_persons_properties=source["data_persons_properties"],
         data_signals_genes_persons=source["data_signals_genes_persons"],
@@ -9588,7 +9874,8 @@ def execute_procedure(dock=None):
 
     # Plot charts to summarize positive and negative logarithmic fold changes
     # of genes in multiple studies on COVID-19 patients.
-    prepare_charts_collection_comparisons_folds(dock=dock)
+    if False:
+        prepare_charts_collection_comparisons_folds(dock=dock)
 
     ##########
     ##########
@@ -9597,13 +9884,15 @@ def execute_procedure(dock=None):
 
     # Plot charts of distributions of genes' pan-tissue aggregate signals
     # across persons.
-    prepare_charts_genes_persons_signals(dock=dock)
+    if False:
+        prepare_charts_genes_persons_signals(dock=dock)
 
     # Plot charts, heatmaps, for each gene's signals across persons (columns)
     # and tissues (rows).
     # Include a chart to depict persons' properties.
     # Sort order of persons is by pan-tissue signal.
-    prepare_charts_genes_signals_tissues_persons(dock=dock)
+    if False:
+        prepare_charts_genes_signals_tissues_persons(dock=dock)
 
     if False:
 
@@ -9688,7 +9977,13 @@ def execute_procedure(dock=None):
 
     # Plot charts, box plots, for comparisons of genes' pan-tissue signals
     # between groups of persons.
-    prepare_charts_genes_signals_persons_groups(dock=dock)
+    if False:
+        prepare_charts_genes_signals_persons_groups(dock=dock)
+
+    # Plot charts, heatmaps for multiple genes' pan-tissue signals across
+    # persons.
+    if True:
+        prepare_charts_genes_signals_persons(dock=dock)
 
     # Plot charts, heatmaps, for multiple genes' pan-tissue signals across
     # persons along with those persons' properties.
@@ -9698,12 +9993,14 @@ def execute_procedure(dock=None):
     # (sex, age, body mass index, hardiness).
     # In other charts, sort order across columns depends on hierarchical
     # clustering.
-    prepare_charts_query_genes_signals_persons_properties(dock=dock)
+    if True:
+        prepare_charts_query_genes_signals_persons_properties(dock=dock)
 
     # Plot charts for correlations between pairs of genes of interest.
     # Chart is adjacency matrix heatmap.
     # This function reads a single data table from the integration procedure.
-    prepare_charts_signals_genes_correlations(dock=dock)
+    if True:
+        prepare_charts_signals_genes_correlations(dock=dock)
 
 
     if False:
