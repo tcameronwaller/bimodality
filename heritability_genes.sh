@@ -16,7 +16,7 @@ set -x
 cohort="selection"
 
 # Organize paths.
-path_gcta="/home/tcameronwaller/gcta_1.93.0beta/gcta64"
+path_gcta="/home/tcameronwaller/gcta_1.93.2beta/gcta64"
 
 path_dock="/home/tcameronwaller/dock"
 path_distribution="$path_dock/distribution/$cohort/genes"
