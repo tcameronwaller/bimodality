@@ -12,20 +12,19 @@ echo "--------------------------------------------------"
 # Echo each command to console.
 set -x
 
-# Define group of persons.
-#group="selection"
-group="ventilation"
+# Define cohort of persons.
+cohort="selection"
 
 # Organize paths.
 path_gcta="/home/tcameronwaller/gcta_1.93.0beta/gcta64"
 
 path_dock="/home/tcameronwaller/dock"
-path_distribution="$path_dock/distribution/$group/genes"
-path_heritability="$path_dock/heritability/$group/genes"
+path_distribution="$path_dock/distribution/$cohort/genes"
+path_heritability="$path_dock/heritability/$cohort/genes"
 
 path_genes="$path_dock/selection/tight/samples_genes_signals/genes.txt"
-path_persons="$path_dock/selection/tight/persons_properties/$group/heritability/families_persons.tsv"
-path_variables="$path_dock/selection/tight/persons_properties/$group/heritability/persons_variables.tsv"
+path_persons="$path_dock/selection/tight/persons_properties/$cohort/heritability/families_persons.tsv"
+path_variables="$path_dock/selection/tight/persons_properties/$cohort/heritability/persons_variables.tsv"
 
 path_relation_gcta="$path_dock/access_private/relation/gcta"
 path_relation_gcta_bed_bim_fam="$path_relation_gcta/bed_bim_fam/autosome_common"
