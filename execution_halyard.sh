@@ -84,7 +84,7 @@ echo "Now set to call routine and procedures."
 # -- essential procedures
 #python3 interface.py main --dock $path_dock --access # run on 19 June 2020
 #python3 interface.py main --dock $path_dock --assembly # run on 1 August 2020
-#python3 interface.py main --dock $path_dock --selection # run on 1 August 2020 for 15,742 genes (50% threshold)
+python3 interface.py main --dock $path_dock --selection # run on 1 August 2020 for 15,742 genes (50% threshold)
 #python3 interface.py main --dock $path_dock --collection # run on 19 August 2020 for 15,742 genes (50% threshold)
 
 ##########
@@ -120,7 +120,7 @@ echo "Now set to call routine and procedures."
 #python3 interface.py main --dock $path_dock --function
 #python3 interface.py main --dock $path_dock --integration
 
-python3 interface.py main --dock $path_dock --plot
+#python3 interface.py main --dock $path_dock --plot
 
 
 ##########
