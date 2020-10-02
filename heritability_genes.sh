@@ -50,8 +50,8 @@ echo $count_genes
 #echo $genes[0]
 
 # Iterate on genes.
-#for gene in "${genes[@]}"
-for gene in "${genes[@]:0:100}"
+#for gene in "${genes[@]:0:100}"
+for gene in "${genes[@]}"
 do
     echo "current gene: "
     echo $gene
