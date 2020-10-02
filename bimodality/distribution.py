@@ -34,6 +34,7 @@ import scipy.stats
 # Custom
 
 import modality
+import prediction
 import utility
 
 #dir()
@@ -1339,13 +1340,16 @@ def prepare_describe_distribution(
 # Format for heritability in GCTA
 
 
-def extract_gene_persons_signals(
+def extract_scale_gene_persons_signals(
     data_gene_persons_signals=None,
     data_families_persons=None,
 ):
     """
     Extracts information about a gene's distribution of pan-tissue signals
     across persons.
+
+    Scales the gene's signals across persons to have mean of 0 and standard
+    deviation of 1.
 
     This information is useful for heritability analysis in GCTA.
 
@@ -1364,12 +1368,17 @@ def extract_gene_persons_signals(
 
     # Copy data before modification.
     data_families_persons = data_families_persons.copy(deep=True)
-
+    data_gene_persons_signals = data_gene_persons_signals.copy(deep=True)
+    # Standardize gene's signals.
+    data_signals_standard = prediction.standardize_genes_signals(
+        data_signals_genes_persons=data_gene_persons_signals,
+        report=False,
+    )
     # Treat the complete table of families and persons as master.
     # Introduce missing values for persons without valid signals.
     # Join
     data_gene_families_persons_signals = data_families_persons.join(
-        data_gene_persons_signals,
+        data_signals_standard,
         how="left",
         on="person"
     )
@@ -2479,12 +2488,13 @@ def execute_procedure(
     # Extract distribution of gene's signals across persons for heritability
     # analysis.
     if bins["bin_aggregation"]["persons_count_aggregation"] > 0:
-        data_gene_families_persons_signals = extract_gene_persons_signals(
-            data_gene_persons_signals=(
-                bins["bin_aggregation"]["data_gene_persons_signals"]
-            ),
-            data_families_persons=data_families_persons,
-        )
+        data_gene_families_persons_signals = (
+            extract_scale_gene_persons_signals(
+                data_gene_persons_signals=(
+                    bins["bin_aggregation"]["data_gene_persons_signals"]
+                ),
+                data_families_persons=data_families_persons,
+        ))
         # Compile information.
         information_heritability = dict()
         information_heritability["data_gene_families_persons_signals"] = (
@@ -2528,8 +2538,8 @@ def execute_procedure_local(dock=None):
     # Execute procedure for each cohort of persons.
     cohorts = [
         "selection",
-        "respiration",
-        "ventilation",
+        #"respiration",
+        #"ventilation",
     ]
     for cohort in cohorts:
         if False:

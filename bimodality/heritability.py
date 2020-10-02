@@ -69,20 +69,21 @@ def initialize_directories(dock=None):
     # Remove previous files to avoid version or batch confusion.
 
     # Define paths for groups of persons.
-    groups = list()
-    groups.append("selection")
-    groups.append("ventilation")
-    for group in groups:
-        paths[group] = dict()
-        paths[group]["genes"] = os.path.join(
-            paths["heritability"], group, "genes"
+    cohorts = list()
+    cohorts.append("selection")
+    cohorts.append("respiration")
+    cohorts.append("ventilation")
+    for cohort in cohorts:
+        paths[cohort] = dict()
+        paths[cohort]["genes"] = os.path.join(
+            paths["heritability"], cohort, "genes"
         )
-        paths[group]["collection"] = os.path.join(
-            paths["heritability"], group, "collection"
+        paths[cohort]["collection"] = os.path.join(
+            paths["heritability"], cohort, "collection"
         )
         # Initialize directories.
-        #utility.remove_directory(path=paths[group]["collection"])
-        utility.create_directories(path=paths[group]["collection"])
+        utility.remove_directory(path=paths[cohort]["collection"])
+        utility.create_directories(path=paths[cohort]["collection"])
     # Return information.
     return paths
 
@@ -91,14 +92,14 @@ def initialize_directories(dock=None):
 
 
 def read_source_initial(
-    group=None,
+    cohort=None,
     dock=None,
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        group (str): group of persons, either selection or ventilation
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -118,37 +119,36 @@ def read_source_initial(
         dock, "selection", "tight", "samples_genes_signals",
         "genes.pickle"
     )
-
-    path_heritability_genes = os.path.join(
-        dock, "heritability", group, "genes"
+    path_genes_distribution = os.path.join(
+        dock, "distribution", cohort, "genes"
+    )
+    path_genes_heritability_complete = os.path.join(
+        dock, "heritability", cohort, "genes"
     )
 
     path_genes_unimodal = os.path.join(
-        dock, "candidacy", group, "unimodal", "genes_unimodal.pickle"
+        dock, "candidacy", cohort, "unimodal", "genes_unimodal.pickle"
     )
     path_genes_multimodal = os.path.join(
-        dock, "candidacy", group, "multimodal", "genes_multimodal.pickle"
+        dock, "candidacy", cohort, "multimodal", "genes_multimodal.pickle"
     )
 
     # Read information from file.
     data_gene_annotation = pandas.read_pickle(path_data_gene_annotation)
     with open(path_genes_selection, "rb") as file_source:
         genes_selection = pickle.load(file_source)
-    genes_heritability = utility.extract_subdirectory_names(
-        path=path_heritability_genes
+    genes_distribution = utility.extract_subdirectory_names(
+        path=path_genes_distribution
     )
-    with open(path_genes_unimodal, "rb") as file_source:
-        genes_unimodal = pickle.load(file_source)
-    with open(path_genes_multimodal, "rb") as file_source:
-        genes_multimodal = pickle.load(file_source)
-
+    genes_heritability_complete = utility.extract_subdirectory_names(
+        path=path_genes_heritability_complete
+    )
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
         "genes_selection": genes_selection,
-        "genes_heritability": genes_heritability,
-        "genes_unimodal": genes_unimodal,
-        "genes_multimodal": genes_multimodal,
+        "genes_distribution": genes_distribution,
+        "genes_heritability_complete": genes_heritability_complete,
     }
 
 
@@ -192,15 +192,20 @@ def collect_successful_genes(
 
 def check_genes(
     genes_selection=None,
-    genes_heritability=None,
+    genes_distribution=None,
+    genes_heritability_complete=None,
     path_genes=None,
 ):
     """
     Checks genes from split and heritability batch procedures.
 
     arguments:
-        genes_selection (list<str>): identifiers of genes
-        genes_heritability (list<str>): identifiers of genes
+        genes_selection (list<str>): identifiers of genes from selection
+            procedure
+        genes_distribution (list<str>): identifiers of genes with valid
+            pan-tissue signal distributions
+        genes_heritability_complete (list<str>): identifiers of genes for which
+            the heritability procedure completed
         path_genes (str): path to heritability genes directory
 
     raises:
@@ -211,30 +216,37 @@ def check_genes(
 
     utility.print_terminal_partition(level=2)
     print(
-        "Compare lists of genes from selection and heritability " +
+        "Compare lists of genes from distribution and heritability " +
         "procedures."
     )
 
     print(
-        "count of genes from selection (master): " + str(len(genes_selection))
+        "count of genes from selection: " + str(len(genes_selection))
     )
-    print("count of genes from heritability: " + str(len(genes_heritability)))
+    print(
+        "count of genes from distribution (master): " +
+        str(len(genes_distribution))
+    )
+    print(
+        "count of genes from heritability: " +
+        str(len(genes_heritability_complete))
+    )
 
     print(
         "Check whether all selection list genes are in heritability list."
     )
     # Returns True if all elements in list_two are in list_one.
     match = utility.compare_lists_by_inclusion(
-        list_one=genes_selection,
-        list_two=genes_heritability,
+        list_one=genes_distribution,
+        list_two=genes_heritability_complete,
     )
-    print("selection genes match heritability genes: " + str(match))
+    print("distribution genes match heritability genes: " + str(match))
     utility.print_terminal_partition(level=2)
 
     # Determine counts of genes for which heritability analysis converged
     # successfully.
     genes_valid = collect_successful_genes(
-        genes=genes_heritability,
+        genes=genes_heritability_complete,
         path_genes=path_genes,
     )
     print(
@@ -246,10 +258,61 @@ def check_genes(
     pass
 
 
+def find_intersection_heritability_genes(
+    genes_selection=None,
+    genes_distribution=None,
+    genes_heritability_complete=None,
+    path_genes=None,
+    report=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        genes_selection (list<str>): identifiers of genes from selection
+            procedure
+        genes_distribution (list<str>): identifiers of genes with valid
+            pan-tissue signal distributions
+        genes_heritability_complete (list<str>): identifiers of genes for which
+            the heritability procedure completed
+        path_genes (str): path to heritability genes directory
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (list<str>): identifiers of genes of interest from selection that also
+            have valid heritability measurements
+
+    """
+
+    # Determine genes for which heritability analysis converged successfully.
+    genes_heritability_valid = collect_successful_genes(
+        genes=genes_heritability_complete,
+        path_genes=path_genes,
+    )
+    # Determine intersection genes of interest.
+    genes_interest = utility.filter_common_elements(
+        list_one=genes_selection,
+        list_two=genes_heritability_valid,
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print(
+            "genes of interest with valid heritabilities: " +
+            str(len(genes_interest))
+        )
+        utility.print_terminal_partition(level=2)
+    # Return information.
+    return genes_interest
+
+
 def read_collect_organize_genes_heritabilities(
     genes=None,
     data_gene_annotation=None,
     path_genes=None,
+    report=None,
 ):
     """
     Collects and organizes information about genes.
@@ -267,6 +330,7 @@ def read_collect_organize_genes_heritabilities(
         genes (list<str>): identifiers of genes
         data_gene_annotation (object): Pandas data frame of genes' annotations
         path_genes (str): path to heritability genes directory
+        report (bool): whether to print reports
 
     raises:
 
@@ -275,9 +339,6 @@ def read_collect_organize_genes_heritabilities(
 
     """
 
-    # Collect genes' heritabilities.
-    utility.print_terminal_partition(level=3)
-    print("Collect genes' heritabilities.")
     # Collect information about genes.
     duds = list()
     records = list()
@@ -310,14 +371,24 @@ def read_collect_organize_genes_heritabilities(
             residual = data_report.at["V(e)", "Variance"]
             phenotype = data_report.at["Vp", "Variance"]
             proportion = data_report.at["V(G)/Vp", "Variance"]
+            error = data_report.at["V(G)/Vp", "SE"]
+            confidence = (1.96 * error)
+            confidence_low = proportion - confidence
+            confidence_high = proportion + confidence
             probability = data_report.at["Pval", "Variance"]
+            count = data_report.at["n", "Variance"]
         else:
             duds.append(gene)
             genotype = float("nan")
             residual = float("nan")
             phenotype = float("nan")
             proportion = float("nan")
+            error = float("nan")
+            confidence = float("nan")
+            confidence_low = float("nan")
+            confidence_high = float("nan")
             probability = float("nan")
+            count = float("nan")
         # Compile information.
         record = dict()
         record["gene"] = gene
@@ -326,7 +397,12 @@ def read_collect_organize_genes_heritabilities(
         record["residual"] = residual
         record["phenotype"] = phenotype
         record["proportion"] = proportion
+        record["error"] = error
+        record["confidence_95_interval"] = confidence
+        record["confidence_95_low"] = confidence_low
+        record["confidence_95_high"] = confidence_high
         record["probability"] = probability
+        record["count"] = count
         records.append(record)
 
     utility.print_terminal_partition(level=3)
@@ -342,13 +418,97 @@ def read_collect_organize_genes_heritabilities(
         drop=True,
         inplace=True,
     )
+
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=3)
+        print("Collect genes' heritabilities.")
+        utility.print_terminal_partition(level=2)
+        print("data_genes_heritabilities")
+        print(data)
     # Return information.
     return data
 
 
+# Filter
+
+
+def determine_confidence_threshold_pass(
+    value=None,
+    threshold=None,
+):
+    """
+    Determine whether confidence interval is within threshold.
+
+    arguments:
+        value (float): value of half the range of the 95% confidence interval
+        threshold (float): maximal value for half the range of the 95%
+            confidence interval
+
+    raises:
+
+    returns:
+        (bool): whether confidence interval
+
+    """
+
+    if not math.isnan(value):
+        if (value <= threshold):
+            return True
+        else:
+            return False
+    else:
+        return False
+
+
+def filter_heritabilities_confidence(
+    data_genes_heritability=None,
+    threshold=None,
+    report=None,
+):
+    """
+    Organizes and combines information about dependent and independent
+    variables for regression.
+
+    arguments:
+        data_genes_heritability (object): Pandas data frame of genes'
+            heritabilities
+        threshold (float): maximal confidence interval
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+        (object): Pandas data frame of genes' heritabilities
+
+    """
+
+    # Remove all columns from persons properties except the covariates
+    # Copy data.
+    data = data_genes_heritability.copy(deep=True)
+    # Organize data.
+    data["threshold"] = data["confidence_95_interval"].apply(
+        lambda value:
+            determine_confidence_threshold_pass(
+                value=value,
+                threshold=threshold,
+            )
+    )
+    data_confidence = data.loc[
+        data["threshold"] == True, :
+    ]
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("data after filter by confidence interval")
+        print(data_confidence)
+    # Return information.
+    return data_confidence
+
+
 def calculate_organize_discoveries(
     threshold=None,
-    data_genes_heritabilities=None,
+    data_genes_heritability=None,
 ):
     """
     Calculates false discover rate.
@@ -356,7 +516,7 @@ def calculate_organize_discoveries(
     arguments:
         threshold (float): value of alpha, or family-wise error rate of false
             discoveries
-        data_genes_heritabilities (object): Pandas data frame of genes'
+        data_genes_heritability (object): Pandas data frame of genes'
             heritabilities
 
     raises:
@@ -373,9 +533,9 @@ def calculate_organize_discoveries(
             logarithm = (-1 * math.log(value, 10))
         return logarithm
     # Copy data.
-    data_copy = data_genes_heritabilities.copy(deep=True)
+    data_copy = data_genes_heritability.copy(deep=True)
     # Calculate false discovery rates.
-    data_discoveries = utility.calculate_false_discovery_rate(
+    data_discovery = utility.calculate_false_discovery_rate(
         threshold=threshold,
         probability="probability",
         discovery="discovery",
@@ -383,44 +543,71 @@ def calculate_organize_discoveries(
         data_probabilities=data_copy,
     )
     # Calculate logarithm of false discovery rate.
-    data_discoveries["discovery_log"] = data_discoveries["discovery"].apply(
+    data_discovery["probability_log"] = data_discovery["probability"].apply(
         lambda value: calculate_negative_logarithm(value=value)
     )
-    return data_discoveries
+    data_discovery["discovery_log"] = data_discovery["discovery"].apply(
+        lambda value: calculate_negative_logarithm(value=value)
+    )
+    return data_discovery
 
 
-
-# Segregation
-
-
-def select_heritabilities_by_genes(
-    genes=None,
-    data_genes_heritabilities=None,
+def organize_genes_heritability_data(
+    data_genes_heritability=None,
+    report=None,
 ):
     """
-    Selects information on the heritabilities of specific genes.
+    Organize data summarizing genes' heritabilities.
 
     arguments:
-        genes (list<str>): identifiers of genes to select
-        data_genes_heritabilities (object): Pandas data frame of genes'
+        data_genes_heritability (object): Pandas data frame of genes'
             heritabilities
+        report (bool): whether to print reports
 
     raises:
 
     returns:
         (object): Pandas data frame of genes' heritabilities
+
     """
 
-    # Select information about samples.
-    data_genes_heritabilities = data_genes_heritabilities.copy(deep=True)
-    data_selection = data_genes_heritabilities.loc[
-        data_genes_heritabilities.index.isin(genes), :
-    ]
-    # Return information.
-    return data_selection
+    # Copy data.
+    data = data_genes_heritability.copy(deep=True)
+    columns = list()
+    columns.append("name")
+    columns.append("proportion")
+    columns.append("count")
+    columns.append("probability")
+    columns.append("probability_log")
+    columns.append("discovery")
+    columns.append("discovery_log")
+    columns.append("significance")
+    columns.append("error")
+    columns.append("confidence_95_interval")
+    columns.append("confidence_95_low")
+    columns.append("confidence_95_high")
+    columns.append("residual")
+    columns.append("genotype")
+    columns.append("phenotype")
+    data = data[[*columns]]
+    data.sort_values(
+        by=["probability"],
+        axis="index",
+        ascending=True,
+        inplace=True,
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print("data after organization of columns")
+        print(data)
+    return data
 
 
-def select_heritable_genes_by_threshold(
+
+
+
+def select_heritable_genes(
     data_genes_heritabilities=None,
     threshold_proportion=None,
 ):
@@ -453,63 +640,11 @@ def select_heritable_genes_by_threshold(
     return genes
 
 
-def select_genes_heritabilities_sets(
-    genes=None,
-    threshold_proportion=None,
-    threshold_discovery=None,
-    data_genes_heritabilities=None,
-):
-    """
-    Selects information on the heritabilities of specific genes.
-
-    arguments:
-        genes (list<str>): identifiers of genes to select
-        threshold_proportion (float): threshold by proportion of phenotypic
-            variance attributable to genotype
-        threshold_discovery (float): threshold by false discovery rate
-        data_genes_heritabilities (object): Pandas data frame of genes'
-            heritabilities
-
-    raises:
-
-    returns:
-        (dict): information about genes' heritabilities
-    """
-
-    # Copy data.
-    data_genes_heritabilities = data_genes_heritabilities.copy(deep=True)
-    # Select data for genes of interest.
-    data_genes = select_heritabilities_by_genes(
-        genes=genes,
-        data_genes_heritabilities=data_genes_heritabilities,
-    )
-    # Correct probabilities for false discovery rate across query genes.
-    data_discovery = calculate_organize_discoveries(
-        threshold=threshold_discovery,
-        data_genes_heritabilities=data_genes,
-    )
-    # Determine genes with heritable distributions.
-    utility.print_terminal_partition(level=2)
-    print("Counts of heritable genes...")
-    genes_heritable = select_heritable_genes_by_threshold(
-        data_genes_heritabilities=data_discovery,
-        threshold_proportion=threshold_proportion,
-    )
-    utility.print_terminal_partition(level=2)
-    print("heritable genes: " + str(len(genes_heritable)))
-    # Compile information.
-    information = dict()
-    information["data"] = data_discovery
-    information["genes_heritable"] = genes_heritable
-    # Return information.
-    return information
-
-
 # Product
 
 
 def write_product(
-    group=None,
+    cohort=None,
     information=None,
     paths=None,
 ):
@@ -517,7 +652,7 @@ def write_product(
     Writes product information to file.
 
     arguments:
-        group (str): group of persons, either selection or ventilation
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         information (object): information to write to file.
         paths (dict<str>): collection of paths to directories for procedure's
             files
@@ -530,31 +665,17 @@ def write_product(
 
     # Specify directories and files.
     path_data_genes_heritability = os.path.join(
-        paths[group]["collection"], "data_genes_heritability.pickle"
+        paths[cohort]["collection"], "data_genes_heritability.pickle"
     )
     path_data_genes_heritability_text = os.path.join(
-        paths[group]["collection"], "data_genes_heritability.tsv"
+        paths[cohort]["collection"], "data_genes_heritability.tsv"
     )
-
-    path_genes_selection = os.path.join(
-        paths[group]["collection"], "genes_selection.pickle"
+    path_genes_heritability = os.path.join(
+        paths[cohort]["collection"], "genes.pickle"
     )
-    path_genes_selection_text = os.path.join(
-        paths[group]["collection"], "genes_selection.txt"
+    path_genes_heritability_text = os.path.join(
+        paths[cohort]["collection"], "genes.txt"
     )
-    path_genes_unimodal = os.path.join(
-        paths[group]["collection"], "genes_unimodal.pickle"
-    )
-    path_genes_unimodal_text = os.path.join(
-        paths[group]["collection"], "genes_unimodal.txt"
-    )
-    path_genes_multimodal = os.path.join(
-        paths[group]["collection"], "genes_multimodal.pickle"
-    )
-    path_genes_multimodal_text = os.path.join(
-        paths[group]["collection"], "genes_multimodal.txt"
-    )
-
     # Write information to file.
     information["data_genes_heritability"].to_pickle(
         path=path_data_genes_heritability
@@ -566,26 +687,12 @@ def write_product(
         index=True,
     )
 
-    with open(path_genes_selection, "wb") as file_product:
-        pickle.dump(information["genes_selection"], file_product)
+    with open(path_genes_heritability, "wb") as file_product:
+        pickle.dump(information["genes_heritability"], file_product)
     utility.write_file_text_list(
-        elements=information["genes_selection"],
+        elements=information["genes_heritability"],
         delimiter="\n",
-        path_file=path_genes_selection_text
-    )
-    with open(path_genes_unimodal, "wb") as file_product:
-        pickle.dump(information["genes_unimodal"], file_product)
-    utility.write_file_text_list(
-        elements=information["genes_unimodal"],
-        delimiter="\n",
-        path_file=path_genes_unimodal_text
-    )
-    with open(path_genes_multimodal, "wb") as file_product:
-        pickle.dump(information["genes_multimodal"], file_product)
-    utility.write_file_text_list(
-        elements=information["genes_multimodal"],
-        delimiter="\n",
-        path_file=path_genes_multimodal_text
+        path_file=path_genes_heritability_text
     )
 
     pass
@@ -596,14 +703,14 @@ def write_product(
 
 
 def collect_select_report_write_heritability_genes(
-    group=None,
+    cohort=None,
     paths=None,
 ):
     """
     Function to execute module's main behavior.
 
     arguments:
-        group (str): group of persons, either selection or ventilation
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         paths (dict<str>): collection of paths to directories for procedure's
             files
 
@@ -615,12 +722,12 @@ def collect_select_report_write_heritability_genes(
 
     # Report.
     utility.print_terminal_partition(level=1)
-    print("... Heritability procedure for: " + str(group) + " persons...")
+    print("... Heritability procedure for: " + str(cohort) + " persons...")
     utility.print_terminal_partition(level=2)
 
     # Read source information from file.
     source = read_source_initial(
-        group="selection",
+        cohort=cohort,
         dock=paths["dock"],
     )
 
@@ -629,67 +736,98 @@ def collect_select_report_write_heritability_genes(
     # complex method unavailable: ENSG00000214860, ENSG00000180354
     check_genes(
         genes_selection=source["genes_selection"],
-        genes_heritability=source["genes_heritability"],
-        path_genes=paths[group]["genes"],
+        genes_distribution=source["genes_distribution"],
+        genes_heritability_complete=source["genes_heritability_complete"],
+        path_genes=paths[cohort]["genes"],
     )
 
+    # Calculate intersection of genes from selection, distribution, and
+    # heritability procedures.
+    genes_interest = find_intersection_heritability_genes(
+        genes_selection=source["genes_selection"],
+        genes_distribution=source["genes_distribution"],
+        genes_heritability_complete=source["genes_heritability_complete"],
+        path_genes=paths[cohort]["genes"],
+        report=True,
+    )
     # Collect and organize information about genes' heritabilities.
-    data_genes_heritabilities = read_collect_organize_genes_heritabilities(
-        genes=source["genes_heritability"],
+    data_genes_heritability = read_collect_organize_genes_heritabilities(
+        genes=genes_interest,
         data_gene_annotation=source["data_gene_annotation"],
-        path_genes=paths[group]["genes"],
+        path_genes=paths[cohort]["genes"],
+        report=True,
     )
-    # Summary.
-    utility.print_terminal_partition(level=2)
-    print("data_genes_heritabilities")
-    print(data_genes_heritabilities)
+    # Filter heritabilities by their confidence intervals.
+    data_confidence = filter_heritabilities_confidence(
+        data_genes_heritability=data_genes_heritability,
+        threshold=0.25, # half the range of the 95% confidence interval
+        report=True,
+    )
+    # Correct probabilities for false discovery rate across genes.
+    data_discovery = calculate_organize_discoveries(
+        threshold=0.05,
+        data_genes_heritability=data_confidence,
+    )
+    # Organize data for genes' heritabilities.
+    data_organization = organize_genes_heritability_data(
+        data_genes_heritability=data_discovery,
+        report=True,
+    )
 
-    # Segregate heritability reports for selection genes, unimodal genes, and
-    # multimodal genes.
-    utility.print_terminal_partition(level=2)
-    print("Count of selection genes: " + str(len(source["genes_selection"])))
-    print("Count of unimodal genes: " + str(len(source["genes_unimodal"])))
-    print("Count of multimodal genes: " + str(len(source["genes_multimodal"])))
-    utility.print_terminal_partition(level=2)
+    if False:
+        genes_heritable = select_heritable_genes(
+            data_genes_heritability=data_organization,
+            threshold_proportion=threshold_proportion,
+        )
 
-    # Select sets of heritable genes.
-    # The false discover rate correction here is relative to each query set of
-    # genes.
-    bin_selection = select_genes_heritabilities_sets(
-        genes=source["genes_selection"],
-        threshold_proportion=0.1,
-        threshold_discovery=0.05,
-        data_genes_heritabilities=data_genes_heritabilities,
-    )
-    bin_unimodal = select_genes_heritabilities_sets(
-        genes=source["genes_unimodal"],
-        threshold_proportion=0.1,
-        threshold_discovery=0.05,
-        data_genes_heritabilities=data_genes_heritabilities,
-    )
-    utility.print_terminal_partition(level=3)
-    print("group: " + group)
-    print("multimodal genes")
-    bin_multimodal = select_genes_heritabilities_sets(
-        genes=source["genes_multimodal"],
-        threshold_proportion=0.1,
-        threshold_discovery=0.05,
-        data_genes_heritabilities=data_genes_heritabilities,
-    )
+
+    genes_heritability = data_genes_heritability.index.to_list()
 
     # Compile information.
     information = {
-        "data_genes_heritability": bin_selection["data"],
-        "genes_selection": bin_selection["genes_heritable"],
-        "genes_unimodal": bin_unimodal["genes_heritable"],
-        "genes_multimodal": bin_multimodal["genes_heritable"],
+        "data_genes_heritability": data_organization,
+        "genes_heritability": genes_heritability,
     }
     #Write product information to file.
     write_product(
-        group=group,
+        cohort=cohort,
         information=information,
         paths=paths,
     )
+
+    if False:
+        # Segregate heritability reports for selection genes, unimodal genes, and
+        # multimodal genes.
+        utility.print_terminal_partition(level=2)
+        print("Count of selection genes: " + str(len(source["genes_selection"])))
+        print("Count of unimodal genes: " + str(len(source["genes_unimodal"])))
+        print("Count of multimodal genes: " + str(len(source["genes_multimodal"])))
+        utility.print_terminal_partition(level=2)
+
+        # Select sets of heritable genes.
+        # The false discover rate correction here is relative to each query set of
+        # genes.
+        bin_selection = select_genes_heritabilities_sets(
+            genes=source["genes_selection"],
+            threshold_proportion=0.1,
+            threshold_discovery=0.05,
+            data_genes_heritabilities=data_genes_heritabilities,
+        )
+        bin_unimodal = select_genes_heritabilities_sets(
+            genes=source["genes_unimodal"],
+            threshold_proportion=0.1,
+            threshold_discovery=0.05,
+            data_genes_heritabilities=data_genes_heritabilities,
+        )
+        utility.print_terminal_partition(level=3)
+        print("group: " + group)
+        print("multimodal genes")
+        bin_multimodal = select_genes_heritabilities_sets(
+            genes=source["genes_multimodal"],
+            threshold_proportion=0.1,
+            threshold_discovery=0.05,
+            data_genes_heritabilities=data_genes_heritabilities,
+        )
 
     pass
 
@@ -714,11 +852,7 @@ def execute_procedure(
     paths = initialize_directories(dock=dock)
     # Organize data and regress cases.
     collect_select_report_write_heritability_genes(
-        group="selection",
-        paths=paths,
-    )
-    collect_select_report_write_heritability_genes(
-        group="ventilation",
+        cohort="selection",
         paths=paths,
     )
     pass

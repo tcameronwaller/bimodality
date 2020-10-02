@@ -424,6 +424,23 @@ def standardize_genes_signals(
     )
     # Report.
     if report:
+        utility.print_terminal_partition(level=3)
+        print("Summary statistics for signals before standardization.")
+        print(data_signals_genes_persons.iloc[0:10, 0:10])
+        data_mean = data_signals_genes_persons.aggregate(
+            lambda x: x.mean(),
+            axis="index"
+        )
+        utility.print_terminal_partition(level=3)
+        print("Mean")
+        print(data_mean.iloc[0:10])
+        utility.print_terminal_partition(level=4)
+        data_deviation = data_signals_genes_persons.aggregate(
+            lambda x: x.std(),
+            axis="index"
+        )
+        print("Standard deviation")
+        print(data_deviation.iloc[0:10])
         utility.print_terminal_partition(level=2)
         print("Summary statistics for signals after standardization.")
         print(data_standard.iloc[0:10, 0:10])
@@ -431,9 +448,10 @@ def standardize_genes_signals(
             lambda x: x.mean(),
             axis="index"
         )
+        utility.print_terminal_partition(level=3)
         print("Mean")
         print(data_mean.iloc[0:10])
-        utility.print_terminal_partition(level=3)
+        utility.print_terminal_partition(level=4)
         data_deviation = data_standard.aggregate(
             lambda x: x.std(),
             axis="index"
