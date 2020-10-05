@@ -91,7 +91,8 @@ echo "Now set to call routine and procedures."
 # - Batch Routine
 
 #python3 interface.py main --dock $path_dock --split # run on 15 July 2020 for 17,650 genes
-python3 interface.py main --dock $path_dock --distribution --local # run on 15 July 2020 for 17,650 genes (10% signal threshold); duration 4 hours
+#python3 interface.py main --dock $path_dock --distribution --local # run on 15 July 2020 for 17,650 genes (10% signal threshold); duration 4 hours
+# run on 2 October 2020 for 15,742 genes in selection cohort only
 #python3 interface.py main --dock $path_dock --distribution --remote --gene "ENSG00000186092"
 #nohup python3 interface.py main --dock $path_dock --distribution --local > $path_dock/report.out &
 
@@ -113,7 +114,7 @@ python3 interface.py main --dock $path_dock --distribution --local # run on 15 J
 # Analysis Routine
 
 #bash heritability_genes.sh # run on 2 October 2020
-#python3 interface.py main --dock $path_dock --heritability
+python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
 #python3 interface.py main --dock $path_dock --prediction

@@ -502,6 +502,9 @@ def filter_heritabilities_confidence(
         utility.print_terminal_partition(level=2)
         print("data after filter by confidence interval")
         print(data_confidence)
+        utility.print_terminal_partition(level=2)
+        print("count of candidate genes': " + str(data_confidence.shape[0]))
+
     # Return information.
     return data_confidence
 
@@ -604,38 +607,50 @@ def organize_genes_heritability_data(
     return data
 
 
-
-
-
 def select_heritable_genes(
-    data_genes_heritabilities=None,
+    data_genes_heritability=None,
     threshold_proportion=None,
+    threshold_probability=None,
+    report=None,
 ):
     """
     Collects and organizes information about genes.
 
     arguments:
-        data_genes_heritabilities (object): Pandas data frame of genes'
+        data_genes_heritability (object): Pandas data frame of genes'
             heritabilities
         threshold_proportion (float): threshold by proportion of phenotypic
             variance attributable to genotype
+        threshold_probability (float): threshold by probability of heritability
+            estimate
+        report (bool): whether to print reports
 
     raises:
 
     returns:
-        (object): Pandas data frame of genes' heritabilities
+        (list<str>): identifiers of heritable genes
 
     """
 
     # Copy genes' heritabilities.
-    data_copy = data_genes_heritabilities.copy(deep=True)
+    data_copy = data_genes_heritability.copy(deep=True)
     # Set threshold.
     data_proportion = data_copy.loc[
         data_copy["proportion"] >= threshold_proportion
     ]
-    data_discovery = data_proportion.loc[data_proportion["significance"], :]
+    data_probability = data_proportion.loc[
+        data_proportion["probability"] <= threshold_probability
+    ]
     # Extract identifiers of genes.
-    genes = data_discovery.index.to_list()
+    genes = data_probability.index.to_list()
+    # Report.
+    if report:
+        percentage = round((len(genes) / data_copy.shape[0]) * 100, 2)
+        utility.print_terminal_partition(level=2)
+        print(
+            "count of 'heritable' genes': " +
+            str(len(genes)) + " (" + str(percentage) + " %)"
+        )
     # Return information.
     return genes
 
@@ -748,16 +763,19 @@ def collect_select_report_write_heritability_genes(
         genes_distribution=source["genes_distribution"],
         genes_heritability_complete=source["genes_heritability_complete"],
         path_genes=paths[cohort]["genes"],
-        report=True,
+        report=False,
     )
     # Collect and organize information about genes' heritabilities.
     data_genes_heritability = read_collect_organize_genes_heritabilities(
         genes=genes_interest,
         data_gene_annotation=source["data_gene_annotation"],
         path_genes=paths[cohort]["genes"],
-        report=True,
+        report=False,
     )
     # Filter heritabilities by their confidence intervals.
+    # Allow 95% confidence intervals that span up to 33% of the reasonable
+    # range (interval is 0.33, threshold is 0.33 / 2 = 0.167).
+    # (interval is 0.50, threshold is 0.5 / 2 = 0.25)
     data_confidence = filter_heritabilities_confidence(
         data_genes_heritability=data_genes_heritability,
         threshold=0.25, # half the range of the 95% confidence interval
@@ -771,18 +789,16 @@ def collect_select_report_write_heritability_genes(
     # Organize data for genes' heritabilities.
     data_organization = organize_genes_heritability_data(
         data_genes_heritability=data_discovery,
-        report=True,
+        report=False,
     )
 
-    if False:
-        genes_heritable = select_heritable_genes(
-            data_genes_heritability=data_organization,
-            threshold_proportion=threshold_proportion,
-        )
-
-
-    genes_heritability = data_genes_heritability.index.to_list()
-
+    # Select genes with most heritability.
+    genes_heritability = select_heritable_genes(
+        data_genes_heritability=data_organization,
+        threshold_proportion=0.05,
+        threshold_probability=0.1,
+        report=True,
+    )
     # Compile information.
     information = {
         "data_genes_heritability": data_organization,
@@ -794,40 +810,6 @@ def collect_select_report_write_heritability_genes(
         information=information,
         paths=paths,
     )
-
-    if False:
-        # Segregate heritability reports for selection genes, unimodal genes, and
-        # multimodal genes.
-        utility.print_terminal_partition(level=2)
-        print("Count of selection genes: " + str(len(source["genes_selection"])))
-        print("Count of unimodal genes: " + str(len(source["genes_unimodal"])))
-        print("Count of multimodal genes: " + str(len(source["genes_multimodal"])))
-        utility.print_terminal_partition(level=2)
-
-        # Select sets of heritable genes.
-        # The false discover rate correction here is relative to each query set of
-        # genes.
-        bin_selection = select_genes_heritabilities_sets(
-            genes=source["genes_selection"],
-            threshold_proportion=0.1,
-            threshold_discovery=0.05,
-            data_genes_heritabilities=data_genes_heritabilities,
-        )
-        bin_unimodal = select_genes_heritabilities_sets(
-            genes=source["genes_unimodal"],
-            threshold_proportion=0.1,
-            threshold_discovery=0.05,
-            data_genes_heritabilities=data_genes_heritabilities,
-        )
-        utility.print_terminal_partition(level=3)
-        print("group: " + group)
-        print("multimodal genes")
-        bin_multimodal = select_genes_heritabilities_sets(
-            genes=source["genes_multimodal"],
-            threshold_proportion=0.1,
-            threshold_discovery=0.05,
-            data_genes_heritabilities=data_genes_heritabilities,
-        )
 
     pass
 
