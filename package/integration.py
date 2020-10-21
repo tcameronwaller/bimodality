@@ -396,12 +396,14 @@ def read_source(dock=None):
 
 
 def read_source_genes_sets_collection(
+    count=None,
     dock=None,
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        count (int): threshold by count of studies
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -412,9 +414,16 @@ def read_source_genes_sets_collection(
 
     """
 
+    if count == 1:
+        set = "study_one"
+    elif count == 2:
+        set = "study_two"
+    elif count == 3:
+        set = "study_three"
+        pass
     # Specify directories and files.
     path_sets_genes_covid19 = os.path.join(
-        dock, "collection", "covid19", "sets_genes.pickle"
+        dock, "collection", "covid19", set, "sets_genes.pickle"
     )
     # Read information from file.
     with open(path_sets_genes_covid19, "rb") as file_source:
@@ -474,6 +483,45 @@ def read_source_genes_sets_candidacy(
     bin["multimodal"] = genes_multimodal
     bin["nonmultimodal"] = genes_nonmultimodal
     bin["unimodal"] = genes_unimodal
+    # Return information.
+    return bin
+
+
+def read_source_genes_sets_heritability(
+    cohort=None,
+    dock=None,
+):
+    """
+    Reads and organizes source information from file
+
+    arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
+        dock (str): path to root or dock directory for source and product
+            directories and files
+
+    raises:
+
+    returns:
+        (list<str>): identifiers of genes
+
+    """
+
+    # Specify directories and files.
+    path_genes_validity = os.path.join(
+        dock, "heritability", cohort, "collection", "genes_validity.pickle"
+    )
+    path_genes_heritability = os.path.join(
+        dock, "heritability", cohort, "collection", "genes.pickle"
+    )
+    # Read information from file.
+    with open(path_genes_validity, "rb") as file_source:
+        genes_validity = pickle.load(file_source)
+    with open(path_genes_heritability, "rb") as file_source:
+        genes_heritability = pickle.load(file_source)
+    # Compile information.
+    bin = dict()
+    bin["validity"] = genes_validity
+    bin["heritability"] = genes_heritability
     # Return information.
     return bin
 
@@ -616,6 +664,10 @@ def read_source_annotation_query_genes_sets(dock=None):
         set="feature",
         dock=dock,
     )
+    heritability = read_source_annotation_query_genes_set(
+        set="heritability",
+        dock=dock,
+    )
     distribution = read_source_annotation_query_genes_set(
         set="distribution",
         dock=dock,
@@ -639,6 +691,7 @@ def read_source_annotation_query_genes_sets(dock=None):
     # Compile and return information.
     return {
         "feature": feature,
+        "heritability": heritability,
         "distribution": distribution,
         "correlation": correlation,
         "covid19": covid19,
@@ -677,8 +730,7 @@ def read_source_genes_sets_correlation(
     return genes_correlation
 
 
-
-def read_source_genes_sets_collection_candidacy(
+def read_source_genes_sets_combination(
     cohort=None,
     dock=None,
 ):
@@ -705,16 +757,21 @@ def read_source_genes_sets_collection_candidacy(
         dock=dock,
     )
     genes_collection = read_source_genes_sets_collection(
+        count=1,
         dock=dock,
     )
+    #genes_heritability = read_source_genes_sets_heritability(
+    #    cohort="selection",
+    #    dock=dock,
+    #)
     # Organize genes sets.
     bin["any"] = genes_candidacy["any"]
     bin["multimodal"] = genes_candidacy["multimodal"]
     bin["nonmultimodal"] = genes_candidacy["nonmultimodal"]
     bin["unimodal"] = genes_candidacy["unimodal"]
-    bin["covid19"] = genes_collection["covid19"]["studies"]
+    bin["covid19"] = genes_collection["covid19"]["any"]
     bin["covid19_multimodal"] = utility.filter_common_elements(
-        list_one=genes_collection["covid19"]["studies"],
+        list_one=genes_collection["covid19"]["any"],
         list_two=genes_candidacy["multimodal"],
     )
     bin["covid19_up"] = genes_collection["covid19"]["up"]
@@ -732,13 +789,14 @@ def read_source_genes_sets_collection_candidacy(
         list_one=genes_collection["covid19"]["mix"],
         list_two=genes_candidacy["multimodal"],
     )
+    #bin["heritability"] = genes_heritability["heritability"]
     # Return information.
     return bin
 
 
 # TODO: include ontology gene sets... DAVID enrichment sets on multimodal genes and COVID-19 genes
 
-def read_source_organize_genes_sets_collection_candidacy_prediction_query(
+def read_source_genes_sets_combination_integration(
     cohort=None,
     dock=None,
 ):
@@ -760,14 +818,19 @@ def read_source_organize_genes_sets_collection_candidacy_prediction_query(
     # Compile information.
     bin = dict()
     # Read genes sets.
+    bin["collection"] = read_source_genes_sets_collection(
+        count=1,
+        dock=dock,
+    )
     bin["candidacy"] = read_source_genes_sets_candidacy(
         cohort=cohort,
         dock=dock,
     )
-    bin["collection"] = read_source_genes_sets_collection(
+    bin["heritability"] = read_source_genes_sets_heritability(
+        cohort=cohort,
         dock=dock,
     )
-    bin["collection_candidacy"] = read_source_genes_sets_collection_candidacy(
+    bin["combination"] = read_source_genes_sets_combination(
         cohort=cohort,
         dock=dock,
     )
@@ -857,46 +920,136 @@ def read_organize_report_write_collection_candidacy_gene_sets(
 
 
 ##########
-# Gene query summary tables
+# Contingency table comparisons
 
-# TODO: need to finish this...
 
-def read_source_gene_sets_covid19_prediction_heritability(
-    dock=None,
+def compile_gene_set_attribution_table(
+    genes_master=None,
+    genes_sets=None,
+    report=None,
 ):
     """
-    Reads and organizes source information from file
+    Organizes a table of genes' attribution to sets.
 
     arguments:
-        dock (str): path to root or dock directory for source and product
-            directories and files
+        genes_master (list<str>): inclusive list of genes' identifiers
+        genes_sets (dict): collections of genes
+        report (bool): whether to print reports
 
     raises:
 
     returns:
-        (object): source information
+        (object): Pandas data frame of genes' sets
 
     """
 
-    # TODO: read in COVID-19 DE gene table
-    # TODO: read in prediction context summary tables
-    # TODO: read in heritability summary
-
-    # Specify directories and files.
-    path_regressions_discoveries = os.path.join(
-        dock, "prediction", cohort, model, "regressions_discoveries",
-        "regressions_discoveries.pickle"
+    records = list()
+    for gene in genes_master:
+        record = dict()
+        record["identifier"] = gene
+        for set in genes_sets.keys():
+            record[set] = (gene in genes_sets[set])
+            pass
+        records.append(record)
+        pass
+    # Organize data.
+    data = utility.convert_records_to_dataframe(records=records)
+    data.set_index(
+        "identifier",
+        drop=True,
+        inplace=True,
     )
+    data.rename_axis(
+        index="gene",
+        axis="index",
+        copy=False,
+        inplace=True,
+    )
+    data.rename_axis(
+        columns="sets",
+        axis="columns",
+        copy=False,
+        inplace=True
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print(data)
+    return data
+
+
+def organize_contingency_table_chi(
+    observations=None,
+    variables_contingency=None,
+    data=None,
+    report=None,
+):
+    """
+    Extracts identifiers of persons with valid genotypes.
+
+    arguments:
+        observations (list<str>): identifiers of rows to include
+        variables_contingency (list<str>): names of variables for contingency
+        data (object): Pandas data frame of observations in categories
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+
+    """
+
+    # Copy data.
+    data = data.copy(deep=True)
+    # Organize data.
+    data_observations = data.loc[data.index.isin(observations), :]
+    data_categories = data_observations.loc[
+        :, data_observations.columns.isin(variables_contingency)
+    ]
+    # Replace missing values with zero.
+    data_categories.fillna(
+        value=False,
+        #axis="columns",
+        inplace=True,
+    )
+    # Contingency table.
+    data_contingency = pandas.crosstab(
+        data_categories[variables_contingency[0]],
+        data_categories[variables_contingency[1]],
+        rownames=[variables_contingency[0]],
+        colnames=[variables_contingency[1]],
+    )
+    (chi2, probability, freedom, expectation) = scipy.stats.chi2_contingency(
+        data_contingency.to_numpy(),
+        correction=True,
+    )
+    # Report.
+    if report:
+        utility.print_terminal_partition(level=2)
+        print(
+            "Contingency table and Chi2 test for independence."
+        )
+        print(
+            str(variables_contingency[0]) + " versus " +
+            str(variables_contingency[1])
+        )
+        utility.print_terminal_partition(level=3)
+        print(data_contingency)
+        print(data_contingency.to_numpy())
+        utility.print_terminal_partition(level=4)
+        print("chi2: " + str(chi2))
+        print("probability: " + str(probability))
     pass
 
 
-def read_organize_report_write_gene_sets_covid19_prediction_heritability(
+
+
+def read_organize_report_write_contingency_table_comparisons(
     paths=None,
     report=None,
 ):
     """
-    Organizes summary tables for gene's COVID-19 expression, associations to
-    regression variables, and heritabilities of pan-tissue signals.
+    Organizes contingency table comparisons across genes and persons.
 
     arguments:
         paths (dict<str>): collection of paths to directories for procedure's
@@ -910,13 +1063,54 @@ def read_organize_report_write_gene_sets_covid19_prediction_heritability(
     """
 
     # Read source information from file.
-    source = read_source_gene_sets_covid19_prediction_heritability(
+    sets_candidacy = read_source_genes_sets_candidacy(
+        cohort="selection",
         dock=paths["dock"],
     )
-    # Write information to file.
-    information = dict()
-    pass
+    sets_covid19_one = read_source_genes_sets_collection(
+        count=1,
+        dock=paths["dock"],
+    )
+    sets_covid19_two = read_source_genes_sets_collection(
+        count=2,
+        dock=paths["dock"],
+    )
+    sets_covid19_three = read_source_genes_sets_collection(
+        count=3,
+        dock=paths["dock"],
+    )
+    sets_heritability = read_source_genes_sets_heritability(
+        cohort="selection",
+        dock=paths["dock"],
+    )
+    # Compile gene attribution table.
+    sets = dict()
+    sets["any"] = sets_candidacy["any"]
+    sets["multimodal"] = sets_candidacy["multimodal"]
+    sets["unimodal"] = sets_candidacy["unimodal"]
+    sets["validity"] = sets_heritability["validity"]
+    sets["heritability"] = sets_heritability["heritability"]
+    sets["covid19"] = sets_covid19_one["covid19"]["any"]
+    data_gene_sets = compile_gene_set_attribution_table(
+        genes_master=sets["any"],
+        genes_sets=sets,
+        report=report,
+    )
+    # Aggregate a contingency table.
+    organize_contingency_table_chi(
+        observations=sets_heritability["validity"],
+        variables_contingency=["multimodal", "heritability"],
+        data=data_gene_sets,
+        report=True,
+    )
+    organize_contingency_table_chi(
+        observations=sets_candidacy["any"],
+        variables_contingency=["multimodal", "covid19"],
+        data=data_gene_sets,
+        report=True,
+    )
 
+    pass
 
 
 
@@ -1733,11 +1927,10 @@ def read_source_pairwise_gene_correlations(
             cohort=cohort,
             dock=dock,
         )
-    genes_sets = (
-        read_source_organize_genes_sets_collection_candidacy_prediction_query(
-            cohort="selection",
-            dock=dock,
-    ))
+    genes_sets = read_source_genes_sets_combination_integration(
+        cohort="selection",
+        dock=dock,
+    )
     # Specify directories and files.
     path_data_gene_annotation = os.path.join(
         dock, "selection", "tight", "gene_annotation",
@@ -1949,7 +2142,7 @@ def read_organize_report_write_pairwise_gene_correlations(
     # Specify set of genes for which to calculate pairwise correlations.
     if True:
         genes_correlation = (
-            source["genes_sets"]["collection_candidacy"]["covid19_multimodal"]
+            source["genes_sets"]["combination"]["covid19_multimodal"]
         )
     if False:
         genes_correlation = (
@@ -1957,7 +2150,7 @@ def read_organize_report_write_pairwise_gene_correlations(
         )
     if False:
         genes_correlation = (
-            source["genes_sets"]["collection_candidacy"]
+            source["genes_sets"]["combination"]
             ["covid19_up_multimodal"]
         )
     if False:
@@ -1998,22 +2191,18 @@ def read_organize_report_write_pairwise_gene_correlations(
     pass
 
 
+##########
+# Gene query summary tables
 
+# TODO: need to finish this...
 
-#####################################
-##################################################
-##### old stuff#####
-
-
-def read_source_genes_sets_heritability(
-    cohort=None,
+def read_source_gene_sets_covid19_prediction_heritability(
     dock=None,
 ):
     """
     Reads and organizes source information from file
 
     arguments:
-        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -2024,30 +2213,51 @@ def read_source_genes_sets_heritability(
 
     """
 
+    # TODO: read in COVID-19 DE gene table
+    # TODO: read in prediction context summary tables
+    # TODO: read in heritability summary
+
     # Specify directories and files.
-    path_genes_selection = os.path.join(
-        dock, "heritability", cohort, "collection", "genes_selection.pickle"
+    path_regressions_discoveries = os.path.join(
+        dock, "prediction", cohort, model, "regressions_discoveries",
+        "regressions_discoveries.pickle"
     )
-    path_genes_unimodal = os.path.join(
-        dock, "heritability", cohort, "collection", "genes_unimodal.pickle"
+    pass
+
+
+def read_organize_report_write_gene_sets_covid19_prediction_heritability(
+    paths=None,
+    report=None,
+):
+    """
+    Organizes summary tables for gene's COVID-19 expression, associations to
+    regression variables, and heritabilities of pan-tissue signals.
+
+    arguments:
+        paths (dict<str>): collection of paths to directories for procedure's
+            files
+        report (bool): whether to print reports
+
+    raises:
+
+    returns:
+
+    """
+
+    # Read source information from file.
+    source = read_source_gene_sets_covid19_prediction_heritability(
+        dock=paths["dock"],
     )
-    path_genes_multimodal = os.path.join(
-        dock, "heritability", cohort, "collection", "genes_multimodal.pickle"
-    )
-    # Read information from file.
-    with open(path_genes_selection, "rb") as file_source:
-        genes_selection = pickle.load(file_source)
-    with open(path_genes_unimodal, "rb") as file_source:
-        genes_unimodal = pickle.load(file_source)
-    with open(path_genes_multimodal, "rb") as file_source:
-        genes_multimodal = pickle.load(file_source)
-    # Compile information.
-    bin = dict()
-    bin["selection"] = genes_selection
-    bin["unimodal"] = genes_unimodal
-    bin["multimodal"] = genes_multimodal
-    # Return information.
-    return bin
+    # Write information to file.
+    information = dict()
+    pass
+
+
+
+
+#####################################
+##################################################
+##### old stuff#####
 
 
 def read_source_genes_sets_function(
@@ -3131,6 +3341,26 @@ def execute_procedure(dock=None):
         paths=paths
     )
 
+    # Organize contingency table comparisons.
+    read_organize_report_write_contingency_table_comparisons(
+        paths=paths,
+        report=True,
+    )
+
+    # Calculate and organize correlations in pan-tissue signals between pairs
+    # of relevant genes.
+    read_organize_report_write_pairwise_gene_correlations(
+        paths=paths,
+        report=False,
+    )
+
+    # Organize comparisons of genes' signals between groups of persons.
+    read_organize_report_write_genes_signals_persons_groups(
+        paths=paths,
+        report=False,
+    )
+
+
     if False:
         # Integrate and organize summary tables for query sets of genes with their
         # COVID-19 differential expression, variable associations from regressions,
@@ -3139,19 +3369,6 @@ def execute_procedure(dock=None):
             paths=paths,
             report=True,
         )
-
-    # Calculate and organize correlations in pan-tissue signals between pairs
-    # of relevant genes.
-    read_organize_report_write_pairwise_gene_correlations(
-        paths=paths,
-        report=True,
-    )
-
-    # Organize comparisons of genes' signals between groups of persons.
-    read_organize_report_write_genes_signals_persons_groups(
-        paths=paths,
-        report=False,
-    )
 
     # TODO: this subprocedure is now obsolete... ?
     # Organize sets of genes that are specific to regression interaction

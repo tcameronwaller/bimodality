@@ -2001,7 +2001,7 @@ def plot_scatter(
     # Return figure.
     return figure
 
-
+# TODO: probably obsolete?
 def plot_scatter_threshold(
     data=None,
     abscissa=None,
@@ -2146,6 +2146,9 @@ def plot_scatter_label_emphasis_points(
     label_keys=None,
     column_key=None,
     column_label=None,
+    line_abscissa=None,
+    line_ordinate=None,
+    line_ordinate_origin=None,
     data=None,
     abscissa=None,
     ordinate=None,
@@ -2163,6 +2166,9 @@ def plot_scatter_label_emphasis_points(
         label_keys (list<str>): keys for rows of points for labels
         column_key (str): name of column in data with keys
         column_label (str): name of column in data with labels
+        line_abscissa (float): point on abscissa for horizontal line
+        line_ordinate (float): point on ordinate for vertical line
+        line_ordinate_origin (bool): whether to draw vertical origin line
         data (object): Pandas data frame of groups, series, and values
         abscissa (str): name of data column with independent variable
         ordinate (str): name of data column with dependent variable
@@ -2180,6 +2186,8 @@ def plot_scatter_label_emphasis_points(
 
     # Organize data.
     data = data.copy(deep=True)
+    ordinate_minimum = min(data[ordinate].to_list())
+    ordinate_maximum = max(data[ordinate].to_list())
     data_bore = data.loc[~data[column_key].isin(emphasis_keys), :]
     data_emphasis = data.loc[data[column_key].isin(emphasis_keys), :]
     data_label = data.loc[data[column_key].isin(label_keys), :]
@@ -2265,25 +2273,51 @@ def plot_scatter_label_emphasis_points(
 
     # Plot lines for each threshold value...
     # Create lines for thresholds.
-    axes.axvline(
-        x=0.0,
-        ymin=0,
-        ymax=1,
-        alpha=1.0,
-        color=colors["black"],
-        linestyle="--",
-        linewidth=3.0,
-    )
+    if line_ordinate_origin:
+        axes.axvline(
+            x=0.0,
+            ymin=0,
+            ymax=1,
+            alpha=1.0,
+            color=colors["black"],
+            linestyle="--",
+            linewidth=3.0,
+        )
+    if line_abscissa is not None:
+        axes.axvline(
+            x=line_abscissa,
+            ymin=0,
+            ymax=1,
+            alpha=1.0,
+            color=colors["orange"],
+            linestyle="--",
+            linewidth=5.0,
+        )
+    if line_ordinate is not None:
+        axes.axhline(
+            y=line_ordinate,
+            xmin=0,
+            xmax=1,
+            alpha=1.0,
+            color=colors["orange"],
+            linestyle="--",
+            linewidth=5.0,
+        )
+
     # Plot labels.
+    # Place bottom of label above point by 5% of maximal y value.
     for label_key in label_keys:
         data_label = data.loc[data[column_key].isin([label_key]), :]
         if (data_label.shape[0] > 0):
             for index_point in data_label.index.to_list():
                 axes.text(
                     (data_label.at[index_point, abscissa]),
-                    (data_label.at[index_point, ordinate]),
+                    (
+                        data_label.at[index_point, ordinate] +
+                        (0.02 * ordinate_maximum)
+                    ),
                     data_label[column_label].to_list()[0],
-                    backgroundcolor=colors["clear"],
+                    backgroundcolor=colors["white_faint"],
                     color=colors["black"],
                     fontproperties=fonts["properties"]["three"],
                     horizontalalignment="center",
@@ -4350,12 +4384,14 @@ def prepare_charts_modality_measure_genes_distribution(
 
 
 def read_source_gene_heritability(
-    dock=None
+    cohort=None,
+    dock=None,
 ):
     """
     Reads and organizes source information from file
 
     arguments:
+        cohort (str): cohort of persons--selection, respiration, or ventilation
         dock (str): path to root or dock directory for source and product
             directories and files
 
@@ -4366,103 +4402,74 @@ def read_source_gene_heritability(
 
     """
 
+    # Read genes sets.
+    genes_sets = integration.read_source_genes_sets_combination_integration(
+        cohort="selection",
+        dock=dock,
+    )
     # Specify directories and files.
-    path_selection = os.path.join(dock, "selection", "tight")
-    path_gene_annotation = os.path.join(
-        path_selection, "data_gene_annotation_gencode.pickle"
+    path_data_genes_heritability = os.path.join(
+        dock, "heritability", cohort, "collection",
+        "data_genes_heritability.pickle"
     )
-
-    path_heritability = os.path.join(dock, "heritability")
-    path_collection = os.path.join(path_heritability, "collection")
-
-    path_data_genes_heritabilities_simple = os.path.join(
-        path_collection, "data_genes_heritabilities_simple.pickle"
+    path_threshold_proportion = os.path.join(
+        dock, "heritability", cohort, "collection",
+        "threshold_proportion.pickle"
     )
-    path_data_genes_heritabilities_complex = os.path.join(
-        path_collection, "data_genes_heritabilities_complex.pickle"
-    )
-    path_data_genes_unimodal_heritabilities_simple = os.path.join(
-        path_collection, "data_genes_unimodal_heritabilities_simple.pickle"
-    )
-    path_data_genes_unimodal_heritabilities_complex = os.path.join(
-        path_collection, "data_genes_unimodal_heritabilities_complex.pickle"
-    )
-    path_data_genes_multimodal_heritabilities_simple = os.path.join(
-        path_collection, "data_genes_multimodal_heritabilities_simple.pickle"
-    )
-    path_data_genes_multimodal_heritabilities_complex = os.path.join(
-        path_collection, "data_genes_multimodal_heritabilities_complex.pickle"
+    path_threshold_probability_log = os.path.join(
+        dock, "heritability", cohort, "collection",
+        "threshold_probability_log.pickle"
     )
 
     # Read information from file.
-    data_gene_annotation = pandas.read_pickle(path_gene_annotation)
-    data_genes_heritabilities_simple = pandas.read_pickle(
-        path_data_genes_heritabilities_simple
+    data_genes_heritability = pandas.read_pickle(
+        path_data_genes_heritability
     )
-    data_genes_heritabilities_complex = pandas.read_pickle(
-        path_data_genes_heritabilities_complex
-    )
-    data_genes_unimodal_heritabilities_simple = pandas.read_pickle(
-        path_data_genes_unimodal_heritabilities_simple
-    )
-    data_genes_unimodal_heritabilities_complex = pandas.read_pickle(
-        path_data_genes_unimodal_heritabilities_complex
-    )
-    data_genes_multimodal_heritabilities_simple = pandas.read_pickle(
-        path_data_genes_multimodal_heritabilities_simple
-    )
-    data_genes_multimodal_heritabilities_complex = pandas.read_pickle(
-        path_data_genes_multimodal_heritabilities_complex
-    )
+    with open(path_threshold_proportion, "rb") as file_source:
+        threshold_proportion = pickle.load(file_source)
+    with open(path_threshold_probability_log, "rb") as file_source:
+        threshold_probability_log = pickle.load(file_source)
 
     # Compile and return information.
     return {
-        "data_gene_annotation": data_gene_annotation,
-        "data_genes_heritabilities_simple": data_genes_heritabilities_simple,
-        "data_genes_heritabilities_complex": data_genes_heritabilities_complex,
-        "data_genes_unimodal_heritabilities_simple": (
-            data_genes_unimodal_heritabilities_simple
-        ),
-        "data_genes_unimodal_heritabilities_complex": (
-            data_genes_unimodal_heritabilities_complex
-        ),
-        "data_genes_multimodal_heritabilities_simple": (
-            data_genes_multimodal_heritabilities_simple
-        ),
-        "data_genes_multimodal_heritabilities_complex": (
-            data_genes_multimodal_heritabilities_complex
-        ),
+        "genes_sets": genes_sets,
+        "data_genes_heritability": data_genes_heritability,
+        "threshold_proportion": threshold_proportion,
+        "threshold_probability_log": threshold_probability_log,
     }
 
 
 def organize_gene_heritability(
-    data_gene_annotation=None,
-    data_genes_heritabilities=None,
+    data_genes_heritability=None,
 ):
     """
     Plots charts from the analysis process.
 
     arguments:
-        data_gene_annotation (object): Pandas data frame of genes' annotations
-        data_genes_heritabilities (object): Pandas data frame of genes'
+        data_genes_heritability (object): Pandas data frame of genes'
             heritabilities
 
     raises:
 
     returns:
-        (dict): information about genes' heritabilities
+        (object): Pandas data frame of genes' heritabilities
 
     """
 
     # Organize data.
-    data = data_genes_heritabilities.copy(deep=True)
+    data = data_genes_heritability.copy(deep=True)
+    data.reset_index(
+        level=None,
+        inplace=True
+    )
     # Calculate percentages.
     data["percentage"] = data["proportion"].apply(
         lambda value: (value * 100)
     )
     data = data.loc[
         :, data.columns.isin([
-            "percentage", "discovery_log",
+            "identifier", "name", "proportion", "percentage",
+            "probability_log",
         ])
     ]
     data.dropna(
@@ -4470,25 +4477,15 @@ def organize_gene_heritability(
         how="any",
         inplace=True,
     )
-    # Prepare translation of genes' identifiers to names.
-    identifiers = data.index.to_list()
-    translations = dict()
-    for identifier in identifiers:
-        translations[identifier] = assembly.access_gene_name(
-            identifier=identifier,
-            data_gene_annotation=data_gene_annotation,
-        )
-        pass
-    # Rename genes in data.
-    data.rename(
-        index=translations,
-        inplace=True,
-    )
     # Return information.
     return data
 
 
 def plot_chart_gene_heritability(
+    genes_multimodal=None,
+    genes_feature=None,
+    threshold_proportion=None,
+    threshold_probability_log=None,
     data=None,
     path_file=None
 ):
@@ -4496,6 +4493,12 @@ def plot_chart_gene_heritability(
     Plots charts from the analysis process.
 
     arguments:
+        genes_multimodal (list<str>): identifiers of multimodal genes
+        genes_feature (list<str>): identifiers of feature genes
+        threshold_proportion (float): threshold by proportion of phenotypic
+            variance attributable to genotype
+        threshold_probability_log (float): threshold by probability of
+            heritability estimate
         data (object): Pandas data frame of variables
         path_file (str): path for file
 
@@ -4511,26 +4514,34 @@ def plot_chart_gene_heritability(
     colors = define_color_properties()
 
     # Create figure.
-    figure = plot_scatter_threshold(
+    figure = plot_scatter_label_emphasis_points(
+        emphasis_keys=genes_multimodal,
+        label_keys=genes_feature,
+        column_key="identifier",
+        column_label="name",
+        line_abscissa=threshold_probability_log,
+        line_ordinate=threshold_proportion,
+        line_ordinate_origin=False,
         data=data,
-        abscissa="discovery_log",
-        ordinate="percentage",
-        title_abscissa="-1 * log10(FDR)",
-        title_ordinate="% heritability",
-        threshold_abscissa=1.30,
-        selection_abscissa=">=",
-        threshold_ordinate=10,
-        selection_ordinate=">=",
+        abscissa="probability_log",
+        ordinate="proportion",
+        title_abscissa="-1 * log10(p)",
+        title_ordinate="V(g) / V(p)",
         fonts=fonts,
         colors=colors,
     )
     # Write figure.
-    write_figure(
+    write_figure_png(
         path=path_file,
         figure=figure
     )
 
     pass
+
+# BLARG
+# TODO:
+# read in the threshold information from heritability.py
+# read in heritable genes along with multimodal and feature genes from a new function in integration.py
 
 
 def prepare_charts_gene_heritability(
@@ -4550,68 +4561,34 @@ def prepare_charts_gene_heritability(
     """
 
     # Read source information from file.
-    source = read_source_gene_heritability(dock=dock)
-
-    # Define parameters for each chart.
-    charts = list()
-    record = {
-        "title": "genes_selection_simple",
-        "data": source["data_genes_heritabilities_simple"],
-    }
-    charts.append(record)
-    record = {
-        "title": "genes_selection_complex",
-        "data": source["data_genes_heritabilities_complex"],
-    }
-    charts.append(record)
-    record = {
-        "title": "genes_unimodal_simple",
-        "data": source["data_genes_unimodal_heritabilities_simple"],
-    }
-    charts.append(record)
-    record = {
-        "title": "genes_unimodal_complex",
-        "data": source["data_genes_unimodal_heritabilities_complex"],
-    }
-    charts.append(record)
-    record = {
-        "title": "genes_multimodal_simple",
-        "data": source["data_genes_multimodal_heritabilities_simple"],
-    }
-    charts.append(record)
-    record = {
-        "title": "genes_multimodal_complex",
-        "data": source["data_genes_multimodal_heritabilities_complex"],
-    }
-    charts.append(record)
+    source = read_source_gene_heritability(
+        cohort="selection",
+        dock=dock,
+    )
 
     # Specify directories and files.
     path_plot = os.path.join(dock, "plot")
     utility.create_directory(path_plot)
-    path_heritability = os.path.join(path_plot, "heritability")
-    path_directory = os.path.join(
-        path_heritability, "thresholds"
-    )
+    path_directory = os.path.join(path_plot, "heritability")
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=path_directory)
     utility.create_directories(path=path_directory)
-
-    # Iterate on charts.
-    for chart in charts:
-        # Organize data.
-        data = organize_gene_heritability(
-            data_gene_annotation=source["data_gene_annotation"],
-            data_genes_heritabilities=chart["data"],
-        )
-        # Create chart.
-        path_file = os.path.join(
-            path_directory, str(chart["title"] + ".svg")
-        )
-        plot_chart_gene_heritability(
-            data=data,
-            path_file=path_file
-        )
-
+    path_file = os.path.join(
+        path_directory, str("genes_heritability.png")
+    )
+    # Organize data for figure.
+    data = organize_gene_heritability(
+        data_genes_heritability=source["data_genes_heritability"],
+    )
+    # Plot chart and create figure.
+    plot_chart_gene_heritability(
+        genes_multimodal=source["genes_sets"]["candidacy"]["multimodal"],
+        genes_feature=source["genes_sets"]["query"]["heritability"],
+        threshold_proportion=source["threshold_proportion"],
+        threshold_probability_log=source["threshold_probability_log"],
+        data=data,
+        path_file=path_file
+    )
     pass
 
 
@@ -4638,12 +4615,10 @@ def read_source_collection_comparisons_folds(
     """
 
     # Read genes sets.
-    genes_sets = (
-        integration.
-        read_source_organize_genes_sets_collection_candidacy_prediction_query(
-            cohort="selection",
-            dock=dock,
-    ))
+    genes_sets = integration.read_source_genes_sets_combination_integration(
+        cohort="selection",
+        dock=dock,
+    )
     # Specify directories and files.
     path_data_gene_annotation = os.path.join(
         dock, "selection", "tight", "gene_annotation",
@@ -4701,6 +4676,9 @@ def plot_chart_collection_comparisons_folds(
         label_keys=label_keys,
         column_key=column_key,
         column_label=column_label,
+        line_abscissa=None,
+        line_ordinate=None,
+        line_ordinate_origin=True,
         data=data,
         abscissa="log2_fold_direction",
         ordinate="comparisons",
@@ -7253,12 +7231,10 @@ def read_source_genes_signals_persons(
     """
 
     # Read genes sets.
-    genes_sets = (
-        integration.
-        read_source_organize_genes_sets_collection_candidacy_prediction_query(
+    genes_sets = integration.read_source_genes_sets_combination_integration(
             cohort=cohort,
             dock=dock,
-    ))
+    )
     genes_correlation = integration.read_source_genes_sets_correlation(
             cohort=cohort,
             dock=dock,
@@ -7509,12 +7485,10 @@ def read_source_prediction_genes_signals_persons_properties(
     """
 
     # Read genes sets.
-    genes_sets = (
-        integration.
-        read_source_organize_genes_sets_collection_candidacy_prediction_query(
-            cohort="selection",
-            dock=dock,
-    ))
+    genes_sets = integration.read_source_genes_sets_combination_integration(
+        cohort="selection",
+        dock=dock,
+    )
     genes_correlation = integration.read_source_genes_sets_correlation(
             cohort="selection",
             dock=dock,
@@ -7884,9 +7858,7 @@ def prepare_charts_query_genes_signals_persons_properties_cohort(
     # Prepare and plot data for sets of genes.
     prepare_charts_query_genes_signals_persons_properties_genes(
         set_name="covid19_multimodal",
-        genes=(
-            source["genes_sets"]["collection_candidacy"]["covid19_multimodal"]
-        ),
+        genes=source["genes_sets"]["combination"]["covid19_multimodal"],
         data_gene_annotation=source["data_gene_annotation"],
         data_persons_properties=source["data_persons_properties"],
         data_signals_genes_persons=source["data_signals_genes_persons"],
@@ -9916,17 +9888,16 @@ def execute_procedure(dock=None):
         # Each point will represent a person with pantissue signals from each gene.
         prepare_charts_signals_persons_gene_pairs(dock=dock)
 
+    ##########
+    ##########
+    ##########
+    # Heritability procedure
+
+    # Plot charts for heritability of genes' pantissue signals.
+    # Charts will be scatter plots.
+    prepare_charts_gene_heritability(dock=dock)
+
     if False:
-
-        ##########
-        ##########
-        ##########
-        # Heritability procedure
-
-        # Plot charts for heritability of genes' pantissue signals.
-        # Charts will be scatter plots.
-        prepare_charts_gene_heritability(dock=dock)
-
         # Plot charts of overlap between sets in selection of genes by
         # heritability.
         prepare_charts_sets_gene_heritability(dock=dock)

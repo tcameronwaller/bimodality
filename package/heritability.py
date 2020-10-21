@@ -391,7 +391,7 @@ def read_collect_organize_genes_heritabilities(
             count = float("nan")
         # Compile information.
         record = dict()
-        record["gene"] = gene
+        record["identifier"] = gene
         record["name"] = name
         record["genotype"] = genotype
         record["residual"] = residual
@@ -414,7 +414,7 @@ def read_collect_organize_genes_heritabilities(
         records=records,
     )
     data.set_index(
-        "gene",
+        "identifier",
         drop=True,
         inplace=True,
     )
@@ -685,6 +685,21 @@ def write_product(
     path_data_genes_heritability_text = os.path.join(
         paths[cohort]["collection"], "data_genes_heritability.tsv"
     )
+    path_threshold_proportion = os.path.join(
+        paths[cohort]["collection"], "threshold_proportion.pickle"
+    )
+    path_threshold_probability = os.path.join(
+        paths[cohort]["collection"], "threshold_probability.pickle"
+    )
+    path_threshold_probability_log = os.path.join(
+        paths[cohort]["collection"], "threshold_probability_log.pickle"
+    )
+    path_genes_validity = os.path.join(
+        paths[cohort]["collection"], "genes_validity.pickle"
+    )
+    path_genes_validity_text = os.path.join(
+        paths[cohort]["collection"], "genes_validity.txt"
+    )
     path_genes_heritability = os.path.join(
         paths[cohort]["collection"], "genes.pickle"
     )
@@ -701,7 +716,19 @@ def write_product(
         header=True,
         index=True,
     )
-
+    with open(path_threshold_proportion, "wb") as file_product:
+        pickle.dump(information["threshold_proportion"], file_product)
+    with open(path_threshold_probability, "wb") as file_product:
+        pickle.dump(information["threshold_probability"], file_product)
+    with open(path_threshold_probability_log, "wb") as file_product:
+        pickle.dump(information["threshold_probability_log"], file_product)
+    with open(path_genes_validity, "wb") as file_product:
+        pickle.dump(information["genes_validity"], file_product)
+    utility.write_file_text_list(
+        elements=information["genes_validity"],
+        delimiter="\n",
+        path_file=path_genes_validity_text
+    )
     with open(path_genes_heritability, "wb") as file_product:
         pickle.dump(information["genes_heritability"], file_product)
     utility.write_file_text_list(
@@ -781,6 +808,7 @@ def collect_select_report_write_heritability_genes(
         threshold=0.25, # half the range of the 95% confidence interval
         report=True,
     )
+    genes_validity = data_confidence.index.to_list()
     # Correct probabilities for false discovery rate across genes.
     data_discovery = calculate_organize_discoveries(
         threshold=0.05,
@@ -793,15 +821,24 @@ def collect_select_report_write_heritability_genes(
     )
 
     # Select genes with most heritability.
+    threshold_proportion = 0.1
+    threshold_probability = 0.1
+    threshold_probability_log = (-1 * math.log(threshold_probability, 10))
     genes_heritability = select_heritable_genes(
         data_genes_heritability=data_organization,
-        threshold_proportion=0.05,
-        threshold_probability=0.1,
+        threshold_proportion=threshold_proportion,
+        threshold_probability=threshold_probability,
         report=True,
     )
     # Compile information.
+    # "genes_validity" are the genes with low enough error in
+    # their heritability estimates
     information = {
         "data_genes_heritability": data_organization,
+        "threshold_proportion": threshold_proportion,
+        "threshold_probability": threshold_probability,
+        "threshold_probability_log": threshold_probability_log,
+        "genes_validity": genes_validity,
         "genes_heritability": genes_heritability,
     }
     #Write product information to file.

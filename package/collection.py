@@ -62,15 +62,28 @@ def initialize_directories(dock=None):
     # Define paths to directories.
     paths["dock"] = dock
     paths["collection"] = os.path.join(paths["dock"], "collection")
-    paths["covid19"] = os.path.join(paths["collection"], "covid19")
-    paths["cytokine"] = os.path.join(paths["collection"], "cytokine")
-    paths["integrin"] = os.path.join(paths["collection"], "integrin")
+    paths["covid19"] = dict()
+    paths["covid19"]["total"] = os.path.join(
+        paths["collection"], "covid19",
+    )
+    paths["covid19"]["study_one"] = os.path.join(
+        paths["collection"], "covid19", "study_one"
+    )
+    paths["covid19"]["study_two"] = os.path.join(
+        paths["collection"], "covid19", "study_two"
+    )
+    paths["covid19"]["study_three"] = os.path.join(
+        paths["collection"], "covid19", "study_three"
+    )
+    #paths["cytokine"] = os.path.join(paths["collection"], "cytokine")
+    #paths["integrin"] = os.path.join(paths["collection"], "integrin")
     # Remove previous files to avoid version or batch confusion.
     utility.remove_directory(path=paths["collection"])
     utility.create_directories(path=paths["collection"])
-    utility.create_directories(path=paths["covid19"])
-    utility.create_directories(path=paths["cytokine"])
-    utility.create_directories(path=paths["integrin"])
+    utility.create_directories(path=paths["covid19"]["total"])
+    utility.create_directories(path=paths["covid19"]["study_one"])
+    utility.create_directories(path=paths["covid19"]["study_two"])
+    utility.create_directories(path=paths["covid19"]["study_three"])
     # Return information.
     return paths
 
@@ -955,7 +968,7 @@ def select_covid19_genes_by_studies_fold_directions(
     data_studies = data.loc[
         data["studies"] >= threshold_studies, :
     ]
-    genes_studies = utility.collect_unique_elements(
+    genes_any = utility.collect_unique_elements(
         elements_original=data_studies.index.to_list()
     )
     # Select data for genes that show accumulation in majority of studies.
@@ -984,7 +997,7 @@ def select_covid19_genes_by_studies_fold_directions(
     )
     # Compile information.
     bin = dict()
-    bin["studies"] = genes_studies
+    bin["any"] = genes_any
     bin["up"] = genes_accumulation
     bin["down"] = genes_depletion
     bin["mix"] = genes_mix
@@ -995,7 +1008,7 @@ def select_covid19_genes_by_studies_fold_directions(
             "Count of differential expression genes that match threshold."
         )
         print("threshold count of studies: " + str(threshold_studies))
-        print("genes DE COVID-19 by studies: " + str(len(genes_studies)))
+        print("genes DE COVID-19 any direction: " + str(len(genes_any)))
         print("genes by accumulation: " + str(len(genes_accumulation)))
         print("genes by depletion: " + str(len(genes_depletion)))
         print("genes by mix of folds: " + str(len(genes_mix)))
@@ -1023,10 +1036,10 @@ def write_product_covid_genes(
 
     # Specify directories and files.
     path_data = os.path.join(
-        paths["covid19"], "data_genes_comparisons_studies.pickle"
+        paths["covid19"]["total"], "data_genes_comparisons_studies.pickle"
     )
     path_data_text = os.path.join(
-        paths["covid19"], "data_genes_comparisons_studies.tsv"
+        paths["covid19"]["total"], "data_genes_comparisons_studies.tsv"
     )
     # Write information to file.
     pandas.to_pickle(
@@ -1041,19 +1054,31 @@ def write_product_covid_genes(
     )
 
     # Specify directories and files.
-    path_sets_genes = os.path.join(
-        paths["covid19"], "sets_genes.pickle"
+    path_sets_one = os.path.join(
+        paths["covid19"]["study_one"], "sets_genes.pickle"
+    )
+    path_sets_two = os.path.join(
+        paths["covid19"]["study_two"], "sets_genes.pickle"
+    )
+    path_sets_three = os.path.join(
+        paths["covid19"]["study_three"], "sets_genes.pickle"
     )
     # Write information to file.
-    with open(path_sets_genes, "wb") as file_product:
-        pickle.dump(information["sets_genes"], file_product)
+    with open(path_sets_one, "wb") as file_product:
+        pickle.dump(information["sets_genes_one"], file_product)
+    with open(path_sets_two, "wb") as file_product:
+        pickle.dump(information["sets_genes_two"], file_product)
+    with open(path_sets_three, "wb") as file_product:
+        pickle.dump(information["sets_genes_three"], file_product)
     # Write individual gene sets.
-    for set in information["sets_genes"].keys():
+    for set in information["sets_genes_one"].keys():
         # Specify directories and files.
-        path_set = os.path.join(paths["covid19"], str(set + ".txt"))
+        path_set = os.path.join(
+            paths["covid19"]["study_one"], str(set + ".txt")
+        )
         # Write information to file.
         utility.write_file_text_list(
-            elements=information["sets_genes"][set],
+            elements=information["sets_genes_one"][set],
             delimiter="\n",
             path_file=path_set
         )
@@ -1114,17 +1139,31 @@ def read_collect_organize_report_write_covid19_genes(
     print(data_genes_comparisons_studies)
 
     # Select genes that show differential expression in multiple studies.
-    sets_genes = select_covid19_genes_by_studies_fold_directions(
+    sets_genes_one = select_covid19_genes_by_studies_fold_directions(
         data_genes_comparisons_studies=data_genes_comparisons_studies,
         genes_selection=source["genes_selection"],
         threshold_studies=1,
+        report=True,
+    )
+    sets_genes_two = select_covid19_genes_by_studies_fold_directions(
+        data_genes_comparisons_studies=data_genes_comparisons_studies,
+        genes_selection=source["genes_selection"],
+        threshold_studies=2,
+        report=True,
+    )
+    sets_genes_three = select_covid19_genes_by_studies_fold_directions(
+        data_genes_comparisons_studies=data_genes_comparisons_studies,
+        genes_selection=source["genes_selection"],
+        threshold_studies=3,
         report=True,
     )
 
     # Compile information.
     bin = dict()
     bin["data_genes_comparisons_studies"] = data_genes_comparisons_studies
-    bin["sets_genes"] = sets_genes
+    bin["sets_genes_one"] = sets_genes_one
+    bin["sets_genes_two"] = sets_genes_two
+    bin["sets_genes_three"] = sets_genes_three
     write_product_covid_genes(
         information=bin,
         paths=paths,

@@ -216,20 +216,14 @@ def read_source_association(
     )
     # Read genes sets.
     # Specify the same set of multimodal genes for all cohorts.
-    sets_genes = integration.read_source_genes_sets_collection_candidacy(
+    sets_genes = integration.read_source_genes_sets_combination(
         cohort=cohort_multimodality,
         dock=dock,
     )
-    if False:
-        genes_heritability = integration.read_source_genes_sets_heritability(
-            cohort="selection",
-            dock=dock,
-        )
     # Compile and return information.
     return {
         "data_regression_genes": data_regression_genes,
         "sets_genes": sets_genes,
-        #"genes_heritability": genes_heritability,
     }
 
 
@@ -301,16 +295,23 @@ def read_source_association_summary(
         header=0,
     )
     # Select relevant information.
-    data_regression_models = data_regression_models.loc[
+    variables = data_regression_models.loc[
         (data_regression_models["type"].isin(["hypothesis", "genotype"])), :
-    ]
-    variables = data_regression_models["variable"].to_list()
+    ]["variable"].to_list()
+    variables_hypothesis = data_regression_models.loc[
+        (data_regression_models["type"].isin(["hypothesis"])), :
+    ]["variable"].to_list()
+    variables_genotype = data_regression_models.loc[
+        (data_regression_models["type"].isin(["genotype"])), :
+    ]["variable"].to_list()
     # Compile and return information.
     return {
         "data_gene_annotation": data_gene_annotation,
         "cohorts_models_regressions": cohorts_models_regressions,
         "cohorts_models_sets_genes": cohorts_models_sets_genes,
-        "variables": variables
+        "variables": variables,
+        "variables_hypothesis": variables_hypothesis,
+        "variables_genotype": variables_genotype,
     }
 
 
@@ -1379,7 +1380,8 @@ def select_genes_by_gene_distributions_variable_associations(
 def collect_union_priority_sets_genes(
     sets=None,
     union_variables=None,
-    priority_variables=None,
+    hypothesis_variables=None,
+    genotype_variables=None,
 ):
     """
     Selects and scales regression parameters.
@@ -1389,7 +1391,9 @@ def collect_union_priority_sets_genes(
             significantly to variables in regression
         union_variables (list<str>): names of variables for which to collect
             union
-        priority_variables (list<str>): names of variables for which to collect
+        hypothesis_variables (list<str>): names of variables for which to collect
+            priority genes
+        genotype_variables (list<str>): names of variables for which to collect
             priority genes
 
     raises:
@@ -1408,13 +1412,21 @@ def collect_union_priority_sets_genes(
         sets[distribution]["union"] = utility.collect_unique_elements(
             elements_original=union
         )
-        priority = list()
-        for variable in priority_variables:
+        hypothesis = list()
+        for variable in hypothesis_variables:
             if variable in sets[distribution]:
-                priority.extend(sets[distribution][variable])
-        sets[distribution]["priority"] = utility.collect_unique_elements(
-            elements_original=priority
+                hypothesis.extend(sets[distribution][variable])
+        sets[distribution]["hypothesis"] = utility.collect_unique_elements(
+            elements_original=hypothesis
         )
+        genotype = list()
+        for variable in genotype_variables:
+            if variable in sets[distribution]:
+                genotype.extend(sets[distribution][variable])
+        sets[distribution]["genotype"] = utility.collect_unique_elements(
+            elements_original=genotype
+        )
+
     # Return information.
     return sets
 
@@ -2599,7 +2611,6 @@ def organize_regression_gene_associations_report_write(
         dock=paths["dock"],
     )
     variables_query = selection.define_regression_variable_queries()
-    variables_interest = variables["model"]
     variables_query_interest = variables_query["six"]
 
     # Select regression summaries for genes of interest.
@@ -2623,7 +2634,7 @@ def organize_regression_gene_associations_report_write(
     # interest.
     sets_genes_association = (
         select_genes_by_gene_distributions_variable_associations(
-            variables_separate=variables_interest,
+            variables_separate=variables["model"],
             variables_together=variables_query_interest,
             sets_genes=source["sets_genes"],
             coefficient_sign="any", # "negative", "positive", or "any"
@@ -2640,14 +2651,16 @@ def organize_regression_gene_associations_report_write(
         ]
     sets_genes_association = collect_union_priority_sets_genes(
         sets=sets_genes_association,
-        union_variables=variables_interest,
-        priority_variables=variables["hypothesis"],
+        union_variables=variables["model"],
+        hypothesis_variables=variables["hypothesis"],
+        genotype_variables=variables["genotype"],
     )
     # Include query set in variables of interest.
-    variables_summary = copy.deepcopy(variables_interest)
+    variables_summary = copy.deepcopy(variables["model"])
     variables_summary.append("query")
     variables_summary.append("union")
-    variables_summary.append("priority")
+    variables_summary.append("hypothesis")
+    variables_summary.append("genotype")
 
     report_association_variables_sets_genes(
         variables=variables_summary,
@@ -2713,11 +2726,7 @@ def organize_summary_gene_set_associations_report_write(
             set_query=set_query,
             variables=source["variables"],
             union_variables=source["variables"],
-            priority_variables=[
-                "sex_y_scale", "age_scale", "ventilation_duration_scale",
-                "ventilation_binary_scale", "sex_y*ventilation_binary_scale",
-                "age*ventilation_binary_scale", "sex_y*age_scale",
-            ],
+            priority_variables=source["variables_hypothesis"],
             cohorts_models=cohorts_models,
             cohorts_models_regressions=source["cohorts_models_regressions"],
             cohorts_models_sets_genes=source["cohorts_models_sets_genes"],
@@ -2767,8 +2776,8 @@ def execute_procedure(
     # Define cohorts of persons.
     cohorts = [
         "selection",
-        "respiration",
-        "ventilation",
+        #"respiration",
+        #"ventilation",
     ]
     # Define regression models for each cohort.
     cohorts_models = dict()
@@ -2825,7 +2834,7 @@ def execute_procedure(
             # with modality sets.
             # Select genes with significant association with each hypothetical
             # variable of interest.
-            if True:
+            if False:
                 utility.print_terminal_partition(level=2)
                 print("cohort: " + str(cohort))
                 print("model: " + str(model))
@@ -2849,7 +2858,7 @@ def execute_procedure(
         )
     # Collect summaries of genes' associations with variables of interest
     # across cohorts and models.
-    if False:
+    if True:
         organize_summary_gene_set_associations_report_write(
             cohorts_models=cohorts_models,
             paths=paths,

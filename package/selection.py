@@ -2835,6 +2835,9 @@ def organize_impute_persons_genotypes(
     return data_imputation
 
 
+# Stratification
+# TODO: some of this functionality should go in the utility code...
+
 def determine_stratification_bin_thresholds(
     bin=None,
     values_sort=None,

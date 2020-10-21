@@ -114,10 +114,10 @@ echo "Now set to call routine and procedures."
 # Analysis Routine
 
 #bash heritability_genes.sh # run on 2 October 2020
-python3 interface.py main --dock $path_dock --heritability
+#python3 interface.py main --dock $path_dock --heritability
 
 #python3 interface.py main --dock $path_dock --category # <-- (2019-11-24) this procedure is obsolete for now...
-#python3 interface.py main --dock $path_dock --prediction
+python3 interface.py main --dock $path_dock --prediction
 #python3 interface.py main --dock $path_dock --function
 #python3 interface.py main --dock $path_dock --integration
 
